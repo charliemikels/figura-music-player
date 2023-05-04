@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "format_version": "4.5",
+    "model_format": "free"
+  },
+  "elements": [],
+  "outliner": [
+    {
+      "name": "root",
+      "uuid": "11ca98ec-cb83-4ba9-94ee-d4a85657293d",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "isOpen": true,
+      "children": [
+        {
+          "name": "Head",
+          "uuid": "83b893ec-5960-49cd-a9cd-618fc0245df4",
+          "origin": [
+            0.0,
+            24.0,
+            0.0
+          ],
+          "isOpen": true,
+          "children": []
+        },
+        {
+          "name": "Body",
+          "uuid": "97042a56-b869-4187-adc7-1dc3e31941fe",
+          "origin": [
+            0.0,
+            24.0,
+            0.0
+          ],
+          "isOpen": true,
+          "children": []
+        },
+        {
+          "name": "LeftArm",
+          "uuid": "d77b1e0f-1d21-458e-8546-2b63607904e1",
+          "origin": [
+            -5.0,
+            22.0,
+            0.0
+          ],
+          "isOpen": true,
+          "children": []
+        },
+        {
+          "name": "RightArm",
+          "uuid": "0235d2f5-6f2e-45b2-87cf-1ba6905959d5",
+          "origin": [
+            5.0,
+            22.0,
+            0.0
+          ],
+          "isOpen": true,
+          "children": []
+        },
+        {
+          "name": "LeftLeg",
+          "uuid": "a4cd7b09-81f1-4c5c-a9d6-e6aa2313f895",
+          "origin": [
+            -1.9,
+            12.0,
+            0.0
+          ],
+          "isOpen": true,
+          "children": []
+        },
+        {
+          "name": "RightLeg",
+          "uuid": "0fc3ebee-1ed2-49c8-a3c7-35e9fc475f58",
+          "origin": [
+            1.9,
+            12.0,
+            0.0
+          ],
+          "isOpen": true,
+          "children": []
+        }
+      ]
+    }
+  ],
+  "textures": []
+}
