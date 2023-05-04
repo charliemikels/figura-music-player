@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- ABC Music Player V2
+-- ABC Music Player V2.1
 
 --[[	Some notes on this script:
 
@@ -8,39 +8,41 @@ Required elements:
 list from disk. Without it, all songs would need to be bundled with the avatar
 at upload, limiting the maximum number of playable songs.
 
-- require("lutils_setup"): songs.lua assumes that you've set up LUtils already
-in another script. so instead of re-initilizing LUtils, we'll require the setup
-script runs before this one
+- require("lutils_setup"): abc_player.lua assumes that you've set up LUtils
+already in another script. So instead of re-initilizing LUtils, we'll require
+the setup script runs before this one.
 
-- root_action_wheel_page: songs.lua assumes that you've set up an action wheel
-already in another script. So this script won't set up our own action wheel,
-but it does need an action wheel page that it can attatch itself to.
+- Actions: this script generates it's own action wheel actions, but you'll
+have to manualy add them to your action wheel. This script returns an
+action wheel action, so you can simply require it into an action. Something like
+`my_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))`
+should do the trick.
+	- An example action wheel script should be included with this script
 
-- avatar_root: a model_part to which this script can attatch an info screen.
-This screen will only appear when the viewer is looking at your avatar, but
-will allways be visible to the host.
-	- This can be set to nil, where the display won't appear at all.
-
+Optional elements:
+- song_info_text_pos_offset: a multiplier that ajusts where the song info text
+box appears on your avatar. By default it will follow the player's hitbox, but
+for avatars that are larger / smaller than their hitbox, you can use this to
+nudge the text to a more correct position.
 
 Usage:
-In addition to this script you will also need to put `.abc` song files in your
+In addition to this script, you will also need to put `.abc` song files in your
 lutils directory. Specificaly they need to be in a sub-folder named
 `abc_song_files`. This subfolder is configurable with the `songs_dir_path`
 variable. For better organization, these ABC files can be put into aditional
-sub-folders. On init, this script should print how many song files it detected.
+sub-folders. On init, this script will print how many song files it detected.
 
-This script will create an action in the action_wheel_page that you provide in
-`root_action_wheel_page`. This will bring you to a new page with 3 buttons:
+The default action wheel page has 3 buttons:
 
-- "Back" will return you to `root_action_wheel_page`.
+- "Back" will return you to the action wheel page you came from.
 
 - "Select Chloe Piano". ChloeSpacedIn's Playerhead is a piano. You can play ABC
 songs through the piano by selecting this action while looking at the
 playerhead. Looking anywhere else and clicking this action will deselect a
 currently selected piano.
 
-Note: Piano support is flaky at best. For best results, You and all viewers
-should grant the piano and your avatar with maximum permissions. Then reload
+Note: Piano support is sometimes flaky. For best results, You and all viewers
+should grant the piano and your avatar maximum permissions. Then reload
 all avatars before clicking select. (Click "Show Disconnected Users" to see
 the piano if it's not in the permissions list)
 
@@ -48,8 +50,8 @@ the piano if it's not in the permissions list)
 list of all the songs detected by LUtils.
 
 +-----------------------------------------+
-| Songlist 9/30 Currently Playing: Song 6 |		<< Selected Song index (Playing song name)
-|     Song 5                              |
+| Songlist 9/30 Currently Playing: Song 6 |		<< Selected Song index
+|     Song 5                              |		^^ Currently playing song name
 | ♬   Song 6                              |		<< Playing song marked by ♬
 |     Song 7                              |
 |     Song 8                              |
@@ -67,10 +69,8 @@ song player.
 - If the selected song is queued but a song is playing, stop the playing song
 - If the selected song is playing, stop the song.
 
-
 Script logic overview:
 - LUtils gets a list of songs
-- Action wheel sets up the song selector
 - User selects a song
 - Song is queued
 	- ABC file is loaded
@@ -104,19 +104,22 @@ ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 -- main script vars ------------------------------------------------------------
 
 -- User vars and imports
-local _= require("lutils_setup")
-local avatar_root = models["model"].root	-- Used to attatch song info screen to avatar
+local _= require("scripts/lutils_setup")
 
--- config / performance vars
-local song_info_text_pos_offset = vectors.vec(-10, 30, 0)	-- moves the song info display a little
-															-- default values based on "Root" bone
-															-- at center of the avatar's feet.
-															-- The Body group also works pretty well,
-															-- just use (-10, -8, 0) instead.
-local songs_dir_path = "abc_song_files"		-- Song directory. This is inside of
-											-- the LUtils dir for this avatar.
+local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
+								-- the position of the info display text.
+								-- By default, the info box is based on the player's hitbox.
+								-- But for avatars that are larger/smaller than the player's
+								-- hitbox, this setting can help keep the text visible.
+
+
+-- config / performance vars:
+local songs_dir_path = "abc_song_files"	-- path to the song directory
+								-- inside of LUtil's root directory
+
 local maximum_ping_size = 900	-- Theoretical min: ~1000
 local maximum_ping_rate = 1200	-- Theoretical min: ~1000
+
 local num_instructions_to_stop_per_tick = 500
 								-- Maximum number of song instructions that
 								-- this script can reset per tick. For large
@@ -124,6 +127,7 @@ local num_instructions_to_stop_per_tick = 500
 								-- limit when they get stopped.
 
 -- Internal librariess and globals
+local info_screen_anchor_part = models["scripts"]["abc_player"]["anchor"].WORLD.anchor	-- Used to attatch song info screen to avatar
 local piano_lib = world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]
 local songbook = {}
 songbook.incoming_song = nil
@@ -313,7 +317,6 @@ local function stop_playing_song_tick()
 end
 
 local function stop_playing_songs()
-	--print("Stopping song")
 	-- remove song playing events. Only one of the play_song_events will
 	-- be active, but it doesn't hurt to remove both?
 	songbook.playing_song_path = nil
@@ -322,8 +325,9 @@ local function stop_playing_songs()
 	events.RENDER:remove(play_song_event_name)
 	events.TICK:remove(play_song_event_name)
 	events.TICK:remove(info_display_event_name)
-	if avatar_root ~= nil then
-		avatar_root:removeTask(song_info_text_task_name)
+	events.RENDER:remove(info_display_event_name)
+	if info_screen_anchor_part ~= nil then
+		info_screen_anchor_part:removeTask(song_info_text_task_name)
 	end
 	if songbook.incoming_song ~= nil then
 		-- print("stopping song "..song.name)
@@ -338,6 +342,7 @@ local function stop_playing_songs()
 end
 
 function pings.stop_playing_songs_ping()
+	print("Stopping song")
 	stop_playing_songs()
 end
 
@@ -783,7 +788,7 @@ function play_song_event_loop()
 				--print( instruction_index.." > ".. instruction.chloe_piano)
 				instruction.sound_id = sounds:playSound(
 					avatar:canUseCustomSounds()
-						and "triangle_sin"
+						and "scripts.abc_player.triangle_sin"
 						or "minecraft:block.note_block.bell",
 					player:getPos(),
 					1,
@@ -915,7 +920,35 @@ local function progress_bar(width, progress)
 	return return_val
 end
 
+local info_display_current_pos = vec(0, 0, 0)
+local info_display_previous_pos = vec(0, 0, 0)
+local info_display_current_rot = vec(0, 0, 0)
+local info_display_previous_rot = vec(0, 0, 0)
+
+local function update_info_display_pos_rot()
+	info_display_previous_pos = info_display_current_pos
+	local tmp = player:getPos()
+	tmp.y = tmp.y + (player:getBoundingBox().y * song_info_text_pos_offset.y)
+
+	local offset = vec(0, 0, 0)
+	offset.x = -1* math.max(player:getBoundingBox().x, player:getBoundingBox().z)
+	offset.x = offset.x * song_info_text_pos_offset.x
+	offset = vectors.rotateAroundAxis(client.getCameraRot().y*-1, offset, vec(0, 1, 0))
+
+	info_display_current_pos = vec(
+		(tmp.x+offset.x)*16,
+		tmp.y*16,
+		(tmp.z+offset.z)*16
+	)
+
+	info_display_previous_rot = info_display_current_rot
+	tmp = client.getCameraRot()
+	tmp.y = tmp.y*-1
+	info_display_current_rot = tmp
+end
+
 local function update_info_display()
+	update_info_display_pos_rot()
 		-- songbook.incoming_song.name,
 		-- songbook.incoming_song.num_expected_packets,
 		-- songbook.incoming_song.num_expected_instructions,
@@ -955,23 +988,40 @@ local function update_info_display()
 
 	local pos = player:getPos()
 	songbook.info_display_task
-		:setPos( song_info_text_pos_offset )
 		:setScale(0.25, 0.25, 0.25)
-		-- :background(true)
 		:shadow(true)
 		:width(150)
 		:setText(display_text)
-		:setEnabled(should_display_info or host:isHost() )
+		:setSeeThrough(true)
+		:setEnabled(should_display_info or (host:isHost() and not renderer:isFirstPerson() ) )
 end
 
-local function info_display_event()
+local function info_display_tick_event()
 	update_info_display()
 end
 
+local function info_display_render_event(delta)
+	info_screen_anchor_part:setPos(
+		math.lerp(info_display_previous_pos.x, info_display_current_pos.x, delta),
+		math.lerp(info_display_previous_pos.y, info_display_current_pos.y, delta),
+		math.lerp(info_display_previous_pos.z, info_display_current_pos.z, delta)
+	)
+	info_screen_anchor_part:setRot(
+		math.lerpAngle(info_display_previous_rot.x, info_display_current_rot.x, delta),
+		math.lerpAngle(info_display_previous_rot.y, info_display_current_rot.y, delta),
+		math.lerpAngle(info_display_previous_rot.z, info_display_current_rot.z, delta)
+	)
+
+	--songbook.info_display_task
+		--:setPos(math.lerp(info_display_previous_pos, info_display_current_pos, delta))
+		--:setRot(math.lerpAngle(info_display_previous_rot, info_display_current_rot, delta))
+end
+
 local function start_info_display_event()
-	if avatar_root == nil then return end
-	songbook.info_display_task = avatar_root:newText(song_info_text_task_name)
-	events.TICK:register(info_display_event, info_display_event_name)
+	if info_screen_anchor_part == nil then return end
+	songbook.info_display_task = info_screen_anchor_part:newText(song_info_text_task_name)
+	events.TICK:register(info_display_tick_event, info_display_event_name)
+	events.RENDER:register(info_display_render_event, info_display_event_name)
 end
 
 -- Data transfer ---------------------------------------------------------------
