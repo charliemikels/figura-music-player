@@ -105,7 +105,6 @@ ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
 -- User vars and imports
 local _= require("lutils_setup")
-local root_action_wheel_page = require("Action Wheel")	-- This script attatches it's action wheel to the action wheel page provided here.
 local avatar_root = models["model"].root	-- Used to attatch song info screen to avatar
 
 -- config / performance vars
@@ -170,10 +169,11 @@ end
 local function get_song_list()
 	if not host:isHost() then return end
 	if type(lutils) ~= "LUtils" then
-		error("LUtils isn't installed!"
+		print("LUtils isn't installed!"
 			.." (type(lutils) == ".. tostring(type(lutils))
 			.." instead of `LUtils`.)"
-			.."Install LUtils from: https://github.com/lexize/lutils/releases")
+			.."\nInstall LUtils from: https://github.com/lexize/lutils/releases")
+		return nil
 	end
 
 	-- print("finding song files..")
@@ -216,20 +216,25 @@ end
 
 local function songbook_action_wheel_page_update_song_picker_button()
 	if not host:isHost() then return end
-	-- If outgoing packets is not nil, then song is queued
-	-- If [__], song is playing
 
 	local num_songs_to_display = 16
+
+	if songbook.song_list == nil or #songbook.song_list < 1 then
+		songbook.action_wheel.actions["select_song"]
+			:title("No songs in song list")
+			:item("minecraft:music_disc_11")
+			return
+	end
 
 	local start_index = songbook.action_wheel.selected_song_index - math.floor(num_songs_to_display / 2)
 	local end_index = start_index + num_songs_to_display
 
 	if start_index < 1 then
-			start_index = 1
-			end_index = math.min(#songbook.song_list, num_songs_to_display +1)
+		start_index = 1
+		end_index = math.min(#songbook.song_list, num_songs_to_display +1)
 	elseif end_index > #songbook.song_list then
-			end_index = #songbook.song_list
-			start_index = math.max(end_index - num_songs_to_display ,1)
+		end_index = #songbook.song_list
+		start_index = math.max(end_index - num_songs_to_display ,1)
 	end
 
 	local selected_song_state = ""
@@ -237,14 +242,13 @@ local function songbook_action_wheel_page_update_song_picker_button()
 	local display_string = "Songlist: "..songbook.action_wheel.selected_song_index.."/"..tostring(#songbook.song_list)
 	.. (song_is_playing() and " Currently playing: " .. song_path_to_song_name(songbook.playing_song_path) or "" )
 	for i = start_index, end_index do
-			local song_is_selected = (songbook.action_wheel.selected_song_index == i)
-			-- local is_playing = song_is_playing(i)
-			-- local is_queued = is_playing and false or song_is_queued(i)
-
-			display_string = display_string .. "\n"
-				.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
-				.. (song_is_selected and "→" or "  ")
-				.. " " ..song_path_to_simple_path(songbook.song_list[i])
+		local song_is_selected = (songbook.action_wheel.selected_song_index == i)
+		-- local is_playing = song_is_playing(i)
+		-- local is_queued = is_playing and false or song_is_queued(i)
+		display_string = display_string .. "\n"
+			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
+			.. (song_is_selected and "→" or "  ")
+			.. " " ..song_path_to_simple_path(songbook.song_list[i])
 	end
 
 	display_string = display_string .. "\n"
@@ -253,7 +257,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 	then
 		display_string = display_string .. "Click to stop current song"
 	elseif song_is_queued(songbook.action_wheel.selected_song_index) and song_is_being_stopped() then
-		display_string = display_string .. "§4Another song is still stopped§r"
+		display_string = display_string .. "§4Another song is still being stopped§r"
 	elseif song_is_queued(songbook.action_wheel.selected_song_index) then
 		display_string = display_string .. "Click to play selected song"
 	else
@@ -300,7 +304,7 @@ local function stop_playing_song_tick()
 		or #songbook.incoming_song.instructions == 0
 	then
 		-- song fully rewound, and all sounds have been stopped
-		print("Done rewinding song")
+		--print("Done rewinding song")
 		events.TICK:remove(stop_song_tick_event_name)
 		songbook.incoming_song = nil
 		songbook.playing_song_path = nil
@@ -309,7 +313,7 @@ local function stop_playing_song_tick()
 end
 
 local function stop_playing_songs()
-	print("Stopping song")
+	--print("Stopping song")
 	-- remove song playing events. Only one of the play_song_events will
 	-- be active, but it doesn't hurt to remove both?
 	songbook.playing_song_path = nil
@@ -322,7 +326,7 @@ local function stop_playing_songs()
 		avatar_root:removeTask(song_info_text_task_name)
 	end
 	if songbook.incoming_song ~= nil then
-		-- print("stopping song "..song.name)bbbbbbbb
+		-- print("stopping song "..song.name)
 		songbook.incoming_song.stop_loop_index = 0
 		songbook.incoming_song.start_time = nil
 
@@ -550,7 +554,7 @@ local function save_abc_note_to_instructions(song)	-- returns note's end time
 		-- This note is flat, convert to sharps
 		if note_builder.letter:upper() == "C" then
 			-- edge case where C flat crosses the octave line.
-			chloe_spaced_out_piano_note_code = "B#"..tostring(octave_number-1)
+			chloe_spaced_out_piano_note_code = "B"..tostring(octave_number-1)
 		else
 			chloe_spaced_out_piano_note_code
 				= chloe_piano_flat_to_sharp_table[note_builder.letter:upper()]
@@ -758,7 +762,13 @@ function play_song_event_loop()
 			-- and it currently has no sound,
 			-- and we haven't played this instruction previously:
 		then
+			host:actionbar(
+				"#"..instruction_index
+				.."/"..#song.instructions
+				.."/"..song.num_expected_instructions
+				.." ".. instruction.chloe_piano .. (#instruction.chloe_piano > 2 and "" or " ")
 
+			)	-- ` #20/100/2000 A4 `
 			if songbook.selected_chloe_piano_pos ~= nil then
 				-- host:actionbar( "#"..instruction_index.." ".. tostring(instruction.chloe_piano))
 			 	-- print("playing note "..instruction.chloe_piano.. " on piano at "..songbook.selected_chloe_piano_pos)
@@ -770,13 +780,6 @@ function play_song_event_loop()
 			 	-- checking if the note's done playing.
 			 	song.current_playing_index = instruction_index +1
 			else
-				host:actionbar(
-					"#"..instruction_index
-					.."/"..#song.instructions
-					.."/"..song.num_expected_instructions
-					.." ".. instruction.chloe_piano
-						-- ` #20/100/4000 A4 `
-				)
 				--print( instruction_index.." > ".. instruction.chloe_piano)
 				instruction.sound_id = sounds:playSound(
 					avatar:canUseCustomSounds()
@@ -858,12 +861,12 @@ end
 local current_song_player_event = "TICK"
 local function song_player_event_swapper_event()
 	if should_play_with_render_event() and current_song_player_event ~= "RENDER" then
-		print("Song player Switching to RENDER")
+		--log("Song player Switching to RENDER")
 		current_song_player_event = "RENDER"
 		events.TICK:remove(play_song_event_name)
 		events.RENDER:register(play_song_event_loop, play_song_event_name)
 	elseif not should_play_with_render_event() and current_song_player_event ~= "TICK" then
-		print("Song player Switching to TICK")
+		--log("Song player Switching to TICK")
 		current_song_player_event = "TICK"
 		events.RENDER:remove(play_song_event_name)
 		events.TICK:register(play_song_event_loop, play_song_event_name)
@@ -871,7 +874,7 @@ local function song_player_event_swapper_event()
 end
 
 local function start_song_player_event()
-	print("Starting play_song_event_loop")
+	--print("Starting song player event")
 	current_song_player_event = "TICK"
 	events.TICK:register(
 		song_player_event_swapper_event,
@@ -1004,8 +1007,10 @@ function pings.deserialize(packet_string)
 		songbook.incoming_song.reseved_packets = 1
 		songbook.incoming_song.instructions = {}
 
-		print("Deserializer got the first of ".. songbook.incoming_song.num_expected_packets .." packets")
-		print("Receiving data for `".. songbook.incoming_song.name .."`")
+		if not host:isHost() then
+			print("Deserializer got the first of ".. songbook.incoming_song.num_expected_packets .." packets")
+			print("Receiving data for `".. songbook.incoming_song.name .."`")
+		end
 
 		songbook.incoming_song.current_playing_index = 0
 
@@ -1047,7 +1052,7 @@ function pings.deserialize(packet_string)
 			end
 
 		end
-		if songbook.incoming_song.reseved_packets == songbook.incoming_song.num_expected_packets then
+		if songbook.incoming_song.reseved_packets == songbook.incoming_song.num_expected_packets and not host:isHost() then
 			print("Deserializer got last packet")
 		end
 	end
@@ -1063,7 +1068,7 @@ local function send_packets_tick_event()
 
 		if current_index > #outgoing_packets.packets then
 			-- break event if there are no more packets to send
-			print("All packets sent")
+			print("All packets sent to listeners")
 			events.TICK:remove( send_packets_tick_event_name )
 			outgoing_packets = nil
 			return
@@ -1158,12 +1163,7 @@ end
 local function queue_song(song_file_path)
 	songbook.queued_song = {}
 
-	print("Preparing to play "..song_path_to_simple_path(song_file_path))
-	-- Stop any currently playing songs. (TODO)
-	-- TODO: Make this function 2 stage:
-		-- If called once, queue the song and process into instructions
-			-- Take oprotunity to warn user if a song is heavy
-		-- On second call, start sending the song to clients
+	--print("Preparing to play "..song_path_to_simple_path(song_file_path))
 
 	if not lutils.file:isFile(song_file_path) then
 		print("No song found at `"..song_file_path.."`.")
@@ -1172,31 +1172,39 @@ local function queue_song(song_file_path)
 	local song_abc_data = lutils.file:read(song_file_path, lutils.readers.string)
 
 	-- Convert data to instructions.
-	print("Generating instructions...")
+	--print("Generating instructions...")
 
 	local song_instructions = song_data_to_instructions(song_abc_data)
-	print("Generated "..#song_instructions.." instructions.")
+	--print("Generated "..#song_instructions.." instructions.")
 
 	local packets, time_to_start = song_instructions_to_packets(song_file_path, song_instructions)
 
-	print("serializer made "..#packets.." packets")
-	print("The song lasts "..math.ceil(song_instructions[#song_instructions].start_time /1000).."s")
-	if maximum_ping_rate*5 < time_to_start then
-		print("This song is heavy. It will take "..math.ceil(time_to_start/1000).." seconds to buffer enough packets")
-	end
+	--print("serializer made "..#packets.." packets")
+	--print("The song lasts "..math.ceil(song_instructions[#song_instructions].start_time /1000).."s")
+	-- if maximum_ping_rate*5 < time_to_start then
+	-- 	print("This song is heavy. It will take "..math.ceil(time_to_start/1000).." seconds to buffer enough packets")
+	-- end
 
 	songbook.queued_song.path = song_file_path
 	songbook.queued_song.buffer_time = time_to_start
 	songbook.queued_packets = packets
+	print("Ready to play "..song_path_to_simple_path(song_file_path)
+		.. (maximum_ping_rate*5 < time_to_start and
+			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
+			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
+		or "")
+		.."\n  Total run time: "..math.ceil(song_instructions[#song_instructions].start_time /1000) + math.ceil(time_to_start/1000) .."s"
+	)
 end
 
 local function play_song(song_file_path)
 	if song_file_path ~= songbook.queued_song.path then
-		print("`"..song_path_to_simple_path(song_file_path).."` is not queued yet. Doing that now.")
+		log("`"..song_path_to_simple_path(song_file_path).."` is not queued yet. Doing that now.")
 		queue_song(song_file_path)
 	end
+	print("Playing "..song_path_to_simple_path(song_file_path))
 	songbook.playing_song_path = song_file_path
-	print("Sending packets to listeners.")
+	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
 end
 
@@ -1241,30 +1249,33 @@ local function songbook_action_wheel_select_chloe_piano()
 	return false
 end
 
-
 local function songbook_action_wheel_page_setup()
 	songbook.action_wheel = {}
 	songbook.action_wheel.page = action_wheel:newPage("Songbook")
+	songbook.action_wheel.entry_point = nil
 	songbook.action_wheel.selected_song_index = 1
 	songbook.action_wheel.actions = {}
 
-	-- Add itself to the root action wheel
-	local enter_songbook_action = action_wheel:newAction()
+	-- Create action wheel page entry point
+	songbook.action_wheel.actions["enter_songbook"] = action_wheel:newAction()
 		:title("Songbook")
 		:item("minecraft:jukebox")
 		:onLeftClick(function()
+			songbook.action_wheel.entry_point = action_wheel:getCurrentPage()
 			action_wheel:setPage(songbook.action_wheel.page)
 		end)
-	root_action_wheel_page:setAction(-1, enter_songbook_action)
+	--root_action_wheel_page:setAction(-1, enter_songbook_action)
 
 	-- Back Button
-	local exit_songbook_action = action_wheel:newAction()
+	songbook.action_wheel.actions["exit_songbook"] = action_wheel:newAction()
 		:title("Back")
 		:item("minecraft:arrow")
 		:onLeftClick(function()
-			action_wheel:setPage(root_action_wheel_page)
+			action_wheel:setPage(songbook.action_wheel.entry_point)
 		end)
-	songbook.action_wheel.page:setAction(1, exit_songbook_action)
+	songbook.action_wheel.page:setAction(1,
+		songbook.action_wheel.actions["exit_songbook"]
+	)
 
 	-- Song Selection Action: Scroll to select, Click to start and stop
 	songbook.action_wheel.actions["select_song"] = action_wheel:newAction()
@@ -1308,13 +1319,9 @@ local function songbook_action_wheel_page_setup()
 			songbook_action_wheel_page_update_song_picker_button()
 		end)
 
-		-- :onUntoggle(function()
-		-- 	print("Stopping current song...")
-		-- 	pings.stop_playing_songs_ping()
-		-- 	songbook_action_wheel_page_update_song_picker_button()
-		-- end)
-
-	songbook.action_wheel.page:setAction(3, songbook.action_wheel.actions["select_song"] )
+	songbook.action_wheel.page:setAction(3,
+		songbook.action_wheel.actions["select_song"]
+	)
 	songbook_action_wheel_page_update_song_picker_button()
 
 	-- Select Chloe piano.  Must be aiming at the piano player head to select.
@@ -1336,13 +1343,13 @@ local function init_keybinds()
 	--printTable(keybinds:getKeybinds()["Scroll song list faster"])
 end
 
--- Init ------------------------------------------------------------------------
-function events.entity_init()
-	--print("--- init: songs | ".. client.getSystemTime() .." ---")
+-- globals / returns -----------------------------------------------------------
 
-	if host:isHost() then
-		songbook.song_list = get_song_list()
-		init_keybinds()
-		songbook_action_wheel_page_setup()
-	end
+function get_songbook_actions()
+	return songbook.action_wheel.actions
 end
+
+songbook.song_list = get_song_list()
+init_keybinds()
+songbook_action_wheel_page_setup()
+return songbook.action_wheel.actions["enter_songbook"]
