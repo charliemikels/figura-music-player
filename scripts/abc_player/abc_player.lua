@@ -783,7 +783,7 @@ function play_song_event_loop()
 			 	instruction.already_played = true
 			 	-- Chloe piano can't sustain notes, so we don't need to bother
 			 	-- checking if the note's done playing.
-			 	song.current_playing_index = instruction_index +1
+--			 	song.current_playing_index = instruction_index +1
 			else
 				--print( instruction_index.." > ".. instruction.chloe_piano)
 				instruction.sound_id = sounds:playSound(
@@ -800,11 +800,13 @@ function play_song_event_loop()
 			end
 
 		elseif	instruction.end_time + song.start_time < client.getSystemTime()
-			and type(instruction.sound_id) == "Sound"
+--			and type(instruction.sound_id) == "Sound"
 			-- if the end point of the instruction has passed,
 			-- and it still has a sound id:
 		then
-			instruction.sound_id:stop()
+			if type(instruction.sound_id) == "Sound" then
+				instruction.sound_id:stop()
+			end
 			instruction.already_played = true
 			instruction.sound_id = nil
 
@@ -927,27 +929,37 @@ local info_display_previous_rot = vec(0, 0, 0)
 
 local function update_info_display_pos_rot()
 	info_display_previous_pos = info_display_current_pos
-	local tmp = player:getPos()
-	tmp.y = tmp.y + (player:getBoundingBox().y * song_info_text_pos_offset.y)
-
-	local offset = vec(0, 0, 0)
-	offset.x = -1* math.max(player:getBoundingBox().x, player:getBoundingBox().z)
-	offset.x = offset.x * song_info_text_pos_offset.x
-	offset = vectors.rotateAroundAxis(client.getCameraRot().y*-1, offset, vec(0, 1, 0))
-
-	info_display_current_pos = vec(
-		(tmp.x+offset.x)*16,
-		tmp.y*16,
-		(tmp.z+offset.z)*16
-	)
-
 	info_display_previous_rot = info_display_current_rot
+	if songbook.selected_chloe_piano_pos then
+		local piano_pos = vec(songbook.selected_chloe_piano_pos:match("{(-?%d*), (-?%d*), (-?%d*)}"))
+		info_display_current_pos = vec(
+			(piano_pos.x+0.5)*16,
+			(piano_pos.y+2)*16,
+			(piano_pos.z+0.5)*16
+		)
+	else
+
+		local tmp = player:getPos()
+		tmp.y = tmp.y + (player:getBoundingBox().y * song_info_text_pos_offset.y)
+
+		local offset = vec(0, 0, 0)
+		offset.x = -1* math.max(player:getBoundingBox().x, player:getBoundingBox().z)
+		offset.x = offset.x * song_info_text_pos_offset.x
+		offset = vectors.rotateAroundAxis(client.getCameraRot().y*-1, offset, vec(0, 1, 0))
+
+		info_display_current_pos = vec(
+			(tmp.x+offset.x)*16,
+			tmp.y*16,
+			(tmp.z+offset.z)*16
+		)
+	end
 	tmp = client.getCameraRot()
 	tmp.y = tmp.y*-1
 	info_display_current_rot = tmp
 end
 
 local function update_info_display()
+	local using_piano = (songbook.selected_chloe_piano_pos ~= nil)
 	update_info_display_pos_rot()
 		-- songbook.incoming_song.name,
 		-- songbook.incoming_song.num_expected_packets,
@@ -956,15 +968,17 @@ local function update_info_display()
 
 	local display_text = ""
 	if songbook.incoming_song and songbook.incoming_song.start_time then
-		display_text = "Playing \""..songbook.incoming_song.name.."\""
-		-- printTable(songbook.incoming_song)
-		if songbook.incoming_song.num_expected_packets > songbook.incoming_song.reseved_packets then
-			display_text = display_text .. "\n"
-				..songbook.incoming_song.reseved_packets
-				.."/"..songbook.incoming_song.num_expected_packets
-				.." packets loaded"
-				-- .."\n"..info_display_spinner()
-		end
+		display_text = (using_piano and player:getName() .. " is playing\n" or "Playing ")
+		display_text = display_text.."\""..songbook.incoming_song.name.."\""
+
+		-- if songbook.incoming_song.num_expected_packets > songbook.incoming_song.reseved_packets then
+		-- 	display_text = display_text .. "\n"
+		-- 		..songbook.incoming_song.reseved_packets
+		-- 		.."/"..songbook.incoming_song.num_expected_packets
+		-- 		.." packets loaded"
+		-- 		-- .."\n"..info_display_spinner()
+		-- end
+
 		if songbook.incoming_song.start_time > client.getSystemTime() then
 			-- songbook.incoming_song.first_packet_received_time
 			display_text = display_text .. "\nBuffering: "
@@ -972,7 +986,7 @@ local function update_info_display()
 				.."s left ".. info_display_spinner()
 		else
 			display_text = display_text
-				.. "\n".. progress_bar(20, (client.getSystemTime() - songbook.incoming_song.start_time) / songbook.incoming_song.song_length)
+				.. "\n".. progress_bar((using_piano and 35 or 20), (client.getSystemTime() - songbook.incoming_song.start_time) / songbook.incoming_song.song_length)
 				.. " " .. math.ceil((songbook.incoming_song.end_time - client.getSystemTime()) / 1000) .. "s"
 		end
 
@@ -984,15 +998,19 @@ local function update_info_display()
 	local should_display_info = false
 	if targeted_entity then
 		should_display_info = ( ( targeted_entity:getUUID() == avatar:getUUID() ) )
-	else should_display_info = false end
+	end
+	if not should_display_info then
+		should_display_info = using_piano
+	end
 
 	local pos = player:getPos()
 	songbook.info_display_task
+		:setPos( using_piano and vec(0,8,0) or vec(0,0,0) )
 		:setScale(0.25, 0.25, 0.25)
 		:shadow(true)
-		:width(150)
+		:width( using_piano and 300 or 150 )
+		:setAlignment(using_piano and "CENTER" or "LEFT")
 		:setText(display_text)
-		:setSeeThrough(true)
 		:setEnabled(should_display_info or (host:isHost() and not renderer:isFirstPerson() ) )
 end
 
