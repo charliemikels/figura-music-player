@@ -1280,7 +1280,8 @@ function pings.set_selected_piano(piano_pos)
 	if piano_lib == nil then
 		-- Avatar can initilize before the piano initilizes.
 		-- In this case, piano_lib will be nil. Reload it.
-		piano_lib = world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]
+		piano_lib = world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]	-- ChloeSpacedIn
+		if not piano_lib then piano_lib = world.avatarVars()["943218fd-5bbc-4015-bf7f-9da4f37bac59"] end	--Imortalized Piano
 	end
 	if piano_lib ~= nil then
 		songbook.selected_chloe_piano_pos = piano_pos
@@ -1297,8 +1298,12 @@ local function songbook_action_wheel_select_chloe_piano()
 	if type(targeted_block.getEntityData) == "function"
 		and targeted_block:getEntityData() ~= nil
 		and targeted_block:getEntityData().SkullOwner ~= nil
-		and targeted_block:getEntityData().SkullOwner.Name == "ChloeSpacedIn"
-		-- Crashes still go through sometimes. Check permission level in the ping function?
+		and (targeted_block:getEntityData().SkullOwner.Name == "ChloeSpacedIn"
+			or table.concat(targeted_block:getEntityData().SkullOwner.Id)
+				== table.concat({-1808656131,1539063829,-1082155612,-209998759})
+			-- ^^ Immortalized piano skull ID
+		)
+
 	then
 		pings.set_selected_piano( targeted_block:getPos():toString() )
 
