@@ -623,7 +623,12 @@ local function song_data_to_instructions(song_abc_data_string)
 	}
 
 	for line in song_abc_data_string:gmatch("[^\n]+") do
-		if line:sub(2,2) == ":" then
+		line = line:match("(.*)%%") or line
+			-- % marks the rest of the line is a comment. Remove it and the
+			-- comment from the line. (`%%` to escape the %)
+		if line == nil or line == "" then
+			-- do nothing
+		elseif line:sub(2,2) == ":" then
 			-- Metadata lines.
 			-- "T:" song title. Usually wrong or unhelpful. Use filename instead.
 			-- "Z:" is the song Author.
