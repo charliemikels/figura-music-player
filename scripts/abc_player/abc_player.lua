@@ -356,15 +356,23 @@ end
 local function reCalculateMilisPerNote(songbuilder)
 	if 		type(songbuilder.beats_per_minute) ~= "number"
 		or	type(songbuilder.default_note_length) ~= "number"
-		or	type(songbuilder.length_of_beat_in_measure) ~= "number"
+		--or	type(songbuilder.length_of_beat_in_measure) ~= "number"
 	then return end
 
 	local beats_per_second = songbuilder.beats_per_minute / 60.0
 	local seconds_per_beat = 1/beats_per_second
-	local beat_to_default_note_len_multiplier =
-		songbuilder.default_note_length / songbuilder.length_of_beat_in_measure
+	local beat_to_default_note_len_multiplier = 1
+	if songbuilder.length_of_beat_in_measure ~= nil then
+		beat_to_default_note_len_multiplier =
+			songbuilder.default_note_length / songbuilder.length_of_beat_in_measure
 		-- Fixes issues where the bpm (`Q:`) is set on quarter notes, but
 		-- the default note length (`L:`) is written as half notes.
+	else
+		-- But `Q:` doesn't allways specify a specific length though. This is
+		-- technicaly deprecated behavior, but still appears in some default
+		-- Starbound songs. See: https://abcnotation.com/wiki/abc:standard:v2.1#outdated_information_field_syntax
+		beat_to_default_note_len_multiplier = 1--/songbuilder.default_note_length
+	end
 	local seconds_per_note_length =
 		beat_to_default_note_len_multiplier * seconds_per_beat
 	local millis_per_note_length = seconds_per_note_length * 1000
@@ -649,7 +657,13 @@ local function song_data_to_instructions(song_abc_data_string)
 				local length_of_beat_in_measure, bpm
 					= bpm_key:match("(.+)=(.+)")
 
-				length_of_beat_in_measure = fracToNumber(length_of_beat_in_measure)
+				if bpm == nil then
+					bpm = bpm_key:match("%d+")
+					-- ^^ This usage is technicly deprecated in ABC 2.1, but some of the
+					-- default starbound songs use the `Q:90` (no fraction syntax)
+				else
+					length_of_beat_in_measure = fracToNumber(length_of_beat_in_measure)
+				end
 				bpm = tonumber(bpm)
 
 				song.songbuilder.length_of_beat_in_measure = length_of_beat_in_measure
