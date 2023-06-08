@@ -1,10 +1,10 @@
-# Tanner Limes's[^whoIsTannerLimes] Music Player for Figura
+# Tanner Limes'[^whoIsTannerLimes] Music Player for Figura
 
 [^whoIsTannerLimes]: Yes, Tanner Limes and Charlie Mikels are the same person. Don't worry about it.
 
 [Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
-This repo is a Figura avatar lets you play music in game for you and others to hear.
+This repo is a Figura avatar lets you play music in game for you and others to hear, similar to [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items. 
 
 ⚠️ Heads up: This avatar requires [LUtils](https://github.com/lexize/lutils) in order to work. See the installation instructions below for more details.
 
@@ -62,7 +62,7 @@ ChloeSpacedOut made an awesome piano avatar that's not only playable by punching
   - Be sure to aim at the player head of the piano. It's much smaller than the piano itself, near the peddles.
 - Left click while not looking at a piano will deselect the current piano. Future notes will go back to the built in instrument.
 
-<!-- Piano Image here -->
+![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
 
 Due note that piano support is not fully stable yet. There are a few edge cases that still need to be checked.
 
@@ -104,3 +104,9 @@ No. Only the host needs LUtils installed to make this avatar work. But for best 
 ### Why do some songs make me wait a very long time before they play?
 
 This is a side effect of the ping limit. Figura lets avatars send up to 1KB of information to other players every 1 second. This is usually fine since most songs don't need to send more than 1KB of data per second anyways. However, some songs can play fast enough that they can outrun the song data if we're not careful. 
+
+### How can I get the piano?
+
+You can give yourself one of Chloe's pianos using this command: `/give @s player_head{SkullOwner:{Id:[I;-1808656131,1539063829,-1082155612,-209998759]}}`. But make sure you increase it's permission level in your Figura settings. (You will need to show disconnected avatars to find it.) 
+
+You can follow [this thread on the Figura discord server](https://discord.com/channels/805969743466332191/1069137809560055838) for any piano-related updates.
