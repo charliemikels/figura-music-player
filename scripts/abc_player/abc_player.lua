@@ -180,7 +180,16 @@ local function get_song_list()
 		return nil
 	end
 
-	-- print("finding song files..")
+	--Check that the song_dir exists before we loop through it.
+	if not lutils.file:isDirectory(songs_dir_path) then
+		lutils.file:mkdir(songs_dir_path)
+		print("Created a songs directory at \n"
+			.."`<Figura root>/data/"
+			..lutils.file:getFolderName().."/"
+			..songs_dir_path.."`. \n"
+			.."Add your song files here.")
+	end
+
 	local song_list = get_song_list_reccursive("")
 	table.sort(song_list)
 	print("Found "..#song_list.." song files")
