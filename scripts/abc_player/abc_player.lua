@@ -1391,6 +1391,10 @@ function get_songbook_actions()
 	return songbook.action_wheel.actions
 end
 
+function get_currently_playing_song()
+	return song_is_playing() and song_path_to_song_name(songbook.playing_song_path) or nil
+end
+
 songbook.song_list = get_song_list()
 init_keybinds()
 songbook_action_wheel_page_setup()
