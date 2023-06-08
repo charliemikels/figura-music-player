@@ -1,105 +1,7 @@
 -- Tanner Limes was here.
 -- ABC Music Player V2.1
 
---[[	Some notes on this script:
-
-Required elements:
-- LUtils addon: This is a separate mod that this script uses to load the song
-list from disk. Without it, all songs would need to be bundled with the avatar
-at upload, limiting the maximum number of playable songs.
-
-- require("lutils_setup"): abc_player.lua assumes that you've set up LUtils
-already in another script. So instead of re-initilizing LUtils, we'll require
-the setup script runs before this one.
-
-- Actions: this script generates it's own action wheel actions, but you'll
-have to manualy add them to your action wheel. This script returns an
-action wheel action, so you can simply require it into an action. Something like
-`my_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))`
-should do the trick.
-	- An example action wheel script should be included with this script
-
-Optional elements:
-- song_info_text_pos_offset: a multiplier that ajusts where the song info text
-box appears on your avatar. By default it will follow the player's hitbox, but
-for avatars that are larger / smaller than their hitbox, you can use this to
-nudge the text to a more correct position.
-
-Usage:
-In addition to this script, you will also need to put `.abc` song files in your
-lutils directory. Specificaly they need to be in a sub-folder named
-`abc_song_files`. This subfolder is configurable with the `songs_dir_path`
-variable. For better organization, these ABC files can be put into aditional
-sub-folders. On init, this script will print how many song files it detected.
-
-The default action wheel page has 3 buttons:
-
-- "Back" will return you to the action wheel page you came from.
-
-- "Select Chloe Piano". ChloeSpacedIn's Playerhead is a piano. You can play ABC
-songs through the piano by selecting this action while looking at the
-playerhead. Looking anywhere else and clicking this action will deselect a
-currently selected piano.
-
-Note: Piano support is sometimes flaky. For best results, You and all viewers
-should grant the piano and your avatar maximum permissions. Then reload
-all avatars before clicking select. (Click "Show Disconnected Users" to see
-the piano if it's not in the permissions list)
-
-- "Song selector": The do-it-all song playing action. This action displays a
-list of all the songs detected by LUtils.
-
-+-----------------------------------------+
-| Songlist 9/30 Currently Playing: Song 6 |		<< Selected Song index
-|     Song 5                              |		^^ Currently playing song name
-| ♬   Song 6                              |		<< Playing song marked by ♬
-|     Song 7                              |
-|     Song 8                              |
-| • → Song 9                              |		<< Queued song marked by •
-|     Song 10                             |		^^ Selected song marked by →
-|     Song 11                             |
-| Click to queue selected song            |
-| Queued song starts in 2 seconds         |		<< Queued song's start up time
-+-----------------------------------------+
-
-The click action will change depending on the selection and the state of the
-song player.
-- If the selected song is not queued or playing, queue the song
-- If the selected song is queued and no songs are playing, play the song
-- If the selected song is queued but a song is playing, stop the playing song
-- If the selected song is playing, stop the song.
-
-Script logic overview:
-- LUtils gets a list of songs
-- User selects a song
-- Song is queued
-	- ABC file is loaded
-	- ABC commands get converted to instructions that are easier to play
-	- instructions are converted to packets.
-	- Calculate buffer time
-		- packets are limited to a number of instructions per second. If the
-		  song plays faster than this rate, we need to buffer packets so that
-		  we stay ahead
-- User selects the song again
-- Send packets to pings.deserializer. Start a TICK event to do this over time
-- pings.deserializer catches packets and starts processing the packets back into
-  instructions.
-- Starts song song_player_event
-	- the specific event is controlled by song_player_event_watcher_event. This
-	  lets us figure out if we should use the more precise RENDER event to play
-	  songs, or to use the safer TICK event
-- During this time the user can queue a new song.
-- Song finishes or user stops song early
-	- All songplaying events are stopped.
-	- Song stopper event starts.
-		- Song stopper goes through every instruction in the song and stops any
-		  sounds that might still be playing. On songs with many instructions,
-		  this may hit the resource limit, so song stopping is ran as an event,
-		  stopping a limited number os instructions per tick.
-
-ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
-]]
-
+-- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
 -- main script vars ------------------------------------------------------------
 
@@ -1045,6 +947,7 @@ local function update_info_display()
 		:width( using_piano and 300 or 150 )
 		:setAlignment(using_piano and "CENTER" or "LEFT")
 		:setText(display_text)
+		-- :setLight(math.max(world.getLightLevel(player:getPos()), 8), world.getSkyLightLevel(player:getPos()) )
 
 	if songbook.info_display_task.setVisible then
 		-- FN name changed. Re evaluate when r15 is stable.
