@@ -85,7 +85,7 @@ Script logic overview:
 - pings.deserializer catches packets and starts processing the packets back into
   instructions.
 - Starts song song_player_event
-	- the specific event is controlled by song_player_event_swapper_event. This
+	- the specific event is controlled by song_player_event_watcher_event. This
 	  lets us figure out if we should use the more precise RENDER event to play
 	  songs, or to use the safer TICK event
 - During this time the user can queue a new song.
@@ -135,7 +135,7 @@ songbook.incoming_song = nil
 -- Event names
 local play_song_event_name = "play_song_event"
 local send_packets_tick_event_name = "send_packet_tick_event"
-local song_player_event_swapper_event_name = "song_player_event_swapper_event"
+local song_player_event_watcher_event_name = "song_player_event_watcher_event"
 local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
 
@@ -330,7 +330,7 @@ local function stop_playing_songs()
 	-- be active, but it doesn't hurt to remove both?
 	songbook.playing_song_path = nil
 	events.TICK:remove(send_packets_tick_event_name)
-	events.TICK:remove(song_player_event_swapper_event_name)
+	events.TICK:remove(song_player_event_watcher_event_name)
 	events.RENDER:remove(play_song_event_name)
 	events.TICK:remove(play_song_event_name)
 	events.TICK:remove(info_display_event_name)
@@ -802,8 +802,8 @@ function play_song_event_loop()
 				.." ".. instruction.chloe_piano .. (#instruction.chloe_piano > 2 and "" or " ")
 
 			)	-- ` #20/100/2000 A4 `
-			if songbook.selected_chloe_piano_pos ~= nil then
-				-- host:actionbar( "#"..instruction_index.." ".. tostring(instruction.chloe_piano))
+			if songbook.selected_chloe_piano_pos ~= nil and piano_lib.validPos(songbook.selected_chloe_piano_pos) then
+				-- Catches if the piano was broken recently.
 			 	-- print("playing note "..instruction.chloe_piano.. " on piano at "..songbook.selected_chloe_piano_pos)
 			 	if instruction.chloe_piano ~= "X0" then
 			 		piano_lib.playNote( songbook.selected_chloe_piano_pos , instruction.chloe_piano, true)
@@ -811,7 +811,6 @@ function play_song_event_loop()
 			 	instruction.already_played = true
 			 	-- Chloe piano can't sustain notes, so we don't need to bother
 			 	-- checking if the note's done playing.
---			 	song.current_playing_index = instruction_index +1
 			else
 				--print( instruction_index.." > ".. instruction.chloe_piano)
 				instruction.sound_id = sounds:playSound(
@@ -894,7 +893,8 @@ local function should_play_with_render_event()
 end
 
 local current_song_player_event = "TICK"
-local function song_player_event_swapper_event()
+local function song_player_event_watcher_event()
+	-- change event if offscreen
 	if should_play_with_render_event() and current_song_player_event ~= "RENDER" then
 		--log("Song player Switching to RENDER")
 		current_song_player_event = "RENDER"
@@ -906,14 +906,20 @@ local function song_player_event_swapper_event()
 		events.RENDER:remove(play_song_event_name)
 		events.TICK:register(play_song_event_loop, play_song_event_name)
 	end
+
+	-- If playing on piano, make sure it stays a valid play target.
+	if songbook.selected_chloe_piano_pos ~= nil and not piano_lib.validPos(songbook.selected_chloe_piano_pos) then
+		print("Piano at "..songbook.selected_chloe_piano_pos.." is now invalid and will be untargeted.")
+		pings.set_selected_piano(nil)
+	end
 end
 
 local function start_song_player_event()
 	--print("Starting song player event")
 	current_song_player_event = "TICK"
 	events.TICK:register(
-		song_player_event_swapper_event,
-		song_player_event_swapper_event_name
+		song_player_event_watcher_event,
+		song_player_event_watcher_event_name
 	)
 end
 
@@ -1312,6 +1318,7 @@ local function play_song(song_file_path)
 	send_packets(songbook.queued_packets)
 end
 
+-- Piano and Actionwheel -------------------------------------------------------
 local function is_block_piano(targeted_block)	-- if true, 2nd value is the lib for the piano
 	if type(targeted_block) == "Vector3" then
 		targeted_block = world.getBlockState(targeted_block)
@@ -1339,7 +1346,10 @@ function pings.set_selected_piano(piano_block_pos)
 	if piano_block_pos == nil then
 		-- A nill value was an intentional "clear the current piano" opperation.
 		songbook.selected_chloe_piano_pos = nil
-		return 
+		if host:isHost() then
+			songbook.action_wheel.actions["select_chloe_piano"]:toggled(false):title("Select Chloe Piano")
+		end
+		return
 	end
 
 	local block_is_piano, block_piano_lib = is_block_piano(piano_block_pos)
@@ -1350,6 +1360,10 @@ function pings.set_selected_piano(piano_block_pos)
 
 		log("targeted piano at "..tostring(piano_block_pos))
 		piano_lib.playNote( songbook.selected_chloe_piano_pos , "C4", true)
+		if host:isHost() then
+			songbook.action_wheel.actions["select_chloe_piano"]:toggled(true)
+				:title("Select Chloe Piano\nCurrent Piano at ".. songbook.selected_chloe_piano_pos .."\nClick while looking away to deselect.")
+		end
 	else
 			-- Host tried to set a piano at this position, but for whatever reason, we failed find a piano at that pos
 			log("Couldn't find Piano at "..tostring(piano_block_pos))
@@ -1362,11 +1376,7 @@ local function songbook_action_wheel_select_chloe_piano()
 
 	if block_is_piano then
 		pings.set_selected_piano( targeted_block:getPos() )
-
-		songbook.action_wheel.actions["select_chloe_piano"]:toggled(true)
-			:title("Select Chloe Piano\nCurrent Piano at ".. targeted_block:getPos():toString() .."\nClick while looking away to deselect.")
 		return true
-
 	end
 	if songbook.selected_chloe_piano_pos == nil then
 		print("No piano found")
@@ -1374,7 +1384,6 @@ local function songbook_action_wheel_select_chloe_piano()
 		print("Deselecting piano")
 	end
 
-	songbook.action_wheel.actions["select_chloe_piano"]:toggled(false):title("Select Chloe Piano")
 	pings.set_selected_piano( nil )
 	return false
 end
