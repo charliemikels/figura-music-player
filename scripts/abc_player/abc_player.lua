@@ -1236,9 +1236,9 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 		end
 
 		local serialized_instruction =
-			  "s"..( string.format("%f",instruction.start_time):gsub("%.?0+$", "") )	-- F forces higher precision
-			.."e"..( string.format("%f",instruction.end_time):gsub("%.?0+$", "") )		-- gsub trims trailing 0s if found
-			.."t"..( string.format("%f",instruction.semitones_from_a4):gsub("%.?0+$", "") )
+			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
+			.."e"..( string.format("%0d",instruction.end_time) )
+			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
 			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
 		-- if instruction.chloe_piano == nil then print(serialized_instruction) end
 
