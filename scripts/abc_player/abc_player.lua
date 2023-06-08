@@ -1312,40 +1312,61 @@ local function play_song(song_file_path)
 	send_packets(songbook.queued_packets)
 end
 
-function pings.set_selected_piano(piano_pos)
-	if piano_lib == nil then
-		-- Avatar can initilize before the piano initilizes.
-		-- In this case, piano_lib will be nil. Reload it.
-		piano_lib = world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]	-- ChloeSpacedIn
-		if not piano_lib then piano_lib = world.avatarVars()["943218fd-5bbc-4015-bf7f-9da4f37bac59"] end	--Imortalized Piano
+local function is_block_piano(targeted_block)	-- if true, 2nd value is the lib for the piano
+	if type(targeted_block) == "Vector3" then
+		targeted_block = world.getBlockState(targeted_block)
 	end
-	if piano_lib ~= nil then
-		songbook.selected_chloe_piano_pos = piano_pos
-		if piano_pos ~= nil then
-			piano_lib.playNote( songbook.selected_chloe_piano_pos , "C4", true)
+
+	if type(targeted_block) == "BlockState"
+		and type(targeted_block.getEntityData) == "function"
+		and targeted_block:getEntityData() ~= nil
+		and targeted_block:getEntityData().SkullOwner ~= nil
+	then	-- targeted block has a skull
+		if targeted_block:getEntityData().SkullOwner.Name == "ChloeSpacedIn" then
+			return true, world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]
+
+		elseif table.concat(targeted_block:getEntityData().SkullOwner.Id)
+				== table.concat({-1808656131,1539063829,-1082155612,-209998759})
+			-- ^^ Immortalized piano skull ID
+		then
+			return true, world.avatarVars()["943218fd-5bbc-4015-bf7f-9da4f37bac59"]
 		end
-	else
+	end
+	return false, nil
+end
+
+function pings.set_selected_piano(piano_block_pos)
+	if piano_block_pos == nil then
+		-- A nill value was an intentional "clear the current piano" opperation.
 		songbook.selected_chloe_piano_pos = nil
+		return 
+	end
+
+	local block_is_piano, block_piano_lib = is_block_piano(piano_block_pos)
+
+	if block_is_piano and block_piano_lib ~= nil and block_piano_lib.playNote ~= nil then
+		songbook.selected_chloe_piano_pos = tostring(piano_block_pos)
+		piano_lib = block_piano_lib
+
+		log("targeted piano at "..tostring(piano_block_pos))
+		piano_lib.playNote( songbook.selected_chloe_piano_pos , "C4", true)
+	else
+			-- Host tried to set a piano at this position, but for whatever reason, we failed find a piano at that pos
+			log("Couldn't find Piano at "..tostring(piano_block_pos))
 	end
 end
 
 local function songbook_action_wheel_select_chloe_piano()
 	local targeted_block = user:getTargetedBlock(true)
-	if type(targeted_block.getEntityData) == "function"
-		and targeted_block:getEntityData() ~= nil
-		and targeted_block:getEntityData().SkullOwner ~= nil
-		and (targeted_block:getEntityData().SkullOwner.Name == "ChloeSpacedIn"
-			or table.concat(targeted_block:getEntityData().SkullOwner.Id)
-				== table.concat({-1808656131,1539063829,-1082155612,-209998759})
-			-- ^^ Immortalized piano skull ID
-		)
+	local block_is_piano, _ = is_block_piano(targeted_block)
 
-	then
-		pings.set_selected_piano( targeted_block:getPos():toString() )
+	if block_is_piano then
+		pings.set_selected_piano( targeted_block:getPos() )
 
 		songbook.action_wheel.actions["select_chloe_piano"]:toggled(true)
 			:title("Select Chloe Piano\nCurrent Piano at ".. targeted_block:getPos():toString() .."\nClick while looking away to deselect.")
 		return true
+
 	end
 	if songbook.selected_chloe_piano_pos == nil then
 		print("No piano found")
