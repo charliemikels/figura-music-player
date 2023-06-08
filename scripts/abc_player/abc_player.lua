@@ -1039,7 +1039,15 @@ local function update_info_display()
 		:width( using_piano and 300 or 150 )
 		:setAlignment(using_piano and "CENTER" or "LEFT")
 		:setText(display_text)
-		:setEnabled(should_display_info or (host:isHost() and not renderer:isFirstPerson() ) )
+
+	if songbook.info_display_task.setVisible then
+		-- FN name changed. Re evaluate when r15 is stable.
+		-- Set enable for r14, set visible for dev as of Jun 8th, 2023
+		songbook.info_display_task:setVisible(should_display_info or (host:isHost() and not renderer:isFirstPerson() ) )
+	else
+		songbook.info_display_task:setEnabled(should_display_info or (host:isHost() and not renderer:isFirstPerson() ) )
+	end
+
 end
 
 local function info_display_tick_event()
