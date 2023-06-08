@@ -1,10 +1,8 @@
-# Tanner Limes'[^whoIsTannerLimes] Music Player for Figura
-
-[^whoIsTannerLimes]: Yes, Tanner Limes and Charlie Mikels are the same person. Don't worry about it.
+# Tanner Limes' Music Player for Figura
 
 [Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
-This repo is a Figura avatar lets you play music in game for you and others to hear, similar to [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items. 
+This repo is a Figura avatar that lets you play music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items. 
 
 ⚠️ Heads up: This avatar requires [LUtils](https://github.com/lexize/lutils) in order to work. See the installation instructions below for more details.
 
@@ -101,12 +99,16 @@ The text window for this button displays some important info:
 
 No. Only the host needs LUtils installed to make this avatar work. But for best results, everyone should be on the same Figura version.
 
-### Why do some songs make me wait a very long time before they play?
-
-This is a side effect of the ping limit. Figura lets avatars send up to 1KB of information to other players every 1 second. This is usually fine since most songs don't need to send more than 1KB of data per second anyways. However, some songs can play fast enough that they can outrun the song data if we're not careful. 
-
 ### How can I get the piano?
 
-You can give yourself one of Chloe's pianos using this command: `/give @s player_head{SkullOwner:{Id:[I;-1808656131,1539063829,-1082155612,-209998759]}}`. But make sure you increase it's permission level in your Figura settings. (You will need to show disconnected avatars to find it.) 
+You can give yourself one of Chloe's pianos using this command: `/give @s player_head{SkullOwner:{Id:[I;-1808656131,1539063829,-1082155612,-209998759]}}`. But make sure you increase it's permission level in your Figura settings. (You will need to show disconnected avatars to find it.)
 
 You can follow [this thread on the Figura discord server](https://discord.com/channels/805969743466332191/1069137809560055838) for any piano-related updates.
+
+### Who's Tanner Limes? I thought you were Charlie? (and vice versa)
+
+Tanner_Limes is Charlie's Minecraft username.
+
+### Why do some songs make me wait a very long time before they play?
+
+This is a side effect of the ping limit. Figura lets avatars send up to 1KB of information to other players every 1 second. This is usually fine since most songs don't need to send more than 1KB of data per second anyways. However, some songs can play fast enough that they can outrun the song data if we're not careful.
