@@ -54,7 +54,7 @@ The controls for this avatar are in their own Action Wheel page. Open the Action
 
 ### Select Chloe Piano
 
-ChloeSpacedOut made an awesome piano avatar that's not only playable by punching the keys, she also made it scriptable.
+ChloeSpacedOut made [this awesome piano avatar](https://discord.com/channels/805969743466332191/1069137809560055838/1069137809560055838). You can punch the keys to play notes, but you can also play songs through the piano with this script. 
 
 - Left click while looking at a piano to target the piano. Future notes will play through the piano instead of this avatar's built in instrument.
   - Be sure to aim at the player head of the piano. It's much smaller than the piano itself, near the peddles.
@@ -62,7 +62,7 @@ ChloeSpacedOut made an awesome piano avatar that's not only playable by punching
 
 ![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
 
-Due note that piano support is not fully stable yet. There are a few edge cases that still need to be checked.
+Due note that piano support is not fully stable yet. There are a few edge cases that still need to be checked. If you encounter a crash, reload your avatar and the piano. 
 
 ### Song list
 
@@ -97,7 +97,7 @@ The text window for this button displays some important info:
 
 ### Do my friends also need to install LUtils?
 
-No. Only the host needs LUtils installed to make this avatar work. But for best results, everyone should be on the same Figura version.
+No. Only you, the host, needs LUtils installed to make this avatar work. But for best results, everyone should be on the same Figura version.
 
 ### How can I get the piano?
 
