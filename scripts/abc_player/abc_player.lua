@@ -848,7 +848,17 @@ local function progress_bar(width, progress)
 	local progress = math.max( 0, math.min( progress, 1 ) )
 	local num_bars = math.floor((width+1) * progress)
 	local num_space = width - num_bars
-	local bar = "▍"	-- same width as space in minecraft
+
+	local bar = "▍"	-- same width as space in minecraft	(pre 1.20)
+	local version_number = client.getVersion()
+	local _, num_points_in_version = client.getVersion():gsub("%.","")
+	if num_points_in_version == 1 then version_number = version_number..".0" end
+	-- There's a r14 Figura bug in compareVersion. It errors when comparring
+	-- versions without 3 numbers, like "1.20". We're adding a `.0` to make
+	-- versions like "1.20" valid.
+	if client.compareVersions("1.20.0", version_number ) < 1 then
+		bar = "▊"	-- minecraft updated their font for 1.20
+	end
 
 	local return_val = "|"
 	for b = 0, width do
