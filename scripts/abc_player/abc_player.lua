@@ -729,7 +729,7 @@ function play_song_event_loop()
 			end
 
 		elseif	instruction.end_time + song.start_time < client.getSystemTime()
---			and type(instruction.sound_id) == "Sound"
+		--	and type(instruction.sound_id) == "Sound"
 			-- if the end point of the instruction has passed,
 			-- and it still has a sound id:
 		then
@@ -826,12 +826,7 @@ local function start_song_player_event()
 end
 
 -- Display info ----------------------------------------------------------------
-local spinner_states = {
-	[1] = "◢",
-	[2] = "◣",
-	[3] = "◤",
-	[4] = "◥",
-}
+local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
 local last_spinner_state = 1
 local spinner_delay_counter = 1
 local spinner_delay_counter_max = 5
@@ -860,11 +855,11 @@ local function progress_bar(width, progress)
 		bar = "▊"	-- minecraft updated their font for 1.20
 	end
 
-	local return_val = "|"
+	local return_val = "▎"
 	for b = 0, width do
 		return_val = return_val .. (b < num_bars and bar or (b == num_bars and info_display_spinner() or  " "))
 	end
-	return_val = return_val .. "|"
+	return_val = return_val .. "▎"
 	return return_val
 end
 
