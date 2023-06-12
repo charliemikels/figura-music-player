@@ -2,7 +2,9 @@
 
 [Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
-This repo is a Figura avatar that lets you play music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items. 
+This repo is a Figura avatar that lets you play music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
+
+I'm prioritizing support of Figura 0.1 and later. This script is currently compatible with r14, but future support is not guaranteed.
 
 ⚠️ Heads up: This avatar requires [LUtils](https://github.com/lexize/lutils) in order to work. See the installation instructions below for more details.
 
@@ -13,10 +15,10 @@ https://github.com/charliemikels/figura-music-player/assets/20339866/f088348f-7a
 
 This avatar relies on LUtils to find and load song files on the fly. This means your songlist will not count against the avatar file size limit. LUtils is a separate Fabric mod that works with any recent version of Minecraft, but it has specific builds for your version of Figura.
 
-  - If you're on Figura r14, (the current[^uploadTime] public builds,) you'll need [Build 7: "Minor but important change."](https://github.com/lexize/lutils/actions/runs/4241722822).
-  - If you're on the development versions of Figura, you'll need [Build 8: "Some changes. Fixed crashes with github builds"](https://github.com/lexize/lutils/actions/runs/4674799028).
+  - If you're on Figura 0.1, (The current[^uploadTime] public build,) you'll need [Build 8: "Some changes. Fixed crashes with github builds"](https://github.com/lexize/lutils/actions/runs/4674799028).
+  - If you're on the older Figura r14, you'll need [Build 7: "Minor but important change."](https://github.com/lexize/lutils/actions/runs/4241722822).
 
-[^uploadTime]: "Current" as of June 7th, 2023.
+[^uploadTime]: "Current" as of June 11th, 2023.
 
 Download your version by clicking the Artifact in the actions page.
 
@@ -54,7 +56,7 @@ The controls for this avatar are in their own Action Wheel page. Open the Action
 
 ### Select Chloe Piano
 
-ChloeSpacedOut made [this awesome piano avatar](https://discord.com/channels/805969743466332191/1069137809560055838/1069137809560055838). You can punch the keys to play notes, but you can also play songs through the piano with this script. 
+ChloeSpacedOut made [this awesome piano avatar](https://discord.com/channels/805969743466332191/1069137809560055838/1069137809560055838). You can punch the keys to play notes, but you can also play songs through the piano with this script.
 
 - Left click while looking at a piano to target the piano. Future notes will play through the piano instead of this avatar's built in instrument.
   - Be sure to aim at the player head of the piano. It's much smaller than the piano itself, near the peddles.
@@ -62,7 +64,7 @@ ChloeSpacedOut made [this awesome piano avatar](https://discord.com/channels/805
 
 ![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
 
-Due note that piano support is not fully stable yet. There are a few edge cases that still need to be checked. If you encounter a crash, reload your avatar and the piano. 
+Due note that piano support is not fully stable yet. There are a few edge cases that still need to be checked. If you encounter a crash, reload your avatar and the piano.
 
 ### Song list
 
@@ -97,7 +99,7 @@ The text window for this button displays some important info:
 
 ### Do my friends also need to install LUtils?
 
-No. Only you, the host, needs LUtils installed to make this avatar work. But for best results, everyone should be on the same Figura version.
+No. Only you, the host, needs LUtils installed to make this avatar work. But for best results, everyone should be on the same version of Figura.
 
 ### How can I get the piano?
 
