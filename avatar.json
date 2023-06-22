@@ -1,5 +1,5 @@
 {
-    "authors":["Tanner Limes"],
+    "authors":["Tanner Limes", "Possseidon/lua-midi (Github)"],
     "name": "ABC Song Player V3 ALPHA",
     "version": "3.0.0 alpha",
     "color": "#78ff92"
