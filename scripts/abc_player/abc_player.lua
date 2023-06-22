@@ -715,17 +715,24 @@ function play_song_event_loop()
 			 	-- checking if the note's done playing.
 			else
 				--print( instruction_index.." > ".. instruction.chloe_piano)
-				instruction.sound_id = sounds:playSound(
-					avatar:canUseCustomSounds()
-						and "scripts.abc_player.triangle_sin"
-						or "minecraft:block.note_block.bell",
-					player:getPos(),
-					1,
-					avatar:canUseCustomSounds()
+				if avatar:canUseCustomSounds() then
+					instruction.sound_id = sounds["scripts.abc_player.triangle_sin"]
+				else
+					instruction.sound_id = sounds["minecraft:block.note_block.bell"]
+				end
+
+				instruction.sound_id
+					:setPos(player:getPos())
+					:setLoop(avatar:canUseCustomSounds())
+					:setPitch(avatar:canUseCustomSounds()
 						and semitone_offset_to_multiplier(instruction.semitones_from_a4)
-						or semitone_offset_to_multiplier(instruction.semitones_from_a4+3-12),
-					avatar:canUseCustomSounds()
-				)
+						or semitone_offset_to_multiplier(instruction.semitones_from_a4+3-12)
+					)
+					:setSubtitle("Music from "..player:getName())
+					:play()
+					-- todo: use nameplate instead of player:getName()
+						-- fall back to player:getName() if nameplate name is > 48 chars.
+						-- (48 == max subtitle len)
 			end
 
 		elseif	instruction.end_time + song.start_time < client.getSystemTime()
