@@ -197,6 +197,22 @@ end
 -- chance to hit the instruction limit.
 local stop_song_tick_event_name = "stop_song_tick_event"
 local function stop_playing_song_tick()
+
+	if songbook.incoming_song == nil
+		or songbook.incoming_song.stop_loop_index >= #songbook.incoming_song.instructions +1
+		or #songbook.incoming_song.instructions == 0
+	then
+
+		-- song fully rewound, and all sounds have been stopped
+		--print("Done rewinding song")
+		events.TICK:remove(stop_song_tick_event_name)
+		songbook.incoming_song = nil
+		songbook.playing_song_path = nil
+		songbook_action_wheel_page_update_song_picker_button()
+		
+		return
+	end
+
 	local incoming_song = songbook.incoming_song
 	for instruction_index =
 		math.max(songbook.incoming_song.stop_loop_index, 1),
@@ -213,17 +229,6 @@ local function stop_playing_song_tick()
 		instruction.sound_id = nil
 		instruction.already_played = false
 		songbook.incoming_song.stop_loop_index = instruction_index +1
-	end
-
-	if songbook.incoming_song.stop_loop_index >= #songbook.incoming_song.instructions +1
-		or #songbook.incoming_song.instructions == 0
-	then
-		-- song fully rewound, and all sounds have been stopped
-		--print("Done rewinding song")
-		events.TICK:remove(stop_song_tick_event_name)
-		songbook.incoming_song = nil
-		songbook.playing_song_path = nil
-		songbook_action_wheel_page_update_song_picker_button()
 	end
 end
 
