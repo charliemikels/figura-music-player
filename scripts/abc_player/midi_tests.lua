@@ -1,3 +1,10 @@
+local midi = require("scripts.abc_player.processors.midi")
+
 events.ENTITY_INIT:register(function()
-  print("Hello world")
+  print("Hello there")
+  -- print(client.getSystemTime())
+  print("-------")
+  local stream = lutils.file:openInputStream("Alula_-_OneShot_OST.mid")
+  --local tracks = midi.processHeader(stream)
+  print("In the clear!!")
 end)

@@ -20,7 +20,7 @@ local function readVLQ(stream)
   local value = 0
   local length = 0
   repeat
-    local byte = assert(stream:read(1), "incomplete or missing variable length quantity"):byte()
+    local byte = assert(read(stream, 1), "incomplete or missing variable length quantity"):byte()
     value = bit.lshift(value, 7)
     value = bit.bor(value, bit.band(byte, 0x7F))
     length = length + 1
@@ -30,22 +30,22 @@ end
 
 local midiEvent = {
   [0x80] = function(stream, callback, channel, fb)
-    local key, velocity = ("I1I1"):unpack(fb .. stream:read(1))
+    local key, velocity = ("I1I1"):unpack(fb .. read(stream, 1))
     callback("noteOff", channel, key, velocity / 0x7F)
     return 2
   end,
   [0x90] = function(stream, callback, channel, fb)
-    local key, velocity = ("I1I1"):unpack(fb .. stream:read(1))
+    local key, velocity = ("I1I1"):unpack(fb .. read(stream, 1))
     callback("noteOn", channel, key, velocity / 0x7F)
     return 2
   end,
   [0xA0] = function(stream, callback, channel, fb)
-    local key, pressure = ("I1I1"):unpack(fb .. stream:read(1))
+    local key, pressure = ("I1I1"):unpack(fb .. read(stream, 1))
     callback("keyPressure", channel, key, pressure / 0x7F)
     return 2
   end,
   [0xB0] = function(stream, callback, channel, fb)
-    local number, value = ("I1I1"):unpack(fb .. stream:read(1))
+    local number, value = ("I1I1"):unpack(fb .. read(stream, 1))
     if number < 120 then
       callback("controller", channel, number, value)
     else
@@ -64,7 +64,7 @@ local midiEvent = {
     return 1
   end,
   [0xE0] = function(stream, callback, channel, fb)
-    local lsb, msb = ("I1I1"):unpack(fb .. stream:read(1))
+    local lsb, msb = ("I1I1"):unpack(fb .. read(stream, 1))
     callback("pitch", channel, (bit.lshift(bit.bor(lsb, msb), 7)) / 0x2000 - 1)
     return 2
   end
@@ -79,7 +79,7 @@ local function sysexEvent(stream, callback, fb)
   local manufacturer = fb:byte()
   local data = {}
   repeat
-    local char = stream:read(1)
+    local char = read(stream, 1)
     table.insert(data, char)
   until char:byte() == 0xF7
   callback("sysexEvent", data, manufacturer, table.concat(data))
@@ -143,7 +143,7 @@ end
 ---@return string type The four magic bytes the chunk type (usually `MThd` or `MTrk`).
 ---@return integer length The length of the chunk in bytes.
 local function readChunkInfo(stream)
-  local chunkInfo = stream:read(8)
+  local chunkInfo = read(stream, 8)
   if not chunkInfo then
     return false
   end
@@ -171,7 +171,7 @@ end
 ---@param runningStatus? integer A running status of a previous midi event.
 ---@return integer length, integer runningStatus Returns both read length and the updated running status.
 local function processEvent(stream, callback, runningStatus)
-  local firstByte = assert(stream:read(1), "missing event")
+  local firstByte = assert(read(stream, 1), "missing event")
   local status = firstByte:byte()
 
   local length = 0
@@ -179,7 +179,7 @@ local function processEvent(stream, callback, runningStatus)
   if status < 0x80 then
     status = assert(runningStatus, "no running status")
   else
-    firstByte = stream:read(1)
+    firstByte = read(stream, 1)
     length = 1
     runningStatus = status
   end
