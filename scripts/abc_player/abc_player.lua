@@ -209,7 +209,7 @@ local function stop_playing_song_tick()
 		songbook.incoming_song = nil
 		songbook.playing_song_path = nil
 		songbook_action_wheel_page_update_song_picker_button()
-		
+
 		return
 	end
 
@@ -799,7 +799,15 @@ local function is_offscreen()
 	return true
 end
 
+local time_at_last_render_event = 0
+events.RENDER:register(function() time_at_last_render_event = client.getSystemTime() end)
+
 local function should_play_with_render_event()
+	if client.getSystemTime() - time_at_last_render_event > 200 then
+		-- RENDER has taken too long to respond.
+		-- It probably hasn't been called and we should fall back to TICK
+		return false
+	end
 	if not is_offscreen() or avatar:canRenderOffscreen() then
 		return true
 	end
