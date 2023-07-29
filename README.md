@@ -22,7 +22,9 @@ This avatar relies on LUtils to find and load song files on the fly. This means 
 
 Download your version by clicking the Artifact in the actions page.
 
-✏️ Note: Github has started to flag these builds as expired. Reach out to us on [the Figura Discord](https://discord.gg/figura) if you need help getting this mod installed.
+✏️ Note: Github has started to flag these builds as expired. Reach out to us on [the Figura Discord](https://discord.gg/figuramc) if you need help getting this mod installed.
+
+⚠️ heads up: (as of July 29, 2023) The Figura project is recovering from a rocky leadership change. The original LUtils Discord page is gone. However, there have been talks about integrating some LUtils features into base Figura, so keep an eye out for that I guess. 
 
 Once LUtils is installed, download this repo using the `<> code` button above, and unzip it in your Figura `avatars` folder. (It should be in it's own folder)
 
