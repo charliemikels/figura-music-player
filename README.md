@@ -109,9 +109,9 @@ You can give yourself one of Chloe's pianos using this command: `/give @s player
 
 You can follow [this thread on the Figura discord server](https://discord.com/channels/805969743466332191/1069137809560055838) for any piano-related updates.
 
-### Who's Tanner Limes? I thought you were Charlie? (and vice versa)
+### Who's Charlie? I thought you were Tanner? (and vice versa)
 
-Tanner_Limes is Charlie's Minecraft username.
+Tanner_Limes is my Minecraft username. Hi Discord people!
 
 ### Why do some songs make me wait a very long time before they play?
 
