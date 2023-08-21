@@ -58,7 +58,7 @@ The controls for this avatar are in their own Action Wheel page. Open the Action
 
 ### Select Chloe Piano
 
-ChloeSpacedOut made [this awesome piano avatar](https://discord.com/channels/805969743466332191/1069137809560055838/1069137809560055838). You can punch the keys to play notes, but you can also play songs through the piano with this script.
+ChloeSpacedOut made [this awesome piano avatar](https://github.com/ChloeSpacedOut/figura-piano). You can punch the keys to play notes, but you can also play songs through the piano with this script.
 
 - Left click while looking at a piano to target the piano. Future notes will play through the piano instead of this avatar's built in instrument.
   - Be sure to aim at the player head of the piano. It's much smaller than the piano itself, near the peddles.
@@ -107,7 +107,7 @@ No. Only you, the host, needs LUtils installed to make this avatar work. But for
 
 You can give yourself one of Chloe's pianos using this command: `/give @s player_head{SkullOwner:{Id:[I;-1808656131,1539063829,-1082155612,-209998759]}}`. But make sure you increase it's permission level in your Figura settings. (You will need to show disconnected avatars to find it.)
 
-You can follow [this thread on the Figura discord server](https://discord.com/channels/805969743466332191/1069137809560055838) for any piano-related updates.
+Check out the [Piano's github page](https://github.com/ChloeSpacedOut/figura-piano) for the actual avatar files. 
 
 ### Who's Charlie? I thought you were Tanner? (and vice versa)
 
