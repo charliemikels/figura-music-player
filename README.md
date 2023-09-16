@@ -1,5 +1,10 @@
 # Tanner Limes' Music Player for Figura
 
+> [!WARNING] Figura 0.1.2+ Compatability
+> 
+> Figura 0.1.2 broke compatability with most figura addons. Currently, this script depends on the LUtils addon. and so, this script is incompatable with figura 1.2 and above.
+> I'm exploring ways to cheese the built in Config API to remove the LUtils dependancy. 
+
 [Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
 This repo is a Figura avatar that lets you play music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
