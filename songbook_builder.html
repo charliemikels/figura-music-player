@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Songbook Builder</title>
+  </head>
+  <style media="screen">
+    /* https://developer.gnome.org/hig/reference/palette.html */
+
+    :root{
+      --fg: black;
+      --bg1: white;
+      --bg2: WhiteSmoke;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root{
+        --fg: white;
+        --bg1: rgb(36, 31, 49);
+        --bg2: rgb(61, 56, 70);
+      }
+    }
+
+    body {
+      font-family: Cantarell, sans-serif;
+      background-color: var(--bg1);
+      color: var(--fg);
+    }
+
+    a, a:link, a:visited {
+      color: rgb(53, 132, 228);
+      transition: all 150ms ease-in-out
+    }
+    a:hover {
+      color: color-mix(in srgb, rgb(53, 132, 228) 60%, white);
+    }
+
+    @keyframes spin {
+      from {transform: rotate(0deg);}
+      to {transform: rotate(360deg);}
+    }
+    .spinner{
+      animation-name: spin;
+      animation-duration: 2s;
+      animation-iteration-count: infinite;
+      animation-timing-function: linear;
+      width: 30px;
+      height: 30px;
+      background-color: red;
+      margin: 5px;
+    }
+
+    .scroll_box{
+      display:block;
+      max-height: 500px;
+      overflow: scroll;
+      background-color: var(--bg2);
+    }
+  </style>
+
+  <body>
+    <header>
+      <div>Tanner_Lime's
+        <span style="background-color: black; color: yellow; padding: 10px;">WIP!</span>
+      </div>
+      <h1>Songbook Preprocessor</h1>
+    </header>
+
+    <main>
+
+      <form id="uploadForm">
+        <input type="file" name="directory" id="directoryInput" webkitdirectory multiple> <br>
+        <input type="submit" value="Process Directory">
+      </form>
+
+      <div id="output" class="scroll_box"></div>
+
+
+      <div class="">
+        Download packed config file
+
+        <button type="button" name="button">Download</button>
+      </div>
+
+      <footer>
+        <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
+      </footer>
+
+    </main>
+  </body>
+
+<!-- https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/webkitdirectory -->
+<!-- https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file -->
+<!-- let base64String = btoa(myString); -->
+
+  <!-- Handles zipping and unzipping files for upload/download. -->
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script> -->
+  <!-- There's no way to return an entire directory to the user at once in
+       browser JS. Either we make
+       - One huge mega-file
+       - Multiple download links
+       - Zip the files together first
+       Might want to re-look at compiling a cross platform gui app with V or
+       something to dodge this limitation.
+  -->
+  <script type="text/javascript">
+    /*   Steps for JS:
+      1. get ABC files from user
+      2. Process each:
+        1. convert raw text to base 64
+        2. Dump into json object
+        3. Use original file path as key
+        4. Dump JSON object to a string ← Alt: collect strings into single mega file.
+        5. Dump string into a file
+      4. collect and zip all files
+      5. give zip back to user.
+    */
+
+    document.getElementById("uploadForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const input = document.getElementById("directoryInput");
+      const outputDiv = document.getElementById("output");
+
+      const files = input.files;
+
+      if (files.length === 0) {
+        alert("Please select a directory.");
+        return;
+      }
+
+      // Function to process each file
+      function processFile(file) {
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          // Process the file content here
+          const fileContent = e.target.result;
+
+          // Display or handle the file content as needed
+          const fileDiv = document.createElement("div");
+          fileDiv.textContent = `File Name: ${file.name}, Size: ${file.size} bytes`;
+          outputDiv.appendChild(fileDiv);
+        };
+
+        reader.readAsDataURL(file);
+      }
+
+      // Process each file in the selected directory
+      for (const file of files) {
+        processFile(file);
+      }
+    });
+
+
+
+  </script>
+</html>
