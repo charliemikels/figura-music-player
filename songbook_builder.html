@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
-    <title>Songbook Builder</title>
+    <title>🚧 Songbook Builder</title>
   </head>
   <style media="screen">
     /* https://developer.gnome.org/hig/reference/palette.html */
@@ -11,6 +11,48 @@
       --fg: black;
       --bg1: white;
       --bg2: WhiteSmoke;
+    }
+
+    dialog {
+      position: relative;
+      color: var(--fg);
+      background-color: var(--bg1);
+      border-color: var(--bg2);
+      border-radius: 12px;
+      max-width: min(600px, calc(100% - 75px));
+      max-height: calc(100% - 75px);
+      box-shadow: rgba(0, 0, 0, 0.6) 0px 20px 50px;
+      /* display: grid; */
+      /* overriding the display lets us style the open/close animation */
+      /* opacity: 1; */
+      /* transition: opacity 1s ease; */
+    }
+
+    /* dialog:not([open]) {
+      pointer-events: none;
+      opacity: 0;
+    } */
+
+    dialog::backdrop {
+      backdrop-filter: blur(3.5px);
+      transition: backdrop-filter .5s ease; /* not supported yet, but maybe in the future? */
+    }
+
+    .close_btn {
+      position: absolute;
+      right: 25px;
+      top: 25px;
+      height: 30px;
+      width: 30px;
+      color: var(--fg);
+      background-color: var(--bg2);
+      border: 0px solid transparent;
+      border-radius: 100%;
+      font-weight: bold;
+    }
+
+    .close_btn:hover{
+      background-color: color-mix(in srgb, var(--bg2) 60%, var(--fg));
     }
 
     @media (prefers-color-scheme: dark) {
@@ -57,16 +99,50 @@
       background-color: var(--bg2);
     }
   </style>
-
   <body>
     <header>
-      <div>Tanner_Lime's
+      <div>Tanner_Limes'
         <span style="background-color: black; color: yellow; padding: 10px;">WIP!</span>
       </div>
-      <h1>Songbook Preprocessor</h1>
+      <h1>Songbook Pre-processor</h1>
     </header>
 
     <main>
+
+      <dialog id="aboutDialog">
+        <form method="dialog">
+          <button class="close_btn">X</button>
+
+          <h1>About this page</h1>
+          <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
+          <p>Figura (as of version 0.1.2) does not let you read from arbitrary files in your avatar. They have to be one of the supported file types, or somehow encoded into a lua file that we can decode later.</p>
+          <p>This means if we want to play song files in Figura, we need to convert them into a usable format first. The good news is that we can leverage Figura's ConfigAPI to store as much data as we want, without impacting the avatar upload size.</p>
+          <h2>How to use this page</h2>
+          <p>
+            <ol>
+              <li>Load a directory of .ABC files.</li>
+              <li>Click "configify"</li>
+              <li> <i>Wait</i> </li>
+              <li>When available, click "Save Zip"</li>
+              <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
+            </ol>
+          </p>
+
+          <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
+
+          <h2>Troubleshooting tips:</h2>
+          <p>
+            <ul>
+              <li></li>
+            </ul>
+          </p>
+
+          <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere.</p>
+
+
+        </form>
+      </dialog>
+      <button id="showAbout" onclick="aboutDialog.showModal()">About this page</button>
 
       <form id="uploadForm">
         <input type="file" name="directory" id="directoryInput" webkitdirectory multiple> <br>
@@ -77,7 +153,7 @@
 
 
       <div class="">
-        Download packed config file
+        TODO: Download packed config file
 
         <button type="button" name="button">Download</button>
       </div>
