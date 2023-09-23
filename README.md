@@ -2,36 +2,21 @@
 
 > [!WARNING] Figura 0.1.2+ Compatability
 > 
-> Figura 0.1.2 broke compatability with most figura addons. Currently, this script depends on the LUtils addon. and so, this script is incompatable with figura 1.2 and above.
-> I'm exploring ways to cheese the built in Config API to remove the LUtils dependancy. 
+> Figura 0.1.2 broke compatability with many Figura addons. Currently, this script depends on the (now archived) LUtils addon, and so this script is incompatable with Figura 0.1.2 and above.
+> I'm exploring ways to remove the LUtils dependancy, while also keeping the script easy to install. 
 
-[Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
+[Figura](https://modrinth.com/mod/figura) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
 This repo is a Figura avatar that lets you play music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
-
-I'm prioritizing support of Figura 0.1 and later. This script is currently compatible with r14, but future support is not guaranteed.
-
-⚠️ Heads up: This avatar requires [LUtils](https://github.com/lexize/lutils) in order to work. See the installation instructions below for more details.
 
 <!-- ↓ demo video of the avatar playing the chorus to "Revenge" by Captainsparklez ↓ -->
 https://github.com/charliemikels/figura-music-player/assets/20339866/f088348f-7a3b-4993-a5d2-6699f653f281
 
 ## Installation
 
-This avatar relies on LUtils to find and load song files on the fly. This means your songlist will not count against the avatar file size limit. LUtils is a separate Fabric mod that works with any recent version of Minecraft, but it has specific builds for your version of Figura.
+**This script depends on [LUtils](https://github.com/lexize/lutils)**, an addon mod for Figura. This addon lets the script load in song files on the fly, without counting against your avatar file size limit. However, **this addon has been archived**, and currently crashes with Figura 0.1.2. If you're on Figura 0.1.1 or earlier, you can stop by the [FiguraMC Discord Server](https://discord.com/invite/figuramc) and ask if anyone can send you the old addon. 
 
-  - If you're on Figura 0.1, (The current[^uploadTime] public build,) you'll need [Build 8: "Some changes. Fixed crashes with github builds"](https://github.com/lexize/lutils/actions/runs/4674799028).
-  - If you're on the older Figura r14, you'll need [Build 7: "Minor but important change."](https://github.com/lexize/lutils/actions/runs/4241722822).
-
-[^uploadTime]: "Current" as of June 11th, 2023.
-
-Download your version by clicking the Artifact in the actions page.
-
-✏️ Note: Github has started to flag these builds as expired. Reach out to us on [the Figura Discord](https://discord.gg/figuramc) if you need help getting this mod installed.
-
-⚠️ heads up: (as of July 29, 2023) The Figura project is recovering from a rocky leadership change. The original LUtils Discord page is gone. However, there have been talks about integrating some LUtils features into base Figura, so keep an eye out for that I guess. 
-
-Once LUtils is installed, download this repo using the `<> code` button above, and unzip it in your Figura `avatars` folder. (It should be in it's own folder)
+If you get LUtils is installed, download this repo using the `<> code` button above, and unzip it in your Figura `avatars` folder. (It should be in it's own folder)
 
 ## Adding Songs
 
