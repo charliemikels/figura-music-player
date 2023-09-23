@@ -167,7 +167,7 @@
 
 <!-- https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/webkitdirectory -->
 <!-- https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file -->
-<!-- let base64String = btoa(myString); -->
+<!-- converting to base64: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem -->
 
   <!-- Handles zipping and unzipping files for upload/download. -->
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script> -->
@@ -179,6 +179,7 @@
        Might want to re-look at compiling a cross platform gui app with V or
        something to dodge this limitation.
   -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <script type="text/javascript">
     /*   Steps for JS:
       1. get ABC files from user
@@ -191,6 +192,65 @@
       4. collect and zip all files
       5. give zip back to user.
     */
+
+    // thx chat gpt for this example function.
+    // TIL about "blob" types.
+    function exampleDownloadFunction() {
+      var zip = new JSZip();
+
+      // Add files to the ZIP archive
+      zip.file("file1.txt", "Contents of file 1");
+      zip.file("file2.txt", "Contents of file 2");
+      // Add more files as needed
+
+      // Generate the ZIP file
+      zip.generateAsync({ type: "blob" }).then(function (content) {
+        // Trigger the download
+        var url = window.URL.createObjectURL(content);
+        var downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = 'files.zip';
+        downloadLink.click();
+          // ↑ Simulates clicking the download link. We can instead let the user click it when they're ready.
+        window.URL.revokeObjectURL(url);  // ← cleans up memory. do this before generating any new blobs.
+      });
+    }
+
+    // Example usage:
+    // createAndDownloadZip();
+
+    /* -----------------------------------------------------*/
+
+    // Alternate usage for downloading only one file:
+
+    // // Function to trigger the download of converted data
+    // function downloadConvertedData(convertedData, filename, mimeType) {
+    //   var blob = new Blob([convertedData], { type: mimeType });
+    //   var url = window.URL.createObjectURL(blob);
+    //
+    //   var downloadLink = document.createElement('a');
+    //   downloadLink.href = url;
+    //   downloadLink.download = filename;
+    //
+    //   // Trigger the download
+    //   downloadLink.click();
+    //
+    //   // Clean up
+    //   window.URL.revokeObjectURL(url);
+    // }
+    //
+    // // Function to generate and save "Hello world.txt"
+    // function generateAndSaveTextFile() {
+    //   var textData = "Hello world";
+    //
+    //   // Trigger download for the text file
+    //   downloadConvertedData(textData, 'Hello world.txt', 'text/plain');
+    // }
+    //
+    // // Example usage:
+    // generateAndSaveTextFile();
+
+    /* -----------------------------------------------------*/
 
     document.getElementById("uploadForm").addEventListener("submit", function (event) {
       event.preventDefault();
