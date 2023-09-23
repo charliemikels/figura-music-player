@@ -8,9 +8,27 @@
     /* https://developer.gnome.org/hig/reference/palette.html */
 
     :root{
-      --fg: black;
-      --bg1: white;
-      --bg2: WhiteSmoke;
+      --dark3:  rgb(61,  56,  70 );
+      --dark4:  rgb(36,  31,  49 );
+      --dark5:  rgb(0,   0,   0  );
+      --light1: rgb(255, 255, 255);
+      --light3: rgb(222, 221, 218);
+      --blue5:  rgb(26,  95,  180);
+      --blue1:  rgb(153, 193, 241);
+
+      --fg:   var(--dark5);
+      --bg1:  var(--light1);
+      --bg2:  var(--light3);
+      --link: var(--blue5);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root{
+        --fg:   var(--light1);
+        --bg1:  var(--dark4);
+        --bg2:  var(--dark3);
+        --link: var(--blue1);
+      }
     }
 
     dialog {
@@ -55,14 +73,6 @@
       background-color: color-mix(in srgb, var(--bg2) 60%, var(--fg));
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root{
-        --fg: white;
-        --bg1: rgb(36, 31, 49);
-        --bg2: rgb(61, 56, 70);
-      }
-    }
-
     body {
       font-family: Cantarell, sans-serif;
       background-color: var(--bg1);
@@ -70,11 +80,11 @@
     }
 
     a, a:link, a:visited {
-      color: rgb(53, 132, 228);
+      color: var(--link);
       transition: all 150ms ease-in-out
     }
     a:hover {
-      color: color-mix(in srgb, rgb(53, 132, 228) 60%, white);
+      color: color-mix(in srgb, var(--link) 60%, white);
     }
 
     @keyframes spin {
