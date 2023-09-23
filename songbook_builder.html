@@ -115,8 +115,8 @@
 
           <h1>About this page</h1>
           <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
-          <p>Figura (as of version 0.1.2) does not let you read from arbitrary files in your avatar. They have to be one of the supported file types, or somehow encoded into a lua file that we can decode later.</p>
-          <p>This means if we want to play song files in Figura, we need to convert them into a usable format first. The good news is that we can leverage Figura's ConfigAPI to store as much data as we want, without impacting the avatar upload size.</p>
+          <p>Figura (as of version 0.1.2) does not let you read from arbitrary files from your avatar. They have to be one of the supported file types and uploaded with the avatar, or stored as a config file.</p>
+          <p>I need to build a converter anyways to get song data into a format Figura can read. But we can leverage the <code>ConfigAPI</code> to store this data outside of the avatar upload.</p>
           <h2>How to use this page</h2>
           <p>
             <ol>
@@ -127,19 +127,8 @@
               <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
             </ol>
           </p>
-
           <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
-
-          <h2>Troubleshooting tips:</h2>
-          <p>
-            <ul>
-              <li></li>
-            </ul>
-          </p>
-
-          <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere.</p>
-
-
+          <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere. <span style="font-size: 10pt; opacity: 75%;">But we do import a zipping library.</span></p>
         </form>
       </dialog>
       <button id="showAbout" onclick="aboutDialog.showModal()">About this page</button>
@@ -161,7 +150,6 @@
       <footer>
         <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
       </footer>
-
     </main>
   </body>
 
@@ -169,29 +157,27 @@
 <!-- https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file -->
 <!-- converting to base64: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem -->
 
-  <!-- Handles zipping and unzipping files for upload/download. -->
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script> -->
-  <!-- There's no way to return an entire directory to the user at once in
-       browser JS. Either we make
-       - One huge mega-file
-       - Multiple download links
-       - Zip the files together first
-       Might want to re-look at compiling a cross platform gui app with V or
-       something to dodge this limitation.
-  -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <script type="text/javascript">
     /*   Steps for JS:
-      1. get ABC files from user
-      2. Process each:
-        1. convert raw text to base 64
-        2. Dump into json object
-        3. Use original file path as key
-        4. Dump JSON object to a string ← Alt: collect strings into single mega file.
-        5. Dump string into a file
-      4. collect and zip all files
-      5. give zip back to user.
+      1. [ ] get ABC files from user
+      2. [ ] Process each:
+        1. [ ] convert raw text to base 64
+        2. [ ] Dump into json object
+        3. [ ] Use original file path as key
+        4. [ ] Dump JSON object to a string ← Alt: collect strings into single mega file.
+        5. [ ] Dump string into a file
+      4. [ ] collect and zip all files
+      5. [ ] give zip back to user.
     */
+
+    // class song {
+    //   constructor(data, name, nameLong) {
+    //     this.name = name;
+    //     this.data = data;
+    //     this.nameLong = nameLong;
+    //   }
+    // }
 
     // thx chat gpt for this example function.
     // TIL about "blob" types.
