@@ -12,13 +12,13 @@
       --dark4:  rgb(36,  31,  49 );
       --dark5:  rgb(0,   0,   0  );
       --light1: rgb(255, 255, 255);
-      --light3: rgb(222, 221, 218);
+      --light2: rgb(246, 245, 244);
       --blue5:  rgb(26,  95,  180);
       --blue1:  rgb(153, 193, 241);
 
       --fg:   var(--dark5);
       --bg1:  var(--light1);
-      --bg2:  var(--light3);
+      --bg2:  var(--light2);
       --link: var(--blue5);
     }
 
@@ -30,6 +30,26 @@
         --link: var(--blue1);
       }
     }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    main {
+      width: 100%;
+      max-width: 700px;
+    }
+
+    #pageHeader{
+      padding-top: 30px;
+    }
+
+    #pageHeader > h1{
+      margin-top: 0px;
+    }
+    
 
     dialog {
       position: relative;
@@ -77,6 +97,9 @@
       font-family: Cantarell, sans-serif;
       background-color: var(--bg1);
       color: var(--fg);
+
+      transition: color 0.25s ease-out;
+      transition: background-color 0.5s ease-out;
     }
 
     a, a:link, a:visited {
@@ -108,17 +131,101 @@
       overflow: scroll;
       background-color: var(--bg2);
     }
+
+    .card {
+      background-color: var(--bg2);
+      padding: 10px;
+      margin: 5px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .card > p {
+      text-align: left;
+    }
+    .card > header {
+      padding-bottom: 10px;
+    }
+    .columns {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      align-items: stretch;
+    }
+    .columns > * {
+      flex-grow: 2;
+    }
+    .columns_sepparator{
+      flex-grow: 0;
+      align-self: center;
+      padding: 0px 2px;
+      text-align: center;
+      font-size: x-large;
+    }
+
+
   </style>
   <body>
-    <header>
-      <div>Tanner_Limes'
-        <span style="background-color: black; color: yellow; padding: 10px;">WIP!</span>
-      </div>
+    <header id="pageHeader">
+      Tanner_Limes'
       <h1>Songbook Pre-processor</h1>
+      <div style="background-color: black; color: yellow; padding: 10px; margin-top: -20px; text-align: center;">🚧 This site is under construction 🚧</div>
     </header>
 
-    <main>
+    <noscript>
+      <style type="text/css">
+          main {
+            opacity: 20%;
+            pointer-events: none;
+            cursor: default;
+          }
+      </style>
+      <div class="card">
+        <h2>This converter requires Javascript.</h2>
+        <p>Please enable Javascript to continue.<br>
+          (All of the logic happens in-browser, and you can view the code at <a href="https://github.com/charliemikels/figura-music-player">this github repo</a> )
+        </p>
+      </div>
+    </noscript>
 
+    <main>
+      <!-- This element ↓ is hidden. Use `document.getElementById('existingSongbookUpload').click()` to click it. -->
+      <input type="file" id="existingSongbookUpload" value="Load Existing Songbook" style="display: none;" >
+
+      <div>
+        <h3>Step 1:</h3>
+        <div class="columns">
+          <div class="card">
+            <header>Create a new Song book</header>
+            <button id="newSongbook">New Songbook</button>
+          </div>
+          <div class="columns_sepparator">or</div>
+          <div class="card">
+            <header>Add to existing songbook</header>
+            <button onclick="document.getElementById('existingSongbookUpload').click()">Load Current Songbook</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>Step 2:</h3>
+      <div class="card">
+        Load song file.
+        <form id="uploadForm">
+          <input type="file" name="directory" id="directoryInput" webkitdirectory multiple> <br>
+          <input type="submit" value="Process Directory">
+        </form>
+      </div>
+      <div id="output" class="scroll_box"></div>
+
+      <h3>Step 3:</h3>
+      <div class="card">
+        TODO: Download packed config file
+
+        <button type="button" name="button">Download</button>
+      </div>
+
+    </main>
+    <footer>
+      <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
       <dialog id="aboutDialog">
         <form method="dialog">
           <button class="close_btn">X</button>
@@ -142,25 +249,7 @@
         </form>
       </dialog>
       <button id="showAbout" onclick="aboutDialog.showModal()">About this page</button>
-
-      <form id="uploadForm">
-        <input type="file" name="directory" id="directoryInput" webkitdirectory multiple> <br>
-        <input type="submit" value="Process Directory">
-      </form>
-
-      <div id="output" class="scroll_box"></div>
-
-
-      <div class="">
-        TODO: Download packed config file
-
-        <button type="button" name="button">Download</button>
-      </div>
-
-      <footer>
-        <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
-      </footer>
-    </main>
+    </footer>
   </body>
 
 <!-- https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/webkitdirectory -->
@@ -178,7 +267,24 @@
         4. [ ] Dump JSON object to a string ← Alt: collect strings into single mega file.
         5. [ ] Dump string into a file
       4. [ ] collect and zip all files
-      5. [ ] give zip back to user.
+      5. [ ] see if user wants to build a new songbook, or append to an existing song book.
+        1. [ ] If append, ask for current songbook index file. Add new songs to index. 
+      6. [ ] give zip back to user.
+
+      Later:
+      - [ ] Convert ABCs into instructions now, so that we skip that step in the avatar script.
+      - [ ] Add new Instuments. (Default sin, percussian)
+      - [ ] Add Support for midis, convert directly to instructions
+        - [ ] Add new instruction field: Track Number.
+          - All ABCs have one track. Track 1, unless "percussian" is at the end of the name, then set it to 10. 
+          - In lua, add instrument picker. Coices are saved in a new config file: "TL_Songbook_meta_midi_instruments_save"
+            - default all tracks to simple sin wave, unless it's track 10, then simple drum kit. 
+            - Config file is a list of overides. If user picks an instrument other than the default for that track, that choice is saved to the config as
+            - `song_path: {track_number: isntrument_Id, track_number: other_instrument_id}`
+            - Some instruments are sourced from non-host scripts. If an saved instrument isn't found, warn user, and use the default instrument instead. (don't overwrite the setting though in case it's loaded later)
+            - Add setting to overide the default instrument. (ie, play all songs through chloe piano.) This setting is saved like the other overides, so if the instrument is missing, fall back to the "actual" default instrument
+      
+      that's gonna be wild.            
     */
 
     // class song {
@@ -248,13 +354,17 @@
 
     /* -----------------------------------------------------*/
 
+    let files = []
+
+    
+
     document.getElementById("uploadForm").addEventListener("submit", function (event) {
       event.preventDefault();
 
       const input = document.getElementById("directoryInput");
       const outputDiv = document.getElementById("output");
 
-      const files = input.files;
+      files = input.files;
 
       if (files.length === 0) {
         alert("Please select a directory.");
