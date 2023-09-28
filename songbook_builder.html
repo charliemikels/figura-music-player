@@ -8,18 +8,29 @@
     /* https://developer.gnome.org/hig/reference/palette.html */
 
     :root{
+      --dark2: rgb(94, 92, 100);
       --dark3:  rgb(61,  56,  70 );
       --dark4:  rgb(36,  31,  49 );
       --dark5:  rgb(0,   0,   0  );
       --light1: rgb(255, 255, 255);
       --light2: rgb(246, 245, 244);
+      --light3: rgb(222, 221, 218);
       --blue5:  rgb(26,  95,  180);
+      --blue3:  rgb(53, 132, 228);
+      --blue2:  rgb(98, 160, 234);
       --blue1:  rgb(153, 193, 241);
 
       --fg:   var(--dark5);
       --bg1:  var(--light1);
       --bg2:  var(--light2);
+      --bg3:  var(--light3);
       --link: var(--blue5);
+      --button-bg: var(--bg2);
+      --button-hover: var(--bg3);
+      --button-text: var(--fg);
+      --button-sugested-bg: var(--blue3);
+      --button-sugested-hover: var(--blue2);
+      --button-sugested-text: var(--light1);
     }
 
     @media (prefers-color-scheme: dark) {
@@ -27,6 +38,7 @@
         --fg:   var(--light1);
         --bg1:  var(--dark4);
         --bg2:  var(--dark3);
+        --bg3:  var(--dark2);
         --link: var(--blue1);
       }
     }
@@ -35,14 +47,32 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      margin: 0px;
+      padding: 0px;
+      min-height: 100vh;
+      
+      font-family: Cantarell, sans-serif;
+      background-color: var(--bg1);
+      color: var(--fg);
+      transition: color 0.25s ease-out;
+      transition: background-color 0.5s ease-out;
     }
 
+
     main {
+      /* display: flex;
+      flex-direction: column;
+      justify-content: center; */
       width: 100%;
       max-width: 700px;
+
+      flex-grow: 1;
+      flex-shrink: 1;
     }
 
     #pageHeader{
+      flex-grow: 1;
+      max-height: 200px;
       padding-top: 30px;
     }
 
@@ -50,12 +80,11 @@
       margin-top: 0px;
     }
     
-
     dialog {
       position: relative;
       color: var(--fg);
       background-color: var(--bg1);
-      border-color: var(--bg2);
+      border-color: var(--bg3);
       border-radius: 12px;
       max-width: min(600px, calc(100% - 75px));
       max-height: calc(100% - 75px);
@@ -83,23 +112,24 @@
       height: 30px;
       width: 30px;
       color: var(--fg);
-      background-color: var(--bg2);
+      background-color: var(--bg3);
       border: 0px solid transparent;
+      margin: 0px 0px;
+      padding: 0px;
       border-radius: 100%;
       font-weight: bold;
+      text-align: center;
     }
 
     .close_btn:hover{
       background-color: color-mix(in srgb, var(--bg2) 60%, var(--fg));
     }
 
-    body {
-      font-family: Cantarell, sans-serif;
-      background-color: var(--bg1);
-      color: var(--fg);
-
-      transition: color 0.25s ease-out;
-      transition: background-color 0.5s ease-out;
+    code{
+      padding: 2px 5px;
+      border-radius: 3px;
+      background-color: var(--bg3);
+      color: var(--fg1)
     }
 
     a, a:link, a:visited {
@@ -129,21 +159,76 @@
       display:block;
       max-height: 500px;
       overflow: scroll;
-      background-color: var(--bg2);
     }
 
     .card {
-      background-color: var(--bg2);
+      /* --card_color: var(--bg1); */
+      --card_color: transparent;
+      color: var(--fg);
+      background-color: var(--card_color);
       padding: 10px;
-      margin: 5px;
+      border: 3px solid var(--card_color);
+      margin: 10px 0px;
       border-radius: 12px;
       text-align: center;
     }
-    .card > p {
+    .card > .card {
+      --card_color: var(--bg2);
+    }
+    
+    button {
+      height: 40px;
+      padding: 0 20px;
+      /* padding-bottom: 2px; */
+      border-radius: 20px;
+      border: none;
+      font-weight: bold;
+
+      color: var(--button-text);
+      background-color: var(--button-bg);
+      transition: 0.2s ease;
+    }
+
+    button:hover {
+      background-color: var(--button-hover);
+    }
+
+    button.sugested {
+      background-color: var(--button-sugested-bg);
+      color: var(--button-sugested-text);
+    }
+
+    button.sugested:hover {
+      background-color: var(--button-sugested-hover);
+    }
+
+    button.card {
+      border-color: color-mix(in srgb, var(--card_color) 60%, white);
+      transition: 0.2s ease;
+    }
+
+    button.card:hover {
+      background-color: color-mix(in srgb, var(--card_color) 80%, black);
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.6);
+    }
+
+    button:disabled, button.sugested:disabled {
+      color: color-mix(in srgb, var(--button-text) 25%, var(--button-bg));
+      background-color: var(--button-bg);
+    }
+
+    .card>.scroll_box {
+      background-color: var(--card_color);
       text-align: left;
+    }
+
+    .card > p {
+      /* text-align: left; */
     }
     .card > header {
       padding-bottom: 10px;
+      font-weight: bold;
+      font-size: x-large;
     }
     .columns {
       display: flex;
@@ -162,13 +247,102 @@
       font-size: x-large;
     }
 
+    progress{
+      display: block;
+      flex-grow: 1;
+      width: 100%;
+      /* margin: 15px; */
+      
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+
+      background-color: var(--bg2);
+      height: 15px;
+      border: none;
+      border-radius: 7.5px;
+    }
+
+    progress::-moz-progress-bar{
+      background-color: var(--button-sugested-bg);
+      border-radius: 7.5px;
+    }
+
+    progress::-webkit-progress-bar {
+      background-color: var(--bg2);
+      height: 15px;
+      border: none;
+      border-radius: 7.5px;
+    }
+
+    progress::-webkit-progress-value {
+      background-color: var(--button-sugested-bg);
+      border-radius: 7.5px;
+    }
+
+
+    @keyframes progress_bounce {
+      to { margin-left: 80%; }
+      from { margin-left: 0px; }
+    }
+    progress:not([value])::-moz-progress-bar {
+      width: 20%;
+      animation-name: progress_bounce;
+      animation-duration: 1s;
+      animation-direction:alternate;
+      animation-iteration-count: infinite;
+      animation-timing-function:ease-in-out
+    }
+
+    progress:not([value])::-webkit-progress-bar {
+      width: 20%;
+      color: red;
+      animation-name: progress_bounce;
+      animation-duration: 1s;
+      animation-direction:alternate;
+      animation-iteration-count: infinite;
+      animation-timing-function:ease-in-out
+    }
+
 
   </style>
   <body>
     <header id="pageHeader">
       Tanner_Limes'
       <h1>Songbook Pre-processor</h1>
-      <div style="background-color: black; color: yellow; padding: 10px; margin-top: -20px; text-align: center;">🚧 This site is under construction 🚧</div>
+      <div style="background-color: black; color: yellow; padding: 10px; margin-top: -20px; text-align: center;">🚧 This page is under construction 🚧</div>
+      <dialog id="aboutDialog">
+        <form method="dialog">
+          <button class="close_btn">X</button>
+
+          <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
+
+          <h1>About this page</h1>
+          <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
+          <p>Figura does not (currently) let you read from arbitrary files from your avatar. They have to be one of the supported file types and uploaded with the avatar, or stored as a config file.</p>
+          <p>I need to build a converter anyways to get song data into a format Figura can read. But we can leverage the <code>ConfigAPI</code> to store this data outside of the avatar upload.</p>
+          <h2>How to use this page</h2>
+          <ol>
+            <li>On your computer, put all the songs you want into one folder.<br>You can use subfolders to help organize your library.</li>
+            <li>Click <code>load song folder</code> and select the folder containing your music files.</li>
+            <li>Check the list of uploaded files. Make any ajustments as needed.</li>
+            <li>Click <code>configify</code></li>
+            <li> <i>Wait</i> </li>
+            <li>When available, click <code>Save Zip</code></li>
+            <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
+          </ol>
+          <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
+          <h2>Usage Tips</h2>
+          <ul>
+            <li>This script respects the folder structure of the uploaded files. Use sub-folders to organize your library.</li>
+          </ul>
+          <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere. <span style="font-size: 9pt; opacity: 75%;">But we do import a zipping library.</span></p>
+        </form>
+      </dialog>
+      <div style="text-align: right; width: 100%;">
+        <button id="showAbout" onclick="aboutDialog.showModal()">About this page</button>
+      </div>
+      
     </header>
 
     <noscript>
@@ -188,67 +362,32 @@
     </noscript>
 
     <main>
-      <!-- This element ↓ is hidden. Use `document.getElementById('existingSongbookUpload').click()` to click it. -->
-      <input type="file" id="existingSongbookUpload" value="Load Existing Songbook" style="display: none;" >
+      <input style="display: none;" type="file" name="directory" id="uploadSongbook" webkitdirectory> <br>
+      <!-- <input style="display: none;" type="file" name="directory" id="uploadSongbook" webkitdirectory multiple> <br> -->
 
-      <div>
-        <h3>Step 1:</h3>
-        <div class="columns">
-          <div class="card">
-            <header>Create a new Song book</header>
-            <button id="newSongbook">New Songbook</button>
-          </div>
-          <div class="columns_sepparator">or</div>
-          <div class="card">
-            <header>Add to existing songbook</header>
-            <button onclick="document.getElementById('existingSongbookUpload').click()">Load Current Songbook</button>
-          </div>
-        </div>
+      <div id="noSongsPrompt" class="card">
+        <header>No Songs Loaded</header>
+        <!-- <p>Select a folder of ABC song files.</p> -->
+        <button class="sugested" id="fakeDirectoryInputButton" onclick="document.getElementById('uploadSongbook').click()">Select Song Folder</button><br>
+        <!-- <button class="sugested" id="fakeDirectoryInputButton" onclick="document.getElementById('uploadSongbook').click()" disabled>Select Song Folder</button><br> -->
       </div>
 
-      <h3>Step 2:</h3>
       <div class="card">
-        Load song file.
-        <form id="uploadForm">
-          <input type="file" name="directory" id="directoryInput" webkitdirectory multiple> <br>
-          <input type="submit" value="Process Directory">
-        </form>
+        <header>Loading Songbook</header>
+        <progress max="100"></progress>
+        <span>Reading data…</span>
       </div>
-      <div id="output" class="scroll_box"></div>
 
-      <h3>Step 3:</h3>
       <div class="card">
+        <header>Songbook</header>
+        <div id="output" class="card scroll_box"> <p><span style="opacity: 50;">No songs loaded</span></p></div>
         TODO: Download packed config file
-
         <button type="button" name="button">Download</button>
       </div>
 
     </main>
     <footer>
-      <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
-      <dialog id="aboutDialog">
-        <form method="dialog">
-          <button class="close_btn">X</button>
-
-          <h1>About this page</h1>
-          <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
-          <p>Figura (as of version 0.1.2) does not let you read from arbitrary files from your avatar. They have to be one of the supported file types and uploaded with the avatar, or stored as a config file.</p>
-          <p>I need to build a converter anyways to get song data into a format Figura can read. But we can leverage the <code>ConfigAPI</code> to store this data outside of the avatar upload.</p>
-          <h2>How to use this page</h2>
-          <p>
-            <ol>
-              <li>Load a directory of .ABC files.</li>
-              <li>Click "configify"</li>
-              <li> <i>Wait</i> </li>
-              <li>When available, click "Save Zip"</li>
-              <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
-            </ol>
-          </p>
-          <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
-          <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere. <span style="font-size: 10pt; opacity: 75%;">But we do import a zipping library.</span></p>
-        </form>
-      </dialog>
-      <button id="showAbout" onclick="aboutDialog.showModal()">About this page</button>
+      
     </footer>
   </body>
 
