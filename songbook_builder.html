@@ -184,6 +184,7 @@
       --card_color: var(--bg2);
     }
     
+    /* this nested style stuff for button breaks WebkitGTK support (ie gnome web, maybe also safari?) but works fine in Chromium and firefox. so it stays. */
     button, .fake_button {
       display: inline-flex; /* flex to center text in label.fake_button */
       align-items: center;
