@@ -232,9 +232,13 @@
       justify-content: space-between;
       align-items: stretch;
     }
-    .columns > * {
+    .columns.nogrow {
+      justify-content: center;
+    }
+    .columns:not(.nogrow) > * {
       flex-grow: 2;
     }
+
     .columns_sepparator{
       flex-grow: 0;
       align-self: center;
@@ -370,9 +374,40 @@
       </div>
 
       <div id="progressCard" class="card hidden">
-        <header id="progressCardTitle">ProgressCardTitle</header>
+        <header id="progressCardTitle"></header>
         <progress id="progressCardProgress" value="0" max="100"></progress> <!-- janky ID. I know -->
-        <footer id="progressCardLabel">ProgressCardLabel…</footer> <!-- TODO: add scroll_box class to see ongoing progress -->
+        <footer id="progressCardLabel"></footer> <!-- TODO: add scroll_box class to see ongoing progress -->
+      </div>
+
+      <div id="songbookProcessConfirmation" class="card hidden">
+        <header>Song Data Uploaded</header>
+        <span>Found <span id="ConfirmationTotalNumberOfSongs">N</span> songs</span>
+        <div id="output" class="card scroll_box">
+          <details id="ConfermationUnrecognizedFilesDetails" >
+            <summary><span id="ConfermationNumberOfUnrecognizedFiles">N</span> Unrecognized files (These will be ignored)</summary>
+            <ul id="ConfermationUnrecognizedFilesList"><li>Hopefully a very small list</li></ul>
+          </details>
+          <details id="ConfermationMidiFilesDetails" >
+            <summary><span id="ConfermationNumberOfMidiFiles">N</span> Midi Files</summary>
+            <ul id="ConfermationMidiFilesList">
+              <li>file/one.mid</li>
+              <li>file/two.mid</li>
+            </ul>
+          </details>
+          <details id="ConfermationAbcFilesDetails" >
+            <summary> <span id="ConfermationNumberOfAbcFiles">N</span> ABC Files</summary>
+            <ul id="ConfermationAbcFilesList">
+              <li>file/one.abc</li>
+              <li>file/two.abc</li>
+            </ul>
+          </details>
+        </div>
+        <div class="columns nogrow">
+          <label id="cancelSongbookProcess" for="uploadSongbook" class="fake_button">Load different folder</label>
+          <div class="columns_sepparator"></div>
+          <!-- <button id="cancelSongbookProcess" onclick="">Load different folder</button> <div class="columns_sepparator"></div> -->
+          <button id="confirmSongbookProcess" class="column sugested" type="button" name="button">Process Songbook</button>
+        </div>
       </div>
 
       <div class="card hidden">
@@ -394,6 +429,8 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <script type="text/javascript">
+    "use strict";
+
     /*   Steps for JS:
       1. [X] get ABC files from user
       2. [ ] Process each:
@@ -496,18 +533,11 @@
 
     // User uploads a directory of songs:
 
-    // let file_list = [];
+    let file_list;
     // let file_load_index = 0;
-    // let abc_files = [];
-    // let midi_files = [];
-    // let invalid_files = [];
-
-    // function loadnextfile() {
-
-      // load one file at a time, and when done, queue this function again with setTimeout set to 0. 
-      // That should give controll back to window to update dom, but also resume JS immediatly after. 
-
-    // }
+    let abc_files;
+    let midi_files;
+    let invalid_files;
 
     function setCard(cardId) {
       for (const child of document.getElementById("cards").children) {
@@ -516,18 +546,76 @@
       document.getElementById(cardId).classList.remove("hidden");
     }
 
-    function setProgressCard(progressTitle, max, progressCardLabel = "") {
-      document.getElementById("progressCardTitle").innerHTML = progressTitle;
+    function updateProgressCard(max, value = 0, progressCardLabel) {
       document.getElementById("progressCardProgress").max = max;
-      document.getElementById("progressCardLabel").innerHTML = "";
+      document.getElementById("progressCardProgress").value = value;
+      if (progressCardLabel) {
+        document.getElementById("progressCardLabel").innerHTML = progressCardLabel;
+      }
+    }
+
+    function setProgressCard(progressTitle) {
+      document.getElementById("progressCardTitle").innerHTML = progressTitle;
       
       setCard("progressCard");
+    }
+
+    function setConfermationCard() {
+      document.getElementById("ConfirmationTotalNumberOfSongs").innerHTML = (midi_files.length + abc_files.length).toString();
+
+      if (midi_files.length > 0) {
+        document.getElementById("ConfermationMidiFilesDetails").classList.remove("hidden")
+      }
+      else {document.getElementById("ConfermationMidiFilesDetails").classList.add("hidden")}
+
+      document.getElementById("ConfermationNumberOfMidiFiles").innerHTML = midi_files.length.toString();
+      document.getElementById("ConfermationMidiFilesList").innerHTML = "";
+      midi_files.forEach((file) => {
+        let li = document.createElement("li");
+        li.innerHTML = file.webkitRelativePath;
+        document.getElementById("ConfermationMidiFilesList").appendChild(li)
+      });
+
+      if (abc_files.length > 0) {
+        document.getElementById("ConfermationAbcFilesDetails").classList.remove("hidden")
+      }
+      else {document.getElementById("ConfermationAbcFilesDetails").classList.add("hidden")}
+
+      document.getElementById("ConfermationNumberOfAbcFiles").innerHTML = abc_files.length.toString();
+      document.getElementById("ConfermationAbcFilesList").innerHTML = "";
+      abc_files.forEach((file) => {
+        let li = document.createElement("li");
+        li.innerHTML = file.webkitRelativePath;
+        document.getElementById("ConfermationAbcFilesList").appendChild(li)
+      });
+
+
+      if (invalid_files.length > 0) {
+        document.getElementById("ConfermationUnrecognizedFilesDetails").classList.remove("hidden")
+      }
+      else {document.getElementById("ConfermationUnrecognizedFilesDetails").classList.add("hidden")}
+      document.getElementById("ConfermationNumberOfUnrecognizedFiles").innerHTML = invalid_files.length.toString();
+      document.getElementById("ConfermationUnrecognizedFilesList").innerHTML = "";
+      invalid_files.forEach((file) => {
+        let li = document.createElement("li");
+        li.innerHTML = file.webkitRelativePath;
+        document.getElementById("ConfermationUnrecognizedFilesList").appendChild(li)
+      });
+      
+
+
+
+
+
+
+      setCard("songbookProcessConfirmation");
     }
 
     document.getElementById('uploadSongbook').addEventListener('change', function(e) {
       console.log("Loading " + e.target.files.length + " files…")
 
-      setProgressCard("Loading Song Folder", e.target.files.length);
+      updateProgressCard(e.target.files.length, 0)
+      setProgressCard("Loading Song Folder");
 
       function scanUploadedFiles(fileslist) {
         file_list = Array.from(e.target.files);
@@ -535,6 +623,7 @@
         midi_files = [];
         invalid_files = [];
 
+        // check file types
         console.log(e.target.files);
         file_list.forEach(function(file) {
           if (file.type == "text/vnd.abc") {abc_files.push(file)}
@@ -546,8 +635,34 @@
         console.log("ABC files: " + abc_files.length);
         console.log("Midi files: " + midi_files.length);
 
+
+        // tmp file read tests:
+        if (abc_files[0]) {
+          console.log("first ABC:");
+          console.log(abc_files[0]);
+
+          const reader = new FileReader();
+
+          reader.addEventListener("load", () => {
+            console.log(reader.result);
+          }, false)
+          reader.readAsText(abc_files[0]);
+        }
+
+        // sort output
+        function sortByPath(a, b) {
+          if (a.webkitRelativePath < b.webkitRelativePath) { return -1 };
+          if (a.webkitRelativePath > b.webkitRelativePath) { return 1 };
+          return 0;
+        }
+
+        invalid_files.sort(sortByPath);
+        midi_files.sort(sortByPath);
+        abc_files.sort(sortByPath);
         
+        // done. Go to next screen
         document.getElementById("progressCardProgress").value = document.getElementById("progressCardProgress").max;
+        setConfermationCard();
       };
 
       setTimeout(scanUploadedFiles, 1)
