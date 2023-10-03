@@ -111,26 +111,6 @@
       transition: backdrop-filter .5s ease; /* not supported yet, but maybe in the future? */
     }
 
-    .close_btn {
-      position: absolute;
-      right: 25px;
-      top: 25px;
-      height: 30px;
-      width: 30px;
-      color: var(--fg);
-      background-color: var(--bg3);
-      border: 0px solid transparent;
-      margin: 0px 0px;
-      padding: 0px;
-      border-radius: 100%;
-      font-weight: bold;
-      text-align: center;
-    }
-
-    .close_btn:hover{
-      background-color: color-mix(in srgb, var(--bg2) 60%, var(--fg));
-    }
-
     code{
       padding: 2px 5px;
       border-radius: 3px;
@@ -229,6 +209,27 @@
       &:disabled, &.sugested:disabled {
         color: color-mix(in srgb, var(--button-text) 25%, var(--button-bg));
         background-color: var(--button-bg);
+      }
+
+      &.close_btn {
+        display: unset; /* should probably actualy style this right instead of resetting. Works for now though. */
+        position: absolute;
+        right: 25px;
+        top: 25px;
+        height: 30px;
+        width: 30px;
+        color: var(--fg);
+        background-color: var(--bg3);
+        border: 0px solid transparent;
+        margin: 0px 0px;
+        padding: 0px;
+        border-radius: 100%;
+        font-weight: bold;
+        text-align: center;
+
+        &:hover{
+          background-color: color-mix(in srgb, var(--bg2) 60%, var(--fg));
+        }
       }
     }
 
