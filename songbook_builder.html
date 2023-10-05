@@ -43,6 +43,10 @@
       }
     }
 
+    .wait, .wait * {
+      cursor: wait;
+    }
+
     body {
       display: flex;
       flex-direction: column;
@@ -143,6 +147,49 @@
     .card > .card {
       --card_color: var(--bg2);
     }
+
+    details summary{
+      cursor: pointer;
+    }
+
+    @keyframes card_appear {
+      0% { 
+        /* transform: translate(100px, 0); */
+        opacity: 0%; 
+      }
+      100% { 
+        /* transform: translate(0, 0); */
+        opacity: 100%;
+      }
+    }
+    .card:not(.hidden) {
+      animation-name: card_appear;
+      animation-duration: 0.25s; 
+      animation-timing-function: ease-out; 
+    }
+
+    /* @keyframes card_hide {
+      0% { 
+        transform: translate(0, 0);
+        opacity: 100%; 
+        height: 100%;
+      }
+      100% { 
+        transform: translate(-100px, 0);
+        opacity: 0%;
+        height: 0px;
+      }
+    } */
+    /* .card.hidden {
+      display: block;
+      opacity: 0%;
+      height: 0px;
+      overflow:hidden;
+
+      animation-name: card_hide;
+      animation-duration: 5s; 
+      animation-timing-function: ease-in; 
+    } */
     
     /* this nested style stuff for button breaks WebkitGTK support (ie gnome web, maybe also safari?) but works fine in Chromium and firefox. so it stays. */
     button, .fake_button {
@@ -302,7 +349,7 @@
 
 
   </style>
-  <body>
+  <body id="body">
     <header id="pageHeader">
       Tanner_Limes'
       <h1>Songbook Pre-processor</h1>
@@ -536,6 +583,7 @@
     let midi_files;
     let invalid_files;
 
+    // Set cards helpers //////////////////////////////////////////////////////////////////////////
     function setCard(cardId) {
       for (const child of document.getElementById("cards").children) {
         child.classList.add("hidden")
@@ -598,21 +646,18 @@
         li.innerHTML = file.webkitRelativePath;
         document.getElementById("ConfermationUnrecognizedFilesList").appendChild(li)
       });
-      
-
-
-
-
-
 
       setCard("songbookProcessConfirmation");
     }
+
+
+    // Button interactions ////////////////////////////////////////////////////////////////////////
 
     document.getElementById('uploadSongbook').addEventListener('change', function(e) {
       console.log("Loading " + e.target.files.length + " files…")
 
       updateProgressCard(e.target.files.length, 0)
-      setProgressCard("Loading Song Folder");
+      // setProgressCard("Loading Song Folder");  // Chrome and firefox are too quick for this, progress bar shows up for too little time
 
       function scanUploadedFiles(fileslist) {
         file_list = Array.from(e.target.files);
@@ -658,24 +703,12 @@
         abc_files.sort(sortByPath);
         
         // done. Go to next screen
+        // document.getElementById("body").classList.remove("wait")
         document.getElementById("progressCardProgress").value = document.getElementById("progressCardProgress").max;
         setConfermationCard();
       };
 
       setTimeout(scanUploadedFiles, 1)
-
-
-
-      // abc mime type: "text/vnd.abc"
-      // Midi type: "audio/midi"
-
-
-      // Quick scan for valid files
-      // Tell user if tound N invalid files, N ABC files, and N midi files. 
-      // (if N is 0, hide the line. If there are no ABC or Midi files, tell suer to select a new folder)
-      // Show button(s) to show a file list for each section. (Or button to show full file tree)
-
-      // Below report, show a "Build Songbook" button. 
     });
 
     // In-line web workers: https://stackoverflow.com/a/6454685
