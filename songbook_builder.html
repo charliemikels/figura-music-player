@@ -439,7 +439,7 @@
             <ol id="ConfermationUnrecognizedFilesList"></ol>
           </details>
           <details id="ConfermationMidiFilesDetails">
-            <summary><span id="ConfermationNumberOfMidiFiles">N</span> Midi Files</summary>
+            <summary style="opacity:25%;" ><span id="ConfermationNumberOfMidiFiles">N</span> Midi Files. Midi files are currently ignored, but will be supported Eventualy™.</summary>
             <ol id="ConfermationMidiFilesList"></ol>
           </details>
           <details id="ConfermationAbcFilesDetails">
@@ -657,15 +657,6 @@
       return parts.join('/');
     }
 
-    // function getShorterPaths(fileList) {
-    //   const shortenedPaths = fileList.map(f => {f.webkitRelativePath}).map(filePath => {
-    //     const parts = filePath.split('/');
-    //     parts.shift(); // Remove the first element (folderName)
-    //     return parts.join('/');
-    //   });
-    //   return shorterPaths ???
-    // }
-
     // Button interactions ////////////////////////////////////////////////////////////////////////
 
     document.getElementById('uploadSongbook').addEventListener('change', function(e) {
@@ -692,7 +683,6 @@
         console.log("ABC files: " + abc_files.length);
         console.log("Midi files: " + midi_files.length);
         // console.log(getShorterPaths(file_list));
-
 
         // tmp file read tests:
         if (abc_files[0]) {
@@ -728,43 +718,6 @@
     });
 
     // In-line web workers: https://stackoverflow.com/a/6454685
-
-    document.getElementById("uploadForm").addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      const input = document.getElementById("directoryInput");
-      const outputDiv = document.getElementById("output");
-
-      const files = input.files;
-
-      if (files.length === 0) {
-        alert("Please select a directory.");
-        return;
-      }
-
-      // Function to process each file
-      function processFile(file) {
-        const reader = new FileReader();
-
-        reader.onload = function (e) {
-          // Process the file content here
-          const fileContent = e.target.result;
-
-          // Display or handle the file content as needed
-          const fileDiv = document.createElement("div");
-          fileDiv.textContent = `File Name: ${file.name}, Size: ${file.size} bytes`;
-          outputDiv.appendChild(fileDiv);
-        };
-
-        reader.readAsDataURL(file);
-      }
-
-      // Process each file in the selected directory
-      for (const file of files) {
-        processFile(file);
-      }
-    });
-
 
 
   </script>
