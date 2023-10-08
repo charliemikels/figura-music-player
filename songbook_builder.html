@@ -111,7 +111,8 @@
 
     dialog::backdrop {
       backdrop-filter: blur(3.5px);
-      transition: backdrop-filter .5s ease; /* not supported yet, but maybe in the future? */
+      transition: backdrop-filter .5s ease; 
+        /* ↑ not supported yet, but maybe in the future? */
     }
 
     code{
@@ -193,7 +194,9 @@
       animation-timing-function: ease-in; 
     } */
     
-    /* this nested style stuff for button breaks WebkitGTK support (ie gnome web, maybe also safari?) but works fine in Chromium and firefox. so it stays. */
+    /*  this nested style stuff for button breaks WebkitGTK support 
+        (ie gnome web, maybe also safari?) but works fine in Chromium and 
+        firefox. so it stays. */
     button, .fake_button {
       display: inline-flex; /* flex to center text in label.fake_button */
       align-items: center;
@@ -241,7 +244,9 @@
       }
 
       &.close_btn {
-        display: unset; /* should probably actualy style this right instead of resetting. Works for now though. */
+        display: unset; 
+          /*  should probably actualy style this right instead of resetting. 
+              Works for now though. */
         position: absolute;
         right: 25px;
         top: 25px;
@@ -364,31 +369,66 @@
         <form method="dialog">
           <button class="close_btn">X</button>
         </form>
-        <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
+        <p>for use with 
+          <a href="https://github.com/charliemikels/figura-music-player">
+            Tanner Lime's Music Script
+          </a> for <a href="https://github.com/FiguraMC/Figura">Figura</a>
+        </p>
 
         <h1>About This Page</h1>
-        <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
-        <p>Figura does not (currently) let you read from arbitrary files from your avatar. They have to be one of the supported file types and uploaded with the avatar, or stored as a config file.</p>
-        <p>I need to build a converter anyways to get song data into a format Figura can read. But we can leverage the <code>ConfigAPI</code> to store this data outside of the avatar upload.</p>
+        <p>
+          This page is a pre-processor for Tanner_Limes's Music Player script
+          for Figura.
+        </p>
+        <p>
+          Figura does not (currently) let you read from arbitrary files 
+          from your avatar. They have to be one of the supported file types 
+          and uploaded with the avatar, or stored as a config file.
+        </p>
+        <p>
+          I need to build a converter anyways to get song data into a format 
+          Figura can read. But we can leverage the <code>ConfigAPI</code> 
+          to store this data outside of the avatar upload.
+        </p>
         <h2>How to Use This Page</h2>
         <ol>
-          <li>On your computer, put all the songs you want into one folder.<br>You can use subfolders to help organize your library.</li>
-          <li>Click <code>load song folder</code> and select the folder containing your music files.</li>
-          <li>Check the list of uploaded files. Make any ajustments as needed.</li>
+          <li>On your computer, put all the songs you want into one folder.
+            <br>You can use subfolders to help organize your library.</li>
+          <li>Click <code>load song folder</code> and select the 
+            folder containing your music files.</li>
+          <li>Check the list of uploaded files. 
+            Make any ajustments as needed.</li>
           <li>Click <code>configify</code></li>
           <li> <i>Wait</i> </li>
           <li>When available, click <code>Save Zip</code></li>
-          <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
+          <li>Extract the zip file into Figura's data directory: 
+            <code>[figura_root]/data</code> 
+            <br> Note: the config API doesn't support subdirectories. So yes, 
+            you have to dump every <code>TL_song_[songName].json</code> file 
+            right into the data folder.</li>
         </ol>
-        <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
+        <p>
+          Once all that is done, the music script should be able to find all 
+          of your converted songs.
+        </p>
         <h2>Usage Tips</h2>
         <ul>
-          <li>This script respects the folder structure of the uploaded files. Use sub-folders to organize your library.</li>
+          <li>
+            This script respects the folder structure of the uploaded files. 
+            Use sub-folders to organize your library.</li>
         </ul>
-        <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere. <span style="font-size: 9pt; opacity: 75%;">But we do import a zipping library.</span></p>
+        <p>BTW: Everything on this page happens localy in your browser. 
+          Your song files are not actualy "uploaded" anywhere. 
+          <span style="font-size: 9pt; opacity: 75%;">
+            But we do import a zipping library.
+          </span>
+        </p>
       </dialog>
+
       <div style="text-align: right; width: 100%;">
-        <button id="showAbout" onclick="aboutDialog.showModal()">About This Page</button>
+        <button id="showAbout" onclick="aboutDialog.showModal()">
+          About This Page
+        </button>
       </div>
       
     </header>
@@ -404,8 +444,11 @@
       <div class="card">
         <h2>This converter requires Javascript.</h2>
         <p>Please enable Javascript to continue.<br>
-          All of the logic happens in-browser, and you can view the source code at <a href="https://github.com/charliemikels/figura-music-player">the github repo for this page</a>. 
-          <!-- (Or you can open this HTML file in a text editor. All of the logic is in this one file) --> <!-- Script isn't done yet. The final version might load things from external libraries. -->
+          All of the logic happens in-browser. You can open this file in a text
+          editor to see how it works, <br> or view the code at
+          <a href="https://github.com/charliemikels/figura-music-player">
+            the github repo for this page
+          </a>. 
         </p>
       </div>
     </noscript>
@@ -414,47 +457,69 @@
       <div id="openSongbookCard" class="card">
         <header>No Songs Loaded</header>
 
-        <label id="uploadSongbookLabel" for="uploadSongbook" class="fake_button sugested">Select Song Folder</label>
-        <input type="file" name="directory" id="uploadSongbook" style="display: none;" webkitdirectory> <br>
+        <label id="uploadSongbookLabel" for="uploadSongbook" 
+            class="fake_button sugested">
+          Select Song Folder
+        </label>
+        <input type="file" name="directory" 
+            id="uploadSongbook" style="display: none;" webkitdirectory> 
           <!-- accept=".abc, .mid, .midi" -->
-          <!-- <input style="display: none;" type="file" name="directory" id="uploadSongbook" webkitdirectory multiple> <br> -->
+
+          <br>
       </div>
 
       <div id="progressCard" class="card hidden">
         <header id="progressCardTitle"></header>
-        <progress id="progressCardProgress" value="0" max="100"></progress> <!-- janky ID. I know -->
-        <footer id="progressCardLabel"></footer> <!-- TODO: add scroll_box class to see ongoing progress -->
+        <progress id="progressCardProgress" value="0" max="100"></progress>
+        <footer id="progressCardLabel"></footer>
+        <!-- TODO: add details tag to see ongoing progress? -->
       </div>
 
       <div id="songbookProcessConfirmation" class="card hidden">
         <header>Song Data Uploaded</header>
-        <span>Found <span id="ConfirmationTotalNumberOfSongs">N</span> songs</span>
+        <span>Found 
+          <span id="ConfirmationTotalNumberOfSongs">N</span> songs
+        </span>
         <div id="output" class="card scroll_box">
           <details id="ConfermationUnrecognizedFilesDetails">
-            <summary><span id="ConfermationNumberOfUnrecognizedFiles">N</span> Unrecognized files (These will be ignored)</summary>
+            <summary><span id="ConfermationNumberOfUnrecognizedFiles">N</span> 
+              Unrecognized files (These will be ignored)
+            </summary>
             <ol id="ConfermationUnrecognizedFilesList"></ol>
           </details>
           <details id="ConfermationMidiFilesDetails">
             <summary style="opacity:25%;" >
-              <span id="ConfermationNumberOfMidiFiles">N</span> Midi Files. Midi files are currently ignored, but will be supported Eventualy™.
+              <span id="ConfermationNumberOfMidiFiles">N</span> 
+                Midi Files. Midi files are currently ignored,
+                but will be supported Eventualy™.
             </summary>
             <ol id="ConfermationMidiFilesList"></ol>
           </details>
           <details id="ConfermationAbcFilesDetails">
-            <summary><span id="ConfermationNumberOfAbcFiles">N</span> ABC Files</summary>
+            <summary><span id="ConfermationNumberOfAbcFiles">N</span>
+              ABC Files
+            </summary>
             <ol id="ConfermationAbcFilesList"></ol>
           </details>
         </div>
         <div class="columns nogrow">
-          <label id="cancelSongbookProcess" for="uploadSongbook" class="fake_button">Load Different Folder</label>
+          <label id="cancelSongbookProcess" 
+              for="uploadSongbook" class="fake_button">
+            Load Different Folder
+          </label>
           <div class="columns_sepparator"></div>
-          <button id="confirmSongbookProcess" class="column sugested" type="button" name="button">Process Songbook</button>
+          <button id="confirmSongbookProcess" class="column sugested"
+              type="button" name="button">
+            Process Songbook
+          </button>
         </div>
       </div>
 
       <div class="card hidden">
         <header>Songbook</header>
-        <div id="output" class="card scroll_box"> <p><span style="opacity: 50;">No songs loaded</span></p></div>
+        <div id="output" class="card scroll_box"> 
+          <p><span style="opacity: 50;">No songs loaded</span></p>
+        </div>
         TODO: Download packed config file
         <button type="button" name="button">Download</button>
       </div>
@@ -469,7 +534,8 @@
 <!-- https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file -->
 <!-- converting to base64: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem -->
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js">
+  </script>
   <script type="text/javascript">
     "use strict";
 
@@ -531,8 +597,10 @@
         downloadLink.href = url;
         downloadLink.download = 'files.zip';
         downloadLink.click();
-          // ↑ Simulates clicking the download link. We can instead let the user click it when they're ready.
-        window.URL.revokeObjectURL(url);  // ← cleans up memory. do this before generating any new blobs.
+          // ↑ Simulates clicking the download link. 
+          // We can instead let the user click it when they're ready.
+        window.URL.revokeObjectURL(url);  
+          // ↑ cleans up memory. do this before generating any new blobs.
       });
     }
 
@@ -584,7 +652,7 @@
     let midi_files;
     let invalid_files;
 
-    // Set cards helpers //////////////////////////////////////////////////////////////////////////
+    // Set cards helpers ///////////////////////////////////////////////////////
     function setCard(cardId) {
       for (const child of document.getElementById("cards").children) {
         child.classList.add("hidden")
@@ -596,7 +664,8 @@
       document.getElementById("progressCardProgress").max = max;
       document.getElementById("progressCardProgress").value = value;
       if (progressCardLabel) {
-        document.getElementById("progressCardLabel").innerHTML = progressCardLabel;
+        document.getElementById("progressCardLabel")
+                .innerHTML = progressCardLabel;
       }
     }
 
@@ -607,14 +676,20 @@
     }
 
     function setConfermationCard() {
-      document.getElementById("ConfirmationTotalNumberOfSongs").innerHTML = (midi_files.length + abc_files.length).toString();
+      document.getElementById("ConfirmationTotalNumberOfSongs")
+              .innerHTML = (midi_files.length + abc_files.length).toString();
 
       if (midi_files.length > 0) {
-        document.getElementById("ConfermationMidiFilesDetails").classList.remove("hidden")
+        document.getElementById("ConfermationMidiFilesDetails")
+                .classList.remove("hidden")
       }
-      else {document.getElementById("ConfermationMidiFilesDetails").classList.add("hidden")}
+      else {
+        document.getElementById("ConfermationMidiFilesDetails")
+                .classList.add("hidden")
+      }
 
-      document.getElementById("ConfermationNumberOfMidiFiles").innerHTML = midi_files.length.toString();
+      document.getElementById("ConfermationNumberOfMidiFiles").innerHTML 
+        = midi_files.length.toString();
       document.getElementById("ConfermationMidiFilesList").innerHTML = "";
       midi_files.forEach((file) => {
         let li = document.createElement("li");
@@ -623,42 +698,54 @@
       });
 
       if (abc_files.length > 0) {
-        document.getElementById("ConfermationAbcFilesDetails").classList.remove("hidden")
+        document.getElementById("ConfermationAbcFilesDetails")
+                .classList.remove("hidden")
       }
-      else {document.getElementById("ConfermationAbcFilesDetails").classList.add("hidden")}
+      else {
+        document.getElementById("ConfermationAbcFilesDetails")
+                .classList.add("hidden")}
 
-      document.getElementById("ConfermationNumberOfAbcFiles").innerHTML = abc_files.length.toString();
+      document.getElementById("ConfermationNumberOfAbcFiles")
+              .innerHTML = abc_files.length.toString();
       document.getElementById("ConfermationAbcFilesList").innerHTML = "";
       abc_files.forEach((file) => {
         let li = document.createElement("li");
         li.innerHTML = trimFirstDir(file.webkitRelativePath);
-        document.getElementById("ConfermationAbcFilesList").appendChild(li)
+        document.getElementById("ConfermationAbcFilesList")
+                .appendChild(li);
       });
 
 
       if (invalid_files.length > 0) {
-        document.getElementById("ConfermationUnrecognizedFilesDetails").classList.remove("hidden")
+        document.getElementById("ConfermationUnrecognizedFilesDetails")
+                .classList.remove("hidden");
       }
-      else {document.getElementById("ConfermationUnrecognizedFilesDetails").classList.add("hidden")}
-      document.getElementById("ConfermationNumberOfUnrecognizedFiles").innerHTML = invalid_files.length.toString();
-      document.getElementById("ConfermationUnrecognizedFilesList").innerHTML = "";
+      else {
+        document.getElementById("ConfermationUnrecognizedFilesDetails")
+                .classList.add("hidden");
+      }
+      document.getElementById("ConfermationNumberOfUnrecognizedFiles")
+              .innerHTML = invalid_files.length.toString();
+      document.getElementById("ConfermationUnrecognizedFilesList")
+              .innerHTML = "";
       invalid_files.forEach((file) => {
         let li = document.createElement("li");
         li.innerHTML = trimFirstDir(file.webkitRelativePath);
-        document.getElementById("ConfermationUnrecognizedFilesList").appendChild(li)
+        document.getElementById("ConfermationUnrecognizedFilesList")
+                .appendChild(li);
       });
 
       setCard("songbookProcessConfirmation");
     }
 
-    // String helpers /////////////////////////////////////////////////////////////////////////////
+    // String helpers //////////////////////////////////////////////////////////
     function trimFirstDir(path) {
       const parts = path.split('/');
       parts.shift();
       return parts.join('/');
     }
 
-    // File Processing ////////////////////////////////////////////////////////////////////////////
+    // File Processing /////////////////////////////////////////////////////////
     function processSongFilesIntoSongbook() {
       const numFiles = file_list.length;
       let currentFileIndex = 0;
@@ -669,18 +756,28 @@
       function processNextSong() {
         if (currentFileIndex < numFiles) {
           const currentFile = file_list[currentFileIndex];
-          updateProgressCard(numFiles, currentFileIndex, "Processing file: </br>" + trimFirstDir(currentFile.webkitRelativePath) + "" )
-          // TODO: Process currentFile (get mimetype and send to the correct file handeler)
-          console.log( currentFileIndex.toString() + " → " + trimFirstDir(currentFile.webkitRelativePath));
+          updateProgressCard(numFiles, currentFileIndex, 
+            "Processing file: </br>" 
+            + trimFirstDir(currentFile.webkitRelativePath) + "" 
+          )
+          // TODO: Process currentFile 
+          //    (get mimetype and send to the correct file handeler)
+          console.log( currentFileIndex.toString() 
+            + " → " + trimFirstDir(currentFile.webkitRelativePath)
+          );
 
-          // const processor_function = processor_functions[ currFile.mime_type ]
+          // const processor_function = processor_functions[currFile.mime_type]
           // if not nil then processor_function(current_file) end
           
           currentFileIndex++;
           setTimeout(processNextSong, 0);
         } else {
-          // TODO We're done! or mostly done. we may need a 2nd progress bar (or maybe a spinner) for the zip step. 
-          updateProgressCard(file_list.length, file_list.length, "Songbook \"fully processed™\"");
+          // TODO We're done! or mostly done. 
+          // we may need a 2nd progress bar (or maybe a spinner) 
+          // for the zipping stage. 
+          updateProgressCard(file_list.length, file_list.length, 
+            "Songbook \"fully processed™\""
+          );
         }
       }
 
@@ -690,12 +787,15 @@
     // In-line web workers: https://stackoverflow.com/a/6454685
 
 
-    // Button interactions ////////////////////////////////////////////////////////////////////////
-    document.getElementById('uploadSongbook').addEventListener('change', function(e) {
+    // Button interactions /////////////////////////////////////////////////////
+    document.getElementById('uploadSongbook')
+            .addEventListener('change', function(e) {
       console.log("Loading " + e.target.files.length + " files…")
 
       updateProgressCard(e.target.files.length, 0)
-      // setProgressCard("Loading Song Folder");  // Chrome and firefox are too quick for this, progress bar shows up for too little time
+      // setProgressCard("Loading Song Folder");  
+      // ↑ Chrome and firefox are too quick for this, 
+      //   progress bar shows up for too little time
 
       function scanUploadedFiles() {
         file_list = Array.from(e.target.files);
@@ -742,14 +842,16 @@
         
         // done. Go to next screen
         // document.getElementById("body").classList.remove("wait")
-        document.getElementById("progressCardProgress").value = document.getElementById("progressCardProgress").max;
+        document.getElementById("progressCardProgress").value
+            = document.getElementById("progressCardProgress").max;
         setConfermationCard();
       };
 
       setTimeout(scanUploadedFiles, 1)
     });
 
-    document.getElementById('confirmSongbookProcess').addEventListener('click', function(e) {
+    document.getElementById('confirmSongbookProcess')
+            .addEventListener('click', function(e) {
       console.log("Process songbook!")
       processSongFilesIntoSongbook()
     });
