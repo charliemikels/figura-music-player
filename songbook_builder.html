@@ -31,6 +31,10 @@
       --button-sugested-bg: var(--blue3);
       --button-sugested-hover: var(--blue2);
       --button-sugested-text: var(--light1);
+
+      transition: color 0.5s ease;
+      transition: background-color 0.5s ease;
+      transition: border-color 0.5s ease;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -53,13 +57,11 @@
       align-items: center;
       margin: 0px;
       padding: 0px;
-      min-height: 100vh;
+      height: 100vh;
       
       font-family: Cantarell, sans-serif;
       background-color: var(--bg1);
       color: var(--fg);
-      transition: color 0.25s ease-out;
-      transition: background-color 0.5s ease-out;
     }
 
     .hidden {
@@ -71,7 +73,7 @@
       flex-direction: column;
       justify-content: center; */
       width: 100%;
-      max-width: 700px;
+      max-width: 900px;
 
       flex-grow: 1;
       flex-shrink: 1;
@@ -129,8 +131,8 @@
 
     .scroll_box{
       display:block;
-      max-height: 500px;
-      overflow: scroll;
+      /* max-height: 400px; */
+      /* overflow: scroll; */
     }
 
     .card {
@@ -347,6 +349,12 @@
       animation-timing-function:ease-in-out
     }
 
+    ol li::marker {
+      font-size: xx-small;
+      color: color-mix(in srgb, var(--fg) 50%, rgba(0,0,0,0))
+    }
+
+
 
   </style>
   <body id="body">
@@ -357,30 +365,29 @@
       <dialog id="aboutDialog">
         <form method="dialog">
           <button class="close_btn">X</button>
-
-          <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
-
-          <h1>About This Page</h1>
-          <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
-          <p>Figura does not (currently) let you read from arbitrary files from your avatar. They have to be one of the supported file types and uploaded with the avatar, or stored as a config file.</p>
-          <p>I need to build a converter anyways to get song data into a format Figura can read. But we can leverage the <code>ConfigAPI</code> to store this data outside of the avatar upload.</p>
-          <h2>How to Use This Page</h2>
-          <ol>
-            <li>On your computer, put all the songs you want into one folder.<br>You can use subfolders to help organize your library.</li>
-            <li>Click <code>load song folder</code> and select the folder containing your music files.</li>
-            <li>Check the list of uploaded files. Make any ajustments as needed.</li>
-            <li>Click <code>configify</code></li>
-            <li> <i>Wait</i> </li>
-            <li>When available, click <code>Save Zip</code></li>
-            <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
-          </ol>
-          <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
-          <h2>Usage Tips</h2>
-          <ul>
-            <li>This script respects the folder structure of the uploaded files. Use sub-folders to organize your library.</li>
-          </ul>
-          <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere. <span style="font-size: 9pt; opacity: 75%;">But we do import a zipping library.</span></p>
         </form>
+        <p>for use with <a href="https://github.com/charliemikels/figura-music-player">Tanner Lime's Music Script</a> for <a href="https://github.com/FiguraMC/Figura">Figura</a></p>
+
+        <h1>About This Page</h1>
+        <p>This page is a pre-processor for Tanner_Limes's Music Player script for Figura.</p>
+        <p>Figura does not (currently) let you read from arbitrary files from your avatar. They have to be one of the supported file types and uploaded with the avatar, or stored as a config file.</p>
+        <p>I need to build a converter anyways to get song data into a format Figura can read. But we can leverage the <code>ConfigAPI</code> to store this data outside of the avatar upload.</p>
+        <h2>How to Use This Page</h2>
+        <ol>
+          <li>On your computer, put all the songs you want into one folder.<br>You can use subfolders to help organize your library.</li>
+          <li>Click <code>load song folder</code> and select the folder containing your music files.</li>
+          <li>Check the list of uploaded files. Make any ajustments as needed.</li>
+          <li>Click <code>configify</code></li>
+          <li> <i>Wait</i> </li>
+          <li>When available, click <code>Save Zip</code></li>
+          <li>Extract the zip file into Figura's data directory: <code>[figura_root]/data</code> <br> Note: the config API doesn't support subdirectories. So yes, you have to dump every <code>TL_song_[songName].json</code> file right into the data folder.</li>
+        </ol>
+        <p>Once all that is done, the music script should be able to find all of your converted songs.</p>
+        <h2>Usage Tips</h2>
+        <ul>
+          <li>This script respects the folder structure of the uploaded files. Use sub-folders to organize your library.</li>
+        </ul>
+        <p>BTW: Everything on this page happens localy in your browser. Your song files are not actualy "uploaded" anywhere. <span style="font-size: 9pt; opacity: 75%;">But we do import a zipping library.</span></p>
       </dialog>
       <div style="text-align: right; width: 100%;">
         <button id="showAbout" onclick="aboutDialog.showModal()">About This Page</button>
@@ -427,29 +434,22 @@
         <header>Song Data Uploaded</header>
         <span>Found <span id="ConfirmationTotalNumberOfSongs">N</span> songs</span>
         <div id="output" class="card scroll_box">
-          <details id="ConfermationUnrecognizedFilesDetails" >
+          <details id="ConfermationUnrecognizedFilesDetails">
             <summary><span id="ConfermationNumberOfUnrecognizedFiles">N</span> Unrecognized files (These will be ignored)</summary>
-            <ul id="ConfermationUnrecognizedFilesList"><li>Hopefully a very small list</li></ul>
+            <ol id="ConfermationUnrecognizedFilesList"></ol>
           </details>
-          <details id="ConfermationMidiFilesDetails" >
+          <details id="ConfermationMidiFilesDetails">
             <summary><span id="ConfermationNumberOfMidiFiles">N</span> Midi Files</summary>
-            <ul id="ConfermationMidiFilesList">
-              <li>file/one.mid</li>
-              <li>file/two.mid</li>
-            </ul>
+            <ol id="ConfermationMidiFilesList"></ol>
           </details>
-          <details id="ConfermationAbcFilesDetails" >
-            <summary> <span id="ConfermationNumberOfAbcFiles">N</span> ABC Files</summary>
-            <ul id="ConfermationAbcFilesList">
-              <li>file/one.abc</li>
-              <li>file/two.abc</li>
-            </ul>
+          <details id="ConfermationAbcFilesDetails">
+            <summary><span id="ConfermationNumberOfAbcFiles">N</span> ABC Files</summary>
+            <ol id="ConfermationAbcFilesList"></ol>
           </details>
         </div>
         <div class="columns nogrow">
           <label id="cancelSongbookProcess" for="uploadSongbook" class="fake_button">Load Different Folder</label>
           <div class="columns_sepparator"></div>
-          <!-- <button id="cancelSongbookProcess" onclick="">Load different folder</button> <div class="columns_sepparator"></div> -->
           <button id="confirmSongbookProcess" class="column sugested" type="button" name="button">Process Songbook</button>
         </div>
       </div>
@@ -617,7 +617,7 @@
       document.getElementById("ConfermationMidiFilesList").innerHTML = "";
       midi_files.forEach((file) => {
         let li = document.createElement("li");
-        li.innerHTML = file.webkitRelativePath;
+        li.innerHTML = trimFirstDir(file.webkitRelativePath);
         document.getElementById("ConfermationMidiFilesList").appendChild(li)
       });
 
@@ -630,7 +630,7 @@
       document.getElementById("ConfermationAbcFilesList").innerHTML = "";
       abc_files.forEach((file) => {
         let li = document.createElement("li");
-        li.innerHTML = file.webkitRelativePath;
+        li.innerHTML = trimFirstDir(file.webkitRelativePath);
         document.getElementById("ConfermationAbcFilesList").appendChild(li)
       });
 
@@ -643,13 +643,28 @@
       document.getElementById("ConfermationUnrecognizedFilesList").innerHTML = "";
       invalid_files.forEach((file) => {
         let li = document.createElement("li");
-        li.innerHTML = file.webkitRelativePath;
+        li.innerHTML = trimFirstDir(file.webkitRelativePath);
         document.getElementById("ConfermationUnrecognizedFilesList").appendChild(li)
       });
 
       setCard("songbookProcessConfirmation");
     }
 
+    // String helpers /////////////////////////////////////////////////////////////////////////////
+    function trimFirstDir(path) {
+      const parts = path.split('/');
+      parts.shift();
+      return parts.join('/');
+    }
+
+    // function getShorterPaths(fileList) {
+    //   const shortenedPaths = fileList.map(f => {f.webkitRelativePath}).map(filePath => {
+    //     const parts = filePath.split('/');
+    //     parts.shift(); // Remove the first element (folderName)
+    //     return parts.join('/');
+    //   });
+    //   return shorterPaths ???
+    // }
 
     // Button interactions ////////////////////////////////////////////////////////////////////////
 
@@ -659,7 +674,7 @@
       updateProgressCard(e.target.files.length, 0)
       // setProgressCard("Loading Song Folder");  // Chrome and firefox are too quick for this, progress bar shows up for too little time
 
-      function scanUploadedFiles(fileslist) {
+      function scanUploadedFiles() {
         file_list = Array.from(e.target.files);
         abc_files = [];
         midi_files = [];
@@ -676,6 +691,7 @@
         console.log("Invalid files: " + invalid_files.length);
         console.log("ABC files: " + abc_files.length);
         console.log("Midi files: " + midi_files.length);
+        // console.log(getShorterPaths(file_list));
 
 
         // tmp file read tests:
