@@ -1,0 +1,37 @@
+{
+    "probably the song name": {
+        "type": "TABLE",
+        "data": [
+            {
+                "key": {
+                    "type": "STRING",
+                    "data": "This string in invalid b/c it's supposed to be in bas 64. but this would be the key inside the table at SONGNAME"
+                },
+                "value": {
+                    "type": "INT",
+                    "data": 1
+                }
+            },
+            {
+                "key": {
+                    "type": "STRING",
+                    "data": "Yw=="
+                },
+                "value": {
+                    "type": "INT",
+                    "data": 3
+                }
+            },
+            {
+                "key": {
+                    "type": "STRING",
+                    "data": "We could instead set the keys to INT and count up, this would make it like a list, probably for the index."
+                },
+                "value": {
+                    "type": "INT",
+                    "data": 2
+                }
+            }
+        ]
+    }
+}
