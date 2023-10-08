@@ -489,6 +489,9 @@
       Later:
       - [ ] Convert ABCs into instructions now, so that we skip that step in the avatar script.
       - [ ] Add new Instuments. (Default sin, percussian)
+      - [ ] Check if title of ABC song has "percussion" If it is, 
+        - see if there's another song with a matching name sans "percussion". (trim all whitespace and punctuation to make match simpler)
+        - merge the percussian track with the original song, set it to instrument 10. 
       - [ ] Add Support for midis, convert directly to instructions
         - [ ] Add new instruction field: Track Number.
           - All ABCs have one track. Track 1, unless "percussian" is at the end of the name, then set it to 10. 
