@@ -412,8 +412,6 @@
       </div>
     </noscript>
 
-
-
     <main id="cards">
       <div id="openSongbookCard" class="card">
         <header>No Songs Loaded</header>
@@ -716,6 +714,41 @@
 
       setTimeout(scanUploadedFiles, 1)
     });
+
+    function processSongFilesIntoSongbook() {
+      const numFiles = file_list.length;
+      let currentFileIndex = 0;
+
+      updateProgressCard(100, 0, "");
+      setProgressCard("Processing Songbook");
+
+      function processNextSong() {
+        if (currentFileIndex < numFiles) {
+          const currentFile = file_list[currentFileIndex];
+          updateProgressCard(numFiles, currentFileIndex, "Processing file: </br>" + trimFirstDir(currentFile.webkitRelativePath) + "" )
+          // TODO: Process currentFile (get mimetype and send to the correct file handeler)
+          console.log( currentFileIndex.toString() + " → " + trimFirstDir(currentFile.webkitRelativePath));
+
+          // const processor_function = processor_functions[ currFile.mime_type ]
+          // if not nil then processor_function(current_file) end
+          
+          currentFileIndex++;
+          setTimeout(processNextSong, 0);
+        } else {
+          // TODO We're done! or mostly done. we may need a 2nd progress bar (or maybe a spinner) for the zip step. 
+          updateProgressCard(file_list.length, file_list.length, "Songbook \"fully processed™\"");
+        }
+      }
+
+      processNextSong();
+    }
+    // TODO: Test this FN with web workers. Average song is ≈9kB.
+
+    document.getElementById('confirmSongbookProcess').addEventListener('click', function(e) {
+      console.log("Process songbook!")
+      processSongFilesIntoSongbook()
+    });
+    
 
     // In-line web workers: https://stackoverflow.com/a/6454685
 
