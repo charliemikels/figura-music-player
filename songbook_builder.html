@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8">
     <title>🚧 Songbook Builder</title>
+    <link rel="icon" type="image/svg+xml"
+      href="data:image/png;base64,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" 
+    />
   </head>
   <style media="screen">
     /* https://developer.gnome.org/hig/reference/palette.html */
@@ -765,6 +768,16 @@
 
     // File Processing /////////////////////////////////////////////////////////
     function processAbcFile(abcFile) {
+      // Steps:
+      // [x] read raw text
+      // [ ] convert text to 64 bit
+      // [ ] build config-file json structure
+      // [ ] convert path to a dir safe string (ctrl+f `/` → `_` or whatever)
+      // [ ] send final file text and path to file collector
+      // [ ] TODO: build file collector. (should build index file and make zip)
+      // [ ] TODO: build dedicated JSON to LUA Table Config String converter. 
+        // Might skip 64 bit conversion just let the converter handle strings. 
+
       console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
       const reader = new FileReader();
 
