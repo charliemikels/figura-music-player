@@ -648,9 +648,6 @@
 
     let file_list;
     // let file_load_index = 0;
-    let abc_files;
-    let midi_files;
-    let invalid_files;
 
     // Set cards helpers ///////////////////////////////////////////////////////
     function setCard(cardId) {
@@ -676,6 +673,21 @@
     }
 
     function setConfermationCard() {
+      const abc_files = [];
+      const midi_files = [];
+      const invalid_files = [];
+
+      // check file types
+      file_list.forEach(function(file) {
+        if (file.type == "text/vnd.abc") {abc_files.push(file)}
+        else if (file.type == "audio/midi") {midi_files.push(file)}
+        else {invalid_files.push(file)}
+      });
+
+      invalid_files.sort(sortByPath);
+      midi_files.sort(sortByPath);
+      abc_files.sort(sortByPath);
+
       document.getElementById("ConfirmationTotalNumberOfSongs")
               .innerHTML = (midi_files.length + abc_files.length).toString();
 
@@ -738,50 +750,98 @@
       setCard("songbookProcessConfirmation");
     }
 
-    // String helpers //////////////////////////////////////////////////////////
+    // String and File helpers /////////////////////////////////////////////////
     function trimFirstDir(path) {
       const parts = path.split('/');
       parts.shift();
       return parts.join('/');
     }
 
+    function sortByPath(a, b) {
+      if (a.webkitRelativePath < b.webkitRelativePath) { return -1 };
+      if (a.webkitRelativePath > b.webkitRelativePath) { return 1 };
+      return 0;
+    }
+
     // File Processing /////////////////////////////////////////////////////////
+    function processAbcFile(abcFile) {
+      console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
+      const reader = new FileReader();
+
+      reader.addEventListener("load", () => {
+        console.log(reader.result);
+      }, false)
+      
+      reader.readAsText(abcFile);
+    }
+
     function processSongFilesIntoSongbook() {
+      const start_time = Date.now();
       const numFiles = file_list.length;
       let currentFileIndex = 0;
 
       updateProgressCard(100, 0, "");
       setProgressCard("Processing Songbook");
 
+      let last_ui_update = Date.now()
+
       function processNextSong() {
         if (currentFileIndex < numFiles) {
           const currentFile = file_list[currentFileIndex];
-          updateProgressCard(numFiles, currentFileIndex, 
-            "Processing file: </br>" 
-            + trimFirstDir(currentFile.webkitRelativePath) + "" 
-          )
-          // TODO: Process currentFile 
-          //    (get mimetype and send to the correct file handeler)
-          console.log( currentFileIndex.toString() 
-            + " → " + trimFirstDir(currentFile.webkitRelativePath)
-          );
 
-          // const processor_function = processor_functions[currFile.mime_type]
-          // if not nil then processor_function(current_file) end
+          // find and run processor function
+          switch (currentFile.type) {
+            case "text/vnd.abc": {
+              processAbcFile(currentFile);
+              break;
+            }
+            case "audio/midi": {
+              console.log("Can't process file `" 
+                + currentFile.webkitRelativePath 
+                + "`. Midi files arn't supported yet");
+              break;
+            }
+            default: {
+              console.log("Ignoring unsupported file: " 
+                + currentFile.webkitRelativePath);
+              break;
+            }
+          }
           
           currentFileIndex++;
-          setTimeout(processNextSong, 0);
+
+          if (Date.now() > last_ui_update + 500) {  // in millis, 1000 = 1s
+            // Don't update the progress bar unless too much time has passed. 
+            // Timeout 0 actualy adds a LOT of delay, especialy if we use it to
+            // update the progress bar after every song. 
+            // On that note, Webworkers probably arn't worth it. 
+            last_ui_update = Date.now();
+            updateProgressCard(numFiles, currentFileIndex, 
+              "Processing file:</br>" 
+              + trimFirstDir(currentFile.webkitRelativePath) + "" 
+            )
+            setTimeout(processNextSong, 0); // ← Temporaraly give up controll
+          } else {                          //   so that the UI has time to 
+            processNextSong();              //   update the progress bar. 
+          }
+
         } else {
           // TODO We're done! or mostly done. 
           // we may need a 2nd progress bar (or maybe a spinner) 
           // for the zipping stage. 
-          updateProgressCard(file_list.length, file_list.length, 
-            "Songbook \"fully processed™\""
+          let progressMessage = "Songbook \"fully processed™\""
+          if (((Date.now() - start_time) /1000) > 2) {
+            progressMessage += "</br>Finished in " 
+              + ((Date.now() - start_time) /1000).toString() + " seconds";
+          }
+
+          updateProgressCard(
+            file_list.length, file_list.length, progressMessage
           );
         }
       }
 
-      processNextSong();
+      setTimeout(processNextSong, 0);
     }
     // TODO: Test this FN with web workers. Average song is ≈9kB.
     // In-line web workers: https://stackoverflow.com/a/6454685
@@ -799,48 +859,7 @@
 
       function scanUploadedFiles() {
         file_list = Array.from(e.target.files);
-        abc_files = [];
-        midi_files = [];
-        invalid_files = [];
-
-        // check file types
-        console.log(e.target.files);
-        file_list.forEach(function(file) {
-          if (file.type == "text/vnd.abc") {abc_files.push(file)}
-          else if (file.type == "audio/midi") {midi_files.push(file)}
-          else {invalid_files.push(file)}
-        });
-
-        console.log("Invalid files: " + invalid_files.length);
-        console.log("ABC files: " + abc_files.length);
-        console.log("Midi files: " + midi_files.length);
-        // console.log(getShorterPaths(file_list));
-
-        // tmp file read tests:
-        if (abc_files[0]) {
-          console.log("first ABC:");
-          console.log(abc_files[0]);
-
-          const reader = new FileReader();
-
-          reader.addEventListener("load", () => {
-            console.log(reader.result);
-          }, false)
-          reader.readAsText(abc_files[0]);
-        }
-
-        // sort output
-        function sortByPath(a, b) {
-          if (a.webkitRelativePath < b.webkitRelativePath) { return -1 };
-          if (a.webkitRelativePath > b.webkitRelativePath) { return 1 };
-          return 0;
-        }
-
-        invalid_files.sort(sortByPath);
-        midi_files.sort(sortByPath);
-        abc_files.sort(sortByPath);
         
-        // done. Go to next screen
         // document.getElementById("body").classList.remove("wait")
         document.getElementById("progressCardProgress").value
             = document.getElementById("progressCardProgress").max;
