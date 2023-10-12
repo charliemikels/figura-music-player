@@ -760,23 +760,108 @@
       return parts.join('/');
     }
 
+    // function isInteger(value) {
+    //   // ty: https://stackoverflow.com/a/37674281
+    //   return /^\d+$/.test(value);
+    //   // "Every char between the start and then end should be a number"
+    // }
+
     function sortByPath(a, b) {
       if (a.webkitRelativePath < b.webkitRelativePath) { return -1 };
       if (a.webkitRelativePath > b.webkitRelativePath) { return 1 };
       return 0;
     }
 
+    // Config Processing ///////////////////////////////////////////////////////
+    function bytesToBase64(bytes) {
+      // Reports sugest that the JS built-in atob and btoa functions don't
+      // handle unicode well. While ABC files should not have any unicode
+      // characters, I can't guarrentee that there won't be an emoji 
+      // or something in the title or in comments or whatever. 
+      const binString = String.fromCodePoint(...bytes);
+      return btoa(binString);
+    }
+
+    // function base64ToBytes(base64) {
+    //   const binString = atob(base64);
+    //   return Uint8Array.from(binString, (m) => m.codePointAt(0));
+    // }
+
+    function stringToConfigString(str) {
+      return bytesToBase64(new TextEncoder().encode(str));
+    }
+
+    function objToConfigObject(element) {
+      // test this with:
+      // JSON.stringify(objToConfigObject( my_thing ), null, 2) 
+      const returnObj = {};
+
+      switch (typeof element) {
+        case "string": {
+          returnObj.type = "STRING";
+          returnObj.data = stringToConfigString(element);
+          break;
+        }
+        case "number": {
+          // TODO test this
+          returnObj.type = (element % 1 === 0) ? "INT" : "DOUBLE";
+          returnObj.data = element;
+          break;
+        }
+        case "object": { // ← Arrays are just Objects with extra steps
+          returnObj.type = "TABLE";
+          returnObj.data = [];
+          for (let key in element) {
+            const row = {
+              key: objToConfigObject(
+                Array.isArray(element) 
+                  ? (Number(key)+1) 
+                  : key // (isInteger(value) ? Number(key) : key)
+
+                // Arrays sometimes give their keys as strings, but
+                // Lua wants ints for this, (and lua is 1 indexed anyways)
+                // so we need to numberize it in some way anyways. 
+              ),
+              value: objToConfigObject(element[key])
+            };
+            returnObj.data.push(row);
+          }
+          break;
+        } 
+        case "boolean": {
+          returnObj.type = "BOOL";
+          returnObj.data = element;
+        }
+        case "undefined":
+        case "null":
+        default: {
+          throw new Error('Unsupported element of type '+ (typeof element)
+            + " ("+ element.toString() +")");
+          break;
+        }
+      }
+
+      return returnObj
+    }
+
+    function objToConfigFileStr(obj) {
+      const returnObj = {};
+      for (let key in obj) {
+        returnObj[key] = objToConfigObject(obj[key])
+      }
+      return returnObj;
+    }
+
     // File Processing /////////////////////////////////////////////////////////
     function processAbcFile(abcFile) {
       // Steps:
       // [x] read raw text
-      // [ ] convert text to 64 bit
-      // [ ] build config-file json structure
+      // [x] convert text to 64 bit ← now part of configifyer
+      // [x] build config-file json structure
       // [ ] convert path to a dir safe string (ctrl+f `/` → `_` or whatever)
       // [ ] send final file text and path to file collector
       // [ ] TODO: build file collector. (should build index file and make zip)
-      // [ ] TODO: build dedicated JSON to LUA Table Config String converter. 
-        // Might skip 64 bit conversion just let the converter handle strings. 
+      // [x] TODO: build dedicated JSON to LUA Table Config String converter. 
 
       console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
       const reader = new FileReader();
