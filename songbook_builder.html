@@ -650,6 +650,8 @@
     // User uploads a directory of songs:
 
     let file_list;
+    let songBook = [];
+    let expectedSongs = Infinity;
     // let file_load_index = 0;
 
     // Set cards helpers ///////////////////////////////////////////////////////
@@ -853,21 +855,48 @@
     }
 
     // File Processing /////////////////////////////////////////////////////////
-    function processAbcFile(abcFile) {
-      // Steps:
-      // [x] read raw text
-      // [x] convert text to 64 bit ← now part of configifyer
-      // [x] build config-file json structure
-      // [ ] convert path to a dir safe string (ctrl+f `/` → `_` or whatever)
-      // [ ] send final file text and path to file collector
-      // [ ] TODO: build file collector. (should build index file and make zip)
-      // [x] TODO: build dedicated JSON to LUA Table Config String converter. 
+    function newSongbook() {
+      songBook = [];
+      expectedSongs = Infinity;
+      // TODO: delete any object URL or whatever that we might have generated
+    }
 
-      console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
+    function songBookDoneCallback() {
+      console.log("All songs done!");
+      console.log("processed " + songBook.length + " songs." );
+      console.log(songBook);
+    }
+
+    function addSongToSongBook(song) {
+      if (song) {
+        songBook.push(song);
+      } else {
+        expectedSongs--;
+      }
+
+      updateProgressCard(expectedSongs, songBook.length)
+
+      if (songBook.length == expectedSongs) {
+        songBookDoneCallback()
+      }
+    }
+
+    function processAbcFile(abcFile) {
+      // console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
       const reader = new FileReader();
 
       reader.addEventListener("load", () => {
-        console.log(reader.result);
+        // console.log(reader.result);
+        
+        const song = {
+          name: trimFirstDir(abcFile.webkitRelativePath),
+          safe_path: 
+            trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_"),
+          data: reader.result
+        }
+
+        addSongToSongBook(song);
+
       }, false)
       
       reader.readAsText(abcFile);
@@ -876,6 +905,7 @@
     function processSongFilesIntoSongbook() {
       const start_time = Date.now();
       const numFiles = file_list.length;
+      expectedSongs = file_list.length;
       let currentFileIndex = 0;
 
       updateProgressCard(100, 0, "");
@@ -893,13 +923,9 @@
               processAbcFile(currentFile);
               break;
             }
-            case "audio/midi": {
-              console.log("Can't process file `" 
-                + currentFile.webkitRelativePath 
-                + "`. Midi files arn't supported yet");
-              break;
-            }
+            case "audio/midi": {}
             default: {
+              addSongToSongBook(null);
               console.log("Ignoring unsupported file: " 
                 + currentFile.webkitRelativePath);
               break;
@@ -923,20 +949,19 @@
             processNextSong();              //   update the progress bar. 
           }
 
-        } else {
-          // TODO We're done! or mostly done. 
-          // we may need a 2nd progress bar (or maybe a spinner) 
-          // for the zipping stage. 
-          let progressMessage = "Songbook \"fully processed™\""
-          if (((Date.now() - start_time) /1000) > 2) {
-            progressMessage += "</br>Finished in " 
-              + ((Date.now() - start_time) /1000).toString() + " seconds";
-          }
+        } 
+        // else {   // This progress doesn't catch the reader eventlisteners
+        //   let progressMessage = "Songbook \"fully processed™\""
+        //   if (((Date.now() - start_time) /1000) > 2) {
+        //     progressMessage += "</br>Finished in " 
+        //       + ((Date.now() - start_time) /1000).toString() + " seconds";
+        //   }
+        //   progressMessage += "</br>Num songs: "+songBook.length
 
-          updateProgressCard(
-            file_list.length, file_list.length, progressMessage
-          );
-        }
+        //   updateProgressCard(
+        //     file_list.length, file_list.length, progressMessage
+        //   );
+        // }
       }
 
       setTimeout(processNextSong, 0);
