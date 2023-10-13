@@ -696,21 +696,34 @@
     let file_list;
     let songBook = [];
     let songBookIndex = {};
+    let songBookZip = new JSZip();
     let parseWarnings = [];
     let expectedSongs = Infinity;
+    let songBookDownloadURL = "";
+
+    let songBookFilePrefix = "TL_Songbook_Song__";
+    let songBookIndexFileName = "TL_Songbook_Index.json"
     // let file_load_index = 0;
 
     // Set cards helpers ///////////////////////////////////////////////////////
     function setCard(cardId) {
+      document.getElementById("body").classList.remove("wait");
       for (const child of document.getElementById("cards").children) {
         child.classList.add("hidden")
       }
       document.getElementById(cardId).classList.remove("hidden");
     }
 
-    function updateProgressCard(max, value = 0, progressCardLabel) {
+    function updateProgressCard(max, value, progressCardLabel) {
       document.getElementById("progressCardProgress").max = max;
-      document.getElementById("progressCardProgress").value = value;
+      if (value) {
+        document.getElementById("progressCardProgress")
+                .value = value;
+      } else {
+        document.getElementById("progressCardProgress")
+                .removeAttribute("value"); 
+      }
+      
       if (progressCardLabel) {
         document.getElementById("progressCardLabel")
                 .innerHTML = progressCardLabel;
@@ -718,9 +731,9 @@
     }
 
     function setProgressCard(progressTitle) {
-      document.getElementById("progressCardTitle").innerHTML = progressTitle;
-      
+      document.getElementById("progressCardTitle").innerHTML = progressTitle;      
       setCard("progressCard");
+      document.getElementById("body").classList.add("wait");
     }
 
     function setConfermationCard() {
@@ -943,7 +956,9 @@
       songBookIndex = {};
       parseWarnings = [];
       expectedSongs = Infinity;
-      // TODO: delete any object URL or whatever that we might have generated
+      songBookZip = new JSZip();
+      window.URL.revokeObjectURL(songBookDownloadURL);
+      songBookDownloadURL = "";
     }
 
     function songBookDoneCallback() {
@@ -965,20 +980,45 @@
         })
       });
 
-      setDownloadCard();
+      songBookZip.file(
+        songBookIndexFileName
+        , objToConfigFileStr(songBookIndex)
+      );
+
+      // build final zip:
+      setProgressCard("Zipping Songbook")
+      updateProgressCard(100, null); 
+      songBookZip.generateAsync(
+        { type: "blob" }, 
+        function updateCallback(metadata) {
+          updateProgressCard(100, metadata.percent, ""); 
+        }
+
+      ).then(function (content) {
+        songBookDownloadURL = window.URL.createObjectURL(content);
+        
+        setDownloadCard();
+      });
     }
 
     function addSongToSongBook(song) {
       if (song) {
+        addConfigStrToSong(song);
+        songBookZip.file( 
+          song.safe_path
+          , song.fileStr
+        );
         songBook.push(song);
       } else {
         expectedSongs--;
       }
 
-      updateProgressCard(expectedSongs, songBook.length)
+      updateProgressCard(expectedSongs, songBook.length, "")
 
       if (songBook.length == expectedSongs) {
         songBookDoneCallback()
+      } else if (songBook.length > expectedSongs) {
+        throw new Error("songBook.length is larger than expectedsongs!")
       }
     }
 
@@ -998,11 +1038,11 @@
         const song = {
           name: trimFirstDir(abcFile.webkitRelativePath),
           safe_path: 
-            trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_"),
+            songBookFilePrefix 
+              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") 
+              + ".json",
           data: reader.result
         }
-
-        addConfigStrToSong(song);
 
         addSongToSongBook(song);
 
@@ -1050,7 +1090,6 @@
     // TODO: Test this FN with web workers. Average song is ≈9kB.
     // In-line web workers: https://stackoverflow.com/a/6454685
 
-
     // Button interactions /////////////////////////////////////////////////////
     document.getElementById('uploadSongbook')
             .addEventListener('change', function(e) {
@@ -1066,7 +1105,6 @@
       function scanUploadedFiles() {
         file_list = Array.from(e.target.files);
         
-        // document.getElementById("body").classList.remove("wait")
         document.getElementById("progressCardProgress").value
             = document.getElementById("progressCardProgress").max;
 
@@ -1081,6 +1119,17 @@
             .addEventListener('click', function(e) {
       console.log("Process songbook!")
       processSongFilesIntoSongbook()
+    });
+
+    document.getElementById('downloadCardDownloadBtn')
+            .addEventListener('click', function(e) {
+      console.log("Downloading Songbook");
+
+      let downloadLink = document.createElement('a');
+      downloadLink.href = songBookDownloadURL;
+      downloadLink.download = 'songbook.zip';
+      downloadLink.click();
+      downloadLink.remove();
     });
   </script>
 </html>
