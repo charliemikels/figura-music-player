@@ -361,6 +361,23 @@
       font-size: xx-small;
       color: color-mix(in srgb, var(--fg) 50%, rgba(0,0,0,0))
     }
+
+    @keyframes dance {
+      from { transform: translateY(-5px) }
+      /* 50% {} */
+      to { transform: translateY(5px) }
+    }
+    .dance {
+      display: inline-block;
+      animation-name: dance;
+      animation-duration: 1s;
+      animation-direction:alternate;
+      animation-iteration-count: infinite;
+      animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1);
+        /* ↑ in-out sine */
+
+      &.flip {animation-direction:alternate-reverse;}
+    }
     
   </style>
   <body id="body">
@@ -485,13 +502,14 @@
         </span>
         <div id="output" class="card scroll_box">
           <details id="ConfermationUnrecognizedFilesDetails">
-            <summary><span id="ConfermationNumberOfUnrecognizedFiles">N</span> 
+            <summary style="opacity:50%;">
+              <span id="ConfermationNumberOfUnrecognizedFiles">N</span> 
               Unrecognized files (These will be ignored)
             </summary>
             <ol id="ConfermationUnrecognizedFilesList"></ol>
           </details>
           <details id="ConfermationMidiFilesDetails">
-            <summary style="opacity:25%;" >
+            <summary style="opacity:50%;" >
               <span id="ConfermationNumberOfMidiFiles">N</span> 
                 Midi Files. Midi files are currently ignored,
                 but will be supported Eventualy™.
@@ -518,13 +536,39 @@
         </div>
       </div>
 
-      <div class="card hidden">
-        <header>Songbook</header>
+      <div id="downloadCard" class="card hidden">
+        <header>
+          <span class="dance">♪</span> 
+          <span class="dance flip">♫</span> 
+          Songbook Ready
+          <span class="dance flip">♫</span> 
+          <span class="dance">♪</span> 
+        </header>
+        Successfuly processed <span id="downloadCardSongCount">N</span> songs
         <div id="output" class="card scroll_box"> 
-          <p><span style="opacity: 50;">No songs loaded</span></p>
+
+          <details id="downloadCardWarningDetails" class="" >
+            <summary style="opacity:50%;">Warnings</summary>
+            <ol id="downloadCardWarningList"><li>Warning 1</li><li>Warning 2</li></ol>
+          </details>
+
+          <details id="downloadCardSongDetails">
+            <summary>Song list</summary>
+            <ol id="downloadCardSongList"></ol>
+          </details>
         </div>
-        TODO: Download packed config file
-        <button type="button" name="button">Download</button>
+
+        <div class="columns nogrow">
+          <label id="downloadCardNewSongbook" 
+              for="uploadSongbook" class="fake_button">
+            Load Different Folder
+          </label>
+          <div class="columns_sepparator"></div>
+          <button id="downloadCardDownloadBtn" class="column sugested"
+              type="button" name="button">
+            Save Songbook
+          </button>
+        </div>
       </div>
 
     </main>
@@ -651,6 +695,7 @@
 
     let file_list;
     let songBook = [];
+    let parseWarnings = [];
     let expectedSongs = Infinity;
     // let file_load_index = 0;
 
@@ -693,12 +738,18 @@
       midi_files.sort(sortByPath);
       abc_files.sort(sortByPath);
 
+      document.getElementById("songbookProcessConfirmation")
+              .getElementsByTagName("details")
+              
+
       document.getElementById("ConfirmationTotalNumberOfSongs")
               .innerHTML = (midi_files.length + abc_files.length).toString();
 
       if (midi_files.length > 0) {
         document.getElementById("ConfermationMidiFilesDetails")
                 .classList.remove("hidden")
+        document.getElementById("ConfermationMidiFilesDetails")
+                .open = false;
       }
       else {
         document.getElementById("ConfermationMidiFilesDetails")
@@ -717,6 +768,8 @@
       if (abc_files.length > 0) {
         document.getElementById("ConfermationAbcFilesDetails")
                 .classList.remove("hidden")
+        document.getElementById("ConfermationAbcFilesDetails")
+                .open = false;        
       }
       else {
         document.getElementById("ConfermationAbcFilesDetails")
@@ -736,6 +789,8 @@
       if (invalid_files.length > 0) {
         document.getElementById("ConfermationUnrecognizedFilesDetails")
                 .classList.remove("hidden");
+        document.getElementById("ConfermationUnrecognizedFilesDetails")
+                .open = false;
       }
       else {
         document.getElementById("ConfermationUnrecognizedFilesDetails")
@@ -753,6 +808,39 @@
       });
 
       setCard("songbookProcessConfirmation");
+    }
+
+    function setDownloadCard() {
+      document.getElementById("downloadCardSongCount")
+              .innerHTML = songBook.length;
+
+      document.getElementById("downloadCardWarningDetails").open = false;
+      document.getElementById("downloadCardSongDetails").open = false;
+
+      document.getElementById("downloadCardSongList").innerHTML = "";
+      songBook.forEach((song) => {
+        let li = document.createElement("li");
+        li.innerHTML = song.name;
+        document.getElementById("downloadCardSongList")
+                .appendChild(li);
+      });
+
+      document.getElementById("downloadCardWarningList").innerHTML = "";
+      if (parseWarnings.length == 0 ) {
+        document.getElementById("downloadCardWarningDetails")
+                .classList.add("hidden");
+      } else {
+        document.getElementById("downloadCardWarningDetails")
+                .classList.remove("hidden");
+        parseWarnings.forEach((warning) => {
+          let li = document.createElement("li");
+          li.innerHTML = warning;
+          document.getElementById("downloadCardWarningList")
+                  .appendChild(li);
+        });
+      }
+
+      setCard("downloadCard");
     }
 
     // String and File helpers /////////////////////////////////////////////////
@@ -857,6 +945,7 @@
     // File Processing /////////////////////////////////////////////////////////
     function newSongbook() {
       songBook = [];
+      parseWarnings = [];
       expectedSongs = Infinity;
       // TODO: delete any object URL or whatever that we might have generated
     }
@@ -865,6 +954,12 @@
       console.log("All songs done!");
       console.log("processed " + songBook.length + " songs." );
       console.log(songBook);
+      songBook.sort((a, b) => {
+        if (a.safe_path < b.safe_path) { return -1 };
+        if (a.safe_path > b.safe_path) { return 1 };
+        return 0;
+      });
+      setDownloadCard();
     }
 
     function addSongToSongBook(song) {
@@ -926,8 +1021,8 @@
             case "audio/midi": {}
             default: {
               addSongToSongBook(null);
-              console.log("Ignoring unsupported file: " 
-                + currentFile.webkitRelativePath);
+              parseWarnings.push("Ignoring unsupported file: " 
+                + trimFirstDir(currentFile.webkitRelativePath));
               break;
             }
           }
@@ -973,6 +1068,8 @@
     // Button interactions /////////////////////////////////////////////////////
     document.getElementById('uploadSongbook')
             .addEventListener('change', function(e) {
+              
+      newSongbook()
       console.log("Loading " + e.target.files.length + " files…")
 
       updateProgressCard(e.target.files.length, 0)
@@ -986,6 +1083,8 @@
         // document.getElementById("body").classList.remove("wait")
         document.getElementById("progressCardProgress").value
             = document.getElementById("progressCardProgress").max;
+
+        file_list.sort(sortByPath);
         setConfermationCard();
       };
 
