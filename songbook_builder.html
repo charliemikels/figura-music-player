@@ -1020,8 +1020,6 @@
       updateProgressCard(100, 0, "");
       setProgressCard("Processing Songbook");
 
-      let last_ui_update = Date.now()
-
       function processNextSong() {
         if (currentFileIndex < numFiles) {
           const currentFile = file_list[currentFileIndex];
@@ -1043,21 +1041,7 @@
           
           currentFileIndex++;
 
-          if (Date.now() > last_ui_update + 500) {  // in millis, 1000 = 1s
-            // Don't update the progress bar unless too much time has passed. 
-            // Timeout 0 actualy adds a LOT of delay, especialy if we use it to
-            // update the progress bar after every song. 
-            // On that note, Webworkers probably arn't worth it. 
-            last_ui_update = Date.now();
-            updateProgressCard(numFiles, currentFileIndex, 
-              "Processing file:</br>" 
-              + trimFirstDir(currentFile.webkitRelativePath) + "" 
-            )
-            setTimeout(processNextSong, 0); // ← Temporaraly give up controll
-          } else {                          //   so that the UI has time to 
-            processNextSong();              //   update the progress bar. 
-          }
-
+          processNextSong();
         } 
       }
 
