@@ -695,6 +695,7 @@
 
     let file_list;
     let songBook = [];
+    let songBookIndex = {};
     let parseWarnings = [];
     let expectedSongs = Infinity;
     // let file_load_index = 0;
@@ -863,22 +864,14 @@
     }
 
     // Config Processing ///////////////////////////////////////////////////////
-    function bytesToBase64(bytes) {
-      // Reports sugest that the JS built-in atob and btoa functions don't
-      // handle unicode well. While ABC files should not have any unicode
-      // characters, I can't guarrentee that there won't be an emoji 
-      // or something in the title or in comments or whatever. 
-      const binString = String.fromCodePoint(...bytes);
-      return btoa(binString);
-    }
-
-    // function base64ToBytes(base64) {
-    //   const binString = atob(base64);
-    //   return Uint8Array.from(binString, (m) => m.codePointAt(0));
-    // }
 
     function stringToConfigString(str) {
-      return bytesToBase64(new TextEncoder().encode(str));
+      // Old meathod could fail if too many args were passed to fromCodePoint()
+      // New meathod might work. See https://stackoverflow.com/a/30106551
+      return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+          function toSolidBytes(match, p1) {
+              return String.fromCharCode('0x' + p1);
+      }));
     }
 
     function objToConfigObject(element) {
@@ -935,16 +928,19 @@
     }
 
     function objToConfigFileStr(obj) {
+      // assumes we're already organized ready for config file.
+      // first keys are not proccessed, but their values are.
       const returnObj = {};
       for (let key in obj) {
         returnObj[key] = objToConfigObject(obj[key])
       }
-      return returnObj;
+      return JSON.stringify(returnObj);
     }
 
     // File Processing /////////////////////////////////////////////////////////
     function newSongbook() {
       songBook = [];
+      songBookIndex = {};
       parseWarnings = [];
       expectedSongs = Infinity;
       // TODO: delete any object URL or whatever that we might have generated
@@ -954,11 +950,21 @@
       console.log("All songs done!");
       console.log("processed " + songBook.length + " songs." );
       console.log(songBook);
+      
       songBook.sort((a, b) => {
         if (a.safe_path < b.safe_path) { return -1 };
         if (a.safe_path > b.safe_path) { return 1 };
         return 0;
       });
+
+      songBookIndex.index = [];
+      songBook.forEach((song) => {
+        songBookIndex.index.push({
+          name: song.name,
+          safe_path: song.safe_path
+        })
+      });
+
       setDownloadCard();
     }
 
@@ -976,6 +982,12 @@
       }
     }
 
+    function addConfigStrToSong(song) {
+      const fileObj = {}
+      fileObj[song.safe_path] = song;
+      song.fileStr = objToConfigFileStr(fileObj);
+    }
+
     function processAbcFile(abcFile) {
       // console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
       const reader = new FileReader();
@@ -989,6 +1001,8 @@
             trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_"),
           data: reader.result
         }
+
+        addConfigStrToSong(song);
 
         addSongToSongBook(song);
 
@@ -1045,18 +1059,6 @@
           }
 
         } 
-        // else {   // This progress doesn't catch the reader eventlisteners
-        //   let progressMessage = "Songbook \"fully processed™\""
-        //   if (((Date.now() - start_time) /1000) > 2) {
-        //     progressMessage += "</br>Finished in " 
-        //       + ((Date.now() - start_time) /1000).toString() + " seconds";
-        //   }
-        //   progressMessage += "</br>Num songs: "+songBook.length
-
-        //   updateProgressCard(
-        //     file_list.length, file_list.length, progressMessage
-        //   );
-        // }
       }
 
       setTimeout(processNextSong, 0);
