@@ -105,6 +105,12 @@
       /* overriding the display lets us style the open/close animation */
       /* opacity: 1; */
       /* transition: opacity 1s ease; */
+
+
+      li {margin-top: 10px;}
+      ol, ul {
+        padding-left: 15px;
+      }
     }
 
     /* dialog:not([open]) {
@@ -357,9 +363,12 @@
       animation-timing-function:ease-in-out
     }
 
-    ol li::marker {
+    li::marker {
+      color: color-mix(in srgb, var(--fg) 50%, rgba(0,0,0,0));
+    }
+
+    ol > li::marker {
       font-size: xx-small;
-      color: color-mix(in srgb, var(--fg) 50%, rgba(0,0,0,0))
     }
 
     @keyframes dance {
@@ -383,69 +392,119 @@
   <body id="body">
     <header id="pageHeader">
       Tanner_Limes'
-      <h1>Songbook Pre-processor</h1>
-      <div style="background-color: black; color: yellow; padding: 10px; margin-top: -20px; text-align: center;">🚧 This page is under construction 🚧</div>
+      <h1>Songbook Builder</h1>
+      <!-- <div style="background-color: black; color: yellow; padding: 10px; margin-top: -20px; text-align: center;">🚧 This page is under construction 🚧</div> -->
       <dialog id="aboutDialog">
         <form method="dialog">
           <button class="close_btn">X</button>
         </form>
         <p>for use with 
           <a href="https://github.com/charliemikels/figura-music-player">
-            Tanner Lime's Music Script
+            Tanner Limes' Music Script
           </a> for <a href="https://github.com/FiguraMC/Figura">Figura</a>
+        </p>
+
+        <h1>Instructions</h1>
+        <ol>
+          <li>Put all of your song files into one folder. 
+            You can organize them into sub-folders if you'd like.
+          </li>
+
+          <li>Click <code>Select Song Folder</code>. Your file browser 
+            should open. Upload your songbook. 
+            <ul><li>
+              Note: All processing happens locally. 
+              Nothing is actually "uploaded."
+            </li></ul>
+          </li>
+
+          <li>Double check the file lists on the next page. 
+            Click <code>Process Songbook</code> if it all looks good.
+          </li>
+
+          <li><em>wait</em>.</li>
+
+          <li>Once the Songbook is ready, click <code>Save Songbook</code>. 
+            This will "download" the songbook as a .zip file. 
+            Inside you'll find 1 file for every song you included, 
+            and one Index file.
+          </li>
+
+          <li>Unzip songbook.zip, and put everything inside your 
+            <code>[figura root]/data</code> folder. 
+            <ul>
+              <li>
+                You can get there easily by Opening Minecraft → 
+                Open the Figura menu → 
+                Click <code>Open avatars root folder</code> → 
+                Navigate up one directory → 
+                You should see the data folder
+              </li>
+              <li>
+                Do not put these files into sub folders. 
+                Everything should be place directly in the data folder.
+              </li>
+              <li>See the limitations list for more details</li>
+            </ul>
+          </li>
+
+          <li>Profit!</li>
+        </ol>
+        <p>
+          Your songs should now be discoverable by the music player script.
         </p>
 
         <h1>About This Page</h1>
         <p>
-          This page is a pre-processor for Tanner_Limes's Music Player script
-          for Figura.
+          This page helps you convert a folder of songs into 
+          Figura-ready json files. This lets you store thousands of song files
+          without counting against your avatar's upload limit. 
         </p>
         <p>
-          Figura does not (currently) let you read from arbitrary files 
-          from your avatar. They have to be one of the supported file types 
-          and uploaded with the avatar, or stored as a config file.
+          Previous versions of this script leveraged an addon mod for Figura
+          called <a href="https://github.com/lexize/lutils">LUtils</a>. But 
+          it has since been archived. This new method leverages the
+          built-in Config API to get the same features (unlimited songs) 
+          without any extra dependencies. 
         </p>
-        <p>
-          I need to build a converter anyways to get song data into a format 
-          Figura can read. But we can leverage the <code>ConfigAPI</code> 
-          to store this data outside of the avatar upload.
-        </p>
-        <h2>How to Use This Page</h2>
-        <ol>
-          <li>On your computer, put all the songs you want into one folder.
-            <br>You can use subfolders to help organize your library.</li>
-          <li>Click <code>load song folder</code> and select the 
-            folder containing your music files.</li>
-          <li>Check the list of uploaded files. 
-            Make any ajustments as needed.</li>
-          <li>Click <code>configify</code></li>
-          <li> <i>Wait</i> </li>
-          <li>When available, click <code>Save Zip</code></li>
-          <li>Extract the zip file into Figura's data directory: 
-            <code>[figura_root]/data</code> 
-            <br> Note: the config API doesn't support subdirectories. So yes, 
-            you have to dump every <code>TL_song_[songName].json</code> file 
-            right into the data folder.</li>
-        </ol>
-        <p>
-          Once all that is done, the music script should be able to find all 
-          of your converted songs.
-        </p>
-        <h2>Usage Tips</h2>
+
+        <h1>Limitations</h1>
         <ul>
           <li>
-            This script respects the folder structure of the uploaded files. 
-            Use sub-folders to organize your library.</li>
+            File Types: Right now, only <code>.abc</code> files
+            are supported. <br> Midi support is planned, but will not be soon.
+          </li>
+          <li>
+            Adding New Songs: Right now, to add a new song to your songbook, 
+            you'll have to reupload and rebuild the whole thing. 
+          </li>
+          <li>
+            Messy Data Folder: Untill Figura gives us support of subdirectories
+            in the config API, your data folder will be a hot mess. 
+          </li>
+          <li>
+            Manual Songbook Deletion: The above two limitations means that 
+            you'll have to manualy delete an existing songbook before 
+            installing a new one, but your songbook might be mixing with 
+            configs from other scripts. 
+            <br> 
+            All of the songbook files start with 
+            <code>TL_Songbook_</code>, so they should be all together and easy
+            to delete with Bash/Batch scripts
+          </li>
         </ul>
-        <p>BTW: Everything on this page happens localy in your browser. 
-          Your song files are not actualy "uploaded" anywhere. 
-          <span style="font-size: 9pt; opacity: 75%;">
-            But we do import a zipping library.
-          </span>
-        </p>
+
+        <h1>3rd party tools</h1>
+        <ul>
+          <li><a href="https://stuk.github.io/jszip/" target="_blank">
+              JSZip
+            </a>: A library to zip files together
+          </li>
+        </ul>
+
       </dialog>
 
-      <div style="text-align: right; width: 100%;">
+      <div style="text-align: right; width: 100%; margin-top: -20px;">
         <button id="showAbout" onclick="aboutDialog.showModal()">
           About This Page
         </button>
