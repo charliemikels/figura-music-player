@@ -1,14 +1,14 @@
 -- Tanner Limes was here.
--- ABC Music Player V3.0.0-alpha.0
+-- ABC Music Player V3.0.0-beta.0
 
 -- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
 -- main script vars ------------------------------------------------------------
 
 -- User vars and imports
-events.ENTITY_INIT:register(function ()
-	print("=== Dev init: ".. client.getSystemTime() .." ===")
-end)
+-- events.ENTITY_INIT:register(function ()
+-- 	print("=== Dev init: ".. client.getSystemTime() .." ===")
+-- end)
 
 local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 								-- the position of the info display text.
@@ -59,7 +59,6 @@ local function get_song_list()
 	config:name("TL_Songbook_Index")
 	song_list = config:load("index")
 	config:name(curr_config_file)
-	printTable(song_list[1])
 
 	-- Songlist was a [] of paths. 
 	-- Now it's a table of nice paths (name), and real paths (safe_path). 
@@ -1181,7 +1180,6 @@ local function queue_song(song_file_path)
 
 	if song_file ~= nil and song_file.data == nil then
 		-- TODO: Sanity check.
-		printTable(song_file)
 		print("No song found at `".. song_file_path.name .."`.")
 		return
 	end
