@@ -1,57 +1,92 @@
 # Tanner Limes' Music Player for Figura
 
-> [!WARNING] Figura 0.1.2+ Compatability
-> 
-> Figura 0.1.2 broke compatability with most figura addons. Currently, this script depends on the LUtils addon. and so, this script is incompatable with figura 1.2 and above.
-> I'm exploring ways to cheese the built in Config API to remove the LUtils dependancy. 
-
 [Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
-This repo is a Figura avatar that lets you play music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
-
-I'm prioritizing support of Figura 0.1 and later. This script is currently compatible with r14, but future support is not guaranteed.
-
-⚠️ Heads up: This avatar requires [LUtils](https://github.com/lexize/lutils) in order to work. See the installation instructions below for more details.
+This repo is a Figura avatar that lets you play ABC music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
 
 <!-- ↓ demo video of the avatar playing the chorus to "Revenge" by Captainsparklez ↓ -->
 https://github.com/charliemikels/figura-music-player/assets/20339866/f088348f-7a3b-4993-a5d2-6699f653f281
 
 ## Installation
 
-This avatar relies on LUtils to find and load song files on the fly. This means your songlist will not count against the avatar file size limit. LUtils is a separate Fabric mod that works with any recent version of Minecraft, but it has specific builds for your version of Figura.
+Use the green `code` button to download this repo as a zip file. Then navigate to your Figura avatars folder, make a sub-folder there for this avatar, and then extract the zip into that folder. 
 
-  - If you're on Figura 0.1, (The current[^uploadTime] public build,) you'll need [Build 8: "Some changes. Fixed crashes with github builds"](https://github.com/lexize/lutils/actions/runs/4674799028).
-  - If you're on the older Figura r14, you'll need [Build 7: "Minor but important change."](https://github.com/lexize/lutils/actions/runs/4241722822).
+The file structure should look like this:
 
-[^uploadTime]: "Current" as of June 11th, 2023.
+```
+[[ Figura root ]]
+├ avatars
+│ └ Music Player   ← This folder can have any name
+│   ├ avatar.json
+│   ├ scripts
+│   │ ├ abc_player
+│   │ │ ├ abc_player.lua
+│   │ │ ├ anchor.bbmodel
+│   │ │ └ triangle_sin.ogg
+│   │ └ Action Wheel.lua
+│   └ …
+│
+└ data   ← Your song files will go in this folder
+  │        _after_ they've been processed by
+  │        songbook_builder.html
+  │
+  ├ TL_Songbook_Index.json
+  └ TL_Songbook_Song__*
+```
 
-Download your version by clicking the Artifact in the actions page.
-
-✏️ Note: Github has started to flag these builds as expired. Reach out to us on [the Figura Discord](https://discord.gg/figuramc) if you need help getting this mod installed.
-
-⚠️ heads up: (as of July 29, 2023) The Figura project is recovering from a rocky leadership change. The original LUtils Discord page is gone. However, there have been talks about integrating some LUtils features into base Figura, so keep an eye out for that I guess. 
-
-Once LUtils is installed, download this repo using the `<> code` button above, and unzip it in your Figura `avatars` folder. (It should be in it's own folder)
+<details>
+<summary>If you don't know where the root Figura folder is, you can get to it through Minecraft</summary>
+<ol>
+	<li>Open Minecraft.</li>
+	<li>Open the Figura menu.</li>
+	<li>Click the folder icon in the upper left.<br>This should open your file browser.</li>
+	<li>Navigate up one folder.<br>You should see your <code>avatar</code> folder here.</li>
+	<li>Open or create the <code>data</code> folder.</li>
+	<li>Your destination is on the left.</li>
+</ol>
+</details>
 
 ## Adding Songs
 
-If this is the first time using this avatar, launch Minecraft, open a world, and select this avatar. This will create a songs directory for you. By default, it will be at `<Figura>/data/lutils_root/abc_song_files`. You can get to this folder quickly by going to the `avatars` folder and navigate up a directory. You will find the `data` folder there.
+There are two major limitations with this avatar:
 
-Currently, this avatar only supports songs written in the [ABC music format](https://abcnotation.com/). You can find ABC files online, or you can convert Midi files to ABC if you have the tools. Once you have an ABC file, you can drag and drop the song into the data song folder the avatar created, and it will appear in the song list when you reload the avatar. They can even be organized into sub folders.
+1. Songs must be converted into a Figura readable format.
+2. This script **only supports ABC song files**.
 
-If you plan on converting your own ABC files from Midi tracks, I strongly recommend [Starbound Composer](http://www.starboundcomposer.com/), but only if you happen to have [Starbound](https://store.steampowered.com/app/211820/Starbound/) installed. Starbound Composer will ask you to point to your Starbound install folder, but you can actually trick it pretty easily by pointing it to a folder with this structure:
+### Converting Songs
+
+This script hijacks Figura's Config API to let us store songs outside of the avatar. This lets us dodge the avatar file size upload limit, letting us store and play thousands of songs at any time. To make this work, the song files need to be in a format that the Config API can understand. 
+
+Included in this repo is an all-in-one song converter that you run in your browser called `songbook_builder.html`. 
+
+1. Open `songbook_builder.html` in your browser.
+2. Select a folder of song files and click `Process`. 
+3. Click `Save Songbook`. This will give you a songbook.zip file. 
+4. Go to Figura's `data` Directory. 
+   This folder is next to the `avatar` folder. Refer to the above file tree. 
+5. Extract the contents of songbook.zip into the data folder. These should not be in their own sub-folder. Everything goes directly into the data folder. 
+
+BTW: This tool uses [JSZip](https://stuk.github.io/jszip/) to create the final zip file, but all of the logic happens in-browser. Nothing is actually "uploaded" anywhere. 
+
+This converter page has been tested in Firefox and Chrome. If you're on safari, your mileage may vary. 
+
+### ABC files
+
+Currently, this avatar only supports songs written in the [ABC music format](https://abcnotation.com/). You can find ABC files online, (they're used frequently in the Starbound and Lord of the Rings Online communities.) or you can convert more common Midi files to ABC if you have the tools. 
+
+If you plan on converting your own ABC files from Midi tracks, I recommend [Starbound Composer](http://www.starboundcomposer.com/), if you happen to have [Starbound](https://store.steampowered.com/app/211820/Starbound/) installed. But you don't need to have Starbound installed to use SBC. Starbound Composer will ask you to point to your Starbound install folder, but you can actually trick it pretty easily by pointing it to a folder with this structure:
 
 ```
 target folder
 ├ assets
-│ └ packed.pak  ← renamed empty file
+│ └ packed.pak     ← renamed empty file
 └ win32
-  └ starbound.exe ← renamed empty file
+  └ starbound.exe  ← renamed empty file
 ```
 
 Without the actual Starbound assets, you won't be able to preview your songs, but you will still be able to convert them from Midi to ABC, and you'll even be able to merge multiple tracks/files into a single ABC file.
 
-If SbC won't work for you, you can try your hand at [this mega list of software for ABC files](https://abcnotation.com/software), some of them say they can convert ABC files to and from Midi files, however a lot of them just point to dead links. I haven't found one I really like yet. Your mileage may vary. <!-- However, [MidiZyx2abc](http://www.midicond.de/Freeware/index_en.html#MidiZyx2abc) might be pretty reasonable? -->
+If SBC won't work for you, you can try your hand at [this mega list of software for ABC files](https://abcnotation.com/software), some of them say they can convert ABC files to and from Midi files, however a lot of them just point to dead links. I haven't found one I really like yet. Your mileage may vary. <!-- However, [MidiZyx2abc](http://www.midicond.de/Freeware/index_en.html#MidiZyx2abc) might be pretty reasonable? -->
 
 ## In Game Usage
 
@@ -103,10 +138,6 @@ The text window for this button displays some important info:
   - (This also works if the queued song is also the playing song.)
 
 ## FAQ
-
-### Do my friends also need to install LUtils?
-
-No. Only you, the host, needs LUtils installed to make this avatar work. But for best results, everyone should be on the same version of Figura.
 
 ### How can I get the piano?
 
