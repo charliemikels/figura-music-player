@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- ABC Music Player V2.1.2
+-- ABC Music Player V3.0.0-alpha.0
 
 -- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
@@ -16,9 +16,6 @@ local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 
 
 -- config / performance vars:
-local songs_dir_path = "abc_song_files"	-- path to the song directory
-								-- inside of LUtil's root directory
-
 local maximum_ping_size = 900	-- Theoretical min: ~1000
 local maximum_ping_rate = 1200	-- Theoretical min: ~1000
 
@@ -41,25 +38,25 @@ local song_player_event_watcher_event_name = "song_player_event_watcher_event"
 local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
 
-
 -- song list builder -----------------------------------------------------------
-local function get_song_list_reccursive(path)
-	if path == nil or path == "" then path = songs_dir_path end
+-- local function get_song_list_reccursive(path)
 
-	local list = {}
-	for index, file_name in pairs(lutils.file:list(path) ) do
-		local file_path = path.."/"..file_name
-		if lutils.file:isDirectory(file_path) then
-			local sub_list = get_song_list_reccursive(file_path)
-			for sub_index, sub_file_name in pairs(sub_list) do
-				table.insert(list, sub_file_name)
-			end
-		elseif file_name:match(".abc$") ~= nil then
-			table.insert(list, file_path)
-		end
-	end
-	return list
-end
+-- 	local curr_config_file = config:getName();
+
+-- 	local list = {}
+-- 	for index, file_name in pairs(lutils.file:list(path) ) do
+-- 		local file_path = path.."/"..file_name
+-- 		if lutils.file:isDirectory(file_path) then
+-- 			local sub_list = get_song_list_reccursive(file_path)
+-- 			for sub_index, sub_file_name in pairs(sub_list) do
+-- 				table.insert(list, sub_file_name)
+-- 			end
+-- 		elseif file_name:match(".abc$") ~= nil then
+-- 			table.insert(list, file_path)
+-- 		end
+-- 	end
+-- 	return list
+-- end
 
 local function song_path_to_song_name(song_path)
 	-- everything between the final slash and before `.abc`
@@ -69,33 +66,20 @@ end
 local function song_path_to_simple_path(song_path)
 	-- everything after the first slash and before `.abc`
 	-- includes sub directories, excludes root song dir.
-	return song_path:match(songs_dir_path.."/(.+)%.abc$")
+	return song_path:match("/(.+)%.abc$")
 end
 
 local function get_song_list()
 	if not host:isHost() then return end
-	if type(lutils) ~= "LUtils" then
-		print("LUtils isn't installed!"
-			.." (type(lutils) == ".. tostring(type(lutils))
-			.." instead of `LUtils`.)"
-			.."\nInstall LUtils from: https://github.com/lexize/lutils/releases")
-		return nil
-	end
 
-	--Check that the song_dir exists before we loop through it.
-	if not lutils.file:isDirectory(songs_dir_path) then
-		lutils.file:mkdir(songs_dir_path)
-		print("Created a songs directory at \n"
-			.."`<Figura root>/data/"
-			..lutils.file:getFolderName().."/"
-			..songs_dir_path.."`. \n"
-			.."Add your song files here.")
-	end
+	local curr_config_file = config:getName()
+	config:name("TL_Songbook_Index")
+	song_list = config:load("index")
+	config:name(curr_config_file)
+	printTable(song_list[1])
 
-	local song_list = get_song_list_reccursive("")
-	table.sort(song_list)
-	print("Found "..#song_list.." song files")
-
+	-- Songlist was a [] of paths. 
+	-- Now it's a table of nice paths (name), and real paths (safe_path). 
 	return song_list
 end
 
@@ -106,7 +90,7 @@ local function song_is_queued(index)
 	if type(index) == "string" then
 		return songbook.queued_song.path == index
 	end
-	return songbook.queued_song.path == songbook.song_list[index]
+	return songbook.queued_song.path == songbook.song_list[index].name
 end
 
 local function song_is_playing(index)
@@ -115,7 +99,7 @@ local function song_is_playing(index)
 	if type(index) == "string" then
 		return songbook.playing_song_path == index
 	end
-	return songbook.playing_song_path == songbook.song_list[index]
+	return songbook.playing_song_path == songbook.song_list[index].name
 end
 
 local function song_is_being_stopped(index)
@@ -126,7 +110,7 @@ local function song_is_being_stopped(index)
 	if type(index) == "string" then
 		return songbook.playing_song_path == index
 	end
-	return songbook.playing_song_path == songbook.song_list[index]
+	return songbook.playing_song_path == songbook.song_list[index].name
 end
 
 local function songbook_action_wheel_page_update_song_picker_button()
@@ -163,7 +147,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		display_string = display_string .. "\n"
 			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
 			.. (song_is_selected and "→" or "  ")
-			.. " " ..song_path_to_simple_path(songbook.song_list[i])
+			.. " " ..song_path_to_simple_path(songbook.song_list[i].name)
 	end
 
 	display_string = display_string .. "\n"
