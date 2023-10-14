@@ -6,7 +6,9 @@
 -- main script vars ------------------------------------------------------------
 
 -- User vars and imports
-local _= require("scripts/lutils_setup")
+events.ENTITY_INIT:register(function ()
+	print("=== Dev init: ".. client.getSystemTime() .." ===")
+end)
 
 local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 								-- the position of the info display text.
