@@ -129,7 +129,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		display_string = display_string .. "\n"
 			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
 			.. (song_is_selected and "→" or "  ")
-			.. " " ..song_path_to_simple_path(songbook.song_list[i].name)
+			.. " " ..songbook.song_list[i].name
 	end
 
 	display_string = display_string .. "\n"
