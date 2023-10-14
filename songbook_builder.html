@@ -483,16 +483,12 @@
         </label>
         <input type="file" name="directory" 
             id="uploadSongbook" style="display: none;" webkitdirectory> 
-          <!-- accept=".abc, .mid, .midi" -->
-
-          <br>
       </div>
 
       <div id="progressCard" class="card hidden">
         <header id="progressCardTitle"></header>
         <progress id="progressCardProgress" value="0" max="100"></progress>
         <footer id="progressCardLabel"></footer>
-        <!-- TODO: add details tag to see ongoing progress? -->
       </div>
 
       <div id="songbookProcessConfirmation" class="card hidden">
@@ -577,121 +573,10 @@
     </footer>
   </body>
 
-<!-- https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/webkitdirectory -->
-<!-- https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file -->
-<!-- converting to base64: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem -->
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js">
   </script>
   <script type="text/javascript">
     "use strict";
-
-    /*   Steps for JS:
-      1. [X] get ABC files from user
-      2. [ ] Process each:
-        1. [ ] convert raw text to base 64
-        2. [ ] Dump into json object
-        3. [ ] Use original file path as key
-        4. [ ] Dump JSON object to a string ← Alt: collect strings into single mega file.
-        5. [ ] Dump string into a file
-      4. [ ] collect and zip all files
-      5. [ ] see if user wants to build a new songbook, or append to an existing song book.
-        1. [ ] If append, ask for current songbook index file. Add new songs to index. 
-      6. [ ] give zip back to user.
-
-      Later:
-      - [ ] Convert ABCs into instructions now, so that we skip that step in the avatar script.
-      - [ ] Add new Instuments. (Default sin, percussian)
-      - [ ] Check if title of ABC song has "percussion" If it is, 
-        - see if there's another song with a matching name sans "percussion". (trim all whitespace and punctuation to make match simpler)
-        - merge the percussian track with the original song, set it to instrument 10. 
-      - [ ] Add Support for midis, convert directly to instructions
-        - [ ] Add new instruction field: Track Number.
-          - All ABCs have one track. Track 1, unless "percussian" is at the end of the name, then set it to 10. 
-          - In lua, add instrument picker. Coices are saved in a new config file: "TL_Songbook_meta_midi_instruments_save"
-            - default all tracks to simple sin wave, unless it's track 10, then simple drum kit. 
-            - Config file is a list of overides. If user picks an instrument other than the default for that track, that choice is saved to the config as
-            - `song_path: {track_number: isntrument_Id, track_number: other_instrument_id}`
-            - Some instruments are sourced from non-host scripts. If an saved instrument isn't found, warn user, and use the default instrument instead. (don't overwrite the setting though in case it's loaded later)
-            - Add setting to overide the default instrument. (ie, play all songs through chloe piano.) This setting is saved like the other overides, so if the instrument is missing, fall back to the "actual" default instrument
-      
-      that's gonna be wild.            
-    */
-
-    // class song {
-    //   constructor(data, name, nameLong) {
-    //     this.name = name;
-    //     this.data = data;
-    //     this.nameLong = nameLong;
-    //   }
-    // }
-
-    // thx chat gpt for this example function.
-    // TIL about "blob" types.
-    function exampleDownloadFunction() {
-      var zip = new JSZip();
-
-      // Add files to the ZIP archive
-      zip.file("file1.txt", "Contents of file 1");
-      zip.file("file2.txt", "Contents of file 2");
-      // Add more files as needed
-
-      // Generate the ZIP file
-      zip.generateAsync({ type: "blob" }).then(function (content) {
-        // Trigger the download
-        var url = window.URL.createObjectURL(content);
-        var downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = 'files.zip';
-        downloadLink.click();
-          // ↑ Simulates clicking the download link. 
-          // We can instead let the user click it when they're ready.
-        window.URL.revokeObjectURL(url);  
-          // ↑ cleans up memory. do this before generating any new blobs.
-      });
-    }
-
-    // Example usage:
-    // createAndDownloadZip();
-
-    /* -----------------------------------------------------*/
-
-    // Alternate usage for downloading only one file:
-
-    // // Function to trigger the download of converted data
-    // function downloadConvertedData(convertedData, filename, mimeType) {
-    //   var blob = new Blob([convertedData], { type: mimeType });
-    //   var url = window.URL.createObjectURL(blob);
-    //
-    //   var downloadLink = document.createElement('a');
-    //   downloadLink.href = url;
-    //   downloadLink.download = filename;
-    //
-    //   // Trigger the download
-    //   downloadLink.click();
-    //
-    //   // Clean up
-    //   window.URL.revokeObjectURL(url);
-    // }
-    //
-    // // Function to generate and save "Hello world.txt"
-    // function generateAndSaveTextFile() {
-    //   var textData = "Hello world";
-    //
-    //   // Trigger download for the text file
-    //   downloadConvertedData(textData, 'Hello world.txt', 'text/plain');
-    // }
-    //
-    // // Example usage:
-    // generateAndSaveTextFile();
-
-    /* -----------------------------------------------------*/
-
-
-
-    // see https://developer.mozilla.org/en-US/docs/Web/API/FileReader
-
-    // User uploads a directory of songs:
 
     let file_list;
     let songBook = [];
@@ -703,7 +588,6 @@
 
     let songBookFilePrefix = "TL_Songbook_Song__";
     let songBookIndexFileName = "TL_Songbook_Index.json"
-    // let file_load_index = 0;
 
     // Set cards helpers ///////////////////////////////////////////////////////
     function setCard(cardId) {
