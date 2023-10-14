@@ -1168,11 +1168,7 @@ local function queue_song(song_file_path)
 	songbook.queued_song = {}
 
 	local current_config_path = config:getName()
-	config:name(
-		song_file_path.safe_path:gsub(".json", "")
-		-- TODO: we don't need the js extension inside of Lua. 
-		-- we can remove it from the JS side
-	)
+	config:name(song_file_path.safe_path)
 	local song_file = config:load(song_file_path.safe_path)
 	config:name(current_config_path)
 	

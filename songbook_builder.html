@@ -889,7 +889,7 @@
       if (song) {
         addConfigStrToSong(song);
         songBookZip.file( 
-          song.safe_path
+          song.safe_path+'.json'
           , song.fileStr
         );
         songBook.push(song);
@@ -923,8 +923,7 @@
           name: trimFirstDir(abcFile.webkitRelativePath),
           safe_path: 
             songBookFilePrefix 
-              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") 
-              + ".json",
+              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") ,
           data: reader.result
         }
 
