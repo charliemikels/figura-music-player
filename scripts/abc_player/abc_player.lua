@@ -41,25 +41,6 @@ local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
 
 -- song list builder -----------------------------------------------------------
--- local function get_song_list_reccursive(path)
-
--- 	local curr_config_file = config:getName();
-
--- 	local list = {}
--- 	for index, file_name in pairs(lutils.file:list(path) ) do
--- 		local file_path = path.."/"..file_name
--- 		if lutils.file:isDirectory(file_path) then
--- 			local sub_list = get_song_list_reccursive(file_path)
--- 			for sub_index, sub_file_name in pairs(sub_list) do
--- 				table.insert(list, sub_file_name)
--- 			end
--- 		elseif file_name:match(".abc$") ~= nil then
--- 			table.insert(list, file_path)
--- 		end
--- 	end
--- 	return list
--- end
-
 local function song_path_to_song_name(song_path)
 	-- everything between the final slash and before `.abc`
 	return song_path:match(".*/(.+)%.abc$")
@@ -92,7 +73,7 @@ local function song_is_queued(index)
 	if type(index) == "string" then
 		return songbook.queued_song.path == index
 	end
-	return songbook.queued_song.path == songbook.song_list[index].name
+	return songbook.queued_song.path == songbook.song_list[index]
 end
 
 local function song_is_playing(index)
@@ -101,7 +82,7 @@ local function song_is_playing(index)
 	if type(index) == "string" then
 		return songbook.playing_song_path == index
 	end
-	return songbook.playing_song_path == songbook.song_list[index].name
+	return songbook.playing_song_path == songbook.song_list[index]
 end
 
 local function song_is_being_stopped(index)
@@ -141,7 +122,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 	local selected_song_state = ""
 
 	local display_string = "Songlist: "..songbook.action_wheel.selected_song_index.."/"..tostring(#songbook.song_list)
-	.. (song_is_playing() and " Currently playing: " .. song_path_to_song_name(songbook.playing_song_path) or "" )
+	.. (song_is_playing() and " Currently playing: " .. song_path_to_song_name(songbook.playing_song_path.name) or "" )
 	for i = start_index, end_index do
 		local song_is_selected = (songbook.action_wheel.selected_song_index == i)
 		-- local is_playing = song_is_playing(i)
@@ -1174,7 +1155,7 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 	if packet_builder ~= "" then table.insert(ping_packets, packet_builder) end
 
 	-- Info packet. Reserve this space before inserting instructions. (or append this packet to the front. it needs to be sent first)
-	ping_packets[1] = "n"..song_path_to_song_name(song_file_path).."//"	-- // for end of name
+	ping_packets[1] = "n"..song_path_to_song_name(song_file_path.name).."//"	-- // for end of name
 		.."p".. #ping_packets
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
@@ -1187,13 +1168,24 @@ end
 local function queue_song(song_file_path)
 	songbook.queued_song = {}
 
-	--print("Preparing to play "..song_path_to_simple_path(song_file_path))
+	local current_config_path = config:getName()
+	config:name(
+		song_file_path.safe_path:gsub(".json", "")
+		-- TODO: we don't need the js extension inside of Lua. 
+		-- we can remove it from the JS side
+	)
+	local song_file = config:load(song_file_path.safe_path)
+	config:name(current_config_path)
+	
+	-- print("Preparing to play "..song_path_to_simple_path(song_file_path.name))
 
-	if not lutils.file:isFile(song_file_path) then
-		print("No song found at `"..song_file_path.."`.")
+	if song_file ~= nil and song_file.data == nil then
+		-- TODO: Sanity check.
+		printTable(song_file)
+		print("No song found at `".. song_file_path.name .."`.")
 		return
 	end
-	local song_abc_data = lutils.file:read(song_file_path, lutils.readers.string)
+	local song_abc_data = song_file.data
 
 	-- Convert data to instructions.
 	--print("Generating instructions...")
@@ -1212,7 +1204,7 @@ local function queue_song(song_file_path)
 	songbook.queued_song.path = song_file_path
 	songbook.queued_song.buffer_time = time_to_start
 	songbook.queued_packets = packets
-	print("Ready to play "..song_path_to_simple_path(song_file_path)
+	print("Ready to play "..song_path_to_simple_path(song_file_path.name)
 		.. (maximum_ping_rate*5 < time_to_start and
 			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
 			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
@@ -1226,7 +1218,7 @@ local function play_song(song_file_path)
 		log("`"..song_path_to_simple_path(song_file_path).."` is not queued yet. Doing that now.")
 		queue_song(song_file_path)
 	end
-	print("Playing "..song_path_to_simple_path(song_file_path))
+	print("Playing "..song_path_to_simple_path(song_file_path.name))
 	songbook.playing_song_path = song_file_path
 	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
