@@ -1040,12 +1040,15 @@
           const currentFile = file_list[currentFileIndex];
 
           // find and run processor function
-          switch (currentFile.type) {
-            case "text/vnd.abc": {
+          const file_extension_re = /(?:\.([^.]+))?$/;
+
+          switch (file_extension_re.exec(currentFile.name.toLowerCase())) {
+            case "abc": {
               processAbcFile(currentFile);
               break;
             }
-            case "audio/midi": {}
+            case "mid": {}
+            case "midi": {}
             default: {
               addSongToSongBook(null);
               parseWarnings.push("Ignoring unsupported file: " 
