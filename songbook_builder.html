@@ -842,8 +842,7 @@
     }
 
     function getFileExtension(path) {
-      const file_extension_re = /(?:\.([^.]+))?$/;
-      return file_extension_re.exec(path.toLowerCase());
+      return path.split('.').pop().toLowerCase();
     }
 
     // function isInteger(value) {
@@ -1046,7 +1045,6 @@
           const currentFile = file_list[currentFileIndex];
 
           // find and run processor function
-
           switch (getFileExtension(currentFile.name)) {
             case "abc": {
               processAbcFile(currentFile);
