@@ -719,8 +719,9 @@
 
       // check file types
       file_list.forEach(function(file) {
-        if (file.type == "text/vnd.abc") {abc_files.push(file)}
-        else if (file.type == "audio/midi") {midi_files.push(file)}
+        if (getFileExtension(file.name) == "abc") {abc_files.push(file)}
+        else if (getFileExtension(file.name) == "midi" 
+              || getFileExtension(file.name) == "mid") {midi_files.push(file)}
         else {invalid_files.push(file)}
       });
 
@@ -838,6 +839,11 @@
       const parts = path.split('/');
       parts.shift();
       return parts.join('/');
+    }
+
+    function getFileExtension(path) {
+      const file_extension_re = /(?:\.([^.]+))?$/;
+      return file_extension_re.exec(path.toLowerCase());
     }
 
     // function isInteger(value) {
@@ -1040,9 +1046,8 @@
           const currentFile = file_list[currentFileIndex];
 
           // find and run processor function
-          const file_extension_re = /(?:\.([^.]+))?$/;
 
-          switch (file_extension_re.exec(currentFile.name.toLowerCase())) {
+          switch (getFileExtension(currentFile.name)) {
             case "abc": {
               processAbcFile(currentFile);
               break;
