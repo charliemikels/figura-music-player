@@ -43,7 +43,7 @@ local song_info_text_task_name = "song_info_text_task"
 -- song list builder -----------------------------------------------------------
 local function song_path_to_song_name(song_path)
 	-- everything between the final slash and before `.abc`
-	return song_path:match(".*/(.+)%.abc$")
+	return song_path:match(".*/?(.+)%.abc$")
 end
 
 local function get_song_list()
