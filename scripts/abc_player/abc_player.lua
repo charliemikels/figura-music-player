@@ -46,12 +46,6 @@ local function song_path_to_song_name(song_path)
 	return song_path:match(".*/(.+)%.abc$")
 end
 
-local function song_path_to_simple_path(song_path)
-	-- everything after the first slash and before `.abc`
-	-- includes sub directories, excludes root song dir.
-	return song_path:match("/(.+)%.abc$")
-end
-
 local function get_song_list()
 	if not host:isHost() then return end
 
@@ -1172,7 +1166,7 @@ local function queue_song(song_file_path)
 	local song_file = config:load(song_file_path.safe_path)
 	config:name(current_config_path)
 	
-	-- print("Preparing to play "..song_path_to_simple_path(song_file_path.name))
+	-- print("Preparing to play "..song_file_path.name)
 
 	if song_file ~= nil and song_file.data == nil then
 		-- TODO: Sanity check.
@@ -1198,7 +1192,7 @@ local function queue_song(song_file_path)
 	songbook.queued_song.path = song_file_path
 	songbook.queued_song.buffer_time = time_to_start
 	songbook.queued_packets = packets
-	print("Ready to play "..song_path_to_simple_path(song_file_path.name)
+	print("Ready to play "..song_file_path.name
 		.. (maximum_ping_rate*5 < time_to_start and
 			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
 			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
@@ -1209,10 +1203,10 @@ end
 
 local function play_song(song_file_path)
 	if song_file_path ~= songbook.queued_song.path then
-		log("`"..song_path_to_simple_path(song_file_path).."` is not queued yet. Doing that now.")
+		log("`"..song_file_path.."` is not queued yet. Doing that now.")
 		queue_song(song_file_path)
 	end
-	print("Playing "..song_path_to_simple_path(song_file_path.name))
+	print("Playing "..song_file_path.name)
 	songbook.playing_song_path = song_file_path
 	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
