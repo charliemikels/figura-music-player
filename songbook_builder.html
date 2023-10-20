@@ -643,7 +643,7 @@
 
           <details id="downloadCardWarningDetails" class="" >
             <summary style="opacity:50%;">Warnings</summary>
-            <ol id="downloadCardWarningList"><li>Warning 1</li><li>Warning 2</li></ol>
+            <ol id="downloadCardWarningList"></ol>
           </details>
 
           <details id="downloadCardSongDetails">
@@ -989,6 +989,11 @@
     }
 
     function addSongToSongBook(song) {
+      // handles everything that happens after we're done processing a song. 
+      // dumps it to the songbook object, creates the config string, 
+      // tracks remaining songs, and updates the progress card. 
+      // Also automaticly calls the songbook done fn when all the songbook 
+      // is full. (ie, len matches expectedSongs.)
       if (song) {
         addConfigStrToSong(song);
         songBookZip.file( 
@@ -1010,6 +1015,8 @@
     }
 
     function addConfigStrToSong(song) {
+      // For easy transport, we'll keep the config file string with the song,
+      // in the songbook, until we're ready to dump the strings into the zip.
       const fileObj = {}
       fileObj[song.safe_path] = song;
       song.fileStr = objToConfigFileStr(fileObj);
