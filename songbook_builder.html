@@ -936,7 +936,31 @@
       return JSON.stringify(returnObj);
     }
 
-    // File Processing /////////////////////////////////////////////////////////
+    // Song file processors: ABC ///////////////////////////////////////////////
+
+    function processAbcFile(abcFile) {
+      // console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
+      const reader = new FileReader();
+
+      reader.addEventListener("load", () => {
+        // console.log(reader.result);
+        
+        const song = {
+          name: trimFirstDir(abcFile.webkitRelativePath),
+          safe_path: 
+            songBookFilePrefix 
+              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") ,
+          data: reader.result
+        }
+
+        addSongToSongBook(song);
+
+      }, false)
+      
+      reader.readAsText(abcFile);
+    }
+
+    // Songbook management /////////////////////////////////////////////////////
     function newSongbook() {
       songBook = [];
       songBookIndex = {};
@@ -987,6 +1011,14 @@
       });
     }
 
+    function addConfigStrToSong(song) {
+      // For easy transport, we'll keep the config file string with the song,
+      // in the songbook, until we're ready to dump the strings into the zip.
+      const fileObj = {}
+      fileObj[song.safe_path] = song;
+      song.fileStr = objToConfigFileStr(fileObj);
+    }
+
     function addSongToSongBook(song) {
       // handles everything that happens after we're done processing a song. 
       // dumps it to the songbook object, creates the config string, 
@@ -1011,36 +1043,6 @@
       } else if (songBook.length > expectedSongs) {
         throw new Error("songBook.length is larger than expectedsongs!")
       }
-    }
-
-    function addConfigStrToSong(song) {
-      // For easy transport, we'll keep the config file string with the song,
-      // in the songbook, until we're ready to dump the strings into the zip.
-      const fileObj = {}
-      fileObj[song.safe_path] = song;
-      song.fileStr = objToConfigFileStr(fileObj);
-    }
-
-    function processAbcFile(abcFile) {
-      // console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
-      const reader = new FileReader();
-
-      reader.addEventListener("load", () => {
-        // console.log(reader.result);
-        
-        const song = {
-          name: trimFirstDir(abcFile.webkitRelativePath),
-          safe_path: 
-            songBookFilePrefix 
-              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") ,
-          data: reader.result
-        }
-
-        addSongToSongBook(song);
-
-      }, false)
-      
-      reader.readAsText(abcFile);
     }
 
     function processSongFilesIntoSongbook() {
