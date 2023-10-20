@@ -886,7 +886,6 @@
           break;
         }
         case "number": {
-          // TODO test this
           returnObj.type = (element % 1 === 0) ? "INT" : "DOUBLE";
           returnObj.data = element;
           break;
@@ -1058,6 +1057,12 @@
           const currentFile = file_list[currentFileIndex];
 
           // find and run processor function
+
+          // TODO: Test this FN with web workers. Average song is ≈9kB.
+          // In-line web workers: https://stackoverflow.com/a/6454685
+          // probably not nesesary. since copying the file to the webworker
+          // will probably be more costly than doing everything in a 
+          // single threaded. But also, we need to test it. 
           switch (getFileExtension(currentFile.name)) {
             case "abc": {
               processAbcFile(currentFile);
@@ -1081,8 +1086,6 @@
 
       setTimeout(processNextSong, 0);
     }
-    // TODO: Test this FN with web workers. Average song is ≈9kB.
-    // In-line web workers: https://stackoverflow.com/a/6454685
 
     // Button interactions /////////////////////////////////////////////////////
     document.getElementById('uploadSongbook')
