@@ -325,7 +325,9 @@ local key_signatures = {
 }
 
 -- song builder: notes to instructions -----------------------------------------
-local function save_abc_note_to_instructions(song)	-- returns note's end time
+local function save_abc_note_to_instructions(song)	
+	-- ^ returns note's end time
+
 	note_builder = song.songbuilder.note_builder
 	if note_builder.letter == "" then return note_builder.start_time end
 	--print("Saving note to instruction:")
@@ -1213,7 +1215,9 @@ local function play_song(song_file_path)
 end
 
 -- Piano and Actionwheel -------------------------------------------------------
-local function is_block_piano(targeted_block)	-- if true, 2nd value is the lib for the piano
+local function is_block_piano(targeted_block)	
+	-- ^ if true, 2nd value is the lib for the piano
+	
 	if type(targeted_block) == "Vector3" then
 		targeted_block = world.getBlockState(targeted_block)
 	end
