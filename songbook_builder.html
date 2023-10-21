@@ -305,15 +305,17 @@
     }
 
     #about_close_btn_form {
+      align-self: flex-end;
       display: flex;
       flex-grow: 1;
-      flex-shrink: 0;
+      flex-shrink: 1;
+      width: 40px;
+      min-height: 40px;
       justify-content: flex-end;
-      min-height: 50px;
     }
 
     #about_version_info{
-      /* flex-grow: 1; */
+      flex-grow: 100;
       flex-shrink: 1;
       flex-basis: 200px;
       /* min-width: 200px; */
@@ -427,9 +429,9 @@
             <br><span class="small">v3.0.0-beta.1--instructions-from-js</span>
           </div>
           <!-- <div class="columns_sepparator" ></div> -->
-          <form id="about_close_btn_form" class="nogrow" method="dialog">
-          <button class="close_btn">X</button>
-        </form>
+          <form id="about_close_btn_form" method="dialog">
+            <button class="close_btn">X</button>
+          </form>
         </div>
 
         <h1>Instructions</h1>
