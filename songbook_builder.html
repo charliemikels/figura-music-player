@@ -961,30 +961,6 @@
       return JSON.stringify(returnObj);
     }
 
-    // Song file processors: ABC ///////////////////////////////////////////////
-
-    function processAbcFile(abcFile) {
-      // console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
-      const reader = new FileReader();
-
-      reader.addEventListener("load", () => {
-        // console.log(reader.result);
-        
-        const song = {
-          name: trimFirstDir(abcFile.webkitRelativePath),
-          safe_path: 
-            songBookFilePrefix 
-              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") ,
-          data: reader.result
-        }
-
-        addSongToSongBook(song);
-
-      }, false)
-      
-      reader.readAsText(abcFile);
-    }
-
     // Songbook management /////////////////////////////////////////////////////
     function newSongbook() {
       songBook = [];
@@ -1069,6 +1045,155 @@
         throw new Error("songBook.length is larger than expectedsongs!")
       }
     }
+
+    // Song file processors: ABC ///////////////////////////////////////////////
+    function abcStringToInstructions(abcString, path) { //todo: give name / path
+      "use strict";
+
+      const songbuilder = { 
+        // emergency default values. these should be set by the file itself. 
+        data: abcString,
+        next_note_start_time: 0,
+        key_signature_key: "C",
+        default_note_length: 0.25,
+	      length_of_beat_in_measure: 0.25,
+        notes_per_measure: 4,
+        beats_per_minute: 120,
+        last_processed_note_index: 1,
+        in_note_group: false,
+        group_earliest_stop_time: Infinity,
+        accidentals_memory: {},
+        note_builder: {
+          accidentals: "",
+          letter: "",
+          octave_ajustments: "",
+          durration_multiplier: "",
+          durration_divisor: "",
+          // start_time: // song.next_note_start_time (should be 0 by default??)
+        }
+      }
+      
+      const instructions = [];
+
+      songbuilder.data.split(/\r?\n/).forEach(rawLine => {
+        const line = rawLine.split("%%")[0].trim()
+        if (!line) { return /* line is empty, skip this line */ }
+        else if (line.slice(1,2) == ":") {
+          // All information lines are all 1 letter + `:`
+          // https://abcnotation.com/wiki/abc:standard:v2.1#information_field_definition
+          // There are inline information fields, but Starbound Composer 
+          // doesn't generate them, so I don't really care at the moment
+          switch (line.slice(0,2).toUpperCase()) {
+            // ignored common metadata fields:
+            // These are ignored b/c they're usualy ignored by the converters
+            // "T:" song title. Use path instead.
+            // "Z:" is the song Author.
+            // "X:" is song ID. (usualy `1`, but intended to be unique)
+            
+            // There's actualy a lot of data fields, but the nessesary ones for
+            // playback are:
+            case "L:": {
+              console.log("L! " + line)
+              // unit note length.
+              // what does 1 letter in the ABC file translate to?
+              // 
+              // Usualy the same as the first part of `Q:`, so each note in the 
+              // text matches the length of a "note" in the measure. But if 
+              // we're writing mostly 8th notes in a 4/4 song, this setting
+              // lets us make that the default written note value
+              break;
+            }
+            case "M:": {
+              console.log("M! " + line)
+              // number of notes in a measure
+              // used to place bar lines on sheet music, and can be complex.
+              // but usualy arn't. I think we get all the playback data from
+              // that we need from `Q:` anyways(?)
+              break;
+            }
+            case "Q:": {
+              console.log("Q! " + line)
+              // Q: 1/4=120
+              // BPM = 120
+              // Length of note = 1/4 of the measure. (quarter note)
+              // 
+              // Older versions of ABC (that are still easy to find) forget to 
+              // include the fraction half of Q (so it's just BPM). This is
+              // technicly depricated behavior, but it's common enough. 
+              break;
+            }
+            case "K:": {
+              console.log("K! " + line)
+              // Key signature
+              // `K:` also officialy marks the end of the header, but 
+              // information lines can still appear in the data. 
+              break;
+            }
+          }
+        }
+        else {
+          // this is not an info line, nor is it empty, so it's a content line.
+          // break apart into notes:
+
+          // The lua pattern looks like this: "%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?"
+          const notes = line.match(
+            /\[?[=_^]*[a-gxzA-GXZ],*'*[0-9]*\/*[0-9]*\]?/g
+          )
+          /*  Pattern breakdown:
+            One or none [                     ← Start choord group
+            any ammount of =, _, or ^         ← Flats and sharps
+            1 letter a-g, x, z; A-G, X, or Z  ← Note letter, or rest.
+            any ammount of , or '             ← Octaves
+            any ammount of numbers            ← Time multiplyer
+            any ammount of /                  ← Time halfer, or fraction
+            any ammount of numbers  ← Only if the / is there to form a fraction
+            one or none ]                     ← End choord group
+
+            unhandled cases:
+            - [ and ] can also surround an in-line info field. SBC puts this 
+              info on it's own line, so we're ignoring this case for now
+            - < and > can mark broken rhythem. SBC just writes the exact timing
+              so these aren't generated. But the are valid ABC. 
+              see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm
+          */
+
+
+
+        }
+      });
+
+
+
+
+
+
+      return ["placeholder 1", "placeholder 2"];
+    }
+
+    function processAbcFile(abcFile) {
+      // console.log("reading ABC `"+ abcFile.webkitRelativePath +"`…");
+      const reader = new FileReader();
+
+      reader.addEventListener("load", () => {
+        const song = {
+          name: trimFirstDir(abcFile.webkitRelativePath),
+          safe_path: 
+            songBookFilePrefix 
+              + trimFirstDir(abcFile.webkitRelativePath).replace(/\//g, "_") ,
+          data: reader.result,
+          instructions: abcStringToInstructions(reader.result)
+        }
+
+        addSongToSongBook(song);
+      }, false)
+      
+      reader.readAsText(abcFile);
+    }
+
+    // Song file processors: Midi //////////////////////////////////////////////
+    // eventualy™ :)
+
+    // main file processor loop ////////////////////////////////////////////////
 
     function processSongFilesIntoSongbook() {
       const start_time = Date.now();
