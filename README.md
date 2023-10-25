@@ -152,3 +152,7 @@ Tanner_Limes is my Minecraft username. Hi Discord people!
 ### Why do some songs make me wait a very long time before they play?
 
 This is a side effect of the ping limit. Figura lets avatars send up to 1KB of information to other players every 1 second. This is usually fine since most songs don't need to send more than 1KB of data per second anyways. However, some songs can play fast enough that they can outrun the song data if we're not careful.
+
+### I have a question about this script. Where can I ask it?
+
+You can ask me on Discord through at the [Figura discord server](https://discord.gg/figuramc) server. Here's a link to [this avatar's thread in the Avatar Showcase](https://discord.com/channels/1129805506354085959/1162880279996792922). Or if it's a bug report, you can also add it as an issue on [the avatar's github repo](https://github.com/charliemikels/figura-music-player/issues).
