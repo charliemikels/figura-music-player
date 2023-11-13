@@ -42,7 +42,7 @@ local song_info_text_task_name = "song_info_text_task"
 
 -- song list builder -----------------------------------------------------------
 local function song_path_to_song_name(song_path)
-	-- everything between the final slash and before the file extension. 
+	-- everything between the final slash and before the file extension.
 	return song_path:match("([^/]*)%.")
 end
 
@@ -54,8 +54,8 @@ local function get_song_list()
 	song_list = config:load("index")
 	config:name(curr_config_file)
 
-	-- Songlist was a [] of paths. 
-	-- Now it's a table of nice paths (name), and real paths (safe_path). 
+	-- Songlist was a [] of paths.
+	-- Now it's a table of nice paths (name), and real paths (safe_path).
 	return song_list
 end
 
@@ -325,7 +325,7 @@ local key_signatures = {
 }
 
 -- song builder: notes to instructions -----------------------------------------
-local function save_abc_note_to_instructions(song)	
+local function save_abc_note_to_instructions(song)
 	-- ^ returns note's end time
 
 	note_builder = song.songbuilder.note_builder
@@ -981,7 +981,7 @@ function pings.deserialize(packet_string)
 	-- end
 	if songbook.incoming_song == nil then
 		if packet_string:sub(1,1) ~= "n" then
-			print("deserialize() Found an instruction packet, but we haven't seen a song-start packet yet!")
+			-- print("deserialize() Found an instruction packet, but we haven't seen a song-start packet yet!")
 			return
 		end
 
@@ -1008,7 +1008,7 @@ function pings.deserialize(packet_string)
 		songbook.incoming_song.instructions = {}
 
 		if not host:isHost() then
-			print("Deserializer got the first of ".. songbook.incoming_song.num_expected_packets .." packets")
+			-- print("Deserializer got the first of ".. songbook.incoming_song.num_expected_packets .." packets")
 			print("Receiving data for `".. songbook.incoming_song.name .."`")
 		end
 
@@ -1018,9 +1018,9 @@ function pings.deserialize(packet_string)
 		start_song_player_event()
 	else
 		if packet_string:sub(1,1) == "n" then
-			print("deserialize() Expected a data packet, but found the start of a song!")
+			-- print("deserialize() Expected a data packet, but found the start of a song!")
 			-- We are probably out of sync with the host!
-			print("Ending current song to start new song.")
+			-- print("Ending current song to start new song.")
 			stop_playing_songs()
 			songbook.incoming_song = nil
 			pings.deserialize(packet_string)
@@ -1053,7 +1053,7 @@ function pings.deserialize(packet_string)
 
 		end
 		if songbook.incoming_song.reseved_packets == songbook.incoming_song.num_expected_packets and not host:isHost() then
-			print("Deserializer got last packet")
+			-- print("Deserializer got last packet")
 		end
 	end
 end
@@ -1167,7 +1167,7 @@ local function queue_song(song_file_path)
 	config:name(song_file_path.safe_path)
 	local song_file = config:load(song_file_path.safe_path)
 	config:name(current_config_path)
-	
+
 	-- print("Preparing to play "..song_file_path.name)
 
 	if song_file ~= nil and song_file.data == nil then
@@ -1215,9 +1215,9 @@ local function play_song(song_file_path)
 end
 
 -- Piano and Actionwheel -------------------------------------------------------
-local function is_block_piano(targeted_block)	
+local function is_block_piano(targeted_block)
 	-- ^ if true, 2nd value is the lib for the piano
-	
+
 	if type(targeted_block) == "Vector3" then
 		targeted_block = world.getBlockState(targeted_block)
 	end
