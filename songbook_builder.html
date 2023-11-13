@@ -1050,6 +1050,63 @@
     function abcStringToInstructions(abcString, path) { //todo: give name / path
       "use strict";
 
+      // Lookup tables ////////////////
+
+      const key_signatures_keys = {
+        // pre-shortened to the minimum expected 
+        ["7#"]: ["C#", "A#M", "G#MIX", "D#DOR", "E#PHR", "F#LYD", "B#LOC"],
+        ["6#"]: ["F#", "D#M", "C#MIX", "G#DOR", "A#PHR", "BLYD",  "E#LOC"],
+        ["5#"]: ["B",  "G#M", "F#MIX", "C#DOR", "D#PHR", "ELYD",  "A#LOC"],
+        ["4#"]: ["E",  "C#M", "BMIX",  "F#DOR", "G#PHR", "ALYD",  "D#LOC"],
+        ["3#"]: ["A",  "F#M", "EMIX",  "BDOR",  "C#PHR", "DLYD",  "G#LOC"],
+        ["2#"]: ["D",  "BM",  "AMIX",  "EDOR",  "F#PHR", "GLYD",  "C#LOC"],
+        ["1#"]: ["G",  "EM",  "DMIX",  "ADOR",  "BPHR",  "CLYD",  "F#LOC"],
+        ["0" ]: ["C",  "AM",  "GMIX",  "DDOR",  "EPHR",  "FLYD",  "BLOC" ],
+        ["1b"]: ["F",  "DM",  "CMIX",  "GDOR",  "APHR",  "BBLYD", "ELOC" ],
+        ["2b"]: ["BB", "GM",  "FMIX",  "CDOR",  "DPHR",  "EBLYD", "ALOC" ],
+        ["3b"]: ["EB", "CM",  "BBMIX", "FDOR",  "GPHR",  "ABLYD", "DLOC" ],
+        ["4b"]: ["AB", "FM",  "EBMIX", "BBDOR", "CPHR",  "DBLYD", "GLOC" ],
+        ["5b"]: ["DB", "BBM", "ABMIX", "EBDOR", "FPHR",  "GBLYD", "CLOC" ],
+        ["6b"]: ["GB", "EBM", "DBMIX", "ABDOR", "BBPHR", "CBLYD", "FLOC" ],
+        ["7b"]: ["CB", "ABM", "GBMIX", "DBDOR", "EBPHR", "FBLYD", "BBLOC"]
+      }
+
+      const key_signatures = {
+        ["7#"]: {F: "^", C: "^", G: "^", D: "^", A: "^", E: "^", D: "^",},
+        ["6#"]: {F: "^", C: "^", G: "^", D: "^", A: "^", E: "^",},
+        ["5#"]: {F: "^", C: "^", G: "^", D: "^", A: "^",},
+        ["4#"]: {F: "^", C: "^", G: "^", D: "^",},
+        ["3#"]: {F: "^", C: "^", G: "^",},
+        ["2#"]: {F: "^", C: "^",},
+        ["1#"]: {F: "^",},
+        ["0" ]: {},
+        ["1b"]: {B: "_",},
+        ["2b"]: {B: "_", E: "_",},
+        ["3b"]: {B: "_", E: "_", A: "_",},
+        ["4b"]: {B: "_", E: "_", A: "_", D: "_",},
+        ["5b"]: {B: "_", E: "_", A: "_", D: "_", G: "_",},
+        ["6b"]: {B: "_", E: "_", A: "_", D: "_", G: "_", C: "_",},
+        ["7b"]: {B: "_", E: "_", A: "_", D: "_", G: "_", C: "_", F: "_",}
+      }
+      // Internal functions ///////////
+      // function kInfostrToKeySigLookupKey(kstr) {
+      //   // assumes that we've already removed the `K: ` from the str. 
+      //   for (const key in key_signatures_keys) {
+      //     const value = key_signatures_keys[value]
+      //     if (value.includes(kstr)) {
+
+      //     }
+      //   }
+      // }
+
+      // function kInfoToAccidentals(kstr) {
+      //   // assumes that we've already removed the `K: ` from the str. 
+      // }
+
+      
+
+
+
       const songbuilder = { 
         // emergency default values. these should be set by the file itself. 
         data: abcString,
@@ -1094,17 +1151,16 @@
             // playback are:
             case "L:": {
               console.log("L! " + line)
-              // unit note length.
-              // what does 1 letter in the ABC file translate to?
-              // 
-              // Usualy the same as the first part of `Q:`, so each note in the 
-              // text matches the length of a "note" in the measure. But if 
-              // we're writing mostly 8th notes in a 4/4 song, this setting
-              // lets us make that the default written note value
+              // L: 1/4
+              // unit note length. Tells us how long 1 letter in the ABC file 
+              // translates to. Usualy the same as the first part of `Q:`, so
+              // that each letter in the file matches the "default" note for 
+              // the song's time signature. 
               break;
             }
             case "M:": {
               console.log("M! " + line)
+              // M: 4/4
               // number of notes in a measure
               // used to place bar lines on sheet music, and can be complex.
               // but usualy arn't. I think we get all the playback data from
@@ -1114,8 +1170,9 @@
             case "Q:": {
               console.log("Q! " + line)
               // Q: 1/4=120
-              // BPM = 120
-              // Length of note = 1/4 of the measure. (quarter note)
+              //    ↑   ↑ 
+              //    │   └─ Beats per minute (120 bpm)
+              //    └───── Length of note   (1/4 of the measure)
               // 
               // Older versions of ABC (that are still easy to find) forget to 
               // include the fraction half of Q (so it's just BPM). This is
@@ -1124,9 +1181,15 @@
             }
             case "K:": {
               console.log("K! " + line)
-              // Key signature
+              // K: C
+              // Key signature. Refer to key Signature lookup table. 
               // `K:` also officialy marks the end of the header, but 
               // information lines can still appear in the data. 
+
+              const k_str = line.slice(2).trim()
+              console.log("Key signature: " + k_str)
+
+
               break;
             }
           }
