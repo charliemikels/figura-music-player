@@ -34,6 +34,8 @@ The file structure should look like this:
   └ TL_Songbook_Song__*
 ```
 
+⚠️ RC 3 for Figura 0.1.3 moved where config files go. If you're on this version (or higher, probably), put the songbook files in the new `config` folder instead of `data`. 
+
 <details>
 <summary>If you don't know where the root Figura folder is, you can get to it through Minecraft</summary>
 <ol>
