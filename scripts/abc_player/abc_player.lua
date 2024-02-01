@@ -27,6 +27,10 @@ local num_instructions_to_stop_per_tick = 500
 								-- songs, this prevents hitting the resource
 								-- limit when they get stopped.
 
+								-- this is ignored in failsafe emergency stop
+								-- and instead uses 1 instruction per tick.
+								-- This makes it safe to use in the world tick
+
 -- Internal librariess and globals
 local info_screen_anchor_part = models["scripts"]["abc_player"]["anchor"].WORLD.anchor	-- Used to attatch song info screen to avatar
 local piano_lib = world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]
@@ -37,6 +41,7 @@ songbook.incoming_song = nil
 local play_song_event_name = "play_song_event"
 local send_packets_tick_event_name = "send_packet_tick_event"
 local song_player_event_watcher_event_name = "song_player_event_watcher_event"
+local avatar_is_loaded_watcher_event_name = "player_is_loaded_watcher_event"
 local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
 
@@ -156,6 +161,7 @@ end
 -- This is done as a tick event, since looping through all notes has a small
 -- chance to hit the instruction limit.
 local stop_song_tick_event_name = "stop_song_tick_event"
+local stopping_with_world_tick = false
 local function stop_playing_song_tick()
 
 	if songbook.incoming_song == nil
@@ -164,21 +170,38 @@ local function stop_playing_song_tick()
 	then
 
 		-- song fully rewound, and all sounds have been stopped
-		--print("Done rewinding song")
-		events.TICK:remove(stop_song_tick_event_name)
 		songbook.incoming_song = nil
 		songbook.playing_song_path = nil
-		songbook_action_wheel_page_update_song_picker_button()
+		if stopping_with_world_tick then
+			events.WORLD_TICK:remove(stop_song_tick_event_name)
+			print("Done rewinding song")
+			stopping_with_world_tick = false -- reset so that we can play a new song again.  
+		else
+			events.TICK:remove(stop_song_tick_event_name)
+			if host:isHost() then
+				-- this opperation is too expensive to run in world_tick.
+				-- so just don't lol. >:) :sunglasses:
+				songbook_action_wheel_page_update_song_picker_button()
+			end
+		end
 
 		return
 	end
 
 	local incoming_song = songbook.incoming_song
+
 	for instruction_index =
 		math.max(songbook.incoming_song.stop_loop_index, 1),
 		math.min(
 			#songbook.incoming_song.instructions,
-			songbook.incoming_song.stop_loop_index + num_instructions_to_stop_per_tick
+			songbook.incoming_song.stop_loop_index 
+				+ (stopping_with_world_tick and 1 or num_instructions_to_stop_per_tick)
+				-- In the event that there are still notes playing when we 
+				-- stopped the song, and the avatar is unloaded (is using 
+				-- the world tick event) then this will take a LONG time 
+				-- for the playing notes to actualy clear out. But! This is 
+				-- suposed to be a failsafe for if the avatar is too far away 
+				-- anyways for the TICK event to happen. 
 		)
 	do
 		local instruction = songbook.incoming_song.instructions[instruction_index]
@@ -196,12 +219,15 @@ local function stop_playing_songs()
 	-- remove song playing events. Only one of the play_song_events will
 	-- be active, but it doesn't hurt to remove both?
 	songbook.playing_song_path = nil
-	events.TICK:remove(send_packets_tick_event_name)
-	events.TICK:remove(song_player_event_watcher_event_name)
-	events.RENDER:remove(play_song_event_name)
-	events.TICK:remove(play_song_event_name)
-	events.TICK:remove(info_display_event_name)
-	events.RENDER:remove(info_display_event_name)
+	events.TICK:remove(send_packets_tick_event_name)				-- data transfer event.
+	events.TICK:remove(song_player_event_watcher_event_name)		-- if avatar goes off screen, changes player event to TICK
+	events.WORLD_TICK:remove(avatar_is_loaded_watcher_event_name)	-- if player unloads, stop the song
+	events.RENDER:remove(play_song_event_name)						-- core songplayer
+	events.TICK:remove(play_song_event_name)						-- core songplayer. Usualy a render event
+	events.TICK:remove(info_display_event_name)						-- Info pannel controller
+	events.RENDER:remove(info_display_event_name)					-- Info pannel controller. Usualy a render event
+
+	-- reset elements after killing the critical events. 
 	if info_screen_anchor_part ~= nil then
 		info_screen_anchor_part:removeTask(song_info_text_task_name)
 	end
@@ -210,7 +236,14 @@ local function stop_playing_songs()
 		songbook.incoming_song.stop_loop_index = 0
 		songbook.incoming_song.start_time = nil
 
-		events.TICK:register(stop_playing_song_tick, stop_song_tick_event_name)
+		if player:isLoaded() then
+			stopping_with_world_tick = false
+			events.TICK:register(stop_playing_song_tick, stop_song_tick_event_name)
+		else
+			print("Avatar unloded: Stopping song with world_tick.")
+			stopping_with_world_tick = true
+			events.WORLD_TICK:register(stop_playing_song_tick, stop_song_tick_event_name)
+		end
 	end
 	if host:isHost() then
 		songbook_action_wheel_page_update_song_picker_button()
@@ -796,12 +829,41 @@ local function song_player_event_watcher_event()
 	end
 end
 
+-- Emergency stop 
+
+local is_unloaded_timer = 0
+local function avatar_is_loaded_watcher_event()
+	-- Failsafe: Kill song if avatar is unloaded. 
+
+	-- can happen if avatar walks into a nether portal while playing a song. 
+	-- The script won't crash, but TICK events will stopp happening, so 
+	-- long notes will go forever. Use world_tick event to monitor the 
+	-- standard tick event.
+
+	if player:isLoaded() then 
+		is_unloaded_timer = 0
+		return 
+	else
+		is_unloaded_timer = is_unloaded_timer + 1
+		if is_unloaded_timer > (20*3) then	-- about 3 seconds
+			stop_playing_songs()
+			is_unloaded_timer = 0
+		end
+	end
+end
+
+-- Actualy start the song and the player failsafes
 local function start_song_player_event()
 	--print("Starting song player event")
 	current_song_player_event = "TICK"
 	events.TICK:register(
 		song_player_event_watcher_event,
 		song_player_event_watcher_event_name
+	)
+
+	events.WORLD_TICK:register(
+		avatar_is_loaded_watcher_event,
+		avatar_is_loaded_watcher_event_name
 	)
 end
 
@@ -980,6 +1042,20 @@ function pings.deserialize(packet_string)
 	if songbook.incoming_song == nil then
 		if packet_string:sub(1,1) ~= "n" then
 			print("deserialize() Found an instruction packet, but we haven't seen a song-start packet yet!")
+			return
+		end
+
+		if not player:isLoaded() or stopping_with_world_tick then
+			-- avatar is unloaded. Do not accept new songs from them. 
+			-- or avatar _was_ unloded, and we're in the middle of 
+			-- rewinding the old song in failsafe mode. Do not start a new 
+			-- song while rewinding in failsafe. 
+			if stopping_with_world_tick then 
+				print("Rejecting new song! Songplayer is rewinding in failsafe mode.")
+			else
+				print("Rejecting new song! Host is unloded.")
+			end
+			
 			return
 		end
 
@@ -1371,7 +1447,7 @@ end
 local function init_keybinds()
 	keybinds:newKeybind(
 		"Scroll song list faster",
-		keybinds:getVanillaKey("key.sneak")
+		keybinds:getVanillaKey("key.sprint")
 	)
 	--printTable(keybinds:getKeybinds()["Scroll song list faster"])
 end
