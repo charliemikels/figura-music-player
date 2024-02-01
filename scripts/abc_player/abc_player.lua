@@ -1447,7 +1447,7 @@ end
 local function init_keybinds()
 	keybinds:newKeybind(
 		"Scroll song list faster",
-		keybinds:getVanillaKey("key.sneak")
+		keybinds:getVanillaKey("key.sprint")
 	)
 	--printTable(keybinds:getKeybinds()["Scroll song list faster"])
 end
