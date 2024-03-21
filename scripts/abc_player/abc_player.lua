@@ -1264,20 +1264,16 @@ end
 -- Song playing ----------------------------------------------------------------
 local function queue_song(song_file_path)
 	songbook.queued_song = {}
-
-	local current_config_path = config:getName()
-	config:name(song_file_path.safe_path)
-	local song_file = config:load(song_file_path.safe_path)
-	config:name(current_config_path)
 	
 	-- print("Preparing to play "..song_file_path.name)
 
-	if song_file ~= nil and song_file.data == nil then
-		-- TODO: Sanity check.
-		print("No song found at `".. song_file_path.name .."`.")
-		return
+	if not file:isFile(song_file_path.safe_path) then 
+		print("No file found at `".. song_file_path.safe_path .."`.")
+		return 
 	end
-	local song_abc_data = song_file.data
+
+	-- TODO: validation. Make sure incomming file looks like an ABC file?
+	local song_abc_data = file:readString(song_file_path.safe_path)
 
 	-- Convert data to instructions.
 	--print("Generating instructions...")
