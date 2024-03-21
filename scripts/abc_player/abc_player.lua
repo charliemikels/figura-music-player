@@ -6,9 +6,11 @@
 -- main script vars ------------------------------------------------------------
 
 -- User vars and imports
--- events.ENTITY_INIT:register(function ()
--- 	print("=== Dev init: ".. client.getSystemTime() .." ===")
--- end)
+events.ENTITY_INIT:register(function ()
+	print("=== Dev init: ".. client.getSystemTime() .." ===")
+end)
+
+local songbook_root_file_path = "TL_Songbook"
 
 local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 								-- the position of the info display text.
@@ -18,7 +20,7 @@ local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 
 
 -- config / performance vars:
-local maximum_ping_size = 900	-- Theoretical min: ~1000
+local maximum_ping_size = 900	-- Theoretical max: ~1000
 local maximum_ping_rate = 1200	-- Theoretical min: ~1000
 
 local num_instructions_to_stop_per_tick = 500
@@ -54,13 +56,39 @@ end
 local function get_song_list()
 	if not host:isHost() then return end
 
-	local curr_config_file = config:getName()
-	config:name("TL_Songbook_Index")
-	song_list = config:load("index")
-	config:name(curr_config_file)
+	local song_list = {}
+	--	song_list = { 
+	--		1: {
+	--			name, 		-- string. Appears in song list (does not include songbook_root_file_path)
+	--			safe_path	-- string. Actual filesAPI-safe path
+	-- 		},
+	-- 		2: { etc… },
+	--		…
+	--	}
 
-	-- Songlist was a [] of paths. 
-	-- Now it's a table of nice paths (name), and real paths (safe_path). 
+	-- songbook may have either song files, or directories. 
+	-- file:list() doesn't tell us if a path is a directory or a file. 
+	-- we need to check all of them. 
+	local paths_to_test = file:list(songbook_root_file_path);
+
+	while #paths_to_test > 0 do 
+		local current_path = table.remove(paths_to_test)
+		local full_path = songbook_root_file_path .. "/" .. current_path
+
+		if file:isDirectory(full_path) then
+			-- Path is a directory, put its contents into the test loop. 
+			for k,v in ipairs(file:list(full_path)) do
+				table.insert(paths_to_test, (current_path .. "/" .. v))
+			end
+		elseif file:isFile(full_path) then
+			-- path is file, validate that it's a file we want. 
+			-- TODO: validation. Don't accidentaly add invalid items to song list. 
+			table.insert(song_list, #song_list +1, {name = current_path, safe_path = full_path});
+		end
+	end
+	
+	table.sort(song_list, function(a,b) return a.name < b.name end)
+
 	return song_list
 end
 
