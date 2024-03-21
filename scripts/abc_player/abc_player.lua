@@ -48,11 +48,6 @@ local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
 
 -- song list builder -----------------------------------------------------------
-local function song_path_to_song_name(song_path)
-	-- everything between the final slash and before the file extension. 
-	return song_path:match("([^/]*)%.")
-end
-
 local function get_song_list()
 	if not host:isHost() then return end
 
@@ -83,11 +78,16 @@ local function get_song_list()
 		elseif file:isFile(full_path) then
 			-- path is file, validate that it's a file we want. 
 			-- TODO: validation. Don't accidentaly add invalid items to song list. 
-			table.insert(song_list, #song_list +1, {name = current_path, safe_path = full_path});
+			table.insert(song_list, #song_list +1, {
+					name = current_path:match("([^/]*)%."), -- everything after last / and before last .
+					display_path = current_path,
+					safe_path = full_path
+				}
+			);
 		end
 	end
 	
-	table.sort(song_list, function(a,b) return a.name < b.name end)
+	table.sort(song_list, function(a,b) return a.display_path < b.display_path end)
 
 	return song_list
 end
@@ -119,7 +119,7 @@ local function song_is_being_stopped(index)
 	if type(index) == "string" then
 		return songbook.playing_song_path == index
 	end
-	return songbook.playing_song_path == songbook.song_list[index].name
+	return songbook.playing_song_path == songbook.song_list[index].display_path
 end
 
 local function songbook_action_wheel_page_update_song_picker_button()
@@ -148,7 +148,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 	local selected_song_state = ""
 
 	local display_string = "Songlist: "..songbook.action_wheel.selected_song_index.."/"..tostring(#songbook.song_list)
-	.. (song_is_playing() and " Currently playing: " .. song_path_to_song_name(songbook.playing_song_path.name) or "" )
+	.. (song_is_playing() and " Currently playing: " .. songbook.playing_song_path.name or "" )
 	for i = start_index, end_index do
 		local song_is_selected = (songbook.action_wheel.selected_song_index == i)
 		-- local is_playing = song_is_playing(i)
@@ -156,7 +156,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		display_string = display_string .. "\n"
 			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
 			.. (song_is_selected and "→" or "  ")
-			.. " " ..songbook.song_list[i].name
+			.. " " ..songbook.song_list[i].display_path
 	end
 
 	display_string = display_string .. "\n"
@@ -260,7 +260,7 @@ local function stop_playing_songs()
 		info_screen_anchor_part:removeTask(song_info_text_task_name)
 	end
 	if songbook.incoming_song ~= nil then
-		-- print("stopping song "..song.name)
+		-- print("stopping song "..songbook.incoming_song.name)
 		songbook.incoming_song.stop_loop_index = 0
 		songbook.incoming_song.start_time = nil
 
@@ -1252,7 +1252,7 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 	if packet_builder ~= "" then table.insert(ping_packets, packet_builder) end
 
 	-- Info packet. Reserve this space before inserting instructions. (or append this packet to the front. it needs to be sent first)
-	ping_packets[1] = "n"..song_path_to_song_name(song_file_path.name).."//"	-- // for end of name
+	ping_packets[1] = "n"..song_file_path.name.."//"	-- // for end of name
 		.."p".. #ping_packets
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
@@ -1292,7 +1292,7 @@ local function queue_song(song_file_path)
 	songbook.queued_song.path = song_file_path
 	songbook.queued_song.buffer_time = time_to_start
 	songbook.queued_packets = packets
-	print("Ready to play "..song_file_path.name
+	print("Ready to play "..song_file_path.display_path
 		.. (maximum_ping_rate*5 < time_to_start and
 			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
 			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
@@ -1306,7 +1306,7 @@ local function play_song(song_file_path)
 		log("`"..song_file_path.."` is not queued yet. Doing that now.")
 		queue_song(song_file_path)
 	end
-	print("Playing "..song_file_path.name)
+	print("Playing "..song_file_path.display_path)
 	songbook.playing_song_path = song_file_path
 	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
@@ -1483,10 +1483,10 @@ function get_songbook_actions()
 end
 
 function get_currently_playing_song()
-	return song_is_playing() and song_path_to_song_name(songbook.playing_song_path) or nil
+	return song_is_playing() and songbook.playing_song_path.name or nil
 end
 
-songbook.song_list = get_song_list()
+songbook.song_list = get_song_list()	
 init_keybinds()
 songbook_action_wheel_page_setup()
 return songbook.action_wheel.actions["enter_songbook"]
