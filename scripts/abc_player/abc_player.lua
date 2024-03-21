@@ -76,14 +76,16 @@ local function get_song_list()
 				table.insert(paths_to_test, (current_path .. "/" .. v))
 			end
 		elseif file:isFile(full_path) then
-			-- path is file, validate that it's a file we want. 
-			-- TODO: validation. Don't accidentaly add invalid items to song list. 
-			table.insert(song_list, #song_list +1, {
+
+			-- TODO: make file type validation flexible to match multiple options
+			if full_path:match("%.([^%.]+)$"):lower() == "abc" then
+				table.insert(song_list, #song_list +1, {
 					name = current_path:match("([^/]*)%."), -- everything after last / and before last .
 					display_path = current_path,
 					safe_path = full_path
 				}
 			);
+			end
 		end
 	end
 	
