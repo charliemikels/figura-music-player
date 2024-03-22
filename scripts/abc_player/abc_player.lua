@@ -122,7 +122,7 @@ local function get_song_list()
 		end
 	end
 	
-	table.sort(song_list, function(a,b) return a.display_path < b.display_path end)
+	table.sort(song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
 
 	if #song_list < 1 then 
 		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
