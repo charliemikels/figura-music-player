@@ -6,9 +6,9 @@
 -- main script vars ------------------------------------------------------------
 
 -- User vars and imports
-events.ENTITY_INIT:register(function ()
-	print("=== Dev init: ".. client.getSystemTime() .." ===")
-end)
+-- events.ENTITY_INIT:register(function ()
+-- 	print("=== Dev init: ".. client.getSystemTime() .." ===")
+-- end)
 
 local songbook_root_file_path = "TL_Songbook"  -- default is `"TL_Songbook"`
 
