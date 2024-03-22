@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- ABC Music Player V3.0.0-beta.1
+-- ABC Music Player V3.0.0-beta.2
 
 -- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
