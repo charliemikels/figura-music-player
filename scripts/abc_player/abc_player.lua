@@ -10,7 +10,7 @@ events.ENTITY_INIT:register(function ()
 	print("=== Dev init: ".. client.getSystemTime() .." ===")
 end)
 
-local songbook_root_file_path = "TL_Songbook"
+local songbook_root_file_path = "TL_Songbook"  -- default is `"TL_Songbook"`
 
 local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 								-- the position of the info display text.
@@ -51,11 +51,44 @@ local song_info_text_task_name = "song_info_text_task"
 local function get_song_list()
 	if not host:isHost() then return end
 
+	if not file:isPathAllowed(songbook_root_file_path) then
+		-- short-circut future file api requests. 
+		print("⚠ Invalid songbook path: `[figura_root]/data/"..tostring(songbook_root_file_path).."`.")
+		print("⚠ Check the `songbook_root_file_path` variable.")
+		return {}
+	end
+
+	if not file:isDirectory(songbook_root_file_path)
+	then
+		print("Songbook data folder not found")
+
+		if songbook_root_file_path and type(songbook_root_file_path) == "string" then
+			local mkdir_was_successfull = file:mkdirs(songbook_root_file_path)
+			
+			if mkdir_was_successfull then
+				print("Created a new songbook folder at `[figura_root]/data/"..songbook_root_file_path.."`")
+				print("Place `.abc` song files here, then reload the avatar.")
+			else
+				print("⚠ Failed to create songbook folder at `[figura_root]/data/"..songbook_root_file_path.."`")
+			end
+
+		else
+			print("⚠ Can't create new songbook folder at `[figura_root]/data/"..tostring(songbook_root_file_path).."`")
+			print("⚠ Check the `songbook_root_file_path` variable.")
+		end
+
+		-- songbook was not found. whether we were able to 
+		-- create a new one or not, there will be no data to 
+		-- find there anyways. Just return `{}`
+		return {}
+	end
+
 	local song_list = {}
 	--	song_list = { 
 	--		1: {
-	--			name, 		-- string. Appears in song list (does not include songbook_root_file_path)
-	--			safe_path	-- string. Actual filesAPI-safe path
+	--			name, 			-- string. Short name of file. Excludes path and `.abc`
+	--			display_path	-- string. Path excluding `songbook_root_file_path`
+	--			safe_path		-- string. Full path for filesAPI
 	-- 		},
 	-- 		2: { etc… },
 	--		…
@@ -91,6 +124,9 @@ local function get_song_list()
 	
 	table.sort(song_list, function(a,b) return a.display_path < b.display_path end)
 
+	if #song_list < 1 then 
+		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
+	end
 	return song_list
 end
 
