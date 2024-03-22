@@ -167,7 +167,14 @@ local function songbook_action_wheel_page_update_song_picker_button()
 
 	if songbook.song_list == nil or #songbook.song_list < 1 then
 		songbook.action_wheel.actions["select_song"]
-			:title("No songs in song list")
+			:title(
+				"No songs in song list."
+				..(file:isPathAllowed(songbook_root_file_path) 
+					and "\nAdd `.abc` files to [figura_root]/data/"..tostring(songbook_root_file_path).."`" 
+					or "\nCorret the `songbook_root_file_path` variable"
+				)
+				.."\nthen reload the avatar."
+			)
 			:item("minecraft:music_disc_11")
 			return
 	end
@@ -182,8 +189,6 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		end_index = #songbook.song_list
 		start_index = math.max(end_index - num_songs_to_display ,1)
 	end
-
-	local selected_song_state = ""
 
 	local display_string = "Songlist: "..songbook.action_wheel.selected_song_index.."/"..tostring(#songbook.song_list)
 	.. (song_is_playing() and " Currently playing: " .. songbook.playing_song_path.name or "" )
@@ -1473,6 +1478,8 @@ local function songbook_action_wheel_page_setup()
 		end)
 
 		:onLeftClick(function()
+			if songbook.song_list == nil or #songbook.song_list < 1 then return end
+
 			if song_is_playing(songbook.action_wheel.selected_song_index)
 			or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
 			then
