@@ -1107,6 +1107,10 @@ end
 
 -- Data transfer ---------------------------------------------------------------
 function pings.deserialize(packet_string)
+	deserialize(packet_string)
+end
+
+function deserialize(packet_string)
 	-- if packet_string:sub(1,1) == "e" then -- found stop packet
 	-- 	stop_playing_songs()
 	-- end
@@ -1213,7 +1217,7 @@ local function send_packets_tick_event()
 
 		if current_index > #outgoing_packets.packets then
 			-- break event if there are no more packets to send
-			print("All packets sent to listeners")
+			print("All packets sent")
 			events.TICK:remove( send_packets_tick_event_name )
 			outgoing_packets = nil
 			return
@@ -1221,17 +1225,50 @@ local function send_packets_tick_event()
 
 		--print("sending packet "..current_index.."/"..#outgoing_packets.packets.. " ("..#(outgoing_packets.packets[current_index])..")")
 		--printTable(outgoing_packets.packets)
-		pings.deserialize(outgoing_packets.packets[current_index])
+
+		if outgoing_packets.should_send_pings then
+			-- pings allways hit the figura server, even in single player. 
+			-- We should avoid pings whenever possible. See `send_packets()`.
+			pings.deserialize(outgoing_packets.packets[current_index])
+		else
+			deserialize(outgoing_packets.packets[current_index])
+		end
 
 		outgoing_packets.previous_index = current_index
 	end
 end
 
+local send_packets_used_pings_last_time = false
 local function send_packets(packets)
 	outgoing_packets = {}
 	outgoing_packets.packets = packets
 	outgoing_packets.previous_index = 0
 	outgoing_packets.first_packet_send_time = client.getSystemTime()
+	
+	-- don't send pings if no one is arround to hear them. 
+	local player_list = world.getPlayers()
+	player_list[player:getName()] = nil	-- remove ourselves from list. 
+
+	-- using `#player_list` to get the length of `player_list` doesn't work with 
+	-- string-indexed tables??? Gotta do it ourselves. Good news is we only need
+	-- to find 1 non-us entry to make it work. 
+	outgoing_packets.should_send_pings = false
+	for _ in pairs(player_list) do 
+		-- loop over the list. if we find anything, there's at least
+		-- one nearby player. send pings
+		outgoing_packets.should_send_pings = true
+		break
+	end
+
+	if outgoing_packets.should_send_pings ~= send_packets_used_pings_last_time then 
+		send_packets_used_pings_last_time = outgoing_packets.should_send_pings
+		if outgoing_packets.should_send_pings then
+			print("Players nearby. Sending song over pings.")
+		else
+			print("No players nearby. Song will not play through pings.")
+		end
+		
+	end
 
 	events.TICK:register(
 		send_packets_tick_event,
