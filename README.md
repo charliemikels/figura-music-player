@@ -1,6 +1,6 @@
 # Tanner Limes' Music Player for Figura
 
-[Figura](https://github.com/Kingdom-of-The-Moon/FiguraRewriteRewrite) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
+[Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
 
 This repo is a Figura avatar that lets you play ABC music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
 
@@ -8,6 +8,8 @@ This repo is a Figura avatar that lets you play ABC music in Minecraft for you a
 https://github.com/charliemikels/figura-music-player/assets/20339866/f088348f-7a3b-4993-a5d2-6699f653f281
 
 ## Installation
+
+This version of this script was built for Figura 0.1.4 and makes use of the new files api. Check the Github releases for versions compatable with older versions of Figura. 
 
 Use the green `code` button to download this repo as a zip file. Then navigate to your Figura avatars folder, make a sub-folder there for this avatar, and then extract the zip into that folder. 
 
@@ -26,15 +28,14 @@ The file structure should look like this:
 │   │ └ Action Wheel.lua
 │   └ …
 │
-└ data   ← Your song files will go in this folder
-  │        _after_ they've been processed by
-  │        songbook_builder.html
-  │
-  ├ TL_Songbook_Index.json
-  └ TL_Songbook_Song__*
+└ data
+  ├ TL_Songbook
+  │ ├ optional_sub_dir
+  │ │ └ organized_song.abc
+  │ ├ song2.abc
+  │ └ song*.abc
+  └ …
 ```
-
-⚠️ RC 3 for Figura 0.1.3 moved where config files go. If you're on this version (or higher, probably), put the songbook files in the new `config` folder instead of `data`. 
 
 <details>
 <summary>If you don't know where the root Figura folder is, you can get to it through Minecraft</summary>
@@ -50,31 +51,15 @@ The file structure should look like this:
 
 ## Adding Songs
 
-There are two major limitations with this avatar:
+After you've added the avatar, launch minecraft and load the avatar at least once. The avatar will atempt to create a songbook folder for you in Figura's `data` directory. 
 
-1. Songs must be converted into a Figura readable format.
-2. This script **only supports ABC song files**.
+The default songbook location is in `[figura_root]/data/TL_Songbook`, but you can change the path by editing `songbook_root_file_path` at the top of the `abc_player.lua` file.
 
-### Converting Songs
+After finding the songbook folder, place your .abc files into this folder. You can also use sub-folders to help organize your files. 
 
-This script hijacks Figura's Config API to let us store songs outside of the avatar. This lets us dodge the avatar file size upload limit, letting us store and play thousands of songs at any time. To make this work, the song files need to be in a format that the Config API can understand. 
+### ABC Files
 
-Included in this repo is an all-in-one song converter that you run in your browser called `songbook_builder.html`. 
-
-1. Open `songbook_builder.html` in your browser.
-2. Select a folder of song files and click `Process`. 
-3. Click `Save Songbook`. This will give you a songbook.zip file. 
-4. Go to Figura's `data` Directory. 
-   This folder is next to the `avatar` folder. Refer to the above file tree. 
-5. Extract the contents of songbook.zip into the data folder. These should not be in their own sub-folder. Everything goes directly into the data folder. 
-
-BTW: This tool uses [JSZip](https://stuk.github.io/jszip/) to create the final zip file, but all of the logic happens in-browser. Nothing is actually "uploaded" anywhere. 
-
-This converter page has been tested in Firefox and Chrome. If you're on safari, your mileage may vary. 
-
-### ABC files
-
-Currently, this avatar only supports songs written in the [ABC music format](https://abcnotation.com/). You can find ABC files online, (they're used frequently in the Starbound and Lord of the Rings Online communities.) or you can convert more common Midi files to ABC if you have the tools. 
+Currently, this avatar **only supports songs written in the [ABC music format](https://abcnotation.com/)**. You can find ABC files online, (they're used frequently in the _Starbound_ and _Lord of the Rings Online_ communities.) or you can convert more common Midi files to ABC if you have the tools. 
 
 If you plan on converting your own ABC files from Midi tracks, I recommend [Starbound Composer](http://www.starboundcomposer.com/), if you happen to have [Starbound](https://store.steampowered.com/app/211820/Starbound/) installed. But you don't need to have Starbound installed to use SBC. Starbound Composer will ask you to point to your Starbound install folder, but you can actually trick it pretty easily by pointing it to a folder with this structure:
 
@@ -86,9 +71,17 @@ target folder
   └ starbound.exe  ← renamed empty file
 ```
 
-Without the actual Starbound assets, you won't be able to preview your songs, but you will still be able to convert them from Midi to ABC, and you'll even be able to merge multiple tracks/files into a single ABC file.
+Without the actual Starbound assets, you won't be able to preview your songs, but you will still be able to convert them from Midi to ABC, and you'll even be able to merge multiple tracks/files into a single ABC file. 
+
+1. Select all tracks.
+  - Ignore track 10, it's allways percussion.
+2. Click the blue merge button.
+3. Delete the old tracks. 
+4. Save the new merged track to abc. 
 
 If SBC won't work for you, you can try your hand at [this mega list of software for ABC files](https://abcnotation.com/software), some of them say they can convert ABC files to and from Midi files, however a lot of them just point to dead links. I haven't found one I really like yet. Your mileage may vary. <!-- However, [MidiZyx2abc](http://www.midicond.de/Freeware/index_en.html#MidiZyx2abc) might be pretty reasonable? -->
+
+Note that this script is **not fully compatable** with the .abc spec. It's close, but there are some abc features that will confuse it. This script was primaraly created with Starbound Composer in mind, and has pretty good compatability with this specific editor. 
 
 ## In Game Usage
 
@@ -153,4 +146,4 @@ Tanner_Limes is my Minecraft username. Hi Discord people!
 
 ### Why do some songs make me wait a very long time before they play?
 
-This is a side effect of the ping limit. Figura lets avatars send up to 1KB of information to other players every 1 second. This is usually fine since most songs don't need to send more than 1KB of data per second anyways. However, some songs can play fast enough that they can outrun the song data if we're not careful.
+There are two main cases where this can happen. Very large songs take a long time to parce into instructions. This usualy makes minecraft freeze and has a chance to make your client "time out" in singleplayer. Very fast songs can out-pace the ping-limit, so they need time to buffer first. 

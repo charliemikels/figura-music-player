@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- ABC Music Player V3.0.0-beta.1
+-- ABC Music Player V3.0.0-beta.2
 
 -- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
@@ -10,6 +10,8 @@
 -- 	print("=== Dev init: ".. client.getSystemTime() .." ===")
 -- end)
 
+local songbook_root_file_path = "TL_Songbook"  -- default is `"TL_Songbook"`
+
 local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 								-- the position of the info display text.
 								-- By default, the info box is based on the player's hitbox.
@@ -18,7 +20,7 @@ local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 
 
 -- config / performance vars:
-local maximum_ping_size = 900	-- Theoretical min: ~1000
+local maximum_ping_size = 900	-- Theoretical max: ~1000
 local maximum_ping_rate = 1200	-- Theoretical min: ~1000
 
 local num_instructions_to_stop_per_tick = 500
@@ -46,21 +48,85 @@ local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
 
 -- song list builder -----------------------------------------------------------
-local function song_path_to_song_name(song_path)
-	-- everything between the final slash and before the file extension. 
-	return song_path:match("([^/]*)%.")
-end
-
 local function get_song_list()
 	if not host:isHost() then return end
 
-	local curr_config_file = config:getName()
-	config:name("TL_Songbook_Index")
-	song_list = config:load("index")
-	config:name(curr_config_file)
+	if not file:isPathAllowed(songbook_root_file_path) then
+		-- short-circut future file api requests. 
+		print("⚠ Invalid songbook path: `[figura_root]/data/"..tostring(songbook_root_file_path).."`.")
+		print("⚠ Check the `songbook_root_file_path` variable.")
+		return {}
+	end
 
-	-- Songlist was a [] of paths. 
-	-- Now it's a table of nice paths (name), and real paths (safe_path). 
+	if not file:isDirectory(songbook_root_file_path)
+	then
+		print("Songbook data folder not found")
+
+		if songbook_root_file_path and type(songbook_root_file_path) == "string" then
+			local mkdir_was_successfull = file:mkdirs(songbook_root_file_path)
+			
+			if mkdir_was_successfull then
+				print("Created a new songbook folder at `[figura_root]/data/"..songbook_root_file_path.."`")
+				print("Place `.abc` song files here, then reload the avatar.")
+			else
+				print("⚠ Failed to create songbook folder at `[figura_root]/data/"..songbook_root_file_path.."`")
+			end
+
+		else
+			print("⚠ Can't create new songbook folder at `[figura_root]/data/"..tostring(songbook_root_file_path).."`")
+			print("⚠ Check the `songbook_root_file_path` variable.")
+		end
+
+		-- songbook was not found. whether we were able to 
+		-- create a new one or not, there will be no data to 
+		-- find there anyways. Just return `{}`
+		return {}
+	end
+
+	local song_list = {}
+	--	song_list = { 
+	--		1: {
+	--			name, 			-- string. Short name of file. Excludes path and `.abc`
+	--			display_path	-- string. Path excluding `songbook_root_file_path`
+	--			safe_path		-- string. Full path for filesAPI
+	-- 		},
+	-- 		2: { etc… },
+	--		…
+	--	}
+
+	-- songbook may have either song files, or directories. 
+	-- file:list() doesn't tell us if a path is a directory or a file. 
+	-- we need to check all of them. 
+	local paths_to_test = file:list(songbook_root_file_path);
+
+	while #paths_to_test > 0 do 
+		local current_path = table.remove(paths_to_test)
+		local full_path = songbook_root_file_path .. "/" .. current_path
+
+		if file:isDirectory(full_path) then
+			-- Path is a directory, put its contents into the test loop. 
+			for k,v in ipairs(file:list(full_path)) do
+				table.insert(paths_to_test, (current_path .. "/" .. v))
+			end
+		elseif file:isFile(full_path) then
+
+			-- TODO: make file type validation flexible to match multiple options
+			if full_path:match("%.([^%.]+)$"):lower() == "abc" then
+				table.insert(song_list, #song_list +1, {
+					name = current_path:match("([^/]*)%."), -- everything after last / and before last .
+					display_path = current_path,
+					safe_path = full_path
+				}
+			);
+			end
+		end
+	end
+	
+	table.sort(song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
+
+	if #song_list < 1 then 
+		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
+	end
 	return song_list
 end
 
@@ -91,7 +157,7 @@ local function song_is_being_stopped(index)
 	if type(index) == "string" then
 		return songbook.playing_song_path == index
 	end
-	return songbook.playing_song_path == songbook.song_list[index].name
+	return songbook.playing_song_path == songbook.song_list[index].display_path
 end
 
 local function songbook_action_wheel_page_update_song_picker_button()
@@ -101,7 +167,14 @@ local function songbook_action_wheel_page_update_song_picker_button()
 
 	if songbook.song_list == nil or #songbook.song_list < 1 then
 		songbook.action_wheel.actions["select_song"]
-			:title("No songs in song list")
+			:title(
+				"No songs in song list."
+				..(file:isPathAllowed(songbook_root_file_path) 
+					and "\nAdd `.abc` files to [figura_root]/data/"..tostring(songbook_root_file_path).."`" 
+					or "\nCorret the `songbook_root_file_path` variable"
+				)
+				.."\nthen reload the avatar."
+			)
 			:item("minecraft:music_disc_11")
 			return
 	end
@@ -117,10 +190,8 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		start_index = math.max(end_index - num_songs_to_display ,1)
 	end
 
-	local selected_song_state = ""
-
 	local display_string = "Songlist: "..songbook.action_wheel.selected_song_index.."/"..tostring(#songbook.song_list)
-	.. (song_is_playing() and " Currently playing: " .. song_path_to_song_name(songbook.playing_song_path.name) or "" )
+	.. (song_is_playing() and " Currently playing: " .. songbook.playing_song_path.name or "" )
 	for i = start_index, end_index do
 		local song_is_selected = (songbook.action_wheel.selected_song_index == i)
 		-- local is_playing = song_is_playing(i)
@@ -128,7 +199,7 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		display_string = display_string .. "\n"
 			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
 			.. (song_is_selected and "→" or "  ")
-			.. " " ..songbook.song_list[i].name
+			.. " " ..songbook.song_list[i].display_path
 	end
 
 	display_string = display_string .. "\n"
@@ -232,7 +303,7 @@ local function stop_playing_songs()
 		info_screen_anchor_part:removeTask(song_info_text_task_name)
 	end
 	if songbook.incoming_song ~= nil then
-		-- print("stopping song "..song.name)
+		-- print("stopping song "..songbook.incoming_song.name)
 		songbook.incoming_song.stop_loop_index = 0
 		songbook.incoming_song.start_time = nil
 
@@ -1036,6 +1107,10 @@ end
 
 -- Data transfer ---------------------------------------------------------------
 function pings.deserialize(packet_string)
+	deserialize(packet_string)
+end
+
+function deserialize(packet_string)
 	-- if packet_string:sub(1,1) == "e" then -- found stop packet
 	-- 	stop_playing_songs()
 	-- end
@@ -1142,7 +1217,7 @@ local function send_packets_tick_event()
 
 		if current_index > #outgoing_packets.packets then
 			-- break event if there are no more packets to send
-			print("All packets sent to listeners")
+			print("All packets sent")
 			events.TICK:remove( send_packets_tick_event_name )
 			outgoing_packets = nil
 			return
@@ -1150,17 +1225,50 @@ local function send_packets_tick_event()
 
 		--print("sending packet "..current_index.."/"..#outgoing_packets.packets.. " ("..#(outgoing_packets.packets[current_index])..")")
 		--printTable(outgoing_packets.packets)
-		pings.deserialize(outgoing_packets.packets[current_index])
+
+		if outgoing_packets.should_send_pings then
+			-- pings allways hit the figura server, even in single player. 
+			-- We should avoid pings whenever possible. See `send_packets()`.
+			pings.deserialize(outgoing_packets.packets[current_index])
+		else
+			deserialize(outgoing_packets.packets[current_index])
+		end
 
 		outgoing_packets.previous_index = current_index
 	end
 end
 
+local send_packets_used_pings_last_time = false
 local function send_packets(packets)
 	outgoing_packets = {}
 	outgoing_packets.packets = packets
 	outgoing_packets.previous_index = 0
 	outgoing_packets.first_packet_send_time = client.getSystemTime()
+	
+	-- don't send pings if no one is arround to hear them. 
+	local player_list = world.getPlayers()
+	player_list[player:getName()] = nil	-- remove ourselves from list. 
+
+	-- using `#player_list` to get the length of `player_list` doesn't work with 
+	-- string-indexed tables??? Gotta do it ourselves. Good news is we only need
+	-- to find 1 non-us entry to make it work. 
+	outgoing_packets.should_send_pings = false
+	for _ in pairs(player_list) do 
+		-- loop over the list. if we find anything, there's at least
+		-- one nearby player. send pings
+		outgoing_packets.should_send_pings = true
+		break
+	end
+
+	if outgoing_packets.should_send_pings ~= send_packets_used_pings_last_time then 
+		send_packets_used_pings_last_time = outgoing_packets.should_send_pings
+		if outgoing_packets.should_send_pings then
+			print("Players nearby. Sending song over pings.")
+		else
+			print("No players nearby. Song will not play through pings.")
+		end
+		
+	end
 
 	events.TICK:register(
 		send_packets_tick_event,
@@ -1224,7 +1332,7 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 	if packet_builder ~= "" then table.insert(ping_packets, packet_builder) end
 
 	-- Info packet. Reserve this space before inserting instructions. (or append this packet to the front. it needs to be sent first)
-	ping_packets[1] = "n"..song_path_to_song_name(song_file_path.name).."//"	-- // for end of name
+	ping_packets[1] = "n"..song_file_path.name.."//"	-- // for end of name
 		.."p".. #ping_packets
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
@@ -1236,20 +1344,16 @@ end
 -- Song playing ----------------------------------------------------------------
 local function queue_song(song_file_path)
 	songbook.queued_song = {}
-
-	local current_config_path = config:getName()
-	config:name(song_file_path.safe_path)
-	local song_file = config:load(song_file_path.safe_path)
-	config:name(current_config_path)
 	
 	-- print("Preparing to play "..song_file_path.name)
 
-	if song_file ~= nil and song_file.data == nil then
-		-- TODO: Sanity check.
-		print("No song found at `".. song_file_path.name .."`.")
-		return
+	if not file:isFile(song_file_path.safe_path) then 
+		print("No file found at `".. song_file_path.safe_path .."`.")
+		return 
 	end
-	local song_abc_data = song_file.data
+
+	-- TODO: validation. Make sure incomming file looks like an ABC file?
+	local song_abc_data = file:readString(song_file_path.safe_path)
 
 	-- Convert data to instructions.
 	--print("Generating instructions...")
@@ -1268,7 +1372,7 @@ local function queue_song(song_file_path)
 	songbook.queued_song.path = song_file_path
 	songbook.queued_song.buffer_time = time_to_start
 	songbook.queued_packets = packets
-	print("Ready to play "..song_file_path.name
+	print("Ready to play "..song_file_path.display_path
 		.. (maximum_ping_rate*5 < time_to_start and
 			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
 			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
@@ -1282,7 +1386,7 @@ local function play_song(song_file_path)
 		log("`"..song_file_path.."` is not queued yet. Doing that now.")
 		queue_song(song_file_path)
 	end
-	print("Playing "..song_file_path.name)
+	print("Playing "..song_file_path.display_path)
 	songbook.playing_song_path = song_file_path
 	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
@@ -1411,6 +1515,8 @@ local function songbook_action_wheel_page_setup()
 		end)
 
 		:onLeftClick(function()
+			if songbook.song_list == nil or #songbook.song_list < 1 then return end
+
 			if song_is_playing(songbook.action_wheel.selected_song_index)
 			or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
 			then
@@ -1459,10 +1565,10 @@ function get_songbook_actions()
 end
 
 function get_currently_playing_song()
-	return song_is_playing() and song_path_to_song_name(songbook.playing_song_path) or nil
+	return song_is_playing() and songbook.playing_song_path.name or nil
 end
 
-songbook.song_list = get_song_list()
+songbook.song_list = get_song_list()	
 init_keybinds()
 songbook_action_wheel_page_setup()
 return songbook.action_wheel.actions["enter_songbook"]
