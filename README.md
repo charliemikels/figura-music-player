@@ -57,7 +57,7 @@ The default songbook location is in `[figura_root]/data/TL_Songbook`, but you ca
 
 After finding the songbook folder, place your .abc files into this folder. You can also use sub-folders to help organize your files. 
 
-### abc files
+### ABC Files
 
 Currently, this avatar **only supports songs written in the [ABC music format](https://abcnotation.com/)**. You can find ABC files online, (they're used frequently in the _Starbound_ and _Lord of the Rings Online_ communities.) or you can convert more common Midi files to ABC if you have the tools. 
 
