@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- ABC Music Player V3.0.0
+-- ABC Music Player V3.0.1
 
 -- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
@@ -20,8 +20,15 @@ local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
 
 
 -- config / performance vars:
-local maximum_ping_size = 900	-- Theoretical max: ~1000
-local maximum_ping_rate = 1200	-- Theoretical min: ~1000
+local default_maximum_ping_size  = 900	-- Theoretical max: ~1000
+local default_maximum_ping_rate  = 1200	-- Theoretical min: ~1000
+local slowmode_maximum_ping_size = 500
+local slowmode_maximum_ping_rate = 1750
+local slowmode = false
+
+local maximum_ping_size = default_maximum_ping_size	-- Theoretical max: ~1000
+local maximum_ping_rate = default_maximum_ping_rate	-- Theoretical min: ~1000
+
 
 local num_instructions_to_stop_per_tick = 500
 								-- Maximum number of song instructions that
@@ -192,13 +199,19 @@ local function songbook_action_wheel_page_update_song_picker_button()
 
 	local display_string = "Songlist: "..songbook.action_wheel.selected_song_index.."/"..tostring(#songbook.song_list)
 	.. (song_is_playing() and " Currently playing: " .. songbook.playing_song_path.name or "" )
+
+	if slowmode then
+		display_string = display_string .. "\n"
+			.. "§4Slow mode enabled. Right click to disable.§r"
+	end
+
 	for i = start_index, end_index do
 		local song_is_selected = (songbook.action_wheel.selected_song_index == i)
 		-- local is_playing = song_is_playing(i)
 		-- local is_queued = is_playing and false or song_is_queued(i)
 		display_string = display_string .. "\n"
 			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
-			.. (song_is_selected and "→" or "  ")
+			.. (song_is_selected and (slowmode and "§4→§r" or "→") or "  ")
 			.. " " ..songbook.song_list[i].display_path
 	end
 
@@ -1147,7 +1160,7 @@ function deserialize(packet_string)
 		songbook.incoming_song.start_time_delay = tonumber(songbook.incoming_song.start_time_delay)
 
 		songbook.incoming_song.start_time = client.getSystemTime() + songbook.incoming_song.start_time_delay
-			+ maximum_ping_rate -- Ensures there will always be at least one packet waiting and ready to go.
+			+ slowmode_maximum_ping_rate -- Ensures there will always be at least one packet waiting and ready to go.
 
 		songbook.incoming_song.end_time = songbook.incoming_song.start_time + songbook.incoming_song.song_length
 
@@ -1532,6 +1545,27 @@ local function songbook_action_wheel_page_setup()
 			end
 
 			songbook_action_wheel_page_update_song_picker_button()
+		end)
+
+		:onRightClick(function()
+			--slowmode
+			if song_is_playing() then
+				print("Can't toggle slow mode. Currently playing a song.")
+			else
+				if slowmode then
+					maximum_ping_size = default_maximum_ping_size
+					maximum_ping_rate = default_maximum_ping_rate
+					print("Returning to default ping rate")
+					slowmode = false
+				else
+					maximum_ping_size = slowmode_maximum_ping_size
+					maximum_ping_rate = slowmode_maximum_ping_rate
+					print("Entering slow mode. Pings are much smaller and slower now.")
+					slowmode = true
+				end
+				songbook.queued_song = {}
+				songbook_action_wheel_page_update_song_picker_button()
+			end
 		end)
 
 	songbook.action_wheel.page:setAction(3,
