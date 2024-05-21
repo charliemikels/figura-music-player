@@ -754,6 +754,7 @@ function play_song_event_loop()
 
 	if 		song == nil
 		or	song.all_instructions_done
+		or	(song.end_time - client.getSystemTime()) < (-0.25 *1000)
 	then
 		print("song `".. song.name .."` finished")
 		stop_playing_songs()
