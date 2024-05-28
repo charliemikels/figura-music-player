@@ -1204,9 +1204,10 @@ function deserialize(packet_string)
 			local song_instruction = {}
 			song_instruction.start_time,
 				song_instruction.end_time,
+				song_instruction.instrument_index,
 				song_instruction.semitones_from_a4,
 				song_instruction.chloe_piano
-				= serialized_instruction:match("s([^%a]+)e([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
+				= serialized_instruction:match("s([^%a]+)e([^%a]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
 
 			song_instruction.start_time = tonumber(song_instruction.start_time)
 			song_instruction.end_time = tonumber(song_instruction.end_time)
@@ -1216,9 +1217,10 @@ function deserialize(packet_string)
 			table.insert(songbook.incoming_song.instructions, song_instruction)
 
 			if not song_instruction or song_instruction == {} or not song_instruction.start_time then
+				print("Malformed instruction packet!")
 				printTable(song_instruction)
 				print(serialized_instruction)
-				error("soups")
+				error("Malformed instruction packet: `" .. serialized_instruction .."`")
 			end
 
 		end
@@ -1331,6 +1333,7 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 		local serialized_instruction =
 			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
 			.."e"..( string.format("%0d",instruction.end_time) )
+			.."i"..( string.format("%0d", 1 ) )	-- TODO: instruction.instrument_index 
 			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
 			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
 		-- if instruction.chloe_piano == nil then print(serialized_instruction) end
