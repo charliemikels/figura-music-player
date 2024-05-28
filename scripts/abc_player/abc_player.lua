@@ -398,6 +398,20 @@ function pings.stop_playing_songs_ping()
 end
 
 -- song builder: helpers -------------------------------------------------------
+local function isUsingPiano()
+	if 		songbook.selected_chloe_piano_pos ~= nil 
+		and piano_lib.validPos(songbook.selected_chloe_piano_pos) 
+	then 
+		return true 
+	else 
+		return false 
+	end
+end
+
+local function getPianoPos()
+	return vec(songbook.selected_chloe_piano_pos:match("{(-?%d*), (-?%d*), (-?%d*)}"))
+end
+
 local function fracToNumber(str)
 	local top, bot = str:match("(%d)/(%d)")
 	--print(str.." > "..top.." / "..bot)
@@ -854,7 +868,9 @@ function play_song_event_loop()
 				.." ".. instruction.chloe_piano .. (#instruction.chloe_piano > 2 and "" or " ")
 
 			)	-- ` #20/100/2000 A4 `
-			if songbook.selected_chloe_piano_pos ~= nil and piano_lib.validPos(songbook.selected_chloe_piano_pos) then
+			if isUsingPiano()
+				and instruction.instrument_index == 1	-- main instrument only
+			then
 				-- Catches if the piano was broken recently.
 			 	-- print("playing note "..instruction.chloe_piano.. " on piano at "..songbook.selected_chloe_piano_pos)
 			 	if instruction.chloe_piano ~= "X0" then
@@ -864,20 +880,29 @@ function play_song_event_loop()
 			 	-- Chloe piano can't sustain notes, so we don't need to bother
 			 	-- checking if the note's done playing.
 			else
-				--print( instruction_index.." > ".. instruction.chloe_piano)
-				if avatar:canUseCustomSounds() then
+				if instruction.instrument_index == 2 then
+					instruction.sound_id = sounds["minecraft:block.note_block.hat"]
+						:setVolume( isUsingPiano() and 0.8 or 0.5)
+						:setPitch(
+							-- TODO: Set sound based on pitch instead of actualy pitching the percussion sound. 
+							-- create lookup table to go from semitones_from_a4 to sound+pitch combo. 
+							semitone_offset_to_multiplier(instruction.semitones_from_a4)
+						)
+				elseif avatar:canUseCustomSounds() then
 					instruction.sound_id = sounds["scripts.abc_player.triangle_sin"]
+						:setLoop(true)
+						:setPitch(
+							semitone_offset_to_multiplier(instruction.semitones_from_a4)
+						)
 				else
 					instruction.sound_id = sounds["minecraft:block.note_block.bell"]
+						:setPitch(
+							semitone_offset_to_multiplier(instruction.semitones_from_a4+3-12)
+						)
 				end
 
 				instruction.sound_id
-					:setPos(player:getPos())
-					:setLoop(avatar:canUseCustomSounds())
-					:setPitch(avatar:canUseCustomSounds()
-						and semitone_offset_to_multiplier(instruction.semitones_from_a4)
-						or semitone_offset_to_multiplier(instruction.semitones_from_a4+3-12)
-					)
+					:setPos(isUsingPiano() and getPianoPos() or player:getPos())
 					:setSubtitle("Music from "..player:getName())
 					:play()
 					-- todo: use nameplate instead of player:getName()
@@ -1271,6 +1296,7 @@ function deserialize(packet_string)
 
 			song_instruction.start_time = tonumber(song_instruction.start_time)
 			song_instruction.end_time = tonumber(song_instruction.end_time)
+			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
 
 			--printTable(song_instruction)
@@ -1393,7 +1419,7 @@ local function song_instructions_to_packets(song_files, song_instructions)
 		local serialized_instruction =
 			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
 			.."e"..( string.format("%0d",instruction.end_time) )
-			.."i"..( string.format("%0d", 1 ) )	-- TODO: instruction.instrument_index 
+			.."i"..( string.format("%0d",instruction.instrument_index) )
 			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
 			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
 		-- if instruction.chloe_piano == nil then print(serialized_instruction) end
@@ -1494,7 +1520,9 @@ local function play_song(song_files)
 end
 
 -- Piano and Actionwheel -------------------------------------------------------
-local function is_block_piano(targeted_block)	-- if true, 2nd value is the lib for the piano
+local function is_block_piano(targeted_block)	
+	-- two return types: result 1 is a bool, 2nd result is the lib for the piano
+
 	if type(targeted_block) == "Vector3" then
 		targeted_block = world.getBlockState(targeted_block)
 	end
