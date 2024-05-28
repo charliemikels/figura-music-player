@@ -655,13 +655,14 @@ local function save_abc_note_to_instructions(song)
 			chloe_piano = chloe_spaced_out_piano_note_code,
 			start_time = note_builder.start_time,
 			end_time = end_time,
+			instrument_index = song.songbuilder.instrument_index,
 		})
 	end
 
 	return end_time
 end
 
-local function song_data_to_instructions(song_abc_data_string)
+local function song_data_to_instructions(song_abc_data_string, instrument_index)
 	-- Converts a the song.abc file into instructions we can send through pings
 	local song = {}
 
@@ -679,6 +680,7 @@ local function song_data_to_instructions(song_abc_data_string)
 	song.songbuilder.in_note_group = false
 	song.songbuilder.group_earliest_stop_time = math.huge
 	song.songbuilder.accidentals_memory = {}
+	song.songbuilder.instrument_index = instrument_index
 	song.songbuilder.note_builder = {
 	  	accidentals = "",
 	  	letter = "",
@@ -1357,7 +1359,7 @@ local function send_packets(packets)
 	)
 end
 
-local function song_instructions_to_packets(song_file_path, song_instructions)
+local function song_instructions_to_packets(song_files, song_instructions)
 	local minimum_song_start_delay = maximum_ping_rate
 	local ping_packets = {}
 	local packet_builder = ""
@@ -1414,7 +1416,7 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 	if packet_builder ~= "" then table.insert(ping_packets, packet_builder) end
 
 	-- Info packet. Reserve this space before inserting instructions. (or append this packet to the front. it needs to be sent first)
-	ping_packets[1] = "n"..song_file_path.name.."//"	-- // for end of name
+	ping_packets[1] = "n"..song_files.name.."//"	-- // for end of name
 		.."p".. #ping_packets
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
@@ -1424,37 +1426,54 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 end
 
 -- Song playing ----------------------------------------------------------------
-local function queue_song(song_file_path)
+local function queue_song(song_files)
 	songbook.queued_song = {}
 	
-	-- print("Preparing to play "..song_file_path.name)
+	-- print("Preparing to play "..song_files.name)
+	local song_instructions = {}
+	if song_files then
+		local song_is_multitrack = false
+		for instrument_index, full_path in pairs(song_files.full_paths) do
+			if not file:isFile(full_path) then 
+				print("No file found at `".. full_path .."`.")
+				return 
+			end
 
-	if not file:isFile(song_file_path.full_paths[1]) then 
-		print("No file found at `".. song_file_path.full_paths[1] .."`.")
-		return 
+			local song_abc_data = file:readString(full_path)
+			-- Convert data to instructions.
+			-- print("Generating instructions for instument #"..tostring(instrument_index).."...")
+
+			local track_instructions = song_data_to_instructions(song_abc_data, instrument_index)
+			
+			if song_instructions == {} then
+				song_instructions = track_instructions
+			else
+				song_is_multitrack = true
+				-- no concatinate tables opperation. :/
+				for _, instruction in pairs(track_instructions) do
+					table.insert(song_instructions,instruction)
+				end
+			end
+
+		end
+		if song_is_multitrack then
+			table.sort(
+				song_instructions, 
+				function(a,b) 
+					return a.start_time < b.start_time 
+				end
+			)
+		end
 	end
 
-	-- TODO: validation. Make sure incomming file looks like an ABC file?
-	local song_abc_data = file:readString(song_file_path.full_paths[1])
-
-	-- Convert data to instructions.
-	--print("Generating instructions...")
-
-	local song_instructions = song_data_to_instructions(song_abc_data)
 	--print("Generated "..#song_instructions.." instructions.")
 
-	local packets, time_to_start = song_instructions_to_packets(song_file_path, song_instructions)
+	local packets, time_to_start = song_instructions_to_packets(song_files, song_instructions)
 
-	--print("serializer made "..#packets.." packets")
-	--print("The song lasts "..math.ceil(song_instructions[#song_instructions].start_time /1000).."s")
-	-- if maximum_ping_rate*5 < time_to_start then
-	-- 	print("This song is heavy. It will take "..math.ceil(time_to_start/1000).." seconds to buffer enough packets")
-	-- end
-
-	songbook.queued_song.path = song_file_path
+	songbook.queued_song.path = song_files
 	songbook.queued_song.buffer_time = time_to_start
 	songbook.queued_packets = packets
-	print("Ready to play "..song_file_path.display_path
+	print("Ready to play "..song_files.display_path
 		.. (maximum_ping_rate*5 < time_to_start and
 			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
 			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
@@ -1463,13 +1482,13 @@ local function queue_song(song_file_path)
 	)
 end
 
-local function play_song(song_file_path)
-	if song_file_path ~= songbook.queued_song.path then
-		log("`"..song_file_path.."` is not queued yet. Doing that now.")
-		queue_song(song_file_path)
+local function play_song(song_files)
+	if song_files ~= songbook.queued_song.path then
+		log("`"..song_files.."` is not queued yet. Doing that now.")
+		queue_song(song_files)
 	end
-	print("Playing "..song_file_path.display_path)
-	songbook.playing_song_path = song_file_path
+	print("Playing "..song_files.display_path)
+	songbook.playing_song_path = song_files
 	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
 end
