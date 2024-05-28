@@ -93,9 +93,14 @@ local function get_song_list()
 	local song_list = {}
 	--	song_list = { 
 	--		1: {
-	--			name, 			-- string. Short name of file. Excludes path and `.abc`
-	--			display_path	-- string. Path excluding `songbook_root_file_path`
-	--			safe_path		-- string. Full path for filesAPI
+	--			name, 			-- string. Short name of file. Excludes path and `.abc`		-- used in display board
+	--			display_path	-- string. Path excluding `songbook_root_file_path`			-- used in song picker
+	--			full_paths: {	-- table of strings. Set of full paths for files API
+	--				1: "Path to main instrument"
+	--				2: "Path to percussion track" (if available)
+	--				3: "path to 3rd instrument track"	(May never be used.)
+	--				-- full_path index represents the instrument to use to play the file. Must be an int. 
+	--			}		
 	-- 		},
 	-- 		2: { etc… },
 	--		…
@@ -122,7 +127,7 @@ local function get_song_list()
 				table.insert(song_list, #song_list +1, {
 					name = current_path:match("([^/]*)%."), -- everything after last / and before last .
 					display_path = current_path,
-					safe_path = full_path
+					full_paths = {full_path}
 				}
 			);
 			end
@@ -134,6 +139,11 @@ local function get_song_list()
 	if #song_list < 1 then 
 		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
 	end
+
+	-- Rescan final list to merge sings with recognized tracks keys like "drums"
+
+
+
 	return song_list
 end
 
@@ -1371,13 +1381,13 @@ local function queue_song(song_file_path)
 	
 	-- print("Preparing to play "..song_file_path.name)
 
-	if not file:isFile(song_file_path.safe_path) then 
-		print("No file found at `".. song_file_path.safe_path .."`.")
+	if not file:isFile(song_file_path.full_paths[1]) then 
+		print("No file found at `".. song_file_path.full_paths[1] .."`.")
 		return 
 	end
 
 	-- TODO: validation. Make sure incomming file looks like an ABC file?
-	local song_abc_data = file:readString(song_file_path.safe_path)
+	local song_abc_data = file:readString(song_file_path.full_paths[1])
 
 	-- Convert data to instructions.
 	--print("Generating instructions...")
