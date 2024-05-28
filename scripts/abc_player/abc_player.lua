@@ -442,7 +442,13 @@ local key_signatures = {
 }
 
 -- song builder: notes to instructions -----------------------------------------
-local function save_abc_note_to_instructions(song)	-- returns note's end time
+local function save_abc_note_to_instructions(song)
+
+	-- !! Returns the end time of the note. !!
+
+	-- Converts a single note into an instruction
+	-- single note is stored in the notebuilder table. 
+
 	note_builder = song.songbuilder.note_builder
 	if note_builder.letter == "" then return note_builder.start_time end
 	--print("Saving note to instruction:")
@@ -598,6 +604,7 @@ local function save_abc_note_to_instructions(song)	-- returns note's end time
 end
 
 local function song_data_to_instructions(song_abc_data_string)
+	-- Converts a the song.abc file into instructions we can send through pings
 	local song = {}
 
 	song.instructions = {}
