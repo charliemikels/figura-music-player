@@ -98,7 +98,7 @@ local function get_song_list()
 	--			full_paths: {	-- table of strings. Set of full paths for files API
 	--				1: "Path to main instrument"
 	--				2: "Path to percussion track" (if available)
-	--				3: "path to 3rd instrument track"	(May never be used.)
+	--				3: "path to TBD 3rd instrument track" (May never be used.)
 	--				-- full_path index represents the instrument to use to play the file. Must be an int. 
 	--			}		
 	-- 		},
@@ -117,34 +117,79 @@ local function get_song_list()
 
 		if file:isDirectory(full_path) then
 			-- Path is a directory, put its contents into the test loop. 
-			for k,v in ipairs(file:list(full_path)) do
+			for _,v in ipairs(file:list(full_path)) do
 				table.insert(paths_to_test, (current_path .. "/" .. v))
 			end
 		elseif file:isFile(full_path) then
-
-			-- TODO: make file type validation flexible to match multiple options
 			if full_path:match("%.([^%.]+)$"):lower() == "abc" then
-				table.insert(song_list, #song_list +1, {
+				song_list[current_path] = {
 					name = current_path:match("([^/]*)%."), -- everything after last / and before last .
 					display_path = current_path,
 					full_paths = {full_path}
 				}
-			);
 			end
 		end
 	end
-	
-	table.sort(song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
 
-	if #song_list < 1 then 
-		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
+	-- Rescan final list to merge songs with drum tracks. 
+
+	for key, song in pairs(song_list) do
+		-- captures tags like ` - Drums` and ` (Percussion)`
+		local drums_marker_start_index, drums_marker_end_index = 
+			song.display_path:lower():find("%s*%-?%s?%(?percussion%)*%s*")
+		if not drums_marker_start_index then
+			drums_marker_start_index, drums_marker_end_index = 
+				song.display_path:lower():find("%s*%-?%s?%(?drums?%)*%s*")
+		end
+
+		if drums_marker_start_index then 
+			tag_trimmed_display_name = 
+				song.display_path:sub(1, drums_marker_start_index-1) 
+				.. song.display_path:sub(drums_marker_end_index+1)
+			
+			local base_song = song_list[tag_trimmed_display_name]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (all)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (All)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (lead)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (Lead)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+
+			if base_song then
+				base_song.full_paths[2] = song.full_paths[1]
+				base_song.display_path = base_song.display_path .. " 🥁"
+
+				song_list[key] = nil
+			else
+				-- failed to find the base song. 
+				song.display_path = song.display_path .. " §6⚠§r"
+			end
+		end
 	end
 
-	-- Rescan final list to merge sings with recognized tracks keys like "drums"
+	-- Manipulation is done. Convert to int-indexed table for sorting. 
+	int_index_song_list = {}
+	for _, song in pairs(song_list) do
+		table.insert(int_index_song_list, #int_index_song_list +1, song)
+	end
+	table.sort(int_index_song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
 
+	if #int_index_song_list < 1 then 
+		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
+		-- idealy, this check would happen sooner, but the # syntax only works on int-indexed tables. ¯\_ :/ _/¯ 
+	end
 
-
-	return song_list
+	return int_index_song_list
 end
 
 -- Action Wheel Updating -------------------------------------------------------
