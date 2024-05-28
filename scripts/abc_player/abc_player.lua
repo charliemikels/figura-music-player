@@ -171,7 +171,10 @@ local function get_song_list()
 
 				song_list[key] = nil
 			else
-				-- failed to find the base song. 
+				-- failed to find the base song, but this song fit the search pattern. 
+				-- Set this song instrument to drums anyways
+				song.full_paths[2] = song.full_paths[1]
+				song.full_paths[1] = nil
 				song.display_path = song.display_path .. " §6⚠§r"
 			end
 		end
