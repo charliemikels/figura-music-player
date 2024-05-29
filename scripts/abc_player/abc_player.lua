@@ -576,6 +576,24 @@ local function drumkitSoundLookup(semitones_from_a4)
 		)
 end
 
+local function numberToBase32(n)
+	-- ty to https://stackoverflow.com/a/3554821
+	n = math.floor(n)
+	local digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local t = {}
+	local sign = ""
+	if n < 0 then
+		sign = "-"
+	n = -n
+	end
+	repeat
+		local d = (n % 32) + 1
+		n = math.floor(n / 32)
+		table.insert(t, 1, digits:sub(d,d))
+	until n == 0
+	return sign .. table.concat(t,"")
+end
+
 local function fracToNumber(str)
 	local top, bot = str:match("(%d)/(%d)")
 	--print(str.." > "..top.." / "..bot)
@@ -1453,10 +1471,13 @@ function deserialize(packet_string)
 				song_instruction.instrument_index,
 				song_instruction.semitones_from_a4,
 				song_instruction.chloe_piano
-				= serialized_instruction:match("s([^%a]+)d([^%a]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
+				= serialized_instruction:match("s([%d%u]+)d([%d%u]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
 
-			song_instruction.start_time = tonumber(song_instruction.start_time)
-			song_instruction.duration = tonumber(song_instruction.duration)
+			print(serialized_instruction)
+			print(song_instruction)
+
+			song_instruction.start_time = tonumber(song_instruction.start_time, 32)
+			song_instruction.duration = tonumber(song_instruction.duration, 32)
 			song_instruction.end_time = song_instruction.start_time + song_instruction.duration
 			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
@@ -1579,10 +1600,10 @@ local function song_instructions_to_packets(song_files, song_instructions)
 		end
 
 		local serialized_instruction =
-			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
-			.."d"..( string.format("%0d",instruction.duration) )
+			  "s"..( numberToBase32(math.floor(instruction.start_time)) )
+			.."d"..( numberToBase32(math.floor(instruction.duration)) )
 			.."i"..( string.format("%0d",instruction.instrument_index) )
-			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
+			.."t"..( string.format("%0d",instruction.semitones_from_a4) ) -- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
 			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
 		-- if instruction.chloe_piano == nil then print(serialized_instruction) end
 
