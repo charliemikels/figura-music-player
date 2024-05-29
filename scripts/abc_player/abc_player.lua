@@ -417,7 +417,7 @@ local drumkitSoundsTable = {
 	-- use with drumkitSoundLookup()
 	-- keys are midi codes. see https://zendrum.com/resource-site/drumnotes.htm
 
-	-- semi-incomplete
+	-- Missing sounds default to a hat sound in drumkitSoundLookup()
 
 	[35] = function() -- Acoustic Bass Drum	
 		return sounds["block.note_block.basedrum"]:pitch(0.7)
