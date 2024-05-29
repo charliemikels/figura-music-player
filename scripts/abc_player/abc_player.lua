@@ -1135,11 +1135,23 @@ function play_song_event_loop()
 				-- Catches if the piano was broken recently.
 			 	-- print("playing note "..instruction.chloe_piano.. " on piano at "..songbook.selected_chloe_piano_pos)
 			 	if instruction.chloe_piano ~= "X0" then
-			 		piano_lib.playNote( songbook.selected_chloe_piano_pos , instruction.chloe_piano, true)
+					local no_error, pcall_message = pcall( piano_lib.playNote, songbook.selected_chloe_piano_pos , instruction.chloe_piano, true)
+					if no_error then
+						-- Chloe piano can't sustain notes, so we don't need to 
+						-- bother checking if the note's done playing.
+						-- Also, checking here means that if pcall fails, the
+						-- built-in instrument will try to play this note again. 
+						instruction.already_played = true
+					else
+						print("§4⚠ --== Piano Error ==-- ⚠§r"
+							.."\n§6You will need to reload the piano avatar.§r"
+							.."\nError message from piano:"
+							.."\n"..pcall_message
+						)
+						print("Falling back to no-piano mode.")
+						pings.set_selected_piano(nil)
+					end
 			 	end
-			 	instruction.already_played = true
-			 	-- Chloe piano can't sustain notes, so we don't need to bother
-			 	-- checking if the note's done playing.
 			else
 				if instruction.instrument_index == 2 then
 					instruction.sound_id = drumkitSoundLookup(instruction.semitones_from_a4)
@@ -1706,9 +1718,7 @@ local function song_instructions_to_packets(song_files, song_instructions)
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
 		.."e".. last_end_time
-
-	printTable(ping_packets[#ping_packets-1])
-
+	
 	return ping_packets, minimum_song_start_delay
 end
 
@@ -1829,8 +1839,8 @@ function pings.set_selected_piano(piano_block_pos)
 				:title("Select Chloe Piano\nCurrent Piano at ".. songbook.selected_chloe_piano_pos .."\nClick while looking away to deselect.")
 		end
 	else
-			-- Host tried to set a piano at this position, but for whatever reason, we failed find a piano at that pos
-			log("Couldn't find Piano at "..tostring(piano_block_pos))
+		-- Host tried to set a piano at this position, but for whatever reason, we failed find a piano at that pos
+		log("Couldn't find Piano at "..tostring(piano_block_pos))
 	end
 end
 
