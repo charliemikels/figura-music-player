@@ -649,16 +649,6 @@ local letter_to_semitone_offsets = {
 	["C"] = -9,
 }
 
-local chloe_piano_flat_to_sharp_table = {
-	["B"] = "A#",
-	["A"] = "G#",
-	["G"] = "F#",
-	["F"] = "E",
-	["E"] = "D#",
-	["D"] = "C#",
-	["C"] = "B",	-- << Special case: downgrade octave number.
-}
-
 local key_signatures_keys = {
 	["7#"] = {"C#", "A#M", "G#MIX", "D#DOR", "E#PHR", "F#LYD", "B#LOC"},
 	["6#"] = {"F#", "D#M", "C#MIX", "G#DOR", "A#PHR", "BLYD",  "E#LOC"},
