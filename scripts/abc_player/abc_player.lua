@@ -420,7 +420,7 @@ local drumkitSoundsTable = {
 	-- semi-incomplete
 
 	[35] = function() -- Acoustic Bass Drum	
-		return sounds["block.note_block.basedrum"]:pitch(0.5)
+		return sounds["block.note_block.basedrum"]:pitch(0.7)
 	end,
 	[36] = function() -- Bass Drum 1
 		return sounds["block.note_block.basedrum"]:pitch(0.8)
@@ -467,20 +467,20 @@ local drumkitSoundsTable = {
 	[50] = function() -- High Tom
 		return sounds["block.note_block.basedrum"]:pitch(1.5)
 	end,
-	[51] = function() -- Ride Cymbal
-		return sounds[ "item.trident.throw" ]:pitch(3)			-- has variations
+	[51] = function() -- Ride Cymbal 1
+		return sounds[ "block.bell.use" ]:pitch(4)			-- has variations
 	end,
 	[52] = function()	-- Chinese Cymbal
-		return sounds[ "item.trident.throw" ]:pitch(3.2)		-- has variations
+		return sounds[ "block.bell.use" ]:pitch(5)		-- has variations
 	end,
 	[53] = function() -- Ride Bell
-		return sounds[ "block.end_portal_frame.fill" ]:pitch(2.9)
+		return sounds[ "block.bell.use" ]:pitch(3)	-- has variations
 	end,
 	[54] = function() --Tambourine
 		return sounds[ "block.beehive.shear" ]:pitch(3.2 )
 	end,
 	[55] = function() -- Splash Cymbal
-		return sounds[ "item.trident.throw" ]:pitch(3.5)		-- has variations
+		return sounds[ "block.bell.use" ]:pitch(6)		-- has variations
 	end,
 	[56] = function() -- Cowbell
 		return sounds[ "block.note_block.cow_bell" ]:pitch(1.1)
@@ -492,8 +492,8 @@ local drumkitSoundsTable = {
 	[58] = function() -- Vibroslap
 		return sounds[ "entity.arrow.hit" ]:pitch(1.6)		-- has variations
 	end,
-	[59] = function() -- Ride Cymbal
-		return sounds[ "item.trident.throw" ]:pitch(1.65)	-- has variations
+	[59] = function() -- Ride Cymbal 2
+		return sounds[ "block.bell.use" ]:pitch(4.5)	-- has variations
 	end,
 	[60] = function() -- High Bongo
 		return sounds["entity.iron_golem.step"]:pitch(6)	-- has variations
