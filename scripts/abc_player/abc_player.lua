@@ -833,6 +833,7 @@ local function save_abc_note_to_instructions(song)
 			chloe_piano = chloe_spaced_out_piano_note_code,
 			start_time = note_builder.start_time,
 			end_time = end_time,
+			durration = end_time - note_builder.start_time,
 			instrument_index = song.songbuilder.instrument_index,
 		})
 	end
@@ -1448,14 +1449,15 @@ function deserialize(packet_string)
 		for serialized_instruction in packet_string:gmatch("[^%s]*") do	-- splits on space
 			local song_instruction = {}
 			song_instruction.start_time,
-				song_instruction.end_time,
+				song_instruction.durration,
 				song_instruction.instrument_index,
 				song_instruction.semitones_from_a4,
 				song_instruction.chloe_piano
-				= serialized_instruction:match("s([^%a]+)e([^%a]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
+				= serialized_instruction:match("s([^%a]+)d([^%a]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
 
 			song_instruction.start_time = tonumber(song_instruction.start_time)
-			song_instruction.end_time = tonumber(song_instruction.end_time)
+			song_instruction.durration = tonumber(song_instruction.durration)
+			song_instruction.end_time = song_instruction.start_time + song_instruction.durration
 			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
 
@@ -1578,7 +1580,7 @@ local function song_instructions_to_packets(song_files, song_instructions)
 
 		local serialized_instruction =
 			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
-			.."e"..( string.format("%0d",instruction.end_time) )
+			.."d"..( string.format("%0d",instruction.durration) )
 			.."i"..( string.format("%0d",instruction.instrument_index) )
 			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
 			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
@@ -1607,6 +1609,8 @@ local function song_instructions_to_packets(song_files, song_instructions)
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
 		.."e".. last_end_time
+
+	printTable(ping_packets[#ping_packets-1])
 
 	return ping_packets, minimum_song_start_delay
 end
