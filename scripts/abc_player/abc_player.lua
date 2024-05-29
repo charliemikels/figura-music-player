@@ -691,10 +691,10 @@ local function save_abc_note_to_instructions(song)
 
 	-- Calculate note duration
 	local time_multiplier = 1.0
-	if note_builder.durration_multiplier ~= "" then
-		time_multiplier = tonumber(note_builder.durration_multiplier)
+	if note_builder.duration_multiplier ~= "" then
+		time_multiplier = tonumber(note_builder.duration_multiplier)
 	end
-	if note_builder.durration_divisor ~= "" then
+	if note_builder.duration_divisor ~= "" then
 		-- divisor should always have at least 1 slash.
 		-- each slash means divide by two, but if there are numbers after
 		-- the slash, don't do the shorthand. A goofy workaround:
@@ -702,16 +702,16 @@ local function save_abc_note_to_instructions(song)
 		-- slash. It will cancel out the shorthand, without making us test
 		-- if we should use the shorthand
 		local numbers, num_devisions =
-			note_builder.durration_divisor:gsub("/", "")
+			note_builder.duration_divisor:gsub("/", "")
 		time_multiplier = time_multiplier / (2.0^num_devisions)
 		if numbers ~= "" then
 			time_multiplier = (time_multiplier*2.0) / tonumber(numbers)
 		end
 	end
 
-	local note_durration = song.songbuilder.time_per_note * time_multiplier
+	local note_duration = song.songbuilder.time_per_note * time_multiplier
 
-	local end_time = note_builder.start_time + note_durration
+	local end_time = note_builder.start_time + note_duration
 
 	-- Generate some strings to use in keys and print statements
 	local accidentals_memory_key = note_builder.letter
@@ -719,8 +719,8 @@ local function save_abc_note_to_instructions(song)
 	local note_string = note_builder.accidentals
 		.. note_builder.letter
 		.. note_builder.octave_ajustments
-		.. note_builder.durration_multiplier
-		.. note_builder.durration_divisor
+		.. note_builder.duration_multiplier
+		.. note_builder.duration_divisor
 
 	-- Load / Save accidentals to memory / key
 	if note_builder.accidentals ~= "" then
@@ -833,7 +833,7 @@ local function save_abc_note_to_instructions(song)
 			chloe_piano = chloe_spaced_out_piano_note_code,
 			start_time = note_builder.start_time,
 			end_time = end_time,
-			durration = end_time - note_builder.start_time,
+			duration = end_time - note_builder.start_time,
 			instrument_index = song.songbuilder.instrument_index,
 		})
 	end
@@ -864,8 +864,8 @@ local function song_data_to_instructions(song_abc_data_string, instrument_index)
 	  	accidentals = "",
 	  	letter = "",
 	  	octave_ajustments = "",
-	  	durration_multiplier = "",
-	  	durration_divisor = "",
+	  	duration_multiplier = "",
+	  	duration_divisor = "",
 	  	start_time = song.next_note_start_time
 	}
 
@@ -953,8 +953,8 @@ local function song_data_to_instructions(song_abc_data_string, instrument_index)
 				  		-- this will match any letter, but should only be given
 				  		-- A, B, C, D, E, F, G, Z, or X in upper or lower case.
 				  	octave_ajustments = note:match("[,']+") or "",
-				  	durration_multiplier = note:match("[%a,'](%d+)") or "",
-				  	durration_divisor = note:match("/+%d*") or "",
+				  	duration_multiplier = note:match("[%a,'](%d+)") or "",
+				  	duration_divisor = note:match("/+%d*") or "",
 				  		-- divisor also includes the `/` characters.
 				  	start_time = song.songbuilder.next_note_start_time
 				}
@@ -1449,15 +1449,15 @@ function deserialize(packet_string)
 		for serialized_instruction in packet_string:gmatch("[^%s]*") do	-- splits on space
 			local song_instruction = {}
 			song_instruction.start_time,
-				song_instruction.durration,
+				song_instruction.duration,
 				song_instruction.instrument_index,
 				song_instruction.semitones_from_a4,
 				song_instruction.chloe_piano
 				= serialized_instruction:match("s([^%a]+)d([^%a]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
 
 			song_instruction.start_time = tonumber(song_instruction.start_time)
-			song_instruction.durration = tonumber(song_instruction.durration)
-			song_instruction.end_time = song_instruction.start_time + song_instruction.durration
+			song_instruction.duration = tonumber(song_instruction.duration)
+			song_instruction.end_time = song_instruction.start_time + song_instruction.duration
 			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
 
@@ -1580,7 +1580,7 @@ local function song_instructions_to_packets(song_files, song_instructions)
 
 		local serialized_instruction =
 			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
-			.."d"..( string.format("%0d",instruction.durration) )
+			.."d"..( string.format("%0d",instruction.duration) )
 			.."i"..( string.format("%0d",instruction.instrument_index) )
 			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
 			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
