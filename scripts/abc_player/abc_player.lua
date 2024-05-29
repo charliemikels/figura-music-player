@@ -412,6 +412,170 @@ local function getPianoPos()
 	return vec(songbook.selected_chloe_piano_pos:match("{(-?%d*), (-?%d*), (-?%d*)}"))
 end
 
+local drumkitSoundsTable = {
+	-- Table of functions that return a sound, so that we'll get a fresh sound every time. 
+	-- use with drumkitSoundLookup()
+	-- keys are midi codes. see https://zendrum.com/resource-site/drumnotes.htm
+
+	-- semi-incomplete
+
+	[35] = function() -- Acoustic Bass Drum	
+		return sounds["block.note_block.basedrum"]:pitch(0.5)
+	end,
+	[36] = function() -- Bass Drum 1
+		return sounds["block.note_block.basedrum"]:pitch(0.8)
+	end,
+	[37] = function() -- Side Stick
+		return sounds["block.note_block.hat"]:pitch(0.8)
+	end,
+	[38] = function() -- Acoustic Snare
+		return sounds["block.note_block.snare"]:pitch(0.7)
+	end,
+	[39] = function() -- Hand Clap
+		return sounds["block.note_block.hat"]:pitch(1)
+	end,
+	[40] = function() -- Electric snare
+		return sounds["block.note_block.snare"]:pitch(0.8)
+	end,
+	[41] = function() -- Low Floor Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.25)
+	end,
+	[42] = function() -- Closed Hi-Hat
+		return sounds[ "block.note_block.hat" ]:pitch(4)
+	end,
+	[43] = function() -- High Floor Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.3)
+	end,
+	[44] = function() -- Pedal Hi-Hat
+		return sounds[ "item.trident.riptide_1" ]:pitch(6 )
+	end,
+	[45] = function() -- Low Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.35)
+	end,
+	[46] = function() -- Open Hi-Hat
+		return sounds[ "item.trident.hit_ground" ]:pitch(6 )
+	end,
+	[47] = function() -- Low-Mid Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.4)
+	end,
+	[48] = function() -- High-Mid Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.45)
+	end,
+	[49] = function() -- Crash Cymbal 1
+		return sounds["item.trident.hit_ground"]:pitch(2)		-- has variations
+	end,
+	[50] = function() -- High Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.5)
+	end,
+	[51] = function() -- Ride Cymbal
+		return sounds[ "item.trident.throw" ]:pitch(3)			-- has variations
+	end,
+	[52] = function()	-- Chinese Cymbal
+		return sounds[ "item.trident.throw" ]:pitch(3.2)		-- has variations
+	end,
+	[53] = function() -- Ride Bell
+		return sounds[ "block.end_portal_frame.fill" ]:pitch(2.9)
+	end,
+	[54] = function() --Tambourine
+		return sounds[ "block.beehive.shear" ]:pitch(3.2 )
+	end,
+	[55] = function() -- Splash Cymbal
+		return sounds[ "item.trident.throw" ]:pitch(3.5)		-- has variations
+	end,
+	[56] = function() -- Cowbell
+		return sounds[ "block.note_block.cow_bell" ]:pitch(1.1)
+	end,
+	[57] = function() -- Crash Cymbal 2
+		-- SBC's Crash 2 is nearly identical to Crash 1
+		return sounds["item.trident.hit_ground"]:pitch(2)	-- has variations
+	end,
+	[58] = function() -- Vibroslap
+		return sounds[ "entity.arrow.hit" ]:pitch(1.6)		-- has variations
+	end,
+	[59] = function() -- Ride Cymbal
+		return sounds[ "item.trident.throw" ]:pitch(1.65)	-- has variations
+	end,
+	[60] = function() -- High Bongo
+		return sounds["entity.iron_golem.step"]:pitch(6)	-- has variations
+	end,
+	[61] = function() -- Low Bongo
+		return sounds["entity.iron_golem.step"]:pitch(4)	-- has variations
+	end,
+	-- [62] = function() -- Muted High Conga
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [63] = function() -- High Conga
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [64] = function() -- Low Conga
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [65] = function() -- High Timbale
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [66] = function() -- Low Timbale
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	[67] = function() -- High Agogo
+		return sounds[ "entity.arrow.hit_player" ]:pitch(1.9)
+	end,
+	[68] = function() -- Low Agogo
+		return sounds[ "entity.arrow.hit_player" ]:pitch(1.7)
+	end,
+	[69] = function() -- Cabasa
+		return sounds[ "entity.silverfish.death" ]:pitch(4)
+	end,
+	[70] = function() -- Maracas
+		return sounds[ "entity.iron_golem.attack" ]:pitch(3)
+	end,
+	-- [71] = function() -- Short Whistle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [72] = function() -- Long Whistle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	[73] = function() -- Short Guiro
+		return sounds["entity.item.break"]:pitch(1.9)
+	end,
+	[74] = function() -- Long Guiro
+		return sounds["block.sculk_sensor.clicking"]:pitch(3)	-- has variations
+	end,
+	-- [75] = function() -- Claves
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [76] = function() -- High Wood Block
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [77] = function() -- Low Wood Block
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [78] = function() -- Muted Cuica
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [79] = function() -- Open Cuica
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [80] = function() -- Mute Triangle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [81] = function() -- Open triangle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+}
+
+local function drumkitSoundLookup(semitones_from_a4)
+	local midi_key = semitones_from_a4 + 69	-- A4 is midi key 69. nice. 
+		-- 35 == B1, but SBC calls this B2 for some reason :/
+		-- Whatever. It works, and my ABC parcing is (probably) correct. 
+	if drumkitSoundsTable[midi_key] then
+		return drumkitSoundsTable[midi_key]()
+	end
+
+	return sounds["minecraft:block.note_block.hat"]:setPitch(
+			semitone_offset_to_multiplier(semitones_from_a4+3-12 +24)
+		)
+end
+
 local function fracToNumber(str)
 	local top, bot = str:match("(%d)/(%d)")
 	--print(str.." > "..top.." / "..bot)
@@ -866,10 +1030,10 @@ function play_song_event_loop()
 				.."/"..#song.instructions
 				.."/"..song.num_expected_instructions
 				.." ".. instruction.chloe_piano .. (#instruction.chloe_piano > 2 and "" or " ")
+				-- .." ".. instruction.semitones_from_a4
 
 			)	-- ` #20/100/2000 A4 `
-			if isUsingPiano()
-				and instruction.instrument_index == 1	-- main instrument only
+			if isUsingPiano() and instruction.instrument_index == 1	-- main instrument only
 			then
 				-- Catches if the piano was broken recently.
 			 	-- print("playing note "..instruction.chloe_piano.. " on piano at "..songbook.selected_chloe_piano_pos)
@@ -881,15 +1045,11 @@ function play_song_event_loop()
 			 	-- checking if the note's done playing.
 			else
 				if instruction.instrument_index == 2 then
-					instruction.sound_id = sounds["minecraft:block.note_block.hat"]
+					instruction.sound_id = drumkitSoundLookup(instruction.semitones_from_a4)
 						:setVolume( isUsingPiano() and 0.8 or 0.5)
-						:setPitch(
-							-- TODO: Set sound based on pitch instead of actualy pitching the percussion sound. 
-							-- create lookup table to go from semitones_from_a4 to sound+pitch combo. 
-							semitone_offset_to_multiplier(instruction.semitones_from_a4)
-						)
 				elseif avatar:canUseCustomSounds() then
 					instruction.sound_id = sounds["scripts.abc_player.triangle_sin"]
+						:setVolume(4)
 						:setLoop(true)
 						:setPitch(
 							semitone_offset_to_multiplier(instruction.semitones_from_a4)
