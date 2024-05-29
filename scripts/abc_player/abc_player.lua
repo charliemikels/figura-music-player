@@ -695,6 +695,130 @@ local key_signatures = {
 	["7b"] = {B = "_",E = "_",A = "_",D = "_",G = "_",C = "_",F = "_",},
 }
 
+local midi_code_to_piano_code = {
+	-- see  https://inspiredacoustics.com/en/MIDI_note_numbers_and_center_frequencies
+	[127] = "G9",
+	[126] = "F#9",
+	[125] = "F9",
+	[124] = "E9",
+	[123] = "D#9",
+	[122] = "D9",
+	[121] = "C#9",
+	[120] = "C9",
+	[119] = "B8",
+	[118] = "A#8",
+	[117] = "A8",
+	[116] = "G#8",
+	[115] = "G8",
+	[114] = "F#8",
+	[113] = "F8",
+	[112] = "E8",
+	[111] = "D#8",
+	[110] = "D8",
+	[109] = "C#8",
+	[108] = "C8",
+	[107] = "B7",
+	[106] = "A#7",
+	[105] = "A7",
+	[104] = "G#7",
+	[103] = "G7",
+	[102] = "F#7",
+	[101] = "F7",
+	[100] = "E7",
+	[99] = "D#7",
+	[98] = "D7",
+	[97] = "C#7",
+	[96] = "C7",
+	[95] = "B6",	-- Max chloe piano range: A0 to B6
+	[94] = "A#6",
+	[93] = "A6",
+	[92] = "G#6",
+	[91] = "G6",
+	[90] = "F#6",
+	[89] = "F6",
+	[88] = "E6",
+	[87] = "D#6",
+	[86] = "D6",
+	[85] = "C#6",
+	[84] = "C6",
+	[83] = "B5",
+	[82] = "A#5",
+	[81] = "A5",
+	[80] = "G#5",
+	[79] = "G5",
+	[78] = "F#5",
+	[77] = "F5",
+	[76] = "E5",
+	[75] = "D#5",
+	[74] = "D5",
+	[73] = "C#5",
+	[72] = "C5",
+	[71] = "B4",
+	[70] = "A#4",
+	[69] = "A4",
+	[68] = "G#4",
+	[67] = "G4",
+	[66] = "F#4",
+	[65] = "F4",
+	[64] = "E4",
+	[63] = "D#4",
+	[62] = "D4",
+	[61] = "C#4",
+	[60] = "C4",
+	[59] = "B3",
+	[58] = "A#3",
+	[57] = "A3",
+	[56] = "G#3",
+	[55] = "G3",
+	[54] = "F#3",
+	[53] = "F3",
+	[52] = "E3",
+	[51] = "D#3",
+	[50] = "D3",
+	[49] = "C#3",
+	[48] = "C3",
+	[47] = "B2",
+	[46] = "A#2",
+	[45] = "A2",
+	[44] = "G#2",
+	[43] = "G2",
+	[42] = "F#2",
+	[41] = "F2",
+	[40] = "E2",
+	[39] = "D#2",
+	[38] = "D2",
+	[37] = "C#2",
+	[36] = "C2",
+	[35] = "B1",
+	[34] = "A#1",
+	[33] = "A1",
+	[32] = "G#1",
+	[31] = "G1",
+	[30] = "F#1",
+	[29] = "F1",
+	[28] = "E1",
+	[27] = "D#1",
+	[26] = "D1",
+	[25] = "C#1",
+	[24] = "C1",
+	[23] = "B0",
+	[22] = "A#0",
+	[21] = "A0",
+}
+
+local function a4_semitones_to_piano_code(a4_semi_tones)
+	midi_code = a4_semi_tones + 69
+	
+	-- Max chloe piano range: A0 to B6
+	if midi_code > 95 or midi_code < 21 then return "X0" end
+	
+	piano_code = midi_code_to_piano_code[midi_code]
+	if piano_code then 
+		return piano_code
+	end
+	return "X0"
+end
+
 -- song builder: notes to instructions -----------------------------------------
 local function save_abc_note_to_instructions(song)
 
@@ -793,52 +917,6 @@ local function save_abc_note_to_instructions(song)
 		+ octave_offset_in_semitones
 		+ accidentals_in_semitones
 
-	-- Convert ABC note strings to Chloe Piano strings
-
-	local semitones_from_C4 = note_semitones_from_A4 +9
-	local octave_number = math.floor((semitones_from_C4+48) / 12)
-
-	-- Note is neither flat nor sharp:
-	local chloe_spaced_out_piano_note_code
-		= note_builder.letter:upper()..tostring(octave_number)
-
-	-- TODO: accidentals_in_semitones does not check if the note is double
-	-- sharp or double flat.
-	if accidentals_in_semitones > 0 then
-		-- Note is sharp. Add "#" to the string.
-		if note_builder.letter:upper() == "E" then
-			-- Edge case where SBC sometimes outputs "^E" or "^B". These are
-			-- invalid, so we need to upgrade them to their neutral alternative.
-			chloe_spaced_out_piano_note_code = "F" ..tostring(octave_number)
-		elseif note_builder.letter:upper() == "B" then
-			chloe_spaced_out_piano_note_code = "C" ..tostring(octave_number+1)
-		else
-			chloe_spaced_out_piano_note_code
-				= note_builder.letter:upper() .."#" ..tostring(octave_number)
-		end
-	elseif accidentals_in_semitones < 0 then
-		-- This note is flat, convert to sharps
-		if note_builder.letter:upper() == "C" then
-			-- edge case where C flat crosses the octave line.
-			chloe_spaced_out_piano_note_code = "B"..tostring(octave_number-1)
-		else
-			chloe_spaced_out_piano_note_code
-				= chloe_piano_flat_to_sharp_table[note_builder.letter:upper()]
-					..tostring(octave_number)
-		end
-	end
-
-	-- Max piano range: A0 to B6
-	if octave_number > 6
-		or (octave_number == 0
-			and not chloe_spaced_out_piano_note_code:upper():match("[AB]+")
-			-- A and B are the only legal letters in octave 0
-		)
-		or octave_number < 1 then
-		chloe_spaced_out_piano_note_code = nil
-		-- Nil codes will be ignored when playing the song.
-	end
-
 	-- Save note instructions
 	if	note_builder.letter:lower() ~= "z"
 	and note_builder.letter:lower() ~= "x"
@@ -848,7 +926,7 @@ local function save_abc_note_to_instructions(song)
 			--string = note_string,
 			semitones_from_a4 = note_semitones_from_A4,
 				-- gets converted to a multiplier in the song player event
-			chloe_piano = chloe_spaced_out_piano_note_code,
+			-- chloe_piano = chloe_spaced_out_piano_note_code,
 			start_time = note_builder.start_time,
 			end_time = end_time,
 			duration = end_time - note_builder.start_time,
@@ -1469,18 +1547,17 @@ function deserialize(packet_string)
 			song_instruction.start_time,
 				song_instruction.duration,
 				song_instruction.instrument_index,
-				song_instruction.semitones_from_a4,
-				song_instruction.chloe_piano
-				= serialized_instruction:match("s([%d%u]+)d([%d%u]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
-
-			print(serialized_instruction)
-			print(song_instruction)
+				song_instruction.semitones_from_a4
+				-- = serialized_instruction:match("s([%d%u]+)d([%d%u]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
+				= serialized_instruction:match("s([%d%u]+)d([%d%u]+)i([^%a]+)t(%-?[^%a]+)")
 
 			song_instruction.start_time = tonumber(song_instruction.start_time, 32)
 			song_instruction.duration = tonumber(song_instruction.duration, 32)
 			song_instruction.end_time = song_instruction.start_time + song_instruction.duration
 			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
+			
+			song_instruction.chloe_piano = a4_semitones_to_piano_code(song_instruction.semitones_from_a4)
 
 			--printTable(song_instruction)
 			table.insert(songbook.incoming_song.instructions, song_instruction)
@@ -1604,7 +1681,6 @@ local function song_instructions_to_packets(song_files, song_instructions)
 			.."d"..( numberToBase32(math.floor(instruction.duration)) )
 			.."i"..( string.format("%0d",instruction.instrument_index) )
 			.."t"..( string.format("%0d",instruction.semitones_from_a4) ) -- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
-			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
 		-- if instruction.chloe_piano == nil then print(serialized_instruction) end
 
 		if instruction.end_time > last_end_time then last_end_time = instruction.end_time end
