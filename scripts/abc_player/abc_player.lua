@@ -53,7 +53,7 @@ local song_player_event_watcher_event_name = "song_player_event_watcher_event"
 local avatar_is_loaded_watcher_event_name = "player_is_loaded_watcher_event"
 local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
-local queue_song_tick_loop_name = "queue_song_tick_loop_event"
+local queue_song_render_loop_name = "queue_song_render_loop_event"
 
 -- song list builder -----------------------------------------------------------
 local function get_song_list()
@@ -237,16 +237,16 @@ end
 local function song_is_queued(index)
 	if not songbook.queued_song then return false end
 	if not index then
-		return songbook.queue_song_tick_loop_is_running and "partial" or true
+		return songbook.queue_song_render_loop_is_running and "partial" or true
 	end
 	if type(index) == "string" then
 		-- index is actualy a path to a file
 		if songbook.queued_song.display_path == index then
-			return songbook.queue_song_tick_loop_is_running and "partial" or true
+			return songbook.queue_song_render_loop_is_running and "partial" or true
 		end
 	end
 	if songbook.queued_song.path == songbook.song_list[index] then
-		return songbook.queue_song_tick_loop_is_running and "partial" or true
+		return songbook.queue_song_render_loop_is_running and "partial" or true
 	end
 end
 
@@ -327,6 +327,10 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		display_string = display_string .. "§4Another song is still being stopped§r"
 	elseif song_is_queued(songbook.action_wheel.selected_song_index) == true then
 		display_string = display_string .. "Click to play selected song"
+	elseif song_is_queued(songbook.action_wheel.selected_song_index) == "partial" then
+		display_string = display_string .. "Preparing song... " .. info_display_spinner()
+	elseif song_is_queued() == "partial" then
+		display_string = display_string .. "§6Busy preparing `".. songbook.queued_song.path.display_path .."§6`. "..info_display_spinner().."§r"
 	else
 		display_string = display_string .. "Click to queue selected song"
 	end
@@ -979,7 +983,8 @@ local function song_data_to_instructions(song_file_metadata)
 	local song = data_to_instructions_song
 
 	if -- this is our first run, initilize song table
-		not song or not song.songbuilder or not song.songbuilder_metadata.in_progress then
+		not song or not song.songbuilder or not song.songbuilder_metadata.in_progress 
+	then
 		-- Song doesn't exist, or it's an old left over song. 
 		-- Then let's start a new song!
 		song = {}
@@ -995,12 +1000,17 @@ local function song_data_to_instructions(song_file_metadata)
 		song.songbuilder_metadata.next_file_index = 1
 		song.songbuilder_metadata.num_tracks = 0
 		song.songbuilder_metadata.in_progress = true
+		song.songbuilder_metadata.loop_count = 0
+		song.songbuilder_metadata.batches = 0
 	end
 
 	local while_loop_start_time = client.getSystemTime()
+	song.songbuilder_metadata.batches = song.songbuilder_metadata.batches +1
 	while song.songbuilder_metadata.in_progress 
-		-- and (while_loop_start_time > client.getSystemTime() -5000) 
+		and (while_loop_start_time > client.getSystemTime() -250) 
 	do
+		song.songbuilder_metadata.loop_count = song.songbuilder_metadata.loop_count +1
+
 		if     -- there are notes to parse
 				song.songbuilder_metadata.notes_in_current_line
 			and #song.songbuilder_metadata.notes_in_current_line >= song.songbuilder_metadata.next_note_in_line_index
@@ -1155,15 +1165,9 @@ local function song_data_to_instructions(song_file_metadata)
 				song.songbuilder_metadata.file_paths
 			and #song.songbuilder_metadata.file_paths >= song.songbuilder_metadata.next_file_index
 		then
-
 			local new_file_path = song.songbuilder_metadata.file_paths[song.songbuilder_metadata.next_file_index]
 			local new_instrument_index = song.songbuilder_metadata.next_file_index
 			song.songbuilder_metadata.next_file_index = song.songbuilder_metadata.next_file_index+1
-
-
-			printTable(song.songbuilder_metadata.file_paths)
-			print(#song.songbuilder_metadata.file_paths)
-			print(new_file_path)
 
 			if not new_file_path then
 				-- file path itself is nil. Can happen if trying to play a song that has drums, and has no lead track. 
@@ -1172,7 +1176,7 @@ local function song_data_to_instructions(song_file_metadata)
 			elseif not file:isFile(new_file_path) then 
 				print("No file found at `".. new_file_path .."`.")
 			else
-				print("Loading file: "..new_file_path)
+				-- print("Loading file: "..new_file_path)
 
 				local file_data_string = file:readString(new_file_path)
 				if file_data_string then
@@ -1214,6 +1218,7 @@ local function song_data_to_instructions(song_file_metadata)
 			end
 
 		else   -- there are no more notes, lines or files to parce. We're done
+			-- print("done generating instructions in "..song.songbuilder_metadata.batches .." batches and "..song.songbuilder_metadata.loop_count.." loops")
 			if song.songbuilder_metadata.num_tracks > 1 then
 				table.sort(
 					song.instructions, 
@@ -1229,6 +1234,8 @@ local function song_data_to_instructions(song_file_metadata)
 		end
 	end
 
+	-- save data for next round.
+	data_to_instructions_song = song
 	return nil
 end
 
@@ -1830,7 +1837,14 @@ local function song_instructions_to_packets(song_files, song_instructions)
 end
 
 -- Song playing ----------------------------------------------------------------
-local function queue_song_tick_loop()
+local function queue_song_render_loop()
+	-- using WORLD_RENDER instead of tick event, because in TICK events, the 
+	-- game will try to catch up on any ticks it missed, meaning it will still 
+	-- freeze up (though it won't crash). 
+	-- Render events are happy to drop frames, so they lock up a little less. 
+	-- WORLD_RENDER events are basicly guarrentied to be running, unlike 
+	-- player's render event
+
 	if not songbook.song_instructions then
 		songbook.song_instructions = song_data_to_instructions(songbook.queued_song.path)
 		if songbook.song_instructions then
@@ -1853,8 +1867,8 @@ local function queue_song_tick_loop()
 			.."\n  Total run time: "..math.ceil(songbook.song_instructions[#songbook.song_instructions].start_time /1000) + math.ceil(songbook.queued_song.buffer_time/1000) .."s"
 		)
 
-		events.TICK:remove(queue_song_tick_loop_name)
-		songbook.queue_song_tick_loop_is_running = nil
+		events.WORLD_RENDER:remove(queue_song_render_loop_name)
+		songbook.queue_song_render_loop_is_running = nil
 		songbook_action_wheel_page_update_song_picker_button()
 		return
 	end
@@ -1862,8 +1876,9 @@ local function queue_song_tick_loop()
 end
 
 local function queue_song(song_files)
-	events.TICK:remove(queue_song_tick_loop_name)
+	events.WORLD_RENDER:remove(queue_song_render_loop_name)
 
+	songbook.queued_song = nil
 	songbook.queued_song = {}
 	songbook.song_instructions = nil
 	songbook.queued_packets = nil
@@ -1872,9 +1887,9 @@ local function queue_song(song_files)
 	
 	if song_files then
 		-- if we send a nil to queue_song, we can cancel the queue. Not that we'd need to, but could be nice. 
-		songbook.queue_song_tick_loop_is_running = true
+		songbook.queue_song_render_loop_is_running = true
 		songbook_action_wheel_page_update_song_picker_button()
-		events.TICK:register(queue_song_tick_loop, queue_song_tick_loop_name)
+		events.WORLD_RENDER:register(queue_song_render_loop, queue_song_render_loop_name)
 	end
 end
 
@@ -2016,14 +2031,21 @@ local function songbook_action_wheel_page_setup()
 		:onLeftClick(function()
 			if songbook.song_list == nil or #songbook.song_list < 1 then return end
 
-			if song_is_playing(songbook.action_wheel.selected_song_index)
-			or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
+			if song_is_queued() == "partial" then 
+				if song_is_queued(songbook.action_wheel.selected_song_index) then
+					-- print("This song is still being processed.")
+				else
+					print("§6Can't prepare this song. \nAlready preparing `"..songbook.queued_song.path.display_path.."§6`.§r")
+				end
+
+			elseif song_is_playing(songbook.action_wheel.selected_song_index)
+				or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
 			then
 				-- reselecting the playing song should stop it
 				-- If trying to play a new song, stop old song
 				pings.stop_playing_songs_ping()
-			elseif song_is_queued(songbook.action_wheel.selected_song_index)
-			and not song_is_being_stopped()
+			elseif song_is_queued(songbook.action_wheel.selected_song_index) == true
+				and not song_is_being_stopped()
 			then
 				play_song(songbook.song_list[songbook.action_wheel.selected_song_index])
 			else
@@ -2036,7 +2058,9 @@ local function songbook_action_wheel_page_setup()
 		:onRightClick(function()
 			--slowmode
 			if song_is_playing() then
-				print("Can't toggle slow mode. Currently playing a song.")
+				print("Can't toggle slow mode. Currently playing a `"..songbook.queued_song.path.display_path.."§r`.")
+			elseif song_is_queued() == "partial" then
+				print("Can't toggle slow mode. Currently preparing `"..songbook.queued_song.path.display_path.."§r`.")
 			else
 				if slowmode then
 					maximum_ping_size = default_maximum_ping_size
