@@ -1843,7 +1843,8 @@ local function queue_song_render_loop()
 	-- freeze up (though it won't crash). 
 	-- Render events are happy to drop frames, so they lock up a little less. 
 	-- WORLD_RENDER events are basicly guarrentied to be running, unlike 
-	-- player's render event
+	-- player's render event. And since this function is only called by the host,
+	-- (who we assume to have max trust) we shouldn't have any issues. 
 
 	if not songbook.song_instructions then
 		songbook.song_instructions = song_data_to_instructions(songbook.queued_song.path)
