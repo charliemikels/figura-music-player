@@ -1001,7 +1001,6 @@ local function song_data_to_instructions(song_file_metadata)
 	while song.songbuilder_metadata.in_progress 
 		-- and (while_loop_start_time > client.getSystemTime() -5000) 
 	do
-		-- print("loop")
 		if     -- there are notes to parse
 				song.songbuilder_metadata.notes_in_current_line
 			and #song.songbuilder_metadata.notes_in_current_line >= song.songbuilder_metadata.next_note_in_line_index
@@ -1870,10 +1869,13 @@ local function queue_song(song_files)
 	songbook.queued_packets = nil
 	songbook.queued_song.buffer_time = nil
 	songbook.queued_song.path = song_files
-	songbook.queue_song_tick_loop_is_running = true
 	
-	songbook_action_wheel_page_update_song_picker_button()
-	events.TICK:register(queue_song_tick_loop, queue_song_tick_loop_name)
+	if song_files then
+		-- if we send a nil to queue_song, we can cancel the queue. Not that we'd need to, but could be nice. 
+		songbook.queue_song_tick_loop_is_running = true
+		songbook_action_wheel_page_update_song_picker_button()
+		events.TICK:register(queue_song_tick_loop, queue_song_tick_loop_name)
+	end
 end
 
 local function play_song(song_files)
