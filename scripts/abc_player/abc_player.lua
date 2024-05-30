@@ -933,17 +933,13 @@ local function song_data_to_instructions(song_abc_data_string, instrument_index)
 
 	local song = data_to_instructions_song
 
-	if 		not song 
-		or 	not song.songbuilder 
-		or	not song.songbuilder.in_progress 
-	then
-		-- If song or songbuilder do not exist, or if it does but not in_progress,
+	if not song or not song.songbuilder or not song.songbuilder.in_progress then
+		-- Song doesn't exist, or it's an old left over song. 
 		-- Then let's start a new song!
 		song = {}
 		song.instructions = {}
 
 		song.songbuilder = {}
-		song.songbuilder.abc_lines = {}
 		song.songbuilder.next_note_start_time = 0
 		song.songbuilder.key_signature_key = "C"
 		song.songbuilder.default_note_length = 0.25
@@ -964,17 +960,56 @@ local function song_data_to_instructions(song_abc_data_string, instrument_index)
 			start_time = song.next_note_start_time
 		}
 
-		song.songbuilder.next_line_index = 1	-- Meta. Tracks how many lines we've done already. 
-		song.songbuilder.in_progress = false
+		song.songbuilder.abc_lines = {}
+		song.songbuilder.curr_line_index = 1			-- TODO: Tracks how many lines we've done already. 
+		song.songbuilder.notes_in_current_line = {}
+		song.songbuilder.curr_note_in_line_index = 1	-- TODO: Tracks how many notes in the current line we've already done. 
+		song.songbuilder.in_progress = true
 
 		for line in song_abc_data_string:gmatch("[^\n]+") do
-			table.insert(song.songbuilder.abc_lines, line)
+			table.insert(song.songbuilder.abc_lines, #song.songbuilder.abc_lines+1, line)
 		end
 	end
 
-	print(#song.songbuilder.abc_lines)
-
 	for i, line in ipairs(song.songbuilder.abc_lines) do
+		-- TODO: make a wile loop
+		
+		-- print(song.songbuilder.notes_in_current_line)
+		-- print(#song.songbuilder.notes_in_current_line)
+
+		if song.songbuilder.notes_in_current_line
+			and #song.songbuilder.notes_in_current_line >= song.songbuilder.curr_note_in_line_index
+		then
+			-- TODO: parce next note.
+			
+
+		elseif #song.songbuilder.abc_lines >= song.songbuilder.curr_line_index 
+		then
+			-- done parcing notes/info on this line, reset notes and get the next line
+			song.songbuilder.curr_note_in_line_index = 1
+			song.songbuilder.curr_line_index = song.songbuilder.curr_line_index +1
+			-- TODO: get next line. 
+			-- TODO: test if next line is an information line. 
+				-- parce it immediatly then curr_line_index++
+			-- TODO: not instruction, parce line into notes
+		
+		-- elseif there are more files to parce -- TODO: make this script in charge of running through the file_save stuffs. 
+			-- save current instructions, and pull in next file into abc_lines. 
+			-- reset line data and note data. 
+			-- next loop will set up the next line. 
+		end
+		-- if too much time, kill loop early. 
+		-- if everything is done. pack and sort all instructions. 
+
+
+
+
+
+
+
+
+		-- --------------------------------------------------------------------------------
+
 		line = line:match("(.*)%%") or line
 			-- % marks the rest of the line is a comment. Remove it and the
 			-- comment from the line. (`%%` to escape the %)
@@ -1033,6 +1068,8 @@ local function song_data_to_instructions(song_abc_data_string, instrument_index)
 			end
 		else
 			-- Non information line. Assume it's a chain of notes
+			song.songbuilder.notes_in_current_line = {}
+			song.songbuilder.curr_note_in_line_index = 1
 			for note in line:gmatch("%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?") do
 				-- Note structure that we look for:
 				-- might start with 1 `[`							-- Marks the start of a group
@@ -1049,6 +1086,11 @@ local function song_data_to_instructions(song_abc_data_string, instrument_index)
 				-- `[` can introduce an information header mid-line. SBC puts information fields into their own line, so this case rarely occurs.
 				-- `>` and `<` to mark broken rhythm. (see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm) SBC writes these as full fractions, so it rarely occurs.
 				-- In song comments.
+				
+				table.insert(song.songbuilder.notes_in_current_line, note)
+
+			end
+			for i, note in ipairs(song.songbuilder.notes_in_current_line) do
 
 				if note:match("%[") ~= nil then song.songbuilder.in_group = true end
 
