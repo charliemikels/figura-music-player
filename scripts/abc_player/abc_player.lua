@@ -927,35 +927,54 @@ local function save_abc_note_to_instructions(song)
 	return end_time
 end
 
+local data_to_instructions_song = {}
 local function song_data_to_instructions(song_abc_data_string, instrument_index)
 	-- Converts a the song.abc file into instructions we can send through pings
-	local song = {}
 
-	song.instructions = {}
+	local song = data_to_instructions_song
 
-	song.songbuilder = {}
-	song.songbuilder.abc_lines = {}
-	song.songbuilder.next_note_start_time = 0
-	song.songbuilder.key_signature_key = "C"
-	song.songbuilder.default_note_length = 0.25
-	song.songbuilder.length_of_beat_in_measure = 0.25
-	song.songbuilder.notes_per_measure = 4
-	song.songbuilder.beats_per_minute = 120
-	song.songbuilder.last_processed_note_index = 1
-	song.songbuilder.in_note_group = false
-	song.songbuilder.group_earliest_stop_time = math.huge
-	song.songbuilder.accidentals_memory = {}
-	song.songbuilder.instrument_index = instrument_index
-	song.songbuilder.note_builder = {
-	  	accidentals = "",
-	  	letter = "",
-	  	octave_ajustments = "",
-	  	duration_multiplier = "",
-	  	duration_divisor = "",
-	  	start_time = song.next_note_start_time
-	}
+	if 		not song 
+		or 	not song.songbuilder 
+		or	not song.songbuilder.in_progress 
+	then
+		-- If song or songbuilder do not exist, or if it does but not in_progress,
+		-- Then let's start a new song!
+		song = {}
+		song.instructions = {}
 
-	for line in song_abc_data_string:gmatch("[^\n]+") do
+		song.songbuilder = {}
+		song.songbuilder.abc_lines = {}
+		song.songbuilder.next_note_start_time = 0
+		song.songbuilder.key_signature_key = "C"
+		song.songbuilder.default_note_length = 0.25
+		song.songbuilder.length_of_beat_in_measure = 0.25
+		song.songbuilder.notes_per_measure = 4
+		song.songbuilder.beats_per_minute = 120
+		song.songbuilder.last_processed_note_index = 1
+		song.songbuilder.in_note_group = false
+		song.songbuilder.group_earliest_stop_time = math.huge
+		song.songbuilder.accidentals_memory = {}
+		song.songbuilder.instrument_index = instrument_index
+		song.songbuilder.note_builder = {
+			accidentals = "",
+			letter = "",
+			octave_ajustments = "",
+			duration_multiplier = "",
+			duration_divisor = "",
+			start_time = song.next_note_start_time
+		}
+
+		song.songbuilder.next_line_index = 1	-- Meta. Tracks how many lines we've done already. 
+		song.songbuilder.in_progress = false
+
+		for line in song_abc_data_string:gmatch("[^\n]+") do
+			table.insert(song.songbuilder.abc_lines, line)
+		end
+	end
+
+	print(#song.songbuilder.abc_lines)
+
+	for i, line in ipairs(song.songbuilder.abc_lines) do
 		line = line:match("(.*)%%") or line
 			-- % marks the rest of the line is a comment. Remove it and the
 			-- comment from the line. (`%%` to escape the %)
