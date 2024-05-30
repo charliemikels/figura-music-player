@@ -431,8 +431,8 @@ local drumkitSoundsTable = {
 	[38] = function() -- Acoustic Snare
 		return sounds["block.note_block.snare"]:pitch(0.7)
 	end,
-	[39] = function() -- Hand Clap
-		return sounds["block.note_block.hat"]:pitch(1)
+	[39] = function() -- Hand Clap		
+		return sounds[ "item.trident.riptide_1" ]:pitch(6 )
 	end,
 	[40] = function() -- Electric snare
 		return sounds["block.note_block.snare"]:pitch(0.8)
@@ -441,19 +441,19 @@ local drumkitSoundsTable = {
 		return sounds["block.note_block.basedrum"]:pitch(1.25)
 	end,
 	[42] = function() -- Closed Hi-Hat
-		return sounds[ "block.note_block.hat" ]:pitch(4)
+		return sounds[ "entity.player.hurt_on_fire" ]:pitch(10 )
 	end,
 	[43] = function() -- High Floor Tom
 		return sounds["block.note_block.basedrum"]:pitch(1.3)
 	end,
 	[44] = function() -- Pedal Hi-Hat
-		return sounds[ "item.trident.riptide_1" ]:pitch(6 )
+		return sounds[ "item.trident.hit_ground" ]:pitch(6 )
 	end,
 	[45] = function() -- Low Tom
 		return sounds["block.note_block.basedrum"]:pitch(1.35)
 	end,
 	[46] = function() -- Open Hi-Hat
-		return sounds[ "item.trident.hit_ground" ]:pitch(6 )
+		return sounds[ "block.fire.extinguish" ]:pitch(16)
 	end,
 	[47] = function() -- Low-Mid Tom
 		return sounds["block.note_block.basedrum"]:pitch(1.4)
@@ -535,7 +535,7 @@ local drumkitSoundsTable = {
 	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
 	-- end,
 	[73] = function() -- Short Guiro
-		return sounds["entity.item.break"]:pitch(1.9)
+		return sounds["entity.player.burp"]:pitch(7)
 	end,
 	[74] = function() -- Long Guiro
 		return sounds["block.sculk_sensor.clicking"]:pitch(3)	-- has variations
