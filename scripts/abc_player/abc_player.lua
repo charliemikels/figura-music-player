@@ -175,7 +175,7 @@ local function get_song_list()
 				-- Set this song instrument to drums anyways
 				song.full_paths[2] = song.full_paths[1]
 				song.full_paths[1] = nil
-				song.display_path = song.display_path .. " §6⚠§r"
+				song.display_path = song.display_path .. " §7🥁?§r"
 			end
 		end
 	end
