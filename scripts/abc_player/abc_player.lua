@@ -1305,16 +1305,15 @@ end
 
 -- Display info ----------------------------------------------------------------
 local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
-local last_spinner_state = 1
-local spinner_delay_counter = 1
-local spinner_delay_counter_max = 5
 local function info_display_spinner()
-	if spinner_delay_counter > spinner_delay_counter_max then
-		last_spinner_state = (last_spinner_state+1) % #spinner_states
-		spinner_delay_counter = 1
-	end
-	spinner_delay_counter = spinner_delay_counter + 1
-	return spinner_states[last_spinner_state+1]
+	local spinner_State = 
+		math.floor(
+			(client.getSystemTime()/1000)	-- Time in Seconds
+			*1.5	-- Speedup
+			%1		-- Clamp to 0-1
+			*4		-- Scale to 0-3
+		)+1			-- Scale to 1-4
+	return spinner_states[spinner_State]
 end
 
 local function progress_bar(width, progress)
