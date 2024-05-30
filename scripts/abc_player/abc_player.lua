@@ -53,6 +53,7 @@ local song_player_event_watcher_event_name = "song_player_event_watcher_event"
 local avatar_is_loaded_watcher_event_name = "player_is_loaded_watcher_event"
 local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
+local queue_song_tick_loop_name = "queue_song_tick_loop_event"
 
 -- song list builder -----------------------------------------------------------
 local function get_song_list()
@@ -195,14 +196,58 @@ local function get_song_list()
 	return int_index_song_list
 end
 
+-- Spinner and loading bar -----------------------------------------------------
+local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
+local function info_display_spinner()
+	local spinner_State = 
+		math.floor(
+			(client.getSystemTime()/1000)	-- Time in Seconds
+			*1.5	-- Speedup
+			%1		-- Clamp to 0-1
+			*4		-- Scale to 0-3
+		)+1			-- Scale to 1-4
+	return spinner_states[spinner_State]
+end
+
+local function progress_bar(width, progress)
+	local progress = math.max( 0, math.min( progress, 1 ) )
+	local num_bars = math.floor((width+1) * progress)
+	local num_space = width - num_bars
+
+	local bar = "▍"	-- same width as space in minecraft	(pre 1.20)
+	local version_number = client.getVersion()
+	local _, num_points_in_version = client.getVersion():gsub("%.","")
+	if num_points_in_version == 1 then version_number = version_number..".0" end
+	-- There's a r14 Figura bug in compareVersion. It errors when comparring
+	-- versions without 3 numbers, like "1.20". We're adding a `.0` to make
+	-- versions like "1.20" valid.
+	if client.compareVersions("1.20.0", version_number ) < 1 then
+		bar = "▊"	-- minecraft updated their font for 1.20
+	end
+
+	local return_val = "▎"
+	for b = 0, width do
+		return_val = return_val .. (b < num_bars and bar or (b == num_bars and info_display_spinner() or  " "))
+	end
+	return_val = return_val .. "▎"
+	return return_val
+end
+
 -- Action Wheel Updating -------------------------------------------------------
 local function song_is_queued(index)
 	if not songbook.queued_song then return false end
-	if not index then return songbook.queued_song ~= nil end
-	if type(index) == "string" then
-		return songbook.queued_song.path == index
+	if not index then
+		return songbook.queue_song_tick_loop_is_running and "partial" or true
 	end
-	return songbook.queued_song.path == songbook.song_list[index]
+	if type(index) == "string" then
+		-- index is actualy a path to a file
+		if songbook.queued_song.display_path == index then
+			return songbook.queue_song_tick_loop_is_running and "partial" or true
+		end
+	end
+	if songbook.queued_song.path == songbook.song_list[index] then
+		return songbook.queue_song_tick_loop_is_running and "partial" or true
+	end
 end
 
 local function song_is_playing(index)
@@ -268,25 +313,25 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		-- local is_playing = song_is_playing(i)
 		-- local is_queued = is_playing and false or song_is_queued(i)
 		display_string = display_string .. "\n"
-			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
+			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) == true and "•" or (song_is_queued(i) and info_display_spinner() or " "))) )
 			.. (song_is_selected and (slowmode and "§4→§r" or "→") or "  ")
 			.. " " ..songbook.song_list[i].display_path
 	end
 
 	display_string = display_string .. "\n"
 	if song_is_playing(songbook.action_wheel.selected_song_index)
-	or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
+		or (song_is_queued(songbook.action_wheel.selected_song_index) == true and song_is_playing())
 	then
 		display_string = display_string .. "Click to stop current song"
-	elseif song_is_queued(songbook.action_wheel.selected_song_index) and song_is_being_stopped() then
+	elseif song_is_queued(songbook.action_wheel.selected_song_index) == true and song_is_being_stopped() then
 		display_string = display_string .. "§4Another song is still being stopped§r"
-	elseif song_is_queued(songbook.action_wheel.selected_song_index) then
+	elseif song_is_queued(songbook.action_wheel.selected_song_index) == true then
 		display_string = display_string .. "Click to play selected song"
 	else
 		display_string = display_string .. "Click to queue selected song"
 	end
 
-	if song_is_queued(songbook.action_wheel.selected_song_index) then
+	if song_is_queued(songbook.action_wheel.selected_song_index) == true then
 		display_string = display_string .. "\n"
 			.. (songbook.queued_song.buffer_time > maximum_ping_rate *3 and "§4" or "")
 			.. "Queued song starts in "..math.ceil(songbook.queued_song.buffer_time/1000).." seconds."
@@ -948,6 +993,7 @@ local function song_data_to_instructions(song_file_metadata)
 		song.songbuilder_metadata.next_line_index = 1
 		song.songbuilder_metadata.next_note_in_line_index = 1
 		song.songbuilder_metadata.next_file_index = 1
+		song.songbuilder_metadata.num_tracks = 0
 		song.songbuilder_metadata.in_progress = true
 	end
 
@@ -1160,6 +1206,7 @@ local function song_data_to_instructions(song_file_metadata)
 					song.songbuilder_metadata.notes_in_current_line = nil
 					song.songbuilder_metadata.next_line_index = 1
 					song.songbuilder_metadata.next_note_in_line_index = 1
+					song.songbuilder_metadata.num_tracks = song.songbuilder_metadata.num_tracks +1
 
 					for line in file_data_string:gmatch("[^\n]+") do
 						table.insert(song.songbuilder_metadata.abc_lines, #song.songbuilder_metadata.abc_lines+1, line)
@@ -1167,65 +1214,23 @@ local function song_data_to_instructions(song_file_metadata)
 				end
 			end
 
-
-
-			-- if song_files then
-			-- 	local song_is_multitrack = false
-			-- 	for instrument_index, full_path in pairs(song_files.full_paths) do
-			-- 		if not file:isFile(full_path) then 
-			-- 			print("No file found at `".. full_path .."`.")
-			-- 			return 
-			-- 		end
-		
-			-- 		local song_abc_data = file:readString(full_path)
-			-- 		-- Convert data to instructions.
-			-- 		-- print("Generating instructions for instument #"..tostring(instrument_index).."...")
-		
-			-- 		local track_instructions = song_data_to_instructions(song_files, instrument_index)
-					
-			-- 		if song_instructions == {} then
-			-- 			song_instructions = track_instructions
-			-- 		else
-			-- 			song_is_multitrack = true
-			-- 			-- no concatinate tables opperation. :/
-			-- 			for _, instruction in pairs(track_instructions) do
-			-- 				table.insert(song_instructions,instruction)
-			-- 			end
-			-- 		end
-		
-			-- 	end
-			-- 	if song_is_multitrack then
-			-- 		table.sort(
-			-- 			song_instructions, 
-			-- 			function(a,b) 
-			-- 				return a.start_time < b.start_time 
-			-- 			end
-			-- 		)
-			-- 	end
-			-- end
-		
-
-			-- song.songbuilder_metadata.abc_lines = {}
-			-- song.songbuilder_metadata.notes_in_current_line = nil
-			-- song.songbuilder_metadata.next_note_in_line_index = 1
-			-- song.songbuilder_metadata.next_line_index = 1
-
-			-- -- TODO: build song_abc_data_string ourselves from files API
-
-			-- for line in song_abc_data_string:gmatch("[^\n]+") do
-			-- 	table.insert(song.songbuilder_metadata.abc_lines, #song.songbuilder_metadata.abc_lines+1, line)
-			-- end
-		else   -- there are no more notes, lines or files to parce
+		else   -- there are no more notes, lines or files to parce. We're done
+			if song.songbuilder_metadata.num_tracks > 1 then
+				table.sort(
+					song.instructions, 
+					function(a,b) 
+						return a.start_time < b.start_time 
+					end
+				)
+			end
 			song.songbuilder_metadata.in_progress = false
+			song.songbuilder = nil
+			song.songbuilder_metadata = nil
+			return song.instructions
 		end
-		-- if we're taking too much timetoo much time, kill loop early. 
-		-- if everything is done. pack and sort all instructions. 
-
 	end
 
-	song.songbuilder = nil
-	song.songbuilder_metadata = nil
-	return song.instructions
+	return nil
 end
 
 
@@ -1453,41 +1458,6 @@ local function start_song_player_event()
 end
 
 -- Display info ----------------------------------------------------------------
-local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
-local function info_display_spinner()
-	local spinner_State = 
-		math.floor(
-			(client.getSystemTime()/1000)	-- Time in Seconds
-			*1.5	-- Speedup
-			%1		-- Clamp to 0-1
-			*4		-- Scale to 0-3
-		)+1			-- Scale to 1-4
-	return spinner_states[spinner_State]
-end
-
-local function progress_bar(width, progress)
-	local progress = math.max( 0, math.min( progress, 1 ) )
-	local num_bars = math.floor((width+1) * progress)
-	local num_space = width - num_bars
-
-	local bar = "▍"	-- same width as space in minecraft	(pre 1.20)
-	local version_number = client.getVersion()
-	local _, num_points_in_version = client.getVersion():gsub("%.","")
-	if num_points_in_version == 1 then version_number = version_number..".0" end
-	-- There's a r14 Figura bug in compareVersion. It errors when comparring
-	-- versions without 3 numbers, like "1.20". We're adding a `.0` to make
-	-- versions like "1.20" valid.
-	if client.compareVersions("1.20.0", version_number ) < 1 then
-		bar = "▊"	-- minecraft updated their font for 1.20
-	end
-
-	local return_val = "▎"
-	for b = 0, width do
-		return_val = return_val .. (b < num_bars and bar or (b == num_bars and info_display_spinner() or  " "))
-	end
-	return_val = return_val .. "▎"
-	return return_val
-end
 
 local info_display_current_pos = vec(0, 0, 0)
 local info_display_previous_pos = vec(0, 0, 0)
@@ -1861,70 +1831,49 @@ local function song_instructions_to_packets(song_files, song_instructions)
 end
 
 -- Song playing ----------------------------------------------------------------
-local function queue_song(song_files)
-	songbook.queued_song = {}
-	
-	-- print("Preparing to play "..song_files.name)
-	local song_instructions = song_data_to_instructions(song_files)
-
-
-
-	-- if song_files then
-	-- 	local song_is_multitrack = false
-	-- 	for instrument_index, full_path in pairs(song_files.full_paths) do
-	-- 		if not file:isFile(full_path) then 
-	-- 			print("No file found at `".. full_path .."`.")
-	-- 			return 
-	-- 		end
-
-	-- 		local song_abc_data = file:readString(full_path)
-	-- 		-- Convert data to instructions.
-	-- 		-- print("Generating instructions for instument #"..tostring(instrument_index).."...")
-
-	-- 		local track_instructions = song_data_to_instructions(song_files, instrument_index)
-			
-	-- 		if song_instructions == {} then
-	-- 			song_instructions = track_instructions
-	-- 		else
-	-- 			song_is_multitrack = true
-	-- 			-- no concatinate tables opperation. :/
-	-- 			for _, instruction in pairs(track_instructions) do
-	-- 				table.insert(song_instructions,instruction)
-	-- 			end
-	-- 		end
-
-	-- 	end
-	-- 	if song_is_multitrack then
-	-- 		table.sort(
-	-- 			song_instructions, 
-	-- 			function(a,b) 
-	-- 				return a.start_time < b.start_time 
-	-- 			end
-	-- 		)
-	-- 	end
-	-- end
-
-	table.sort(
-		song_instructions, 
-		function(a,b) 
-			return a.start_time < b.start_time 
+local function queue_song_tick_loop()
+	if not songbook.song_instructions then
+		songbook.song_instructions = song_data_to_instructions(songbook.queued_song.path)
+		if songbook.song_instructions then
+			print("Generated "..#songbook.song_instructions.." instructions.")
 		end
-	)
+	elseif not songbook.queued_packets then
+		local ping_packets, minimum_song_start_delay  = song_instructions_to_packets(songbook.queued_song.path, songbook.song_instructions)	
 
-	--print("Generated "..#song_instructions.." instructions.")
+		if ping_packets then
+			songbook.queued_packets = ping_packets
+			songbook.queued_song.buffer_time = minimum_song_start_delay
+		end
+	else
+		-- Instructions and packets are populated. Our work must be done.
+		print("Ready to play "..songbook.queued_song.path.display_path
+			.. (maximum_ping_rate*5 < songbook.queued_song.buffer_time and
+				"\n  song run time " ..math.ceil(songbook.song_instructions[#songbook.song_instructions].start_time /1000) .. "s"
+				.."\n  §4song needs to buffer for ".. math.ceil(songbook.queued_song.buffer_time/1000).."s§r"
+			or "")
+			.."\n  Total run time: "..math.ceil(songbook.song_instructions[#songbook.song_instructions].start_time /1000) + math.ceil(songbook.queued_song.buffer_time/1000) .."s"
+		)
 
-	local packets, time_to_start = song_instructions_to_packets(song_files, song_instructions)
+		events.TICK:remove(queue_song_tick_loop_name)
+		songbook.queue_song_tick_loop_is_running = nil
+		songbook_action_wheel_page_update_song_picker_button()
+		return
+	end
+	if action_wheel:isEnabled() then songbook_action_wheel_page_update_song_picker_button() end 
+end
 
+local function queue_song(song_files)
+	events.TICK:remove(queue_song_tick_loop_name)
+
+	songbook.queued_song = {}
+	songbook.song_instructions = nil
+	songbook.queued_packets = nil
+	songbook.queued_song.buffer_time = nil
 	songbook.queued_song.path = song_files
-	songbook.queued_song.buffer_time = time_to_start
-	songbook.queued_packets = packets
-	print("Ready to play "..song_files.display_path
-		.. (maximum_ping_rate*5 < time_to_start and
-			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
-			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
-		or "")
-		.."\n  Total run time: "..math.ceil(song_instructions[#song_instructions].start_time /1000) + math.ceil(time_to_start/1000) .."s"
-	)
+	songbook.queue_song_tick_loop_is_running = true
+	
+	songbook_action_wheel_page_update_song_picker_button()
+	events.TICK:register(queue_song_tick_loop, queue_song_tick_loop_name)
 end
 
 local function play_song(song_files)
