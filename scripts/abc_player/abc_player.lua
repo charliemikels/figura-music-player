@@ -928,215 +928,303 @@ local function save_abc_note_to_instructions(song)
 end
 
 local data_to_instructions_song = {}
-local function song_data_to_instructions(song_abc_data_string, instrument_index)
+local function song_data_to_instructions(song_file_metadata)
 	-- Converts a the song.abc file into instructions we can send through pings
 
 	local song = data_to_instructions_song
 
-	if not song or not song.songbuilder or not song.songbuilder.in_progress then
+	if -- this is our first run, initilize song table
+		not song or not song.songbuilder or not song.songbuilder_metadata.in_progress then
 		-- Song doesn't exist, or it's an old left over song. 
 		-- Then let's start a new song!
 		song = {}
 		song.instructions = {}
-
 		song.songbuilder = {}
-		song.songbuilder.next_note_start_time = 0
-		song.songbuilder.key_signature_key = "C"
-		song.songbuilder.default_note_length = 0.25
-		song.songbuilder.length_of_beat_in_measure = 0.25
-		song.songbuilder.notes_per_measure = 4
-		song.songbuilder.beats_per_minute = 120
-		song.songbuilder.last_processed_note_index = 1
-		song.songbuilder.in_note_group = false
-		song.songbuilder.group_earliest_stop_time = math.huge
-		song.songbuilder.accidentals_memory = {}
-		song.songbuilder.instrument_index = instrument_index
-		song.songbuilder.note_builder = {
-			accidentals = "",
-			letter = "",
-			octave_ajustments = "",
-			duration_multiplier = "",
-			duration_divisor = "",
-			start_time = song.next_note_start_time
-		}
-
-		song.songbuilder.abc_lines = {}
-		song.songbuilder.curr_line_index = 1			-- TODO: Tracks how many lines we've done already. 
-		song.songbuilder.notes_in_current_line = {}
-		song.songbuilder.curr_note_in_line_index = 1	-- TODO: Tracks how many notes in the current line we've already done. 
-		song.songbuilder.in_progress = true
-
-		for line in song_abc_data_string:gmatch("[^\n]+") do
-			table.insert(song.songbuilder.abc_lines, #song.songbuilder.abc_lines+1, line)
-		end
+		
+		song.songbuilder_metadata = {}
+		song.songbuilder_metadata.abc_lines = nil
+		song.songbuilder_metadata.notes_in_current_line = nil
+		song.songbuilder_metadata.file_paths = song_file_metadata.full_paths
+		song.songbuilder_metadata.next_line_index = 1
+		song.songbuilder_metadata.next_note_in_line_index = 1
+		song.songbuilder_metadata.next_file_index = 1
+		song.songbuilder_metadata.in_progress = true
 	end
 
-	for i, line in ipairs(song.songbuilder.abc_lines) do
-		-- TODO: make a wile loop
-		
-		-- print(song.songbuilder.notes_in_current_line)
-		-- print(#song.songbuilder.notes_in_current_line)
-
-		if song.songbuilder.notes_in_current_line
-			and #song.songbuilder.notes_in_current_line >= song.songbuilder.curr_note_in_line_index
+	local while_loop_start_time = client.getSystemTime()
+	while song.songbuilder_metadata.in_progress 
+		-- and (while_loop_start_time > client.getSystemTime() -5000) 
+	do
+		-- print("loop")
+		if     -- there are notes to parse
+				song.songbuilder_metadata.notes_in_current_line
+			and #song.songbuilder_metadata.notes_in_current_line >= song.songbuilder_metadata.next_note_in_line_index
 		then
-			-- TODO: parce next note.
+			local note = song.songbuilder_metadata.notes_in_current_line[song.songbuilder_metadata.next_note_in_line_index]
+			song.songbuilder_metadata.next_note_in_line_index = song.songbuilder_metadata.next_note_in_line_index +1
+			-- print("parcing note: "..note)
+
+			if note:match("%[") ~= nil then song.songbuilder.in_group = true end
+
+			song.songbuilder.note_builder = {
+				accidentals = note:match("[_=%^]+") or "",
+				letter = note:match("%a"),
+					-- this will match any letter, but should only be given
+					-- A, B, C, D, E, F, G, Z, or X in upper or lower case.
+				octave_ajustments = note:match("[,']+") or "",
+				duration_multiplier = note:match("[%a,'](%d+)") or "",
+				duration_divisor = note:match("/+%d*") or "",
+					-- divisor also includes the `/` characters.
+				start_time = song.songbuilder.next_note_start_time
+			}
+
+			local returned_note_end_time = save_abc_note_to_instructions(song)
+
+			if song.songbuilder.in_group then
+				if returned_note_end_time
+					< song.songbuilder.group_earliest_stop_time
+				then
+					-- This check is wrong, but it works most of the time?
+					-- According to the docs, The end time of the group
+					-- should be set by the first note's end time, But this
+					-- logic finds the shortest note in the group, and
+					-- uses that end time instead.
+					song.songbuilder.group_earliest_stop_time = returned_note_end_time
+				end
+			else
+				song.songbuilder.next_note_start_time = returned_note_end_time
+			end
+
+			if note:match("%]") ~= nil then
+				--print("ends group")
+				song.songbuilder.in_group = false
+				song.songbuilder.next_note_start_time = song.songbuilder.group_earliest_stop_time
+				note_builder.start_time = song.songbuilder.next_note_start_time
+				song.songbuilder.group_earliest_stop_time = math.huge
+			end
+
+			song.songbuilder.last_processed_note_index = song.songbuilder.last_processed_note_index +1	-- TODO: this might be removable. 
+		elseif -- there are no notes to parce, but there are lines to parce
+				song.songbuilder_metadata.abc_lines
+			and #song.songbuilder_metadata.abc_lines >= song.songbuilder_metadata.next_line_index
+		then
+			-- Bump the line_index. Find next line of notes.
+			song.songbuilder_metadata.next_note_in_line_index = 1
+			-- print("getting next line at index "..song.songbuilder_metadata.next_line_index)
+			song.songbuilder_metadata.notes_in_current_line = nil
+
+			local line = song.songbuilder_metadata.abc_lines[song.songbuilder_metadata.next_line_index]
+			song.songbuilder_metadata.next_line_index = song.songbuilder_metadata.next_line_index +1
+
+			line = line:match("(.*)%%") or line	-- filter out end-of-line comments
+
+			if 	-- Line is empty
+				not line 
+			then
+				-- We've already checked if we're out of bounds, so this 
+				-- line just happens to be empty. Ignore it and continue
+				-- next loop. 
+			elseif	-- Line is an information line. 
+				line:sub(2,2) == ":"
+			then
+				-- Metadata lines.
+				-- "T:" song title. Usually wrong or unhelpful. Use filename instead.
+				-- "Z:" is the song Author.
+				-- "X:" is song ID. Use our own indexing system
+				-- https://abcnotation.com/wiki/abc:standard:v2.1#information_field_definition
+
+				if line:sub(1,2) == "L:" then
+					song.songbuilder.default_note_length
+						= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
+					reCalculateMilisPerNote(song.songbuilder)
+
+				elseif line:sub(1,2) == "M:" then
+					song.songbuilder.notes_per_measure
+						= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
+
+				elseif line:sub(1,2) == "Q:" then
+					local bpm_key = line:sub(3)
+					local length_of_beat_in_measure, bpm
+						= bpm_key:match("(.+)=(.+)")
+
+					if bpm == nil then
+						bpm = bpm_key:match("%d+")
+						-- ^^ This usage is technicly deprecated in ABC 2.1, but some of the
+						-- default starbound songs use the `Q:90` (no fraction syntax)
+					else
+						length_of_beat_in_measure = fracToNumber(length_of_beat_in_measure)
+					end
+					bpm = tonumber(bpm)
+
+					song.songbuilder.length_of_beat_in_measure = length_of_beat_in_measure
+					song.songbuilder.beats_per_minute = bpm
+					reCalculateMilisPerNote(song.songbuilder)
+
+				elseif line:sub(1,2) == "K:" then
+					-- "K:" marks the key signature, and also marks the end of the header
+					local song_file_key = line:sub(3):gsub("%s+", ""):upper()
+					key_signature_key = ""
+					for key, alt_names in pairs(key_signatures_keys) do
+						for _, name in pairs(alt_names) do
+							if song_file_key:sub(0, math.max(#name, 3)) == name then
+								key_signature_key = key
+								break
+							end
+						end
+						if key_signature_key ~= '' then
+							break
+						end
+					end
+					song.songbuilder.key_signature_key = key_signature_key
+				end
+			else -- Line is a sequence of notes
+				-- Dump notes into notes_in_current_line for next loop. 
+				song.songbuilder_metadata.notes_in_current_line = {}
+				song.songbuilder_metadata.next_note_in_line_index = 1
+				for note in line:gmatch("%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?") do
+					-- Note structure that we look for:
+					-- might start with 1 `[`									-- Marks the start of a group
+					-- might have any number of `_`, `=`, or `^` characters		-- Marks the note's accidental (Flat or sharp)
+					-- _must_ have 1 letter										-- Marks the note name. Lowercase is up 1 octave.
+					-- might have any number of `,` or `'` characters			-- Marks a shifts in octave. `,` for down, `'` for up.
+					-- might have any number of numbers							-- Marks the duration of the note, in multiples of song.songbuilder.default_note_length set by `L:`
+					-- might have any number of `/` characters					-- Flags the next number as a divisor for the duration. If it's not followed by a number, it divides the duration by (2 * number of division signs)
+					-- might have any number of numbers							-- When followed by a `/`, marks the divisor of the note length.
+					-- might end with 1 `]`										-- Marks the end of a group.
+
+					-- Unchecked cases:
+					-- Starbound composer usually converts the more exotic cases into individual notes, but these two might be common in traditional ABC files.
+					-- `[` can introduce an information header mid-line. SBC puts information fields into their own line, so this case rarely occurs.
+					-- `>` and `<` to mark broken rhythm. (see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm) SBC writes these as full fractions, so it rarely occurs.
+					-- In song comments.
+					
+					table.insert(song.songbuilder_metadata.notes_in_current_line, note)
+				end
+			end
 			
-
-		elseif #song.songbuilder.abc_lines >= song.songbuilder.curr_line_index 
-		then
-			-- done parcing notes/info on this line, reset notes and get the next line
-			song.songbuilder.curr_note_in_line_index = 1
-			song.songbuilder.curr_line_index = song.songbuilder.curr_line_index +1
-			-- TODO: get next line. 
-			-- TODO: test if next line is an information line. 
-				-- parce it immediatly then curr_line_index++
-			-- TODO: not instruction, parce line into notes
-		
 		-- elseif there are more files to parce -- TODO: make this script in charge of running through the file_save stuffs. 
 			-- save current instructions, and pull in next file into abc_lines. 
 			-- reset line data and note data. 
 			-- next loop will set up the next line. 
+		elseif -- there are no lines to parce, but there are files to turn into lines
+				song.songbuilder_metadata.file_paths
+			and #song.songbuilder_metadata.file_paths >= song.songbuilder_metadata.next_file_index
+		then
+
+			local new_file_path = song.songbuilder_metadata.file_paths[song.songbuilder_metadata.next_file_index]
+			local new_instrument_index = song.songbuilder_metadata.next_file_index
+			song.songbuilder_metadata.next_file_index = song.songbuilder_metadata.next_file_index+1
+
+
+			printTable(song.songbuilder_metadata.file_paths)
+			print(#song.songbuilder_metadata.file_paths)
+			print(new_file_path)
+
+			if not new_file_path then
+				-- file path itself is nil. Can happen if trying to play a song that has drums, and has no lead track. 
+				-- The table will have 1 entry at index 2, so index 1 will be nil. 
+				-- In this case we can safely ignore it and let the loop try again. 
+			elseif not file:isFile(new_file_path) then 
+				print("No file found at `".. new_file_path .."`.")
+			else
+				print("Loading file: "..new_file_path)
+
+				local file_data_string = file:readString(new_file_path)
+				if file_data_string then
+					-- File is good. 
+					-- Break it into abc_lines and reset songbuilder for new file. 
+
+					song.songbuilder = {}
+					song.songbuilder.next_note_start_time = 0
+					song.songbuilder.key_signature_key = "C"
+					song.songbuilder.default_note_length = 0.25
+					song.songbuilder.length_of_beat_in_measure = 0.25
+					song.songbuilder.notes_per_measure = 4
+					song.songbuilder.beats_per_minute = 120
+					song.songbuilder.last_processed_note_index = 1
+					song.songbuilder.in_note_group = false
+					song.songbuilder.group_earliest_stop_time = math.huge
+					song.songbuilder.accidentals_memory = {}
+					song.songbuilder.instrument_index = new_instrument_index
+					song.songbuilder.note_builder = {
+						accidentals = "",
+						letter = "",
+						octave_ajustments = "",
+						duration_multiplier = "",
+						duration_divisor = "",
+						start_time = song.songbuilder.next_note_start_time
+					}
+
+					song.songbuilder_metadata.abc_lines = nil
+					song.songbuilder_metadata.abc_lines = {}
+					song.songbuilder_metadata.notes_in_current_line = nil
+					song.songbuilder_metadata.next_line_index = 1
+					song.songbuilder_metadata.next_note_in_line_index = 1
+
+					for line in file_data_string:gmatch("[^\n]+") do
+						table.insert(song.songbuilder_metadata.abc_lines, #song.songbuilder_metadata.abc_lines+1, line)
+					end
+				end
+			end
+
+
+
+			-- if song_files then
+			-- 	local song_is_multitrack = false
+			-- 	for instrument_index, full_path in pairs(song_files.full_paths) do
+			-- 		if not file:isFile(full_path) then 
+			-- 			print("No file found at `".. full_path .."`.")
+			-- 			return 
+			-- 		end
+		
+			-- 		local song_abc_data = file:readString(full_path)
+			-- 		-- Convert data to instructions.
+			-- 		-- print("Generating instructions for instument #"..tostring(instrument_index).."...")
+		
+			-- 		local track_instructions = song_data_to_instructions(song_files, instrument_index)
+					
+			-- 		if song_instructions == {} then
+			-- 			song_instructions = track_instructions
+			-- 		else
+			-- 			song_is_multitrack = true
+			-- 			-- no concatinate tables opperation. :/
+			-- 			for _, instruction in pairs(track_instructions) do
+			-- 				table.insert(song_instructions,instruction)
+			-- 			end
+			-- 		end
+		
+			-- 	end
+			-- 	if song_is_multitrack then
+			-- 		table.sort(
+			-- 			song_instructions, 
+			-- 			function(a,b) 
+			-- 				return a.start_time < b.start_time 
+			-- 			end
+			-- 		)
+			-- 	end
+			-- end
+		
+
+			-- song.songbuilder_metadata.abc_lines = {}
+			-- song.songbuilder_metadata.notes_in_current_line = nil
+			-- song.songbuilder_metadata.next_note_in_line_index = 1
+			-- song.songbuilder_metadata.next_line_index = 1
+
+			-- -- TODO: build song_abc_data_string ourselves from files API
+
+			-- for line in song_abc_data_string:gmatch("[^\n]+") do
+			-- 	table.insert(song.songbuilder_metadata.abc_lines, #song.songbuilder_metadata.abc_lines+1, line)
+			-- end
+		else   -- there are no more notes, lines or files to parce
+			song.songbuilder_metadata.in_progress = false
 		end
-		-- if too much time, kill loop early. 
+		-- if we're taking too much timetoo much time, kill loop early. 
 		-- if everything is done. pack and sort all instructions. 
 
-
-
-
-
-
-
-
-		-- --------------------------------------------------------------------------------
-
-		line = line:match("(.*)%%") or line
-			-- % marks the rest of the line is a comment. Remove it and the
-			-- comment from the line. (`%%` to escape the %)
-		if line == nil or line == "" then
-			-- do nothing
-		elseif line:sub(2,2) == ":" then
-			-- Metadata lines.
-			-- "T:" song title. Usually wrong or unhelpful. Use filename instead.
-			-- "Z:" is the song Author.
-			-- "X:" is song ID. Use our own indexing system
-			-- https://abcnotation.com/wiki/abc:standard:v2.1#information_field_definition
-
-			if line:sub(1,2) == "L:" then
-				song.songbuilder.default_note_length
-					= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
-				reCalculateMilisPerNote(song.songbuilder)
-
-			elseif line:sub(1,2) == "M:" then
-				song.songbuilder.notes_per_measure
-					= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
-
-			elseif line:sub(1,2) == "Q:" then
-				local bpm_key = line:sub(3)
-				local length_of_beat_in_measure, bpm
-					= bpm_key:match("(.+)=(.+)")
-
-				if bpm == nil then
-					bpm = bpm_key:match("%d+")
-					-- ^^ This usage is technicly deprecated in ABC 2.1, but some of the
-					-- default starbound songs use the `Q:90` (no fraction syntax)
-				else
-					length_of_beat_in_measure = fracToNumber(length_of_beat_in_measure)
-				end
-				bpm = tonumber(bpm)
-
-				song.songbuilder.length_of_beat_in_measure = length_of_beat_in_measure
-				song.songbuilder.beats_per_minute = bpm
-				reCalculateMilisPerNote(song.songbuilder)
-
-			elseif line:sub(1,2) == "K:" then
-				-- "K:" marks the key signature, and also marks the end of the header
-				local song_file_key = line:sub(3):gsub("%s+", ""):upper()
-				key_signature_key = ""
-				for key, alt_names in pairs(key_signatures_keys) do
-					for _, name in pairs(alt_names) do
-						if song_file_key:sub(0, math.max(#name, 3)) == name then
-							key_signature_key = key
-							break
-						end
-					end
-					if key_signature_key ~= '' then
-						break
-					end
-				end
-				song.songbuilder.key_signature_key = key_signature_key
-			end
-		else
-			-- Non information line. Assume it's a chain of notes
-			song.songbuilder.notes_in_current_line = {}
-			song.songbuilder.curr_note_in_line_index = 1
-			for note in line:gmatch("%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?") do
-				-- Note structure that we look for:
-				-- might start with 1 `[`							-- Marks the start of a group
-				-- might have any number of `_`, `=`, or `^` characters		-- Marks the note's accidental (Flat or sharp)
-				-- _must_ have 1 letter								-- Marks the note name. Lowercase is up 1 octave.
-				-- might have any number of `,` or `'` characters	-- Marks a shifts in octave. `,` for down, `'` for up.
-				-- might have any number of numbers					-- Marks the duration of the note, in multiples of song.songbuilder.default_note_length set by `L:`
-				-- might have any number of `/` characters			-- Flags the next number as a divisor for the duration. If it's not followed by a number, it divides the duration by (2 * number of division signs)
-				-- might have any number of numbers					-- When followed by a `/`, marks the divisor of the note length.
-				-- might end with 1 `]`								-- Marks the end of a group.
-
-				-- Unchecked cases:
-				-- Starbound composer usually converts the more exotic cases into individual notes, but these two might be common in traditional ABC files.
-				-- `[` can introduce an information header mid-line. SBC puts information fields into their own line, so this case rarely occurs.
-				-- `>` and `<` to mark broken rhythm. (see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm) SBC writes these as full fractions, so it rarely occurs.
-				-- In song comments.
-				
-				table.insert(song.songbuilder.notes_in_current_line, note)
-
-			end
-			for i, note in ipairs(song.songbuilder.notes_in_current_line) do
-
-				if note:match("%[") ~= nil then song.songbuilder.in_group = true end
-
-				song.songbuilder.note_builder = {
-				  	accidentals = note:match("[_=%^]+") or "",
-				  	letter = note:match("%a"),
-				  		-- this will match any letter, but should only be given
-				  		-- A, B, C, D, E, F, G, Z, or X in upper or lower case.
-				  	octave_ajustments = note:match("[,']+") or "",
-				  	duration_multiplier = note:match("[%a,'](%d+)") or "",
-				  	duration_divisor = note:match("/+%d*") or "",
-				  		-- divisor also includes the `/` characters.
-				  	start_time = song.songbuilder.next_note_start_time
-				}
-
-				local returned_note_end_time = save_abc_note_to_instructions(song)
-
-				if song.songbuilder.in_group then
-					if returned_note_end_time
-						< song.songbuilder.group_earliest_stop_time
-					then
-						-- This check is wrong, but it works most of the time?
-						-- According to the docs, The end time of the group
-						-- should be set by the first note's end time, But this
-						-- logic finds the shortest note in the group, and
-						-- uses that end time instead.
-						song.songbuilder.group_earliest_stop_time = returned_note_end_time
-					end
-				else
-					song.songbuilder.next_note_start_time = returned_note_end_time
-				end
-
-				if note:match("%]") ~= nil then
-					--print("ends group")
-					song.songbuilder.in_group = false
-					song.songbuilder.next_note_start_time = song.songbuilder.group_earliest_stop_time
-					note_builder.start_time = song.songbuilder.next_note_start_time
-					song.songbuilder.group_earliest_stop_time = math.huge
-				end
-
-				song.songbuilder.last_processed_note_index = song.songbuilder.last_processed_note_index +1
-			end
-		end
 	end
 
 	song.songbuilder = nil
+	song.songbuilder_metadata = nil
 	return song.instructions
 end
 
@@ -1777,41 +1865,51 @@ local function queue_song(song_files)
 	songbook.queued_song = {}
 	
 	-- print("Preparing to play "..song_files.name)
-	local song_instructions = {}
-	if song_files then
-		local song_is_multitrack = false
-		for instrument_index, full_path in pairs(song_files.full_paths) do
-			if not file:isFile(full_path) then 
-				print("No file found at `".. full_path .."`.")
-				return 
-			end
+	local song_instructions = song_data_to_instructions(song_files)
 
-			local song_abc_data = file:readString(full_path)
-			-- Convert data to instructions.
-			-- print("Generating instructions for instument #"..tostring(instrument_index).."...")
 
-			local track_instructions = song_data_to_instructions(song_abc_data, instrument_index)
+
+	-- if song_files then
+	-- 	local song_is_multitrack = false
+	-- 	for instrument_index, full_path in pairs(song_files.full_paths) do
+	-- 		if not file:isFile(full_path) then 
+	-- 			print("No file found at `".. full_path .."`.")
+	-- 			return 
+	-- 		end
+
+	-- 		local song_abc_data = file:readString(full_path)
+	-- 		-- Convert data to instructions.
+	-- 		-- print("Generating instructions for instument #"..tostring(instrument_index).."...")
+
+	-- 		local track_instructions = song_data_to_instructions(song_files, instrument_index)
 			
-			if song_instructions == {} then
-				song_instructions = track_instructions
-			else
-				song_is_multitrack = true
-				-- no concatinate tables opperation. :/
-				for _, instruction in pairs(track_instructions) do
-					table.insert(song_instructions,instruction)
-				end
-			end
+	-- 		if song_instructions == {} then
+	-- 			song_instructions = track_instructions
+	-- 		else
+	-- 			song_is_multitrack = true
+	-- 			-- no concatinate tables opperation. :/
+	-- 			for _, instruction in pairs(track_instructions) do
+	-- 				table.insert(song_instructions,instruction)
+	-- 			end
+	-- 		end
 
+	-- 	end
+	-- 	if song_is_multitrack then
+	-- 		table.sort(
+	-- 			song_instructions, 
+	-- 			function(a,b) 
+	-- 				return a.start_time < b.start_time 
+	-- 			end
+	-- 		)
+	-- 	end
+	-- end
+
+	table.sort(
+		song_instructions, 
+		function(a,b) 
+			return a.start_time < b.start_time 
 		end
-		if song_is_multitrack then
-			table.sort(
-				song_instructions, 
-				function(a,b) 
-					return a.start_time < b.start_time 
-				end
-			)
-		end
-	end
+	)
 
 	--print("Generated "..#song_instructions.." instructions.")
 
