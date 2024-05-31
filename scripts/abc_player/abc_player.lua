@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- ABC Music Player V3.0.1
+-- ABC Music Player V4.0.0
 
 -- ABC Documentation website: https://abcnotation.com/wiki/abc:standard:v2.1
 
@@ -53,6 +53,7 @@ local song_player_event_watcher_event_name = "song_player_event_watcher_event"
 local avatar_is_loaded_watcher_event_name = "player_is_loaded_watcher_event"
 local info_display_event_name = "info_display_event"
 local song_info_text_task_name = "song_info_text_task"
+local queue_song_render_loop_name = "queue_song_render_loop_event"
 
 -- song list builder -----------------------------------------------------------
 local function get_song_list()
@@ -93,9 +94,14 @@ local function get_song_list()
 	local song_list = {}
 	--	song_list = { 
 	--		1: {
-	--			name, 			-- string. Short name of file. Excludes path and `.abc`
-	--			display_path	-- string. Path excluding `songbook_root_file_path`
-	--			safe_path		-- string. Full path for filesAPI
+	--			name, 			-- string. Short name of file. Excludes path and `.abc`		-- used in display board
+	--			display_path	-- string. Path excluding `songbook_root_file_path`			-- used in song picker
+	--			full_paths: {	-- table of strings. Set of full paths for files API
+	--				1: "Path to main instrument"
+	--				2: "Path to percussion track" (if available)
+	--				3: "path to TBD 3rd instrument track" (May never be used.)
+	--				-- full_path index represents the instrument to use to play the file. Must be an int. 
+	--			}		
 	-- 		},
 	-- 		2: { etc… },
 	--		…
@@ -112,39 +118,136 @@ local function get_song_list()
 
 		if file:isDirectory(full_path) then
 			-- Path is a directory, put its contents into the test loop. 
-			for k,v in ipairs(file:list(full_path)) do
+			for _,v in ipairs(file:list(full_path)) do
 				table.insert(paths_to_test, (current_path .. "/" .. v))
 			end
 		elseif file:isFile(full_path) then
-
-			-- TODO: make file type validation flexible to match multiple options
 			if full_path:match("%.([^%.]+)$"):lower() == "abc" then
-				table.insert(song_list, #song_list +1, {
+				song_list[current_path] = {
 					name = current_path:match("([^/]*)%."), -- everything after last / and before last .
 					display_path = current_path,
-					safe_path = full_path
+					full_paths = {full_path}
 				}
-			);
 			end
 		end
 	end
-	
-	table.sort(song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
 
-	if #song_list < 1 then 
-		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
+	-- Rescan final list to merge songs with drum tracks. 
+
+	for key, song in pairs(song_list) do
+		-- captures tags like ` - Drums` and ` (Percussion)`
+		local drums_marker_start_index, drums_marker_end_index = 
+			song.display_path:lower():find("%s*%-?%s?%(?percussion%)*%s*")
+		if not drums_marker_start_index then
+			drums_marker_start_index, drums_marker_end_index = 
+				song.display_path:lower():find("%s*%-?%s?%(?drums?%)*%s*")
+		end
+
+		if drums_marker_start_index then 
+			tag_trimmed_display_name = 
+				song.display_path:sub(1, drums_marker_start_index-1) 
+				.. song.display_path:sub(drums_marker_end_index+1)
+			
+			local base_song = song_list[tag_trimmed_display_name]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (all)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (All)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (lead)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+				or song_list[tag_trimmed_display_name:sub(1,-5)
+								.." (Lead)"
+								..tag_trimmed_display_name:sub(-5+1)
+							]
+
+			if base_song then
+				base_song.full_paths[2] = song.full_paths[1]
+				base_song.display_path = base_song.display_path .. " 🥁"
+
+				song_list[key] = nil
+			else
+				-- failed to find the base song, but this song fit the search pattern. 
+				-- Set this song instrument to drums anyways
+				song.full_paths[2] = song.full_paths[1]
+				song.full_paths[1] = nil
+				song.display_path = song.display_path .. " §7🥁?§r"
+			end
+		end
 	end
-	return song_list
+
+	-- Manipulation is done. Convert to int-indexed table for sorting. 
+	int_index_song_list = {}
+	for _, song in pairs(song_list) do
+		table.insert(int_index_song_list, #int_index_song_list +1, song)
+	end
+	table.sort(int_index_song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
+
+	if #int_index_song_list < 1 then 
+		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
+		-- idealy, this check would happen sooner, but the # syntax only works on int-indexed tables. ¯\_ :/ _/¯ 
+	end
+
+	return int_index_song_list
+end
+
+-- Spinner and loading bar -----------------------------------------------------
+local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
+local function info_display_spinner()
+	local spinner_State = 
+		math.floor(
+			(client.getSystemTime()/1000)	-- Time in Seconds
+			*1.5	-- Speedup
+			%1		-- Clamp to 0-1
+			*4		-- Scale to 0-3
+		)+1			-- Scale to 1-4
+	return spinner_states[spinner_State]
+end
+
+local function progress_bar(width, progress)
+	local progress = math.max( 0, math.min( progress, 1 ) )
+	local num_bars = math.floor((width+1) * progress)
+	local num_space = width - num_bars
+
+	local bar = "▍"	-- same width as space in minecraft	(pre 1.20)
+	local version_number = client.getVersion()
+	local _, num_points_in_version = client.getVersion():gsub("%.","")
+	if num_points_in_version == 1 then version_number = version_number..".0" end
+	-- There's a r14 Figura bug in compareVersion. It errors when comparring
+	-- versions without 3 numbers, like "1.20". We're adding a `.0` to make
+	-- versions like "1.20" valid.
+	if client.compareVersions("1.20.0", version_number ) < 1 then
+		bar = "▊"	-- minecraft updated their font for 1.20
+	end
+
+	local return_val = "▎"
+	for b = 0, width do
+		return_val = return_val .. (b < num_bars and bar or (b == num_bars and info_display_spinner() or  " "))
+	end
+	return_val = return_val .. "▎"
+	return return_val
 end
 
 -- Action Wheel Updating -------------------------------------------------------
 local function song_is_queued(index)
 	if not songbook.queued_song then return false end
-	if not index then return songbook.queued_song ~= nil end
-	if type(index) == "string" then
-		return songbook.queued_song.path == index
+	if not index then
+		return songbook.queue_song_render_loop_is_running and "partial" or true
 	end
-	return songbook.queued_song.path == songbook.song_list[index]
+	if type(index) == "string" then
+		-- index is actualy a path to a file
+		if songbook.queued_song.display_path == index then
+			return songbook.queue_song_render_loop_is_running and "partial" or true
+		end
+	end
+	if songbook.queued_song.path == songbook.song_list[index] then
+		return songbook.queue_song_render_loop_is_running and "partial" or true
+	end
 end
 
 local function song_is_playing(index)
@@ -210,25 +313,29 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		-- local is_playing = song_is_playing(i)
 		-- local is_queued = is_playing and false or song_is_queued(i)
 		display_string = display_string .. "\n"
-			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) and "•" or " ")) )
+			.. (song_is_being_stopped(i) and "⏹" or (song_is_playing(i) and "♬" or (song_is_queued(i) == true and "•" or (song_is_queued(i) and info_display_spinner() or " "))) )
 			.. (song_is_selected and (slowmode and "§4→§r" or "→") or "  ")
 			.. " " ..songbook.song_list[i].display_path
 	end
 
 	display_string = display_string .. "\n"
 	if song_is_playing(songbook.action_wheel.selected_song_index)
-	or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
+		or (song_is_queued(songbook.action_wheel.selected_song_index) == true and song_is_playing())
 	then
 		display_string = display_string .. "Click to stop current song"
-	elseif song_is_queued(songbook.action_wheel.selected_song_index) and song_is_being_stopped() then
+	elseif song_is_queued(songbook.action_wheel.selected_song_index) == true and song_is_being_stopped() then
 		display_string = display_string .. "§4Another song is still being stopped§r"
-	elseif song_is_queued(songbook.action_wheel.selected_song_index) then
+	elseif song_is_queued(songbook.action_wheel.selected_song_index) == true then
 		display_string = display_string .. "Click to play selected song"
+	elseif song_is_queued(songbook.action_wheel.selected_song_index) == "partial" then
+		display_string = display_string .. "Preparing song... " .. info_display_spinner()
+	elseif song_is_queued() == "partial" then
+		display_string = display_string .. "§6Busy preparing `".. songbook.queued_song.path.display_path .."§6`. "..info_display_spinner().."§r"
 	else
 		display_string = display_string .. "Click to queue selected song"
 	end
 
-	if song_is_queued(songbook.action_wheel.selected_song_index) then
+	if song_is_queued(songbook.action_wheel.selected_song_index) == true then
 		display_string = display_string .. "\n"
 			.. (songbook.queued_song.buffer_time > maximum_ping_rate *3 and "§4" or "")
 			.. "Queued song starts in "..math.ceil(songbook.queued_song.buffer_time/1000).." seconds."
@@ -340,6 +447,202 @@ function pings.stop_playing_songs_ping()
 end
 
 -- song builder: helpers -------------------------------------------------------
+local function isUsingPiano()
+	if 		songbook.selected_chloe_piano_pos ~= nil 
+		and piano_lib.validPos(songbook.selected_chloe_piano_pos) 
+	then 
+		return true 
+	else 
+		return false 
+	end
+end
+
+local function getPianoPos()
+	return vec(songbook.selected_chloe_piano_pos:match("{(-?%d*), (-?%d*), (-?%d*)}"))
+end
+
+local drumkitSoundsTable = {
+	-- Table of functions that return a sound, so that we'll get a fresh sound every time. 
+	-- use with drumkitSoundLookup()
+	-- keys are midi codes. see https://zendrum.com/resource-site/drumnotes.htm
+
+	-- Missing sounds default to a hat sound in drumkitSoundLookup()
+
+	[35] = function() -- Acoustic Bass Drum	
+		return sounds["block.note_block.basedrum"]:pitch(0.7)
+	end,
+	[36] = function() -- Bass Drum 1
+		return sounds["block.note_block.basedrum"]:pitch(0.8)
+	end,
+	[37] = function() -- Side Stick
+		return sounds["block.note_block.hat"]:pitch(0.8)
+	end,
+	[38] = function() -- Acoustic Snare
+		return sounds["block.note_block.snare"]:pitch(0.7)
+	end,
+	[39] = function() -- Hand Clap		
+		return sounds[ "item.trident.riptide_1" ]:pitch(6 )
+	end,
+	[40] = function() -- Electric snare
+		return sounds["block.note_block.snare"]:pitch(0.8)
+	end,
+	[41] = function() -- Low Floor Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.25)
+	end,
+	[42] = function() -- Closed Hi-Hat
+		return sounds[ "entity.player.hurt_on_fire" ]:pitch(10 )
+	end,
+	[43] = function() -- High Floor Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.3)
+	end,
+	[44] = function() -- Pedal Hi-Hat
+		return sounds[ "item.trident.hit_ground" ]:pitch(6 )
+	end,
+	[45] = function() -- Low Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.35)
+	end,
+	[46] = function() -- Open Hi-Hat
+		return sounds[ "block.fire.extinguish" ]:pitch(16)
+	end,
+	[47] = function() -- Low-Mid Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.4)
+	end,
+	[48] = function() -- High-Mid Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.45)
+	end,
+	[49] = function() -- Crash Cymbal 1
+		return sounds["item.trident.hit_ground"]:pitch(2)		-- has variations
+	end,
+	[50] = function() -- High Tom
+		return sounds["block.note_block.basedrum"]:pitch(1.5)
+	end,
+	[51] = function() -- Ride Cymbal 1
+		return sounds[ "block.bell.use" ]:pitch(4)			-- has variations
+	end,
+	[52] = function()	-- Chinese Cymbal
+		return sounds[ "block.bell.use" ]:pitch(5)		-- has variations
+	end,
+	[53] = function() -- Ride Bell
+		return sounds[ "block.bell.use" ]:pitch(3)	-- has variations
+	end,
+	[54] = function() --Tambourine
+		return sounds[ "block.beehive.shear" ]:pitch(3.2 )
+	end,
+	[55] = function() -- Splash Cymbal
+		return sounds[ "block.bell.use" ]:pitch(6)		-- has variations
+	end,
+	[56] = function() -- Cowbell
+		return sounds[ "block.note_block.cow_bell" ]:pitch(1.1)
+	end,
+	[57] = function() -- Crash Cymbal 2
+		-- SBC's Crash 2 is nearly identical to Crash 1
+		return sounds["item.trident.hit_ground"]:pitch(2)	-- has variations
+	end,
+	[58] = function() -- Vibroslap
+		return sounds[ "entity.arrow.hit" ]:pitch(1.6)		-- has variations
+	end,
+	[59] = function() -- Ride Cymbal 2
+		return sounds[ "block.bell.use" ]:pitch(4.5)	-- has variations
+	end,
+	[60] = function() -- High Bongo
+		return sounds["entity.iron_golem.step"]:pitch(6)	-- has variations
+	end,
+	[61] = function() -- Low Bongo
+		return sounds["entity.iron_golem.step"]:pitch(4)	-- has variations
+	end,
+	-- [62] = function() -- Muted High Conga
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [63] = function() -- High Conga
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [64] = function() -- Low Conga
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [65] = function() -- High Timbale
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [66] = function() -- Low Timbale
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	[67] = function() -- High Agogo
+		return sounds[ "entity.arrow.hit_player" ]:pitch(1.9)
+	end,
+	[68] = function() -- Low Agogo
+		return sounds[ "entity.arrow.hit_player" ]:pitch(1.7)
+	end,
+	[69] = function() -- Cabasa
+		return sounds[ "entity.silverfish.death" ]:pitch(4)
+	end,
+	[70] = function() -- Maracas
+		return sounds[ "entity.iron_golem.attack" ]:pitch(3)
+	end,
+	-- [71] = function() -- Short Whistle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [72] = function() -- Long Whistle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	[73] = function() -- Short Guiro
+		return sounds["entity.player.burp"]:pitch(7)
+	end,
+	[74] = function() -- Long Guiro
+		return sounds["block.sculk_sensor.clicking"]:pitch(3)	-- has variations
+	end,
+	-- [75] = function() -- Claves
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [76] = function() -- High Wood Block
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [77] = function() -- Low Wood Block
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [78] = function() -- Muted Cuica
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [79] = function() -- Open Cuica
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [80] = function() -- Mute Triangle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+	-- [81] = function() -- Open triangle
+	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
+	-- end,
+}
+
+local function drumkitSoundLookup(semitones_from_a4)
+	local midi_key = semitones_from_a4 + 69	-- A4 is midi key 69. nice. 
+		-- 35 == B1, but SBC calls this B2 for some reason :/
+		-- Whatever. It works, and my ABC parcing is (probably) correct. 
+	if drumkitSoundsTable[midi_key] then
+		return drumkitSoundsTable[midi_key]()
+	end
+
+	return sounds["minecraft:block.note_block.hat"]:setPitch(
+			semitone_offset_to_multiplier(semitones_from_a4+3-12 +24)
+		)
+end
+
+local function numberToBase32(n)
+	-- ty to https://stackoverflow.com/a/3554821
+	n = math.floor(n)
+	local digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local t = {}
+	local sign = ""
+	if n < 0 then
+		sign = "-"
+	n = -n
+	end
+	repeat
+		local d = (n % 32) + 1
+		n = math.floor(n / 32)
+		table.insert(t, 1, digits:sub(d,d))
+	until n == 0
+	return sign .. table.concat(t,"")
+end
+
 local function fracToNumber(str)
 	local top, bot = str:match("(%d)/(%d)")
 	--print(str.." > "..top.." / "..bot)
@@ -395,16 +698,6 @@ local letter_to_semitone_offsets = {
 	["C"] = -9,
 }
 
-local chloe_piano_flat_to_sharp_table = {
-	["B"] = "A#",
-	["A"] = "G#",
-	["G"] = "F#",
-	["F"] = "E",
-	["E"] = "D#",
-	["D"] = "C#",
-	["C"] = "B",	-- << Special case: downgrade octave number.
-}
-
 local key_signatures_keys = {
 	["7#"] = {"C#", "A#M", "G#MIX", "D#DOR", "E#PHR", "F#LYD", "B#LOC"},
 	["6#"] = {"F#", "D#M", "C#MIX", "G#DOR", "A#PHR", "BLYD",  "E#LOC"},
@@ -441,18 +734,148 @@ local key_signatures = {
 	["7b"] = {B = "_",E = "_",A = "_",D = "_",G = "_",C = "_",F = "_",},
 }
 
+local midi_code_to_piano_code = {
+	-- see  https://inspiredacoustics.com/en/MIDI_note_numbers_and_center_frequencies
+	[127] = "G9",
+	[126] = "F#9",
+	[125] = "F9",
+	[124] = "E9",
+	[123] = "D#9",
+	[122] = "D9",
+	[121] = "C#9",
+	[120] = "C9",
+	[119] = "B8",
+	[118] = "A#8",
+	[117] = "A8",
+	[116] = "G#8",
+	[115] = "G8",
+	[114] = "F#8",
+	[113] = "F8",
+	[112] = "E8",
+	[111] = "D#8",
+	[110] = "D8",
+	[109] = "C#8",
+	[108] = "C8",
+	[107] = "B7",
+	[106] = "A#7",
+	[105] = "A7",
+	[104] = "G#7",
+	[103] = "G7",
+	[102] = "F#7",
+	[101] = "F7",
+	[100] = "E7",
+	[99] = "D#7",
+	[98] = "D7",
+	[97] = "C#7",
+	[96] = "C7",
+	[95] = "B6",	-- Max chloe piano range: A0 to B6
+	[94] = "A#6",
+	[93] = "A6",
+	[92] = "G#6",
+	[91] = "G6",
+	[90] = "F#6",
+	[89] = "F6",
+	[88] = "E6",
+	[87] = "D#6",
+	[86] = "D6",
+	[85] = "C#6",
+	[84] = "C6",
+	[83] = "B5",
+	[82] = "A#5",
+	[81] = "A5",
+	[80] = "G#5",
+	[79] = "G5",
+	[78] = "F#5",
+	[77] = "F5",
+	[76] = "E5",
+	[75] = "D#5",
+	[74] = "D5",
+	[73] = "C#5",
+	[72] = "C5",
+	[71] = "B4",
+	[70] = "A#4",
+	[69] = "A4",
+	[68] = "G#4",
+	[67] = "G4",
+	[66] = "F#4",
+	[65] = "F4",
+	[64] = "E4",
+	[63] = "D#4",
+	[62] = "D4",
+	[61] = "C#4",
+	[60] = "C4",
+	[59] = "B3",
+	[58] = "A#3",
+	[57] = "A3",
+	[56] = "G#3",
+	[55] = "G3",
+	[54] = "F#3",
+	[53] = "F3",
+	[52] = "E3",
+	[51] = "D#3",
+	[50] = "D3",
+	[49] = "C#3",
+	[48] = "C3",
+	[47] = "B2",
+	[46] = "A#2",
+	[45] = "A2",
+	[44] = "G#2",
+	[43] = "G2",
+	[42] = "F#2",
+	[41] = "F2",
+	[40] = "E2",
+	[39] = "D#2",
+	[38] = "D2",
+	[37] = "C#2",
+	[36] = "C2",
+	[35] = "B1",
+	[34] = "A#1",
+	[33] = "A1",
+	[32] = "G#1",
+	[31] = "G1",
+	[30] = "F#1",
+	[29] = "F1",
+	[28] = "E1",
+	[27] = "D#1",
+	[26] = "D1",
+	[25] = "C#1",
+	[24] = "C1",
+	[23] = "B0",
+	[22] = "A#0",
+	[21] = "A0",
+}
+
+local function a4_semitones_to_piano_code(a4_semi_tones)
+	midi_code = a4_semi_tones + 69
+	
+	-- Max chloe piano range: A0 to B6
+	if midi_code > 95 or midi_code < 21 then return "X0" end
+	
+	piano_code = midi_code_to_piano_code[midi_code]
+	if piano_code then 
+		return piano_code
+	end
+	return "X0"
+end
+
 -- song builder: notes to instructions -----------------------------------------
-local function save_abc_note_to_instructions(song)	-- returns note's end time
+local function save_abc_note_to_instructions(song)
+
+	-- !! Returns the end time of the note. !!
+
+	-- Converts a single note into an instruction
+	-- single note is stored in the notebuilder table. 
+
 	note_builder = song.songbuilder.note_builder
 	if note_builder.letter == "" then return note_builder.start_time end
 	--print("Saving note to instruction:")
 
 	-- Calculate note duration
 	local time_multiplier = 1.0
-	if note_builder.durration_multiplier ~= "" then
-		time_multiplier = tonumber(note_builder.durration_multiplier)
+	if note_builder.duration_multiplier ~= "" then
+		time_multiplier = tonumber(note_builder.duration_multiplier)
 	end
-	if note_builder.durration_divisor ~= "" then
+	if note_builder.duration_divisor ~= "" then
 		-- divisor should always have at least 1 slash.
 		-- each slash means divide by two, but if there are numbers after
 		-- the slash, don't do the shorthand. A goofy workaround:
@@ -460,16 +883,16 @@ local function save_abc_note_to_instructions(song)	-- returns note's end time
 		-- slash. It will cancel out the shorthand, without making us test
 		-- if we should use the shorthand
 		local numbers, num_devisions =
-			note_builder.durration_divisor:gsub("/", "")
+			note_builder.duration_divisor:gsub("/", "")
 		time_multiplier = time_multiplier / (2.0^num_devisions)
 		if numbers ~= "" then
 			time_multiplier = (time_multiplier*2.0) / tonumber(numbers)
 		end
 	end
 
-	local note_durration = song.songbuilder.time_per_note * time_multiplier
+	local note_duration = song.songbuilder.time_per_note * time_multiplier
 
-	local end_time = note_builder.start_time + note_durration
+	local end_time = note_builder.start_time + note_duration
 
 	-- Generate some strings to use in keys and print statements
 	local accidentals_memory_key = note_builder.letter
@@ -477,8 +900,8 @@ local function save_abc_note_to_instructions(song)	-- returns note's end time
 	local note_string = note_builder.accidentals
 		.. note_builder.letter
 		.. note_builder.octave_ajustments
-		.. note_builder.durration_multiplier
-		.. note_builder.durration_divisor
+		.. note_builder.duration_multiplier
+		.. note_builder.duration_divisor
 
 	-- Load / Save accidentals to memory / key
 	if note_builder.accidentals ~= "" then
@@ -533,52 +956,6 @@ local function save_abc_note_to_instructions(song)	-- returns note's end time
 		+ octave_offset_in_semitones
 		+ accidentals_in_semitones
 
-	-- Convert ABC note strings to Chloe Piano strings
-
-	local semitones_from_C4 = note_semitones_from_A4 +9
-	local octave_number = math.floor((semitones_from_C4+48) / 12)
-
-	-- Note is neither flat nor sharp:
-	local chloe_spaced_out_piano_note_code
-		= note_builder.letter:upper()..tostring(octave_number)
-
-	-- TODO: accidentals_in_semitones does not check if the note is double
-	-- sharp or double flat.
-	if accidentals_in_semitones > 0 then
-		-- Note is sharp. Add "#" to the string.
-		if note_builder.letter:upper() == "E" then
-			-- Edge case where SBC sometimes outputs "^E" or "^B". These are
-			-- invalid, so we need to upgrade them to their neutral alternative.
-			chloe_spaced_out_piano_note_code = "F" ..tostring(octave_number)
-		elseif note_builder.letter:upper() == "B" then
-			chloe_spaced_out_piano_note_code = "C" ..tostring(octave_number+1)
-		else
-			chloe_spaced_out_piano_note_code
-				= note_builder.letter:upper() .."#" ..tostring(octave_number)
-		end
-	elseif accidentals_in_semitones < 0 then
-		-- This note is flat, convert to sharps
-		if note_builder.letter:upper() == "C" then
-			-- edge case where C flat crosses the octave line.
-			chloe_spaced_out_piano_note_code = "B"..tostring(octave_number-1)
-		else
-			chloe_spaced_out_piano_note_code
-				= chloe_piano_flat_to_sharp_table[note_builder.letter:upper()]
-					..tostring(octave_number)
-		end
-	end
-
-	-- Max piano range: A0 to B6
-	if octave_number > 6
-		or (octave_number == 0
-			and not chloe_spaced_out_piano_note_code:upper():match("[AB]+")
-			-- A and B are the only legal letters in octave 0
-		)
-		or octave_number < 1 then
-		chloe_spaced_out_piano_note_code = nil
-		-- Nil codes will be ignored when playing the song.
-	end
-
 	-- Save note instructions
 	if	note_builder.letter:lower() ~= "z"
 	and note_builder.letter:lower() ~= "x"
@@ -588,163 +965,278 @@ local function save_abc_note_to_instructions(song)	-- returns note's end time
 			--string = note_string,
 			semitones_from_a4 = note_semitones_from_A4,
 				-- gets converted to a multiplier in the song player event
-			chloe_piano = chloe_spaced_out_piano_note_code,
+			-- chloe_piano = chloe_spaced_out_piano_note_code,
 			start_time = note_builder.start_time,
 			end_time = end_time,
+			duration = end_time - note_builder.start_time,
+			instrument_index = song.songbuilder.instrument_index,
 		})
 	end
 
 	return end_time
 end
 
-local function song_data_to_instructions(song_abc_data_string)
-	local song = {}
+local data_to_instructions_song = {}
+local function song_data_to_instructions(song_file_metadata)
+	-- Converts a the song.abc file into instructions we can send through pings
 
-	song.instructions = {}
+	local song = data_to_instructions_song
 
-	song.songbuilder = {}
-	song.songbuilder.abc_lines = {}
-	song.songbuilder.next_note_start_time = 0
-	song.songbuilder.key_signature_key = "C"
-	song.songbuilder.default_note_length = 0.25
-	song.songbuilder.length_of_beat_in_measure = 0.25
-	song.songbuilder.notes_per_measure = 4
-	song.songbuilder.beats_per_minute = 120
-	song.songbuilder.last_processed_note_index = 1
-	song.songbuilder.in_note_group = false
-	song.songbuilder.group_earliest_stop_time = math.huge
-	song.songbuilder.accidentals_memory = {}
-	song.songbuilder.note_builder = {
-	  	accidentals = "",
-	  	letter = "",
-	  	octave_ajustments = "",
-	  	durration_multiplier = "",
-	  	durration_divisor = "",
-	  	start_time = song.next_note_start_time
-	}
+	if -- this is our first run, initilize song table
+		not song or not song.songbuilder or not song.songbuilder_metadata.in_progress 
+	then
+		-- Song doesn't exist, or it's an old left over song. 
+		-- Then let's start a new song!
+		song = {}
+		song.instructions = {}
+		song.songbuilder = {}
+		
+		song.songbuilder_metadata = {}
+		song.songbuilder_metadata.abc_lines = nil
+		song.songbuilder_metadata.notes_in_current_line = nil
+		song.songbuilder_metadata.file_paths = song_file_metadata.full_paths
+		song.songbuilder_metadata.next_line_index = 1
+		song.songbuilder_metadata.next_note_in_line_index = 1
+		song.songbuilder_metadata.next_file_index = 1
+		song.songbuilder_metadata.num_tracks = 0
+		song.songbuilder_metadata.in_progress = true
+		song.songbuilder_metadata.loop_count = 0
+		song.songbuilder_metadata.batches = 0
+	end
 
-	for line in song_abc_data_string:gmatch("[^\n]+") do
-		line = line:match("(.*)%%") or line
-			-- % marks the rest of the line is a comment. Remove it and the
-			-- comment from the line. (`%%` to escape the %)
-		if line == nil or line == "" then
-			-- do nothing
-		elseif line:sub(2,2) == ":" then
-			-- Metadata lines.
-			-- "T:" song title. Usually wrong or unhelpful. Use filename instead.
-			-- "Z:" is the song Author.
-			-- "X:" is song ID. Use our own indexing system
-			-- https://abcnotation.com/wiki/abc:standard:v2.1#information_field_definition
+	local while_loop_start_time = client.getSystemTime()
+	song.songbuilder_metadata.batches = song.songbuilder_metadata.batches +1
+	while song.songbuilder_metadata.in_progress 
+		and (while_loop_start_time > client.getSystemTime() -250) 
+	do
+		song.songbuilder_metadata.loop_count = song.songbuilder_metadata.loop_count +1
 
-			if line:sub(1,2) == "L:" then
-				song.songbuilder.default_note_length
-					= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
-				reCalculateMilisPerNote(song.songbuilder)
+		if     -- there are notes to parse
+				song.songbuilder_metadata.notes_in_current_line
+			and #song.songbuilder_metadata.notes_in_current_line >= song.songbuilder_metadata.next_note_in_line_index
+		then
+			local note = song.songbuilder_metadata.notes_in_current_line[song.songbuilder_metadata.next_note_in_line_index]
+			song.songbuilder_metadata.next_note_in_line_index = song.songbuilder_metadata.next_note_in_line_index +1
+			-- print("parcing note: "..note)
 
-			elseif line:sub(1,2) == "M:" then
-				song.songbuilder.notes_per_measure
-					= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
+			if note:match("%[") ~= nil then song.songbuilder.in_group = true end
 
-			elseif line:sub(1,2) == "Q:" then
-				local bpm_key = line:sub(3)
-				local length_of_beat_in_measure, bpm
-					= bpm_key:match("(.+)=(.+)")
+			song.songbuilder.note_builder = {
+				accidentals = note:match("[_=%^]+") or "",
+				letter = note:match("%a"),
+					-- this will match any letter, but should only be given
+					-- A, B, C, D, E, F, G, Z, or X in upper or lower case.
+				octave_ajustments = note:match("[,']+") or "",
+				duration_multiplier = note:match("[%a,'](%d+)") or "",
+				duration_divisor = note:match("/+%d*") or "",
+					-- divisor also includes the `/` characters.
+				start_time = song.songbuilder.next_note_start_time
+			}
 
-				if bpm == nil then
-					bpm = bpm_key:match("%d+")
-					-- ^^ This usage is technicly deprecated in ABC 2.1, but some of the
-					-- default starbound songs use the `Q:90` (no fraction syntax)
-				else
-					length_of_beat_in_measure = fracToNumber(length_of_beat_in_measure)
+			local returned_note_end_time = save_abc_note_to_instructions(song)
+
+			if song.songbuilder.in_group then
+				if returned_note_end_time
+					< song.songbuilder.group_earliest_stop_time
+				then
+					-- This check is wrong, but it works most of the time?
+					-- According to the docs, The end time of the group
+					-- should be set by the first note's end time, But this
+					-- logic finds the shortest note in the group, and
+					-- uses that end time instead.
+					song.songbuilder.group_earliest_stop_time = returned_note_end_time
 				end
-				bpm = tonumber(bpm)
+			else
+				song.songbuilder.next_note_start_time = returned_note_end_time
+			end
 
-				song.songbuilder.length_of_beat_in_measure = length_of_beat_in_measure
-				song.songbuilder.beats_per_minute = bpm
-				reCalculateMilisPerNote(song.songbuilder)
+			if note:match("%]") ~= nil then
+				--print("ends group")
+				song.songbuilder.in_group = false
+				song.songbuilder.next_note_start_time = song.songbuilder.group_earliest_stop_time
+				note_builder.start_time = song.songbuilder.next_note_start_time
+				song.songbuilder.group_earliest_stop_time = math.huge
+			end
 
-			elseif line:sub(1,2) == "K:" then
-				-- "K:" marks the key signature, and also marks the end of the header
-				local song_file_key = line:sub(3):gsub("%s+", ""):upper()
-				key_signature_key = ""
-				for key, alt_names in pairs(key_signatures_keys) do
-					for _, name in pairs(alt_names) do
-						if song_file_key:sub(0, math.max(#name, 3)) == name then
-							key_signature_key = key
+			song.songbuilder.last_processed_note_index = song.songbuilder.last_processed_note_index +1	-- TODO: this might be removable. 
+		elseif -- there are no notes to parce, but there are lines to parce
+				song.songbuilder_metadata.abc_lines
+			and #song.songbuilder_metadata.abc_lines >= song.songbuilder_metadata.next_line_index
+		then
+			-- Bump the line_index. Find next line of notes.
+			song.songbuilder_metadata.next_note_in_line_index = 1
+			-- print("getting next line at index "..song.songbuilder_metadata.next_line_index)
+			song.songbuilder_metadata.notes_in_current_line = nil
+
+			local line = song.songbuilder_metadata.abc_lines[song.songbuilder_metadata.next_line_index]
+			song.songbuilder_metadata.next_line_index = song.songbuilder_metadata.next_line_index +1
+
+			line = line:match("(.*)%%") or line	-- filter out end-of-line comments
+
+			if 	-- Line is empty
+				not line 
+			then
+				-- We've already checked if we're out of bounds, so this 
+				-- line just happens to be empty. Ignore it and continue
+				-- next loop. 
+			elseif	-- Line is an information line. 
+				line:sub(2,2) == ":"
+			then
+				-- Metadata lines.
+				-- "T:" song title. Usually wrong or unhelpful. Use filename instead.
+				-- "Z:" is the song Author.
+				-- "X:" is song ID. Use our own indexing system
+				-- https://abcnotation.com/wiki/abc:standard:v2.1#information_field_definition
+
+				if line:sub(1,2) == "L:" then
+					song.songbuilder.default_note_length
+						= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
+					reCalculateMilisPerNote(song.songbuilder)
+
+				elseif line:sub(1,2) == "M:" then
+					song.songbuilder.notes_per_measure
+						= fracToNumber(line:sub(3):gsub('^%s*(.-)%s*$', '%1'))
+
+				elseif line:sub(1,2) == "Q:" then
+					local bpm_key = line:sub(3)
+					local length_of_beat_in_measure, bpm
+						= bpm_key:match("(.+)=(.+)")
+
+					if bpm == nil then
+						bpm = bpm_key:match("%d+")
+						-- ^^ This usage is technicly deprecated in ABC 2.1, but some of the
+						-- default starbound songs use the `Q:90` (no fraction syntax)
+					else
+						length_of_beat_in_measure = fracToNumber(length_of_beat_in_measure)
+					end
+					bpm = tonumber(bpm)
+
+					song.songbuilder.length_of_beat_in_measure = length_of_beat_in_measure
+					song.songbuilder.beats_per_minute = bpm
+					reCalculateMilisPerNote(song.songbuilder)
+
+				elseif line:sub(1,2) == "K:" then
+					-- "K:" marks the key signature, and also marks the end of the header
+					local song_file_key = line:sub(3):gsub("%s+", ""):upper()
+					key_signature_key = ""
+					for key, alt_names in pairs(key_signatures_keys) do
+						for _, name in pairs(alt_names) do
+							if song_file_key:sub(0, math.max(#name, 3)) == name then
+								key_signature_key = key
+								break
+							end
+						end
+						if key_signature_key ~= '' then
 							break
 						end
 					end
-					if key_signature_key ~= '' then
-						break
-					end
+					song.songbuilder.key_signature_key = key_signature_key
 				end
-				song.songbuilder.key_signature_key = key_signature_key
+			else -- Line is a sequence of notes
+				-- Dump notes into notes_in_current_line for next loop. 
+				song.songbuilder_metadata.notes_in_current_line = {}
+				song.songbuilder_metadata.next_note_in_line_index = 1
+				for note in line:gmatch("%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?") do
+					-- Note structure that we look for:
+					-- might start with 1 `[`									-- Marks the start of a group
+					-- might have any number of `_`, `=`, or `^` characters		-- Marks the note's accidental (Flat or sharp)
+					-- _must_ have 1 letter										-- Marks the note name. Lowercase is up 1 octave.
+					-- might have any number of `,` or `'` characters			-- Marks a shifts in octave. `,` for down, `'` for up.
+					-- might have any number of numbers							-- Marks the duration of the note, in multiples of song.songbuilder.default_note_length set by `L:`
+					-- might have any number of `/` characters					-- Flags the next number as a divisor for the duration. If it's not followed by a number, it divides the duration by (2 * number of division signs)
+					-- might have any number of numbers							-- When followed by a `/`, marks the divisor of the note length.
+					-- might end with 1 `]`										-- Marks the end of a group.
+
+					-- Unchecked cases:
+					-- Starbound composer usually converts the more exotic cases into individual notes, but these two might be common in traditional ABC files.
+					-- `[` can introduce an information header mid-line. SBC puts information fields into their own line, so this case rarely occurs.
+					-- `>` and `<` to mark broken rhythm. (see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm) SBC writes these as full fractions, so it rarely occurs.
+					-- In song comments.
+					
+					table.insert(song.songbuilder_metadata.notes_in_current_line, note)
+				end
 			end
-		else
-			-- Non information line. Assume it's a chain of notes
-			for note in line:gmatch("%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?") do
-				-- Note structure that we look for:
-				-- might start with 1 `[`							-- Marks the start of a group
-				-- might have any number of `_`, `=`, or `^` characters		-- Marks the note's accidental (Flat or sharp)
-				-- _must_ have 1 letter								-- Marks the note name. Lowercase is up 1 octave.
-				-- might have any number of `,` or `'` characters	-- Marks a shifts in octave. `,` for down, `'` for up.
-				-- might have any number of numbers					-- Marks the duration of the note, in multiples of song.songbuilder.default_note_length set by `L:`
-				-- might have any number of `/` characters			-- Flags the next number as a divisor for the duration. If it's not followed by a number, it divides the duration by (2 * number of division signs)
-				-- might have any number of numbers					-- When followed by a `/`, marks the divisor of the note length.
-				-- might end with 1 `]`								-- Marks the end of a group.
+			
+		-- elseif there are more files to parce -- TODO: make this script in charge of running through the file_save stuffs. 
+			-- save current instructions, and pull in next file into abc_lines. 
+			-- reset line data and note data. 
+			-- next loop will set up the next line. 
+		elseif -- there are no lines to parce, but there are files to turn into lines
+				song.songbuilder_metadata.file_paths
+			and #song.songbuilder_metadata.file_paths >= song.songbuilder_metadata.next_file_index
+		then
+			local new_file_path = song.songbuilder_metadata.file_paths[song.songbuilder_metadata.next_file_index]
+			local new_instrument_index = song.songbuilder_metadata.next_file_index
+			song.songbuilder_metadata.next_file_index = song.songbuilder_metadata.next_file_index+1
 
-				-- Unchecked cases:
-				-- Starbound composer usually converts the more exotic cases into individual notes, but these two might be common in traditional ABC files.
-				-- `[` can introduce an information header mid-line. SBC puts information fields into their own line, so this case rarely occurs.
-				-- `>` and `<` to mark broken rhythm. (see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm) SBC writes these as full fractions, so it rarely occurs.
-				-- In song comments.
+			if not new_file_path then
+				-- file path itself is nil. Can happen if trying to play a song that has drums, and has no lead track. 
+				-- The table will have 1 entry at index 2, so index 1 will be nil. 
+				-- In this case we can safely ignore it and let the loop try again. 
+			elseif not file:isFile(new_file_path) then 
+				print("No file found at `".. new_file_path .."`.")
+			else
+				-- print("Loading file: "..new_file_path)
 
-				if note:match("%[") ~= nil then song.songbuilder.in_group = true end
+				local file_data_string = file:readString(new_file_path)
+				if file_data_string then
+					-- File is good. 
+					-- Break it into abc_lines and reset songbuilder for new file. 
 
-				song.songbuilder.note_builder = {
-				  	accidentals = note:match("[_=%^]+") or "",
-				  	letter = note:match("%a"),
-				  		-- this will match any letter, but should only be given
-				  		-- A, B, C, D, E, F, G, Z, or X in upper or lower case.
-				  	octave_ajustments = note:match("[,']+") or "",
-				  	durration_multiplier = note:match("[%a,'](%d+)") or "",
-				  	durration_divisor = note:match("/+%d*") or "",
-				  		-- divisor also includes the `/` characters.
-				  	start_time = song.songbuilder.next_note_start_time
-				}
-
-				local returned_note_end_time = save_abc_note_to_instructions(song)
-
-				if song.songbuilder.in_group then
-					if returned_note_end_time
-						< song.songbuilder.group_earliest_stop_time
-					then
-						-- This check is wrong, but it works most of the time?
-						-- According to the docs, The end time of the group
-						-- should be set by the first note's end time, But this
-						-- logic finds the shortest note in the group, and
-						-- uses that end time instead.
-						song.songbuilder.group_earliest_stop_time = returned_note_end_time
-					end
-				else
-					song.songbuilder.next_note_start_time = returned_note_end_time
-				end
-
-				if note:match("%]") ~= nil then
-					--print("ends group")
-					song.songbuilder.in_group = false
-					song.songbuilder.next_note_start_time = song.songbuilder.group_earliest_stop_time
-					note_builder.start_time = song.songbuilder.next_note_start_time
+					song.songbuilder = {}
+					song.songbuilder.next_note_start_time = 0
+					song.songbuilder.key_signature_key = "C"
+					song.songbuilder.default_note_length = 0.25
+					song.songbuilder.length_of_beat_in_measure = 0.25
+					song.songbuilder.notes_per_measure = 4
+					song.songbuilder.beats_per_minute = 120
+					song.songbuilder.last_processed_note_index = 1
+					song.songbuilder.in_note_group = false
 					song.songbuilder.group_earliest_stop_time = math.huge
-				end
+					song.songbuilder.accidentals_memory = {}
+					song.songbuilder.instrument_index = new_instrument_index
+					song.songbuilder.note_builder = {
+						accidentals = "",
+						letter = "",
+						octave_ajustments = "",
+						duration_multiplier = "",
+						duration_divisor = "",
+						start_time = song.songbuilder.next_note_start_time
+					}
 
-				song.songbuilder.last_processed_note_index = song.songbuilder.last_processed_note_index +1
+					song.songbuilder_metadata.abc_lines = nil
+					song.songbuilder_metadata.abc_lines = {}
+					song.songbuilder_metadata.notes_in_current_line = nil
+					song.songbuilder_metadata.next_line_index = 1
+					song.songbuilder_metadata.next_note_in_line_index = 1
+					song.songbuilder_metadata.num_tracks = song.songbuilder_metadata.num_tracks +1
+
+					for line in file_data_string:gmatch("[^\n]+") do
+						table.insert(song.songbuilder_metadata.abc_lines, #song.songbuilder_metadata.abc_lines+1, line)
+					end
+				end
 			end
+
+		else   -- there are no more notes, lines or files to parce. We're done
+			-- print("done generating instructions in "..song.songbuilder_metadata.batches .." batches and "..song.songbuilder_metadata.loop_count.." loops")
+			if song.songbuilder_metadata.num_tracks > 1 then
+				table.sort(
+					song.instructions, 
+					function(a,b) 
+						return a.start_time < b.start_time 
+					end
+				)
+			end
+			song.songbuilder_metadata.in_progress = false
+			song.songbuilder = nil
+			song.songbuilder_metadata = nil
+			return song.instructions
 		end
 	end
 
-	song.songbuilder = nil
-	return song.instructions
+	-- save data for next round.
+	data_to_instructions_song = song
+	return nil
 end
 
 
@@ -785,32 +1277,51 @@ function play_song_event_loop()
 				.."/"..#song.instructions
 				.."/"..song.num_expected_instructions
 				.." ".. instruction.chloe_piano .. (#instruction.chloe_piano > 2 and "" or " ")
+				-- .." ".. instruction.semitones_from_a4
 
 			)	-- ` #20/100/2000 A4 `
-			if songbook.selected_chloe_piano_pos ~= nil and piano_lib.validPos(songbook.selected_chloe_piano_pos) then
+			if isUsingPiano() and instruction.instrument_index == 1	-- main instrument only
+			then
 				-- Catches if the piano was broken recently.
 			 	-- print("playing note "..instruction.chloe_piano.. " on piano at "..songbook.selected_chloe_piano_pos)
 			 	if instruction.chloe_piano ~= "X0" then
-			 		piano_lib.playNote( songbook.selected_chloe_piano_pos , instruction.chloe_piano, true)
+					local no_error, pcall_message = pcall( piano_lib.playNote, songbook.selected_chloe_piano_pos , instruction.chloe_piano, true)
+					if no_error then
+						-- Chloe piano can't sustain notes, so we don't need to 
+						-- bother checking if the note's done playing.
+						-- Also, checking here means that if pcall fails, the
+						-- built-in instrument will try to play this note again. 
+						instruction.already_played = true
+					else
+						print("§4⚠ --== Piano Error ==-- ⚠§r"
+							.."\n§6You will need to reload the piano avatar.§r"
+							.."\nError message from piano:"
+							.."\n"..pcall_message
+						)
+						print("Falling back to no-piano mode.")
+						pings.set_selected_piano(nil)
+					end
 			 	end
-			 	instruction.already_played = true
-			 	-- Chloe piano can't sustain notes, so we don't need to bother
-			 	-- checking if the note's done playing.
 			else
-				--print( instruction_index.." > ".. instruction.chloe_piano)
-				if avatar:canUseCustomSounds() then
+				if instruction.instrument_index == 2 then
+					instruction.sound_id = drumkitSoundLookup(instruction.semitones_from_a4)
+						:setVolume( isUsingPiano() and 0.8 or 0.5)
+				elseif avatar:canUseCustomSounds() then
 					instruction.sound_id = sounds["scripts.abc_player.triangle_sin"]
+						:setVolume(4)
+						:setLoop(true)
+						:setPitch(
+							semitone_offset_to_multiplier(instruction.semitones_from_a4)
+						)
 				else
 					instruction.sound_id = sounds["minecraft:block.note_block.bell"]
+						:setPitch(
+							semitone_offset_to_multiplier(instruction.semitones_from_a4+3-12)
+						)
 				end
 
 				instruction.sound_id
-					:setPos(player:getPos())
-					:setLoop(avatar:canUseCustomSounds())
-					:setPitch(avatar:canUseCustomSounds()
-						and semitone_offset_to_multiplier(instruction.semitones_from_a4)
-						or semitone_offset_to_multiplier(instruction.semitones_from_a4+3-12)
-					)
+					:setPos(isUsingPiano() and getPianoPos() or player:getPos())
 					:setSubtitle("Music from "..player:getName())
 					:play()
 					-- todo: use nameplate instead of player:getName()
@@ -953,42 +1464,6 @@ local function start_song_player_event()
 end
 
 -- Display info ----------------------------------------------------------------
-local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
-local last_spinner_state = 1
-local spinner_delay_counter = 1
-local spinner_delay_counter_max = 5
-local function info_display_spinner()
-	if spinner_delay_counter > spinner_delay_counter_max then
-		last_spinner_state = (last_spinner_state+1) % #spinner_states
-		spinner_delay_counter = 1
-	end
-	spinner_delay_counter = spinner_delay_counter + 1
-	return spinner_states[last_spinner_state+1]
-end
-
-local function progress_bar(width, progress)
-	local progress = math.max( 0, math.min( progress, 1 ) )
-	local num_bars = math.floor((width+1) * progress)
-	local num_space = width - num_bars
-
-	local bar = "▍"	-- same width as space in minecraft	(pre 1.20)
-	local version_number = client.getVersion()
-	local _, num_points_in_version = client.getVersion():gsub("%.","")
-	if num_points_in_version == 1 then version_number = version_number..".0" end
-	-- There's a r14 Figura bug in compareVersion. It errors when comparring
-	-- versions without 3 numbers, like "1.20". We're adding a `.0` to make
-	-- versions like "1.20" valid.
-	if client.compareVersions("1.20.0", version_number ) < 1 then
-		bar = "▊"	-- minecraft updated their font for 1.20
-	end
-
-	local return_val = "▎"
-	for b = 0, width do
-		return_val = return_val .. (b < num_bars and bar or (b == num_bars and info_display_spinner() or  " "))
-	end
-	return_val = return_val .. "▎"
-	return return_val
-end
 
 local info_display_current_pos = vec(0, 0, 0)
 local info_display_previous_pos = vec(0, 0, 0)
@@ -1196,22 +1671,28 @@ function deserialize(packet_string)
 		for serialized_instruction in packet_string:gmatch("[^%s]*") do	-- splits on space
 			local song_instruction = {}
 			song_instruction.start_time,
-				song_instruction.end_time,
-				song_instruction.semitones_from_a4,
-				song_instruction.chloe_piano
-				= serialized_instruction:match("s([^%a]+)e([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
+				song_instruction.duration,
+				song_instruction.instrument_index,
+				song_instruction.semitones_from_a4
+				-- = serialized_instruction:match("s([%d%u]+)d([%d%u]+)i([^%a]+)t(%-?[^%a]+)p(%a#?%d)")
+				= serialized_instruction:match("s([%d%u]+)d([%d%u]+)i([^%a]+)t(%-?[^%a]+)")
 
-			song_instruction.start_time = tonumber(song_instruction.start_time)
-			song_instruction.end_time = tonumber(song_instruction.end_time)
+			song_instruction.start_time = tonumber(song_instruction.start_time, 32)
+			song_instruction.duration = tonumber(song_instruction.duration, 32)
+			song_instruction.end_time = song_instruction.start_time + song_instruction.duration
+			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
+			
+			song_instruction.chloe_piano = a4_semitones_to_piano_code(song_instruction.semitones_from_a4)
 
 			--printTable(song_instruction)
 			table.insert(songbook.incoming_song.instructions, song_instruction)
 
 			if not song_instruction or song_instruction == {} or not song_instruction.start_time then
+				print("Malformed instruction packet!")
 				printTable(song_instruction)
 				print(serialized_instruction)
-				error("soups")
+				error("Malformed instruction packet: `" .. serialized_instruction .."`")
 			end
 
 		end
@@ -1290,7 +1771,7 @@ local function send_packets(packets)
 	)
 end
 
-local function song_instructions_to_packets(song_file_path, song_instructions)
+local function song_instructions_to_packets(song_files, song_instructions)
 	local minimum_song_start_delay = maximum_ping_rate
 	local ping_packets = {}
 	local packet_builder = ""
@@ -1322,10 +1803,10 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 		end
 
 		local serialized_instruction =
-			  "s"..( string.format("%0d",instruction.start_time) )	-- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
-			.."e"..( string.format("%0d",instruction.end_time) )
-			.."t"..( string.format("%0d",instruction.semitones_from_a4) )
-			.."p"..( instruction.chloe_piano and instruction.chloe_piano or "X0" )		-- Piano commands might be nil if out of range. Replace with X.
+			  "s"..( numberToBase32(math.floor(instruction.start_time)) )
+			.."d"..( numberToBase32(math.floor(instruction.duration)) )
+			.."i"..( string.format("%0d",instruction.instrument_index) )
+			.."t"..( string.format("%0d",instruction.semitones_from_a4) ) -- D drops the decimal place, which is fine since we are allready timing everything in miliseconds. We don't need 11 digets of sub-milisecond presision
 		-- if instruction.chloe_piano == nil then print(serialized_instruction) end
 
 		if instruction.end_time > last_end_time then last_end_time = instruction.end_time end
@@ -1346,68 +1827,88 @@ local function song_instructions_to_packets(song_file_path, song_instructions)
 	if packet_builder ~= "" then table.insert(ping_packets, packet_builder) end
 
 	-- Info packet. Reserve this space before inserting instructions. (or append this packet to the front. it needs to be sent first)
-	ping_packets[1] = "n"..song_file_path.name.."//"	-- // for end of name
+	ping_packets[1] = "n"..song_files.name.."//"	-- // for end of name
 		.."p".. #ping_packets
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
 		.."e".. last_end_time
-
+	
 	return ping_packets, minimum_song_start_delay
 end
 
 -- Song playing ----------------------------------------------------------------
-local function queue_song(song_file_path)
-	songbook.queued_song = {}
-	
-	-- print("Preparing to play "..song_file_path.name)
+local function queue_song_render_loop()
+	-- using WORLD_RENDER instead of tick event, because in TICK events, the 
+	-- game will try to catch up on any ticks it missed, meaning it will still 
+	-- freeze up (though it won't crash). 
+	-- Render events are happy to drop frames, so they lock up a little less. 
+	-- WORLD_RENDER events are basicly guarrentied to be running, unlike 
+	-- player's render event. And since this function is only called by the host,
+	-- (who we assume to have max trust) we shouldn't have any issues. 
 
-	if not file:isFile(song_file_path.safe_path) then 
-		print("No file found at `".. song_file_path.safe_path .."`.")
-		return 
+	if not songbook.song_instructions then
+		songbook.song_instructions = song_data_to_instructions(songbook.queued_song.path)
+		if songbook.song_instructions then
+			print("Generated "..#songbook.song_instructions.." instructions.")
+		end
+	elseif not songbook.queued_packets then
+		local ping_packets, minimum_song_start_delay  = song_instructions_to_packets(songbook.queued_song.path, songbook.song_instructions)	
+
+		if ping_packets then
+			songbook.queued_packets = ping_packets
+			songbook.queued_song.buffer_time = minimum_song_start_delay
+		end
+	else
+		-- Instructions and packets are populated. Our work must be done.
+		print("Ready to play "..songbook.queued_song.path.display_path
+			.. (maximum_ping_rate*5 < songbook.queued_song.buffer_time and
+				"\n  song run time " ..math.ceil(songbook.song_instructions[#songbook.song_instructions].start_time /1000) .. "s"
+				.."\n  §4song needs to buffer for ".. math.ceil(songbook.queued_song.buffer_time/1000).."s§r"
+			or "")
+			.."\n  Total run time: "..math.ceil(songbook.song_instructions[#songbook.song_instructions].start_time /1000) + math.ceil(songbook.queued_song.buffer_time/1000) .."s"
+		)
+
+		events.WORLD_RENDER:remove(queue_song_render_loop_name)
+		songbook.queue_song_render_loop_is_running = nil
+		songbook_action_wheel_page_update_song_picker_button()
+		return
 	end
-
-	-- TODO: validation. Make sure incomming file looks like an ABC file?
-	local song_abc_data = file:readString(song_file_path.safe_path)
-
-	-- Convert data to instructions.
-	--print("Generating instructions...")
-
-	local song_instructions = song_data_to_instructions(song_abc_data)
-	--print("Generated "..#song_instructions.." instructions.")
-
-	local packets, time_to_start = song_instructions_to_packets(song_file_path, song_instructions)
-
-	--print("serializer made "..#packets.." packets")
-	--print("The song lasts "..math.ceil(song_instructions[#song_instructions].start_time /1000).."s")
-	-- if maximum_ping_rate*5 < time_to_start then
-	-- 	print("This song is heavy. It will take "..math.ceil(time_to_start/1000).." seconds to buffer enough packets")
-	-- end
-
-	songbook.queued_song.path = song_file_path
-	songbook.queued_song.buffer_time = time_to_start
-	songbook.queued_packets = packets
-	print("Ready to play "..song_file_path.display_path
-		.. (maximum_ping_rate*5 < time_to_start and
-			"\n  song run time " ..math.ceil(song_instructions[#song_instructions].start_time /1000) .. "s"
-			.."\n  §4song needs to buffer for ".. math.ceil(time_to_start/1000).."s§r"
-		or "")
-		.."\n  Total run time: "..math.ceil(song_instructions[#song_instructions].start_time /1000) + math.ceil(time_to_start/1000) .."s"
-	)
+	if action_wheel:isEnabled() then songbook_action_wheel_page_update_song_picker_button() end 
 end
 
-local function play_song(song_file_path)
-	if song_file_path ~= songbook.queued_song.path then
-		log("`"..song_file_path.."` is not queued yet. Doing that now.")
-		queue_song(song_file_path)
+local function queue_song(song_files)
+	events.WORLD_RENDER:remove(queue_song_render_loop_name)
+
+	songbook.queued_song = nil
+	songbook.queued_song = {}
+	songbook.song_instructions = nil
+	songbook.queued_packets = nil
+	songbook.queued_song.buffer_time = nil
+	songbook.queued_song.path = song_files
+	
+	if song_files then
+		-- if we send a nil to queue_song, we can cancel the queue. Not that we'd need to, but could be nice. 
+		songbook.queue_song_render_loop_is_running = true
+		songbook_action_wheel_page_update_song_picker_button()
+		events.WORLD_RENDER:register(queue_song_render_loop, queue_song_render_loop_name)
 	end
-	print("Playing "..song_file_path.display_path)
-	songbook.playing_song_path = song_file_path
+end
+
+local function play_song(song_files)
+	if song_files ~= songbook.queued_song.path then
+		log("`"..song_files.."` is not queued yet. Doing that now.")
+		queue_song(song_files)
+	end
+	print("Playing "..song_files.display_path)
+	songbook.playing_song_path = song_files
 	--print("Sending packets to listeners.")
 	send_packets(songbook.queued_packets)
 end
 
 -- Piano and Actionwheel -------------------------------------------------------
-local function is_block_piano(targeted_block)	-- if true, 2nd value is the lib for the piano
+local function is_block_piano(targeted_block)	
+	-- two return types: result 1 is a bool, 2nd result is the lib for the piano
+
 	if type(targeted_block) == "Vector3" then
 		targeted_block = world.getBlockState(targeted_block)
 	end
@@ -1453,8 +1954,8 @@ function pings.set_selected_piano(piano_block_pos)
 				:title("Select Chloe Piano\nCurrent Piano at ".. songbook.selected_chloe_piano_pos .."\nClick while looking away to deselect.")
 		end
 	else
-			-- Host tried to set a piano at this position, but for whatever reason, we failed find a piano at that pos
-			log("Couldn't find Piano at "..tostring(piano_block_pos))
+		-- Host tried to set a piano at this position, but for whatever reason, we failed find a piano at that pos
+		log("Couldn't find Piano at "..tostring(piano_block_pos))
 	end
 end
 
@@ -1531,14 +2032,21 @@ local function songbook_action_wheel_page_setup()
 		:onLeftClick(function()
 			if songbook.song_list == nil or #songbook.song_list < 1 then return end
 
-			if song_is_playing(songbook.action_wheel.selected_song_index)
-			or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
+			if song_is_queued() == "partial" then 
+				if song_is_queued(songbook.action_wheel.selected_song_index) then
+					-- print("This song is still being processed.")
+				else
+					print("§6Can't prepare this song. \nAlready preparing `"..songbook.queued_song.path.display_path.."§6`.§r")
+				end
+
+			elseif song_is_playing(songbook.action_wheel.selected_song_index)
+				or (song_is_queued(songbook.action_wheel.selected_song_index) and song_is_playing())
 			then
 				-- reselecting the playing song should stop it
 				-- If trying to play a new song, stop old song
 				pings.stop_playing_songs_ping()
-			elseif song_is_queued(songbook.action_wheel.selected_song_index)
-			and not song_is_being_stopped()
+			elseif song_is_queued(songbook.action_wheel.selected_song_index) == true
+				and not song_is_being_stopped()
 			then
 				play_song(songbook.song_list[songbook.action_wheel.selected_song_index])
 			else
@@ -1551,7 +2059,9 @@ local function songbook_action_wheel_page_setup()
 		:onRightClick(function()
 			--slowmode
 			if song_is_playing() then
-				print("Can't toggle slow mode. Currently playing a song.")
+				print("Can't toggle slow mode. Currently playing a `"..songbook.queued_song.path.display_path.."§r`.")
+			elseif song_is_queued() == "partial" then
+				print("Can't toggle slow mode. Currently preparing `"..songbook.queued_song.path.display_path.."§r`.")
 			else
 				if slowmode then
 					maximum_ping_size = default_maximum_ping_size

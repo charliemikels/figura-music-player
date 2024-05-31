@@ -73,11 +73,11 @@ target folder
 
 Without the actual Starbound assets, you won't be able to preview your songs, but you will still be able to convert them from Midi to ABC, and you'll even be able to merge multiple tracks/files into a single ABC file. 
 
-1. Select all tracks.
-  - Ignore track 10, it's allways percussion.
+1. Select all tracks. (Deselect track 10, it's allways percussion.)
 2. Click the blue merge button.
-3. Delete the old tracks. 
-4. Save the new merged track to abc. 
+3. Delete the old tracks.
+4. Save the new merged track to abc.
+5. If you have a percussion track, save it as a seperate file, and append ` - Drums` to the end of the filename (immediatly before the `.abc` file extension). (Include the leading space in ` - Drums`.)
 
 If SBC won't work for you, you can try your hand at [this mega list of software for ABC files](https://abcnotation.com/software), some of them say they can convert ABC files to and from Midi files, however a lot of them just point to dead links. I haven't found one I really like yet. Your mileage may vary. <!-- However, [MidiZyx2abc](http://www.midicond.de/Freeware/index_en.html#MidiZyx2abc) might be pretty reasonable? -->
 
@@ -131,6 +131,7 @@ The text window for this button displays some important info:
 - Left click a queued song to start playing it.
 - Left click on a queued song while another song is playing to stop the currently playing song.
   - (This also works if the queued song is also the playing song.)
+- Right click when not playing a song to enter Slow Mode. The script is tuned to stay under the ping limit at all times. But there are several cases where the actual ping limit is lower than expected. Slow Mode significantly reduces ping size and ping rate to stay under more restrictive ping limits. 
 
 ## FAQ
 
