@@ -60,7 +60,7 @@ local function get_song_list()
 	if not host:isHost() then return end
 
 	if not file:isPathAllowed(songbook_root_file_path) then
-		-- short-circut future file api requests. 
+		-- short-circut future file api requests.
 		print("⚠ Invalid songbook path: `[figura_root]/data/"..tostring(songbook_root_file_path).."`.")
 		print("⚠ Check the `songbook_root_file_path` variable.")
 		return {}
@@ -72,7 +72,7 @@ local function get_song_list()
 
 		if songbook_root_file_path and type(songbook_root_file_path) == "string" then
 			local mkdir_was_successfull = file:mkdirs(songbook_root_file_path)
-			
+
 			if mkdir_was_successfull then
 				print("Created a new songbook folder at `[figura_root]/data/"..songbook_root_file_path.."`")
 				print("Place `.abc` song files here, then reload the avatar.")
@@ -85,14 +85,14 @@ local function get_song_list()
 			print("⚠ Check the `songbook_root_file_path` variable.")
 		end
 
-		-- songbook was not found. whether we were able to 
-		-- create a new one or not, there will be no data to 
+		-- songbook was not found. whether we were able to
+		-- create a new one or not, there will be no data to
 		-- find there anyways. Just return `{}`
 		return {}
 	end
 
 	local song_list = {}
-	--	song_list = { 
+	--	song_list = {
 	--		1: {
 	--			name, 			-- string. Short name of file. Excludes path and `.abc`		-- used in display board
 	--			display_path	-- string. Path excluding `songbook_root_file_path`			-- used in song picker
@@ -100,24 +100,24 @@ local function get_song_list()
 	--				1: "Path to main instrument"
 	--				2: "Path to percussion track" (if available)
 	--				3: "path to TBD 3rd instrument track" (May never be used.)
-	--				-- full_path index represents the instrument to use to play the file. Must be an int. 
-	--			}		
+	--				-- full_path index represents the instrument to use to play the file. Must be an int.
+	--			}
 	-- 		},
 	-- 		2: { etc… },
 	--		…
 	--	}
 
-	-- songbook may have either song files, or directories. 
-	-- file:list() doesn't tell us if a path is a directory or a file. 
-	-- we need to check all of them. 
+	-- songbook may have either song files, or directories.
+	-- file:list() doesn't tell us if a path is a directory or a file.
+	-- we need to check all of them.
 	local paths_to_test = file:list(songbook_root_file_path);
 
-	while #paths_to_test > 0 do 
+	while #paths_to_test > 0 do
 		local current_path = table.remove(paths_to_test)
 		local full_path = songbook_root_file_path .. "/" .. current_path
 
 		if file:isDirectory(full_path) then
-			-- Path is a directory, put its contents into the test loop. 
+			-- Path is a directory, put its contents into the test loop.
 			for _,v in ipairs(file:list(full_path)) do
 				table.insert(paths_to_test, (current_path .. "/" .. v))
 			end
@@ -132,22 +132,22 @@ local function get_song_list()
 		end
 	end
 
-	-- Rescan final list to merge songs with drum tracks. 
+	-- Rescan final list to merge songs with drum tracks.
 
 	for key, song in pairs(song_list) do
 		-- captures tags like ` - Drums` and ` (Percussion)`
-		local drums_marker_start_index, drums_marker_end_index = 
+		local drums_marker_start_index, drums_marker_end_index =
 			song.display_path:lower():find("%s*%-?%s?%(?percussion%)*%s*")
 		if not drums_marker_start_index then
-			drums_marker_start_index, drums_marker_end_index = 
+			drums_marker_start_index, drums_marker_end_index =
 				song.display_path:lower():find("%s*%-?%s?%(?drums?%)*%s*")
 		end
 
-		if drums_marker_start_index then 
-			tag_trimmed_display_name = 
-				song.display_path:sub(1, drums_marker_start_index-1) 
+		if drums_marker_start_index then
+			tag_trimmed_display_name =
+				song.display_path:sub(1, drums_marker_start_index-1)
 				.. song.display_path:sub(drums_marker_end_index+1)
-			
+
 			local base_song = song_list[tag_trimmed_display_name]
 				or song_list[tag_trimmed_display_name:sub(1,-5)
 								.." (all)"
@@ -172,7 +172,7 @@ local function get_song_list()
 
 				song_list[key] = nil
 			else
-				-- failed to find the base song, but this song fit the search pattern. 
+				-- failed to find the base song, but this song fit the search pattern.
 				-- Set this song instrument to drums anyways
 				song.full_paths[2] = song.full_paths[1]
 				song.full_paths[1] = nil
@@ -181,16 +181,16 @@ local function get_song_list()
 		end
 	end
 
-	-- Manipulation is done. Convert to int-indexed table for sorting. 
+	-- Manipulation is done. Convert to int-indexed table for sorting.
 	int_index_song_list = {}
 	for _, song in pairs(song_list) do
 		table.insert(int_index_song_list, #int_index_song_list +1, song)
 	end
 	table.sort(int_index_song_list, function(a,b) return a.display_path:lower() < b.display_path:lower() end)
 
-	if #int_index_song_list < 1 then 
+	if #int_index_song_list < 1 then
 		print("No songs found. Add `.abc` song files to `[figura_root]/data/"..songbook_root_file_path.."`. Then reload the avatar.")
-		-- idealy, this check would happen sooner, but the # syntax only works on int-indexed tables. ¯\_ :/ _/¯ 
+		-- idealy, this check would happen sooner, but the # syntax only works on int-indexed tables. ¯\_ :/ _/¯
 	end
 
 	return int_index_song_list
@@ -199,7 +199,7 @@ end
 -- Spinner and loading bar -----------------------------------------------------
 local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
 local function info_display_spinner()
-	local spinner_State = 
+	local spinner_State =
 		math.floor(
 			(client.getSystemTime()/1000)	-- Time in Seconds
 			*1.5	-- Speedup
@@ -279,8 +279,8 @@ local function songbook_action_wheel_page_update_song_picker_button()
 		songbook.action_wheel.actions["select_song"]
 			:title(
 				"No songs in song list."
-				..(file:isPathAllowed(songbook_root_file_path) 
-					and "\nAdd `.abc` files to [figura_root]/data/"..tostring(songbook_root_file_path).."`" 
+				..(file:isPathAllowed(songbook_root_file_path)
+					and "\nAdd `.abc` files to [figura_root]/data/"..tostring(songbook_root_file_path).."`"
 					or "\nCorret the `songbook_root_file_path` variable"
 				)
 				.."\nthen reload the avatar."
@@ -366,7 +366,7 @@ local function stop_playing_song_tick()
 		if stopping_with_world_tick then
 			events.WORLD_TICK:remove(stop_song_tick_event_name)
 			print("Done rewinding song")
-			stopping_with_world_tick = false -- reset so that we can play a new song again.  
+			stopping_with_world_tick = false -- reset so that we can play a new song again.
 		else
 			events.TICK:remove(stop_song_tick_event_name)
 			if host:isHost() then
@@ -385,14 +385,14 @@ local function stop_playing_song_tick()
 		math.max(songbook.incoming_song.stop_loop_index, 1),
 		math.min(
 			#songbook.incoming_song.instructions,
-			songbook.incoming_song.stop_loop_index 
+			songbook.incoming_song.stop_loop_index
 				+ (stopping_with_world_tick and 1 or num_instructions_to_stop_per_tick)
-				-- In the event that there are still notes playing when we 
-				-- stopped the song, and the avatar is unloaded (is using 
-				-- the world tick event) then this will take a LONG time 
-				-- for the playing notes to actualy clear out. But! This is 
-				-- suposed to be a failsafe for if the avatar is too far away 
-				-- anyways for the TICK event to happen. 
+				-- In the event that there are still notes playing when we
+				-- stopped the song, and the avatar is unloaded (is using
+				-- the world tick event) then this will take a LONG time
+				-- for the playing notes to actualy clear out. But! This is
+				-- suposed to be a failsafe for if the avatar is too far away
+				-- anyways for the TICK event to happen.
 		)
 	do
 		local instruction = songbook.incoming_song.instructions[instruction_index]
@@ -418,7 +418,7 @@ local function stop_playing_songs()
 	events.TICK:remove(info_display_event_name)						-- Info pannel controller
 	events.RENDER:remove(info_display_event_name)					-- Info pannel controller. Usualy a render event
 
-	-- reset elements after killing the critical events. 
+	-- reset elements after killing the critical events.
 	if info_screen_anchor_part ~= nil then
 		info_screen_anchor_part:removeTask(song_info_text_task_name)
 	end
@@ -448,12 +448,12 @@ end
 
 -- song builder: helpers -------------------------------------------------------
 local function isUsingPiano()
-	if 		songbook.selected_chloe_piano_pos ~= nil 
-		and piano_lib.validPos(songbook.selected_chloe_piano_pos) 
-	then 
-		return true 
-	else 
-		return false 
+	if 		songbook.selected_chloe_piano_pos ~= nil
+		and piano_lib.validPos(songbook.selected_chloe_piano_pos)
+	then
+		return true
+	else
+		return false
 	end
 end
 
@@ -462,13 +462,13 @@ local function getPianoPos()
 end
 
 local drumkitSoundsTable = {
-	-- Table of functions that return a sound, so that we'll get a fresh sound every time. 
+	-- Table of functions that return a sound, so that we'll get a fresh sound every time.
 	-- use with drumkitSoundLookup()
 	-- keys are midi codes. see https://zendrum.com/resource-site/drumnotes.htm
 
 	-- Missing sounds default to a hat sound in drumkitSoundLookup()
 
-	[35] = function() -- Acoustic Bass Drum	
+	[35] = function() -- Acoustic Bass Drum
 		return sounds["block.note_block.basedrum"]:pitch(0.7)
 	end,
 	[36] = function() -- Bass Drum 1
@@ -480,7 +480,7 @@ local drumkitSoundsTable = {
 	[38] = function() -- Acoustic Snare
 		return sounds["block.note_block.snare"]:pitch(0.7)
 	end,
-	[39] = function() -- Hand Clap		
+	[39] = function() -- Hand Clap
 		return sounds[ "item.trident.riptide_1" ]:pitch(6 )
 	end,
 	[40] = function() -- Electric snare
@@ -613,9 +613,9 @@ local drumkitSoundsTable = {
 }
 
 local function drumkitSoundLookup(semitones_from_a4)
-	local midi_key = semitones_from_a4 + 69	-- A4 is midi key 69. nice. 
+	local midi_key = semitones_from_a4 + 69	-- A4 is midi key 69. nice.
 		-- 35 == B1, but SBC calls this B2 for some reason :/
-		-- Whatever. It works, and my ABC parcing is (probably) correct. 
+		-- Whatever. It works, and my ABC parcing is (probably) correct.
 	if drumkitSoundsTable[midi_key] then
 		return drumkitSoundsTable[midi_key]()
 	end
@@ -847,12 +847,12 @@ local midi_code_to_piano_code = {
 
 local function a4_semitones_to_piano_code(a4_semi_tones)
 	midi_code = a4_semi_tones + 69
-	
+
 	-- Max chloe piano range: A0 to B6
 	if midi_code > 95 or midi_code < 21 then return "X0" end
-	
+
 	piano_code = midi_code_to_piano_code[midi_code]
-	if piano_code then 
+	if piano_code then
 		return piano_code
 	end
 	return "X0"
@@ -864,7 +864,7 @@ local function save_abc_note_to_instructions(song)
 	-- !! Returns the end time of the note. !!
 
 	-- Converts a single note into an instruction
-	-- single note is stored in the notebuilder table. 
+	-- single note is stored in the notebuilder table.
 
 	note_builder = song.songbuilder.note_builder
 	if note_builder.letter == "" then return note_builder.start_time end
@@ -983,14 +983,14 @@ local function song_data_to_instructions(song_file_metadata)
 	local song = data_to_instructions_song
 
 	if -- this is our first run, initilize song table
-		not song or not song.songbuilder or not song.songbuilder_metadata.in_progress 
+		not song or not song.songbuilder or not song.songbuilder_metadata.in_progress
 	then
-		-- Song doesn't exist, or it's an old left over song. 
+		-- Song doesn't exist, or it's an old left over song.
 		-- Then let's start a new song!
 		song = {}
 		song.instructions = {}
 		song.songbuilder = {}
-		
+
 		song.songbuilder_metadata = {}
 		song.songbuilder_metadata.abc_lines = nil
 		song.songbuilder_metadata.notes_in_current_line = nil
@@ -1006,8 +1006,8 @@ local function song_data_to_instructions(song_file_metadata)
 
 	local while_loop_start_time = client.getSystemTime()
 	song.songbuilder_metadata.batches = song.songbuilder_metadata.batches +1
-	while song.songbuilder_metadata.in_progress 
-		and (while_loop_start_time > client.getSystemTime() -250) 
+	while song.songbuilder_metadata.in_progress
+		and (while_loop_start_time > client.getSystemTime() -250)
 	do
 		song.songbuilder_metadata.loop_count = song.songbuilder_metadata.loop_count +1
 
@@ -1058,7 +1058,7 @@ local function song_data_to_instructions(song_file_metadata)
 				song.songbuilder.group_earliest_stop_time = math.huge
 			end
 
-			song.songbuilder.last_processed_note_index = song.songbuilder.last_processed_note_index +1	-- TODO: this might be removable. 
+			song.songbuilder.last_processed_note_index = song.songbuilder.last_processed_note_index +1	-- TODO: this might be removable.
 		elseif -- there are no notes to parce, but there are lines to parce
 				song.songbuilder_metadata.abc_lines
 			and #song.songbuilder_metadata.abc_lines >= song.songbuilder_metadata.next_line_index
@@ -1074,12 +1074,12 @@ local function song_data_to_instructions(song_file_metadata)
 			line = line:match("(.*)%%") or line	-- filter out end-of-line comments
 
 			if 	-- Line is empty
-				not line 
+				not line
 			then
-				-- We've already checked if we're out of bounds, so this 
+				-- We've already checked if we're out of bounds, so this
 				-- line just happens to be empty. Ignore it and continue
-				-- next loop. 
-			elseif	-- Line is an information line. 
+				-- next loop.
+			elseif	-- Line is an information line.
 				line:sub(2,2) == ":"
 			then
 				-- Metadata lines.
@@ -1133,7 +1133,7 @@ local function song_data_to_instructions(song_file_metadata)
 					song.songbuilder.key_signature_key = key_signature_key
 				end
 			else -- Line is a sequence of notes
-				-- Dump notes into notes_in_current_line for next loop. 
+				-- Dump notes into notes_in_current_line for next loop.
 				song.songbuilder_metadata.notes_in_current_line = {}
 				song.songbuilder_metadata.next_note_in_line_index = 1
 				for note in line:gmatch("%[?[[_=%^]*%a[,']*%d*/*%d*]?%]?") do
@@ -1152,15 +1152,15 @@ local function song_data_to_instructions(song_file_metadata)
 					-- `[` can introduce an information header mid-line. SBC puts information fields into their own line, so this case rarely occurs.
 					-- `>` and `<` to mark broken rhythm. (see https://abcnotation.com/wiki/abc:standard:v2.1#broken_rhythm) SBC writes these as full fractions, so it rarely occurs.
 					-- In song comments.
-					
+
 					table.insert(song.songbuilder_metadata.notes_in_current_line, note)
 				end
 			end
-			
-		-- elseif there are more files to parce -- TODO: make this script in charge of running through the file_save stuffs. 
-			-- save current instructions, and pull in next file into abc_lines. 
-			-- reset line data and note data. 
-			-- next loop will set up the next line. 
+
+		-- elseif there are more files to parce -- TODO: make this script in charge of running through the file_save stuffs.
+			-- save current instructions, and pull in next file into abc_lines.
+			-- reset line data and note data.
+			-- next loop will set up the next line.
 		elseif -- there are no lines to parce, but there are files to turn into lines
 				song.songbuilder_metadata.file_paths
 			and #song.songbuilder_metadata.file_paths >= song.songbuilder_metadata.next_file_index
@@ -1170,18 +1170,18 @@ local function song_data_to_instructions(song_file_metadata)
 			song.songbuilder_metadata.next_file_index = song.songbuilder_metadata.next_file_index+1
 
 			if not new_file_path then
-				-- file path itself is nil. Can happen if trying to play a song that has drums, and has no lead track. 
-				-- The table will have 1 entry at index 2, so index 1 will be nil. 
-				-- In this case we can safely ignore it and let the loop try again. 
-			elseif not file:isFile(new_file_path) then 
+				-- file path itself is nil. Can happen if trying to play a song that has drums, and has no lead track.
+				-- The table will have 1 entry at index 2, so index 1 will be nil.
+				-- In this case we can safely ignore it and let the loop try again.
+			elseif not file:isFile(new_file_path) then
 				print("No file found at `".. new_file_path .."`.")
 			else
 				-- print("Loading file: "..new_file_path)
 
 				local file_data_string = file:readString(new_file_path)
 				if file_data_string then
-					-- File is good. 
-					-- Break it into abc_lines and reset songbuilder for new file. 
+					-- File is good.
+					-- Break it into abc_lines and reset songbuilder for new file.
 
 					song.songbuilder = {}
 					song.songbuilder.next_note_start_time = 0
@@ -1221,9 +1221,9 @@ local function song_data_to_instructions(song_file_metadata)
 			-- print("done generating instructions in "..song.songbuilder_metadata.batches .." batches and "..song.songbuilder_metadata.loop_count.." loops")
 			if song.songbuilder_metadata.num_tracks > 1 then
 				table.sort(
-					song.instructions, 
-					function(a,b) 
-						return a.start_time < b.start_time 
+					song.instructions,
+					function(a,b)
+						return a.start_time < b.start_time
 					end
 				)
 			end
@@ -1287,10 +1287,10 @@ function play_song_event_loop()
 			 	if instruction.chloe_piano ~= "X0" then
 					local no_error, pcall_message = pcall( piano_lib.playNote, songbook.selected_chloe_piano_pos , instruction.chloe_piano, true)
 					if no_error then
-						-- Chloe piano can't sustain notes, so we don't need to 
+						-- Chloe piano can't sustain notes, so we don't need to
 						-- bother checking if the note's done playing.
 						-- Also, checking here means that if pcall fails, the
-						-- built-in instrument will try to play this note again. 
+						-- built-in instrument will try to play this note again.
 						instruction.already_played = true
 					else
 						print("§4⚠ --== Piano Error ==-- ⚠§r"
@@ -1425,20 +1425,20 @@ local function song_player_event_watcher_event()
 	end
 end
 
--- Emergency stop 
+-- Emergency stop
 
 local is_unloaded_timer = 0
 local function avatar_is_loaded_watcher_event()
-	-- Failsafe: Kill song if avatar is unloaded. 
+	-- Failsafe: Kill song if avatar is unloaded.
 
-	-- can happen if avatar walks into a nether portal while playing a song. 
-	-- The script won't crash, but TICK events will stopp happening, so 
-	-- long notes will go forever. Use world_tick event to monitor the 
+	-- can happen if avatar walks into a nether portal while playing a song.
+	-- The script won't crash, but TICK events will stopp happening, so
+	-- long notes will go forever. Use world_tick event to monitor the
 	-- standard tick event.
 
-	if player:isLoaded() then 
+	if player:isLoaded() then
 		is_unloaded_timer = 0
-		return 
+		return
 	else
 		is_unloaded_timer = is_unloaded_timer + 1
 		if is_unloaded_timer > (20*3) then	-- about 3 seconds
@@ -1610,16 +1610,16 @@ function deserialize(packet_string)
 		end
 
 		if not player:isLoaded() or stopping_with_world_tick then
-			-- avatar is unloaded. Do not accept new songs from them. 
-			-- or avatar _was_ unloded, and we're in the middle of 
-			-- rewinding the old song in failsafe mode. Do not start a new 
-			-- song while rewinding in failsafe. 
-			if stopping_with_world_tick then 
+			-- avatar is unloaded. Do not accept new songs from them.
+			-- or avatar _was_ unloded, and we're in the middle of
+			-- rewinding the old song in failsafe mode. Do not start a new
+			-- song while rewinding in failsafe.
+			if stopping_with_world_tick then
 				print("Rejecting new song! Songplayer is rewinding in failsafe mode.")
 			else
 				print("Rejecting new song! Host is unloded.")
 			end
-			
+
 			return
 		end
 
@@ -1682,7 +1682,7 @@ function deserialize(packet_string)
 			song_instruction.end_time = song_instruction.start_time + song_instruction.duration
 			song_instruction.instrument_index = tonumber(song_instruction.instrument_index)
 			song_instruction.semitones_from_a4 = tonumber(song_instruction.semitones_from_a4)
-			
+
 			song_instruction.chloe_piano = a4_semitones_to_piano_code(song_instruction.semitones_from_a4)
 
 			--printTable(song_instruction)
@@ -1722,7 +1722,7 @@ local function send_packets_tick_event()
 		--printTable(outgoing_packets.packets)
 
 		if outgoing_packets.should_send_pings then
-			-- pings allways hit the figura server, even in single player. 
+			-- pings allways hit the figura server, even in single player.
 			-- We should avoid pings whenever possible. See `send_packets()`.
 			pings.deserialize(outgoing_packets.packets[current_index])
 		else
@@ -1739,30 +1739,30 @@ local function send_packets(packets)
 	outgoing_packets.packets = packets
 	outgoing_packets.previous_index = 0
 	outgoing_packets.first_packet_send_time = client.getSystemTime()
-	
-	-- don't send pings if no one is arround to hear them. 
-	local player_list = world.getPlayers()
-	player_list[player:getName()] = nil	-- remove ourselves from list. 
 
-	-- using `#player_list` to get the length of `player_list` doesn't work with 
+	-- don't send pings if no one is arround to hear them.
+	local player_list = world.getPlayers()
+	player_list[player:getName()] = nil	-- remove ourselves from list.
+
+	-- using `#player_list` to get the length of `player_list` doesn't work with
 	-- string-indexed tables??? Gotta do it ourselves. Good news is we only need
-	-- to find 1 non-us entry to make it work. 
+	-- to find 1 non-us entry to make it work.
 	outgoing_packets.should_send_pings = false
-	for _ in pairs(player_list) do 
+	for _ in pairs(player_list) do
 		-- loop over the list. if we find anything, there's at least
 		-- one nearby player. send pings
 		outgoing_packets.should_send_pings = true
 		break
 	end
 
-	if outgoing_packets.should_send_pings ~= send_packets_used_pings_last_time then 
+	if outgoing_packets.should_send_pings ~= send_packets_used_pings_last_time then
 		send_packets_used_pings_last_time = outgoing_packets.should_send_pings
 		if outgoing_packets.should_send_pings then
 			print("Players nearby. Sending song over pings.")
 		else
 			print("No players nearby. Song will not play through pings.")
 		end
-		
+
 	end
 
 	events.TICK:register(
@@ -1832,19 +1832,19 @@ local function song_instructions_to_packets(song_files, song_instructions)
 		.."i".. #song_instructions
 		.."d".. minimum_song_start_delay
 		.."e".. last_end_time
-	
+
 	return ping_packets, minimum_song_start_delay
 end
 
 -- Song playing ----------------------------------------------------------------
 local function queue_song_render_loop()
-	-- using WORLD_RENDER instead of tick event, because in TICK events, the 
-	-- game will try to catch up on any ticks it missed, meaning it will still 
-	-- freeze up (though it won't crash). 
-	-- Render events are happy to drop frames, so they lock up a little less. 
-	-- WORLD_RENDER events are basicly guarrentied to be running, unlike 
+	-- using WORLD_RENDER instead of tick event, because in TICK events, the
+	-- game will try to catch up on any ticks it missed, meaning it will still
+	-- freeze up (though it won't crash).
+	-- Render events are happy to drop frames, so they lock up a little less.
+	-- WORLD_RENDER events are basicly guarrentied to be running, unlike
 	-- player's render event. And since this function is only called by the host,
-	-- (who we assume to have max trust) we shouldn't have any issues. 
+	-- (who we assume to have max trust) we shouldn't have any issues.
 
 	if not songbook.song_instructions then
 		songbook.song_instructions = song_data_to_instructions(songbook.queued_song.path)
@@ -1852,7 +1852,7 @@ local function queue_song_render_loop()
 			print("Generated "..#songbook.song_instructions.." instructions.")
 		end
 	elseif not songbook.queued_packets then
-		local ping_packets, minimum_song_start_delay  = song_instructions_to_packets(songbook.queued_song.path, songbook.song_instructions)	
+		local ping_packets, minimum_song_start_delay  = song_instructions_to_packets(songbook.queued_song.path, songbook.song_instructions)
 
 		if ping_packets then
 			songbook.queued_packets = ping_packets
@@ -1873,7 +1873,7 @@ local function queue_song_render_loop()
 		songbook_action_wheel_page_update_song_picker_button()
 		return
 	end
-	if action_wheel:isEnabled() then songbook_action_wheel_page_update_song_picker_button() end 
+	if action_wheel:isEnabled() then songbook_action_wheel_page_update_song_picker_button() end
 end
 
 local function queue_song(song_files)
@@ -1885,9 +1885,9 @@ local function queue_song(song_files)
 	songbook.queued_packets = nil
 	songbook.queued_song.buffer_time = nil
 	songbook.queued_song.path = song_files
-	
+
 	if song_files then
-		-- if we send a nil to queue_song, we can cancel the queue. Not that we'd need to, but could be nice. 
+		-- if we send a nil to queue_song, we can cancel the queue. Not that we'd need to, but could be nice.
 		songbook.queue_song_render_loop_is_running = true
 		songbook_action_wheel_page_update_song_picker_button()
 		events.WORLD_RENDER:register(queue_song_render_loop, queue_song_render_loop_name)
@@ -1906,7 +1906,7 @@ local function play_song(song_files)
 end
 
 -- Piano and Actionwheel -------------------------------------------------------
-local function is_block_piano(targeted_block)	
+local function is_block_piano(targeted_block)
 	-- two return types: result 1 is a bool, 2nd result is the lib for the piano
 
 	if type(targeted_block) == "Vector3" then
@@ -2032,7 +2032,7 @@ local function songbook_action_wheel_page_setup()
 		:onLeftClick(function()
 			if songbook.song_list == nil or #songbook.song_list < 1 then return end
 
-			if song_is_queued() == "partial" then 
+			if song_is_queued() == "partial" then
 				if song_is_queued(songbook.action_wheel.selected_song_index) then
 					-- print("This song is still being processed.")
 				else
@@ -2113,7 +2113,7 @@ function get_currently_playing_song()
 	return song_is_playing() and songbook.playing_song_path.name or nil
 end
 
-songbook.song_list = get_song_list()	
+songbook.song_list = get_song_list()
 init_keybinds()
 songbook_action_wheel_page_setup()
 return songbook.action_wheel.actions["enter_songbook"]
