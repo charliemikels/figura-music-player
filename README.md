@@ -5,7 +5,9 @@
 This repo is a Figura avatar that lets you play ABC music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
 
 <!-- ↓ demo video of the avatar playing the chorus to "Revenge" by Captainsparklez ↓ -->
-https://github.com/charliemikels/figura-music-player/assets/20339866/f088348f-7a3b-4993-a5d2-6699f653f281
+[figura-music-player-v4-demo_Bonetrousle_Undertale.webm](https://github.com/user-attachments/assets/dcb32c71-464a-4639-8fee-2f42a362cd76)
+
+(↑ If there's no sound, be sure the video player is unmuted. ↑)
 
 ## Installation
 
