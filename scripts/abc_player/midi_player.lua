@@ -1,5 +1,5 @@
 -- Tanner Limes was here.
--- MIDI Music Player V4.0.0
+-- Music Player V5.0.0-beta.1 (Midi)
 
 events.ENTITY_INIT:register(function ()
 	print("=== Dev init: ".. client.getSystemTime() .." ===")
