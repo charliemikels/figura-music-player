@@ -10,6 +10,11 @@
 -- 	print("=== Dev init: ".. client.getSystemTime() .." ===")
 -- end)
 
+if true then
+    -- DEBUG to shut down the entire file while I mess with the midi_player version.
+    return
+end
+
 local songbook_root_file_path = "TL_Songbook"  -- default is `"TL_Songbook"`
 
 local song_info_text_pos_offset = vectors.vec(1, 1) -- A multiplier that ajusts
