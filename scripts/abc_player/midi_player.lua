@@ -1,8 +1,9 @@
 -- Tanner Limes was here.
 -- Music Player V5.0.0-beta.1 (Midi)
-
+print("\n\n\n")
+print("== MIDI - Script init: ".. client.getSystemTime() .." ==")
 events.ENTITY_INIT:register(function ()
-	print("=== MIDI - Entity init: ".. client.getSystemTime() .." ===")
+    print("== MIDI - Entity init: ".. client.getSystemTime() .." ==")
 end)
 
 -- Debug flags --
@@ -12,41 +13,47 @@ local disable_abc = true
 
 -- Defaults --
 
--- Default Library Path
-local default_songbook_path = "TL_Songbook"
+---@type MusicPlayerBuilderOptions
+local default_music_player_options = {
+    library_paths = {"TL_Songbook"}
+}
 
 
 -- Defining a bunch of types -- -----------------------------------------------
 
----Everything you need to control the music player
+---Music Player API. Everything you need to control and configure the music player.
 ---@class MusicPlayerAPI
 ---@field add_library fun(path: string) Adds all song files found in `path` to the songbook.
+---@field add_song fun(song: SongEntry) Validate and add a single song to the songbook.
 
 
----@class MusicPlayer
----@field library SongLibrary
----@field api MusicPlayerAPI
+
 
 
 ---The Song library is the authoritative source of song data. Both the song list, paths, and raw data.
 ---@class SongLibrary
 ---@field songs SongEntry[]
+---@field add_song fun(key: string, song: SongEntry) Adds song to library without validation.
 
 ---@class SongEntry
+---@field identifier string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
 ---@field truepath string The authoritative path given to the files API
 ---@field name string The name used in the displayed song list
 ---@field short_name string The name used when displayed to others
 ---@field library string the path to the library where the song lives.
----@field data nil|table
----@field file_type ( "" | "abc" | "midi" )
+---@field data nil|table The raw data for a song. Usualy empty and loaded later when data_source is "file"
+---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
+---@field file_type ( "abc" | "midi" )
 
 
 
 ---@class MusicPlayerBuilderOptions
----@field library_paths string[]?
+---@field library_paths string[]
 
 
-
+---@class MusicPlayer
+---@field library SongLibrary
+---@field api MusicPlayerAPI
 
 ---A meta api to control the music player script.
 ---This api is returned at the end of the script to wherever it was required.
@@ -65,12 +72,14 @@ function script_api:build_empty_MusicPlayer()
 
     ---@type MusicPlayer
     music_player = {
-        instruments = {},
         library = {
             songs = {},
+            add_song = function(key, song)
+                music_player.library.songs[key] = song
+            end
         },
         api = {
-            add_library = function (library_path)
+            add_library = function(library_path)
                 if not host:isHost() then
                     error("Viewer script attempted to load a song library")
                     return
@@ -102,15 +111,17 @@ function script_api:build_empty_MusicPlayer()
 
                         local file_ext = full_path:match("%.([^%.]+)$"):lower()
 
-                        local file_type = ""
+                        local file_type
                         if file_ext == "abc" then
                             file_type = "abc"
                         elseif file_ext == "mid" or file_ext == "midi" then
                             file_type = "midi"
                         end
 
-                        if file_type == "midi" or (not disable_abc and file_type ~= "abc") then
-                            music_player.library.songs[full_path] = {
+                        if file_type == "midi" or (not disable_abc and file_type == "abc") then
+                            ---@type SongEntry
+                            local song = {
+                                identifier = full_path,
                                 data_source = "files",
                                 library = library_path,
                                 name = short_path,
@@ -120,10 +131,48 @@ function script_api:build_empty_MusicPlayer()
                                 file_type = file_type,
                                 -- data = nil
                             }
+                            music_player.library.add_song(song.identifier, song)
                         end
                     end
                 end
             end,
+
+            add_song = function(song)
+                -- validation
+                if not song.name then
+                    printTable(song)
+                    error("↑ Above song has no name")
+                    return
+                end
+
+                if song.data_source == "files" and (not song.truepath or not file:isFile(song.truepath)) then
+                    error("Song `".. song.name .. "` has source `files`, but the truepath does not point to a file.")
+                    return
+                elseif song.data_source == "manual" and (song.data == nil or #song.data < 1) then
+                    error("Song `".. song.name .. "` has source `manual`, but the data is empty.")
+                    return
+                end
+
+                music_player.library.add_song(song.identifier, song)
+            end,
+
+            prepare_song = function(song_key)
+
+            end,
+
+            song_is_prepared = function(song_key)
+
+            end,
+
+            play_prepared_song = function(song_key)
+
+            end,
+
+            stop_song = function(song_key)
+
+            end,
+
+            deconstruct = function() end
         }
     }
 
@@ -136,8 +185,8 @@ function script_api:build_MusicPlayer(options)
 
     local music_player = self:build_empty_MusicPlayer()
 
-    if options.libraryPaths then
-        for _, path in ipairs(options.libraryPaths) do
+    if options.library_paths then
+        for _, path in ipairs(options.library_paths) do
             music_player.api.add_library(path)
         end
     end
@@ -147,16 +196,7 @@ end
 
 ---Build the default MusicPlayer
 function script_api:build_default_MusicPlayer()
-
-    ---@type MusicPlayerBuilderOptions
-    local default_options = {
-        libraryPaths = {"TL_Songbook"}
-    }
-    local music_player = script_api:build_MusicPlayer(default_options)
-
-
-    printTable(music_player.library.songs["TL_Songbook/MM/games/Wii Sports - Theme.mid"])
-
+    local music_player = script_api:build_MusicPlayer(default_music_player_options)
     return music_player
 end
 
