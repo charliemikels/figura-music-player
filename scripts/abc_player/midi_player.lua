@@ -43,7 +43,7 @@ local default_songbook_path = "TL_Songbook"
 
 
 ---@class MusicPlayerBuilderOptions
----@field libraryPaths string[]
+---@field library_paths string[]?
 
 
 
@@ -53,7 +53,8 @@ local default_songbook_path = "TL_Songbook"
 ---Then it's the caller's job to create the MusicPlayer.
 ---@class MusicPlayerScriptAPI
 ---@field build_empty_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayer
----@field build_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayer
+---@field build_MusicPlayer fun(self: MusicPlayerScriptAPI, options: MusicPlayerBuilderOptions): MusicPlayer
+---@field build_default_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayer
 local script_api = {}
 
 ---Creates a blank, bare-bones, music player.
@@ -129,16 +130,36 @@ function script_api:build_empty_MusicPlayer()
     return music_player
 end
 
----@param self MusicPlayerScriptAPI
----@param options MusicPlayerBuilderOptions?
----@return MusicPlayer
+---Build a musicPlayer based on a given options table.
 function script_api:build_MusicPlayer(options)
-    local music_player = self:build_empty_MusicPlayer()
-    music_player.api.add_library("TL_Songbook")
+    options = options or {}
 
-    printTable(music_player.library.songs["TL_Songbook/MM/games/Wii Sports - Theme.mid"])
+    local music_player = self:build_empty_MusicPlayer()
+
+    if options.libraryPaths then
+        for _, path in ipairs(options.libraryPaths) do
+            music_player.api.add_library(path)
+        end
+    end
+
     return music_player
 end
+
+---Build the default MusicPlayer
+function script_api:build_default_MusicPlayer()
+
+    ---@type MusicPlayerBuilderOptions
+    local default_options = {
+        libraryPaths = {"TL_Songbook"}
+    }
+    local music_player = script_api:build_MusicPlayer(default_options)
+
+
+    printTable(music_player.library.songs["TL_Songbook/MM/games/Wii Sports - Theme.mid"])
+
+    return music_player
+end
+
 
 
 
