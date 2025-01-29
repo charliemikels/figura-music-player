@@ -25,6 +25,8 @@ local default_music_player_options = {
 ---@class MusicPlayerAPI
 ---@field add_library fun(path: string) Adds all song files found in `path` to the songbook.
 ---@field add_song fun(song: SongEntry) Validate and add a single song to the songbook.
+---@field get_song_list fun(): table<string, SongEntry> Returns the list of songs as a table indexed by song.identifier
+---@field get_sorted_song_list fun():SongEntry[] Returns the list of songs as a list sorted by song.name
 
 
 
@@ -32,8 +34,13 @@ local default_music_player_options = {
 
 ---The Song library is the authoritative source of song data. Both the song list, paths, and raw data.
 ---@class SongLibrary
----@field songs SongEntry[]
+---@field songs table<string, SongEntry> Canonical song list.
+---@field sorted_songs SongEntry[] Sorted song list. Used to display the songs in alphabetical order.
+---@field song_keys_are_sorted boolean Flag to determin if sorted_songs is sorted or not.
 ---@field add_song fun(key: string, song: SongEntry) Adds song to library without validation.
+---@field sort_songs fun() Rebuilds sorted_songs list.
+
+
 
 ---@class SongEntry
 ---@field identifier string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
@@ -41,10 +48,26 @@ local default_music_player_options = {
 ---@field name string The name used in the displayed song list
 ---@field short_name string The name used when displayed to others
 ---@field library string the path to the library where the song lives.
----@field data nil|table The raw data for a song. Usualy empty and loaded later when data_source is "file"
+---@field processed_data nil|ProcessedSong The instructions produced after processing raw_data
+---@field raw_data nil|table The raw data for a song. Usualy empty and loaded later when data_source is "file"
 ---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
 ---@field file_type ( "abc" | "midi" )
 
+
+---@class ProcessedSong
+---@field instructions Instruction[]
+---@field tracks Track[]
+
+---@class Instruction
+---@field track Track Shortcut to track information. Link from tracks table in ProcessedSong
+---@field start_time number
+---@field end_time number
+---@field active_sounds nil|Sound The actual sound object for the instruction.
+---@field keyframes nil TODO: Keep track of volume and pitch changes during start/end time
+
+---@class Track
+---@field name string
+---@field instrument nil TODO: instrument name
 
 
 ---@class MusicPlayerBuilderOptions
@@ -59,23 +82,49 @@ local default_music_player_options = {
 ---This api is returned at the end of the script to wherever it was required.
 ---Then it's the caller's job to create the MusicPlayer.
 ---@class MusicPlayerScriptAPI
----@field build_empty_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayer
----@field build_MusicPlayer fun(self: MusicPlayerScriptAPI, options: MusicPlayerBuilderOptions): MusicPlayer
----@field build_default_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayer
+---@field build_empty_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayerAPI
+---@field build_MusicPlayer fun(self: MusicPlayerScriptAPI, options: MusicPlayerBuilderOptions): MusicPlayerAPI
+---@field build_default_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayerAPI
 local script_api = {}
 
 ---Creates a blank, bare-bones, music player.
 ---Use script_api:build_MusicPlayer() to get a ready-to-go music player.
 ---@return MusicPlayer
 function script_api:build_empty_MusicPlayer()
-    local music_player  -- pre-initilize music_player so that we can use in inside API calls
+    local music_player
 
     ---@type MusicPlayer
     music_player = {
+
+        -- Not metatables b/c we need to access `music_player` from here
+
         library = {
             songs = {},
+            sorted_songs = {},
+            song_keys_are_sorted = false,
             add_song = function(key, song)
                 music_player.library.songs[key] = song
+                music_player.library.song_keys_are_sorted = false
+            end,
+            remove_song = function(key)
+                -- TODO: Ensure song is safe to remove
+                error("TODO: Ensure song is safe to remove")
+                music_player.library.songs[key] = nil
+                music_player.library.song_keys_are_sorted = false
+            end,
+            sort_songs = function()
+                if music_player.library.song_keys_are_sorted then return end
+
+                ---@type SongEntry[]
+                local sorted_songs = {}
+
+                for _, song in pairs(music_player.library.songs) do
+                    table.insert(sorted_songs, #sorted_songs +1, song)
+                end
+                table.sort(sorted_songs, function(a,b) return a.name:lower() < b.name:lower() end)
+
+                music_player.library.sorted_songs = sorted_songs
+                music_player.library.song_keys_are_sorted = true
             end
         },
         api = {
@@ -135,6 +184,7 @@ function script_api:build_empty_MusicPlayer()
                         end
                     end
                 end
+                music_player.library.sort_songs()
             end,
 
             add_song = function(song)
@@ -148,12 +198,27 @@ function script_api:build_empty_MusicPlayer()
                 if song.data_source == "files" and (not song.truepath or not file:isFile(song.truepath)) then
                     error("Song `".. song.name .. "` has source `files`, but the truepath does not point to a file.")
                     return
-                elseif song.data_source == "manual" and (song.data == nil or #song.data < 1) then
+                elseif song.data_source == "manual" and (song.raw_data == nil or #song.raw_data < 1) then
                     error("Song `".. song.name .. "` has source `manual`, but the data is empty.")
                     return
                 end
 
                 music_player.library.add_song(song.identifier, song)
+            end,
+
+            get_song = function(song_key)
+                return music_player.library.songs[song_key]
+            end,
+
+            get_song_list = function()
+                return music_player.library.songs
+            end,
+
+            get_sorted_song_list = function()
+                if not music_player.library.song_keys_are_sorted then
+                    music_player.library.sort_songs()
+                end
+                return music_player.library.sorted_songs
             end,
 
             prepare_song = function(song_key)
@@ -176,28 +241,28 @@ function script_api:build_empty_MusicPlayer()
         }
     }
 
-    return music_player
+    return music_player.api
 end
 
 ---Build a musicPlayer based on a given options table.
 function script_api:build_MusicPlayer(options)
     options = options or {}
 
-    local music_player = self:build_empty_MusicPlayer()
+    local music_player_api = self:build_empty_MusicPlayer()
 
     if options.library_paths then
         for _, path in ipairs(options.library_paths) do
-            music_player.api.add_library(path)
+            music_player_api.add_library(path)
         end
     end
 
-    return music_player
+    return music_player_api
 end
 
 ---Build the default MusicPlayer
 function script_api:build_default_MusicPlayer()
-    local music_player = script_api:build_MusicPlayer(default_music_player_options)
-    return music_player
+    local music_player_api = script_api:build_MusicPlayer(default_music_player_options)
+    return music_player_api
 end
 
 
