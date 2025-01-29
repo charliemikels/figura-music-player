@@ -46,7 +46,7 @@ local num_instructions_to_stop_per_tick = 500
 								-- This makes it safe to use in the world tick
 
 -- Internal librariess and globals
-local info_screen_anchor_part = models["scripts"]["abc_player"]["anchor"].WORLD.anchor	-- Used to attatch song info screen to avatar
+local info_screen_anchor_part = models["scripts"]["music_player"]["anchor"].WORLD.anchor	-- Used to attatch song info screen to avatar
 local piano_lib = world.avatarVars()["b0e11a12-eada-4f28-bb70-eb8903219fe5"]
 local songbook = {}
 songbook.incoming_song = nil
@@ -1312,7 +1312,7 @@ function play_song_event_loop()
 					instruction.sound_id = drumkitSoundLookup(instruction.semitones_from_a4)
 						:setVolume( isUsingPiano() and 0.8 or 0.5)
 				elseif avatar:canUseCustomSounds() then
-					instruction.sound_id = sounds["scripts.abc_player.triangle_sin"]
+					instruction.sound_id = sounds["scripts.music_player.triangle_sin"]
 						:setVolume(4)
 						:setLoop(true)
 						:setPitch(
