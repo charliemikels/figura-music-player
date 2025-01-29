@@ -24,9 +24,11 @@ local default_music_player_options = {
 ---Music Player API. Everything you need to control and configure the music player.
 ---@class MusicPlayerAPI
 ---@field add_library fun(path: string) Adds all song files found in `path` to the songbook.
----@field add_song fun(song: SongEntry) Validate and add a single song to the songbook.
----@field get_song_list fun(): table<string, SongEntry> Returns the list of songs as a table indexed by song.identifier
----@field get_sorted_song_list fun():SongEntry[] Returns the list of songs as a list sorted by song.name
+---@field add_song fun(song: Song) Validate and add a single song to the songbook.
+---@field get_song_list fun(): table<string, Song> Returns the list of songs as a table indexed by song.identifier
+---@field get_sorted_song_list fun():Song[] Returns the list of songs as a list sorted by song.name
+---@field get_song_by_id fun(identifier:string):Song Returns a song based on its identifier.
+---@field get_song_by_sorted_index fun(index:integer):Song Returns a song based on its index in the sorted song table.
 
 
 
@@ -34,15 +36,15 @@ local default_music_player_options = {
 
 ---The Song library is the authoritative source of song data. Both the song list, paths, and raw data.
 ---@class SongLibrary
----@field songs table<string, SongEntry> Canonical song list.
----@field sorted_songs SongEntry[] Sorted song list. Used to display the songs in alphabetical order.
+---@field songs table<string, Song> Canonical song list.
+---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
 ---@field song_keys_are_sorted boolean Flag to determin if sorted_songs is sorted or not.
----@field add_song fun(key: string, song: SongEntry) Adds song to library without validation.
+---@field add_song fun(key: string, song: Song) Adds song to library without validation.
 ---@field sort_songs fun() Rebuilds sorted_songs list.
 
 
 
----@class SongEntry
+---@class Song
 ---@field identifier string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
 ---@field truepath string The authoritative path given to the files API
 ---@field name string The name used in the displayed song list
@@ -52,6 +54,8 @@ local default_music_player_options = {
 ---@field raw_data nil|table The raw data for a song. Usualy empty and loaded later when data_source is "file"
 ---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
 ---@field file_type ( "abc" | "midi" )
+
+
 
 
 ---@class ProcessedSong
@@ -115,7 +119,7 @@ function script_api:build_empty_MusicPlayer()
             sort_songs = function()
                 if music_player.library.song_keys_are_sorted then return end
 
-                ---@type SongEntry[]
+                ---@type Song[]
                 local sorted_songs = {}
 
                 for _, song in pairs(music_player.library.songs) do
@@ -168,7 +172,7 @@ function script_api:build_empty_MusicPlayer()
                         end
 
                         if file_type == "midi" or (not disable_abc and file_type == "abc") then
-                            ---@type SongEntry
+                            ---@type Song
                             local song = {
                                 identifier = full_path,
                                 data_source = "files",
@@ -206,8 +210,15 @@ function script_api:build_empty_MusicPlayer()
                 music_player.library.add_song(song.identifier, song)
             end,
 
-            get_song = function(song_key)
-                return music_player.library.songs[song_key]
+            get_song_by_id = function(identifier)
+                return music_player.library.songs[identifier]
+            end,
+
+            get_song_by_sorted_index = function(index)
+                if not music_player.library.song_keys_are_sorted then
+                    music_player.library.sort_songs()
+                end
+                return music_player.library.sorted_songs[index]
             end,
 
             get_song_list = function()
