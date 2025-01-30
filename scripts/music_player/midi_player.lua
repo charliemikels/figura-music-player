@@ -21,11 +21,11 @@ local default_music_player_options = {
 
 -- Defining a bunch of types -- -----------------------------------------------
 
----Music Player API. Everything you need to control and configure the music player.
+---Music Player API. Everything you need to control and configure a music player.
 ---@class MusicPlayerAPI
 ---@field add_library fun(path: string) Adds all song files found in `path` to the songbook.
----@field add_song fun(song: Song) Validate and add a single song to the songbook.
----@field get_song_list fun(): table<string, Song> Returns the list of songs as a table indexed by song.identifier
+---@field add_song fun(song: Song) For manualy adding your own songs with code. See also `add_library()`
+---@field get_song_list fun():table<string, Song> Returns the list of songs as a table indexed by song.identifier
 ---@field get_sorted_song_list fun():Song[] Returns the list of songs as a list sorted by song.name
 ---@field get_song_by_id fun(identifier:string):Song Returns a song based on its identifier.
 ---@field get_song_by_sorted_index fun(index:integer):Song Returns a song based on its index in the sorted song table.
@@ -39,8 +39,8 @@ local default_music_player_options = {
 ---@field songs table<string, Song> Canonical song list.
 ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
 ---@field song_keys_are_sorted boolean Flag to determin if sorted_songs is sorted or not.
----@field add_song fun(key: string, song: Song) Adds song to library without validation.
----@field sort_songs fun() Rebuilds sorted_songs list.
+---@field add_song fun(identifier: string, song: Song) Adds song to library without validation.
+---@field sort_songs fun():nil Rebuilds sorted_songs list.
 
 
 
@@ -59,7 +59,10 @@ local default_music_player_options = {
 
 
 ---@class ProcessedSong
+---@field identifier string
 ---@field instructions Instruction[]
+---@field name string
+---@field durration number
 ---@field tracks Track[]
 
 ---@class Instruction
@@ -82,9 +85,8 @@ local default_music_player_options = {
 ---@field library SongLibrary
 ---@field api MusicPlayerAPI
 
----A meta api to control the music player script.
----This api is returned at the end of the script to wherever it was required.
----Then it's the caller's job to create the MusicPlayer.
+---A meta api to control the music player script. Use it to create and manage MusicPlayers.
+---This api is returned when this script is called with `require()`.
 ---@class MusicPlayerScriptAPI
 ---@field build_empty_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayerAPI
 ---@field build_MusicPlayer fun(self: MusicPlayerScriptAPI, options: MusicPlayerBuilderOptions): MusicPlayerAPI
@@ -100,22 +102,24 @@ function script_api:build_empty_MusicPlayer()
     ---@type MusicPlayer
     music_player = {
 
-        -- Not metatables b/c we need to access `music_player` from here
+        -- Not metatables because we need to access `music_player` from here.
 
         library = {
             songs = {},
             sorted_songs = {},
             song_keys_are_sorted = false,
-            add_song = function(key, song)
-                music_player.library.songs[key] = song
+            add_song = function(identifier, song)
+                music_player.library.songs[identifier] = song
                 music_player.library.song_keys_are_sorted = false
             end,
-            remove_song = function(key)
+
+            remove_song = function(identifier)
                 -- TODO: Ensure song is safe to remove
                 error("TODO: Ensure song is safe to remove")
-                music_player.library.songs[key] = nil
+                music_player.library.songs[identifier] = nil
                 music_player.library.song_keys_are_sorted = false
             end,
+
             sort_songs = function()
                 if music_player.library.song_keys_are_sorted then return end
 
@@ -237,7 +241,8 @@ function script_api:build_empty_MusicPlayer()
             end,
 
             song_is_prepared = function(song_key)
-
+                local song = music_player.api.get_song_by_id(song_key)
+                return (song and not song.processed_data == nil)
             end,
 
             play_prepared_song = function(song_key)
