@@ -44,7 +44,7 @@ local supported_file_types = {
 ---@field processed_data nil|ProcessedSong The instructions produced after processing raw_data
 ---@field raw_data nil|table|string The raw data for a song. Usualy empty and loaded later when data_source is "file"
 ---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
----@field data_processor fun(self:Song)
+---@field process_data fun(self:Song): Future
 
 
 
@@ -74,6 +74,7 @@ local supported_file_types = {
 ---@field build_empty_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayerAPI
 ---@field build_MusicPlayer fun(self: MusicPlayerScriptAPI, options: MusicPlayerBuilderOptions): MusicPlayerAPI
 ---@field build_default_MusicPlayer fun(self: MusicPlayerScriptAPI): MusicPlayerAPI
+---@field call_when_done fun(self:MusicPlayerScriptAPI, condition: fun():(boolean), callback:fun(...), ...)
 local script_api = {}
 
 ---Creates a blank, bare-bones, music player.
@@ -184,7 +185,7 @@ function script_api:build_empty_MusicPlayer()
                                         truepath = full_path,
                                         short_name = short_path:match("([^/]*)%."),
                                             -- gets just the name of the file without dirs or extensions.
-                                        data_processor = file_type_data.processor,
+                                        process_data = file_type_data.processor,
                                         -- data = nil
                                     }
                                     music_player.library.add_song(song.identifier, song)
@@ -289,8 +290,17 @@ function script_api:build_default_MusicPlayer()
     return music_player_api
 end
 
-
-
+---Starts a TICK event loop to wait for a condition to be true, then calls the callback with any extra arguments.
+function script_api:call_when_done(condition, callback, ...)
+    local callback_args = { ... }
+    local function wait()
+        if condition() then
+            callback(table.unpack(callback_args))
+            events.TICK:remove(wait)
+        end
+    end
+    events.TICK:register(wait)
+end
 
 
 return script_api
