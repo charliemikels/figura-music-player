@@ -6,41 +6,34 @@ events.ENTITY_INIT:register(function ()
     print("== MIDI - Entity init: ".. client.getSystemTime() .." ==")
 end)
 
--- Debug flags --
-local disable_abc = true
-
-
-
 -- Defaults --
+local dev_warn_unrecognized_file_in_library = false
 
----@type MusicPlayerBuilderOptions
+
+---@class MusicPlayerBuilderOptions
+---@field library_paths string[]
 local default_music_player_options = {
     library_paths = {"TL_Songbook"}
 }
 
+---@enum SupportedFileTypes
+local supported_file_types = {
+    -- -- ABC temporaraly disabled to keep final list short
+    -- abc = {
+    --     extensions = {"abc"},
+    --     processor = function(self)
+    --         error("ABC processor hasn't been ported yet.")
+    --     end
+    -- },
+    midi = {
+        extensions = {"mid", "midi"},
+        processor = function(self)
+            printTable(self)
+        end
+    }
+}
 
 -- Defining a bunch of types -- -----------------------------------------------
-
----Music Player API. Everything you need to control and configure a music player.
----@class MusicPlayerAPI
----@field add_library fun(path: string) Adds all song files found in `path` to the songbook.
----@field add_song fun(song: Song) For manualy adding your own songs with code. See also `add_library()`
----@field get_song_list fun():table<string, Song> Returns the list of songs as a table indexed by song.identifier
----@field get_sorted_song_list fun():Song[] Returns the list of songs as a list sorted by song.name
----@field get_song_by_id fun(identifier:string):Song Returns a song based on its identifier.
----@field get_song_by_sorted_index fun(index:integer):Song Returns a song based on its index in the sorted song table.
-
-
-
-
-
----The Song library is the authoritative source of song data. Both the song list, paths, and raw data.
----@class SongLibrary
----@field songs table<string, Song> Canonical song list.
----@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
----@field song_keys_are_sorted boolean Flag to determin if sorted_songs is sorted or not.
----@field add_song fun(identifier: string, song: Song) Adds song to library without validation.
----@field sort_songs fun():nil Rebuilds sorted_songs list.
 
 
 
@@ -51,9 +44,9 @@ local default_music_player_options = {
 ---@field short_name string The name used when displayed to others
 ---@field library string the path to the library where the song lives.
 ---@field processed_data nil|ProcessedSong The instructions produced after processing raw_data
----@field raw_data nil|table The raw data for a song. Usualy empty and loaded later when data_source is "file"
+---@field raw_data nil|table|string The raw data for a song. Usualy empty and loaded later when data_source is "file"
 ---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
----@field file_type ( "abc" | "midi" )
+---@field data_processor fun(self:Song)
 
 
 
@@ -77,14 +70,6 @@ local default_music_player_options = {
 ---@field instrument nil TODO: instrument name
 
 
----@class MusicPlayerBuilderOptions
----@field library_paths string[]
-
-
----@class MusicPlayer
----@field library SongLibrary
----@field api MusicPlayerAPI
-
 ---A meta api to control the music player script. Use it to create and manage MusicPlayers.
 ---This api is returned when this script is called with `require()`.
 ---@class MusicPlayerScriptAPI
@@ -99,11 +84,21 @@ local script_api = {}
 function script_api:build_empty_MusicPlayer()
     local music_player
 
-    ---@type MusicPlayer
+    ---@class MusicPlayer
+    ---@field library SongLibrary
+    ---@field api MusicPlayerAPI
     music_player = {
 
         -- Not metatables because we need to access `music_player` from here.
 
+
+        ---The Song library is the authoritative source of song data. Both the song list, paths, and raw data.
+        ---@class SongLibrary
+        ---@field songs table<string, Song> Canonical song list.
+        ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
+        ---@field song_keys_are_sorted boolean Flag to determin if sorted_songs is sorted or not.
+        ---@field add_song fun(identifier: string, song: Song) Adds song to library without validation.
+        ---@field sort_songs fun():nil Rebuilds sorted_songs list.
         library = {
             songs = {},
             sorted_songs = {},
@@ -135,6 +130,15 @@ function script_api:build_empty_MusicPlayer()
                 music_player.library.song_keys_are_sorted = true
             end
         },
+
+        ---Music Player API. Everything you need to control and configure a music player.
+        ---@class MusicPlayerAPI
+        ---@field add_library fun(path: string) Adds all song files found in `path` to the songbook.
+        ---@field add_song fun(song: Song) For manualy adding your own songs with code. See also `add_library()`
+        ---@field get_song_list fun():table<string, Song> Returns the list of songs as a table indexed by song.identifier
+        ---@field get_sorted_song_list fun():Song[] Returns the list of songs as a list sorted by song.name
+        ---@field get_song_by_id fun(identifier:string):Song Returns a song based on its identifier.
+        ---@field get_song_by_sorted_index fun(index:integer):Song Returns a song based on its index in the sorted song table.
         api = {
             add_library = function(library_path)
                 if not host:isHost() then
@@ -168,27 +172,33 @@ function script_api:build_empty_MusicPlayer()
 
                         local file_ext = full_path:match("%.([^%.]+)$"):lower()
 
-                        local file_type
-                        if file_ext == "abc" then
-                            file_type = "abc"
-                        elseif file_ext == "mid" or file_ext == "midi" then
-                            file_type = "midi"
+                        local supported_ext_found = false
+                        for file_type, file_type_data in pairs(supported_file_types) do
+                            for _, supported_file_ext in pairs(file_type_data.extensions) do
+                                if supported_file_ext == file_ext then
+
+                                    ---@type Song
+                                    local song = {
+                                        identifier = full_path,
+                                        data_source = "files",
+                                        library = library_path,
+                                        name = short_path,
+                                        truepath = full_path,
+                                        short_name = short_path:match("([^/]*)%."),
+                                            -- gets just the name of the file without dirs or extensions.
+                                        data_processor = file_type_data.processor,
+                                        -- data = nil
+                                    }
+                                    music_player.library.add_song(song.identifier, song)
+                                    supported_ext_found = true
+                                end
+                                if supported_ext_found then break end
+                            end
+                            if supported_ext_found then break end
                         end
 
-                        if file_type == "midi" or (not disable_abc and file_type == "abc") then
-                            ---@type Song
-                            local song = {
-                                identifier = full_path,
-                                data_source = "files",
-                                library = library_path,
-                                name = short_path,
-                                truepath = full_path,
-                                short_name = short_path:match("([^/]*)%."),
-                                    -- gets just the name of the file without dirs or extensions.
-                                file_type = file_type,
-                                -- data = nil
-                            }
-                            music_player.library.add_song(song.identifier, song)
+                        if not supported_ext_found and dev_warn_unrecognized_file_in_library then
+                            print("File in library found with unsupported extension: `"..full_path .."`")
                         end
                     end
                 end

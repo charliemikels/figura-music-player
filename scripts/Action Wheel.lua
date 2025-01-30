@@ -6,7 +6,7 @@ local midiPlayerScriptApi = require("scripts/music_player/midi_player")
 local music_player_api = midiPlayerScriptApi:build_default_MusicPlayer()
 
 -- printTable(music_player_api.get_song_by_sorted_index(1))
-printTable(music_player_api.get_song_by_id("TL_Songbook/MM/games/Wii Sports - Theme.mid"))
+music_player_api.get_song_by_id("TL_Songbook/MM/games/Wii Sports - Theme.mid"):data_processor()
 
 
 
