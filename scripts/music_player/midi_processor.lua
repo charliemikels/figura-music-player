@@ -12,14 +12,28 @@ local function midi_processor(song)
     ---@type Future
     future = {
         isDone = function()
-            if client.getSystemTime() > dev_future_create_time + 500 then
+            if client.getSystemTime() > dev_future_create_time + 1000 then
                 return true
             end
             return false
         end,
-        hasError = function() end,
-        throwError = function() end,
-        getValue = function() end,
+        hasError = function()
+            error("TODO: Implement Future.hasError.")
+            if true then
+                return true
+            end
+            return false
+        end,
+        throwError = function()
+            error("TODO: Implement Future.throwError.")
+            return nil
+        end,
+        getValue = function()
+            if not future.isDone() then
+                error("Future is has not finished. Check with future.isDone() before calling getValue.")
+            end
+            error("TODO: Future.getValue not implemented.")
+        end,
         getOrError = function()
             if future.hasError() then
                 future.throwError()
