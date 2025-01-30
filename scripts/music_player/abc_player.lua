@@ -1312,7 +1312,7 @@ function play_song_event_loop()
 					instruction.sound_id = drumkitSoundLookup(instruction.semitones_from_a4)
 						:setVolume( isUsingPiano() and 0.8 or 0.5)
 				elseif avatar:canUseCustomSounds() then
-					instruction.sound_id = sounds["scripts.music_player.triangle_sin"]
+					instruction.sound_id = sounds["scripts.music_player.triangle_sine"]
 						:setVolume(4)
 						:setLoop(true)
 						:setPitch(
