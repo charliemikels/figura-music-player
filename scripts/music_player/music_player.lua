@@ -44,7 +44,7 @@ local supported_file_types = {
 ---@field processed_data nil|ProcessedSong The instructions produced after processing raw_data
 ---@field raw_data nil|table|string The raw data for a song. Usualy empty and loaded later when data_source is "file"
 ---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
----@field process_data fun(self:Song): Future
+---@field start_data_processor fun(self:Song): Future
 
 
 
@@ -185,7 +185,7 @@ function script_api:build_empty_MusicPlayer()
                                         truepath = full_path,
                                         short_name = short_path:match("([^/]*)%."),
                                             -- gets just the name of the file without dirs or extensions.
-                                        process_data = file_type_data.processor,
+                                        start_data_processor = file_type_data.processor,
                                         -- data = nil
                                     }
                                     music_player.library.add_song(song.identifier, song)
