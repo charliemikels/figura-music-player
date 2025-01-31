@@ -45,6 +45,7 @@ local supported_file_types = {
 ---@field raw_data nil|table|string The raw data for a song. Usualy empty and loaded later when data_source is "file"
 ---@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
 ---@field start_data_processor fun(self:Song): Future
+---@field data_processor_state nil|table
 
 
 
