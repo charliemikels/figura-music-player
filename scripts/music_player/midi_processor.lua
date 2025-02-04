@@ -15,25 +15,10 @@ local function midi_processor(song)
     --     error("Viewer tried to process a song.")
     -- end
 
-    if song.data_source == "files" and (song.raw_data == nil or song.raw_data == {}) then
-        -- Pull in data from files API.
-        local file_read_stream = file:openReadStream(song.truepath)
-        local byte_array = {}
-        while file_read_stream:available() and file_read_stream:available() > 0 do
-            table.insert(byte_array, file_read_stream:read())
-        end
-        file_read_stream:close()
-
-        song.raw_data = byte_array
-
-        print(number_to_dec_and_hex(song.raw_data[1]))
-    end
-
-
-
     song.data_processor_state = {
         is_done = false,
         stage = "init",
+        raw_data = {},
         incomplete_instructions = {
             -- .track = {
             --      .channel = { instruction }
@@ -42,24 +27,57 @@ local function midi_processor(song)
         }
     }
 
-    local max_itterations_per_event = 1000
+    ---Limits to keep to reduce lag when processing large files.
+    local max_read_steps_per_event    = 100000  -- This stage has very few instructions, so it's max count can be very high.
+    local max_process_steps_per_event = 1000    -- This stage is far more expensive than max_read_steps.
+
     local state = song.data_processor_state
+
     local function processor_loop()
-        for i = 1, max_itterations_per_event, 1 do
-            if state.stage == "init" then
-                -- ensure everything is ready to go for reading and organizing
-            elseif state.stage == "read" then
-                -- read in data, one byte at a time,
-            elseif state.stage == "organize" then
+        if state.stage == "init" then
+            -- Ensure everything is ready to go for reading and organizing
 
+            -- Set up input stream for read step, or skip read if not needed
+            if song.data_source == "files" and (song.raw_data == nil or song.raw_data == {}) then
+                state.file_stream = file:openReadStream(song.truepath)
+                state.stage = "read"
+            else
+                state.stage = "process"
             end
+            print("init done")
+
+        elseif state.stage == "read" then
+            -- read in data, one byte at a time,
+            for i = 1, max_read_steps_per_event, 1 do
+                if
+                    state.file_stream:available()
+                    and state.file_stream:available() > 0
+                then
+                    table.insert(state.raw_data, state.file_stream:read())
+                else
+                    break
+                end
+            end
+
+            if state.file_stream:available() <= 0 then
+                -- Last loop had last item. move on
+                song.raw_data = state.raw_data
+                state.raw_data = nil
+                state.file_stream:close()
+                state.file_stream = nil
+                state.stage = "process"
+
+                print("read done")
+            end
+
+        elseif state.stage == "process" then
+            state.stage = "done"
+            state.is_done = true
+            print("done done")
+
+        elseif state.is_done then
+            events.WORLD_RENDER:remove(processor_loop)
         end
-
-        print("RENDER LOOP")
-
-        -- when processor is done, return self.
-        state.is_done = true
-        events.WORLD_RENDER:remove(processor_loop)
     end
 
     -- leveraging the event loop to preform async-like code.
