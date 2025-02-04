@@ -7,6 +7,17 @@ local function number_to_dec_and_hex(number)
     return string.format("Dec: %.0f | Hex: %x", number, number)
 end
 
+---converts a set of bytes to a number.
+---@param bytes integer[]
+---@return number
+local function bytes_to_number(bytes)
+    local result = 0
+    for i, v in ipairs(bytes) do
+        result = result + bit32.lshift(v, ((#bytes - i) * 8))
+    end
+    return result
+end
+
 ---Convert a song with midi data into a processed song.
 ---@param song Song
 ---@return Future
@@ -24,7 +35,10 @@ local function midi_processor(song)
             --      .channel = { instruction }
             -- }
             -- ??
-        }
+        },
+        data_index = 1,
+        midi_header_info = {},
+        current_chunk = nil
     }
 
     ---Limits to keep to reduce lag when processing large files.
@@ -71,6 +85,37 @@ local function midi_processor(song)
             end
 
         elseif state.stage == "process" then
+            for i = 1, max_process_steps_per_event, 1 do
+                if state.current_chunk == nil then
+                    -- no chunk data. Let's set that up
+
+                    state.current_chunk = {}
+
+                    --Midi chunks always start with 4 Chars to ID the chunk, then a 32-bit length (4 bytes) to indicate how many bytes are in the chunk.
+                    state.current_chunk.type = string.char(
+                        song.raw_data[state.data_index+0],
+                        song.raw_data[state.data_index+1],
+                        song.raw_data[state.data_index+2],
+                        song.raw_data[state.data_index+3]
+                    )
+                    state.data_index = state.data_index+4
+
+                    state.current_chunk.length = bytes_to_number({
+                        song.raw_data[state.data_index+0],
+                        song.raw_data[state.data_index+1],
+                        song.raw_data[state.data_index+2],
+                        song.raw_data[state.data_index+3]
+                    })
+                    state.data_index = state.data_index+4
+
+                    print(state.current_chunk.type)
+                    print(state.current_chunk.type == "MThd" and "It's the header track" or "Not the header track")
+                    printTable(state.current_chunk.length)
+                end
+            end
+
+
+
             state.stage = "done"
             state.is_done = true
             print("done done")
