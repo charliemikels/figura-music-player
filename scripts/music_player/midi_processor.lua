@@ -146,8 +146,20 @@ local function midi_processor(song)
 
                         if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
                             --first bit of first byte of timing data is 1. Use time-code-based method
+
+                            -- bit 15 = time type. Already checked
+                            state.midi_header_info.timing_method = 1
+                            -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
+                            -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
+                            --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
+                            --
+                            -- TODO
+
+                            -- bit 7-0 = resolution within a frame
+                            -- TODO
+
                             error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
-                                .." Send this MIDI file to the script author for testing.")
+                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
                         else
                             --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
                             local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
