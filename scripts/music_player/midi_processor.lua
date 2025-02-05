@@ -146,16 +146,14 @@ local function midi_processor(song)
 
                         if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
                             --first bit of first byte of timing data is 1. Use time-code-based method
-                            error("Unimplemented")
+                            error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
+                                .." Send this MIDI file to the script author for testing.")
                         else
                             --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
                             local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
                             local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
                             state.midi_header_info.timing_method = 0
                             state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
-
-                            print(state.midi_header_info.ticks_pre_quarter_note)
-                            print(number_to_dec_and_hex(state.midi_header_info.ticks_pre_quarter_note))
                         end
 
 
