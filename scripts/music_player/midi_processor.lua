@@ -156,12 +156,13 @@ local function midi_processor(song)
                             state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
                         end
 
+                        if state.current_chunk.length > 6 then
+                            print("Header chunk is larger than 6 bytes for some reason. Skipping to next chunk.")
+                            state.data_index = state.data_index + (state.current_chunk.length - 6)
+                        end
 
-
-                        -- state.midi_header_info.number_of_tracks = bytes_to_number({song.raw_data[state.data_index+0],song.raw_data[state.data_index+1]})
-                        -- state.data_index = state.data_index+2
-
-
+                        -- Done processing the header chunk
+                        state.current_chunk = nil
 
                         -- DEV: end early
                         state.data_index = #song.raw_data +1
