@@ -20,6 +20,23 @@ local function bytes_to_number(bytes)
     return result
 end
 
+---Similar to bytes_to_number, but ensures incomming numebrs are 7 bits long.
+---Use with variable-length quantities
+---TODO: if only used with variable length quantities, move into that function.
+---@param bytes integer[]
+---@return number
+local function combine_seven_bit_numbers(bytes)
+    local everything_but_first_bit = tonumber("01111111", 2)
+    local result = 0
+    for _, next_7byte in ipairs(bytes) do
+        result = bit32.bor( -- lshift fills space it makes with 0s. use or to "paste" data into space created.
+            bit32.lshift( result, 7 ), -- make space for next byte
+            bit32.band(next_7byte, everything_but_first_bit) -- ensure value is only 7 bits. (might break if input is larget than 8 bits? idk)
+        )
+    end
+    return result
+end
+
 ---Convert a song with midi data into a processed song.
 ---@param song Song
 ---@return Future
@@ -49,6 +66,9 @@ local function midi_processor(song)
 
     local state = song.data_processor_state
 
+    ---Grabs the next byte from raw_data, and keeps track of progress through the raw data and current chunk.
+    ---@param self self
+    ---@return number
     function state:raw_data_next_byte()
         local return_data = song.raw_data[self.data_index]
         self.data_index = self.data_index + 1
@@ -56,6 +76,40 @@ local function midi_processor(song)
             self.current_chunk.data_index = self.current_chunk.data_index +1
         end
         return return_data
+    end
+
+
+    function state:read_variable_length_quantity()
+        -- Some values in midi are stored as "variable-length quantities."
+        -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoreticaly," could go longer.
+        --
+        -- Bit 7 (the first bit, where the last is bit 0) for each number is actualy the flag that tells us
+        -- whether to continue reading or if we've reached the end. The last byte in the sequence has a 0 at
+        -- bit 7, and every byte before will have a 1. Bits 6-0 hold the actual number.
+        --
+        -- Examples:
+        -- midi file → real value
+        -- 00000000 → 00000000  |  00 → 00 00 00 00
+        -- 01000000 → 01000000  |  40 → 00 00 00 40
+        -- 10000001 00000000 → 10000000
+        -- 11000000 00000000 → 00100000 00000000
+        -- 10000001 10000000 00000000 → 01000000 00000000
+        -- 11111111 11111111 11111111 01111111 → 00001111 11111111 11111111 11111111  | FF FF FF 7F → 0F FF FF FF
+        --
+        -- largest midi value: FF FF FF 7F → resulting in 0FFFFFFF. Although, theoreticaly, it could go higher.
+
+        local continue_bit_mask = tonumber("10000000", 2)
+        local number_data_mask = bit32.bnot(continue_bit_mask)
+
+        -- gather relevent bytes
+
+        local bytes = {}
+        repeat
+            local current_byte = self:raw_data_next_byte()
+            table.insert(bytes, bit32.band(current_byte, number_data_mask))
+        until not bit32.btest(current_byte, continue_bit_mask)
+
+        return combine_seven_bit_numbers(bytes)
     end
 
     local function processor_loop()
@@ -135,7 +189,7 @@ local function midi_processor(song)
                         state.current_chunk = nil
 
                     elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first chunk in file
-                        -- All midi headers are 6 bytes, with 3 2-byte (16-bit) words.
+                        -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
                         state.midi_header_info = {}
 
                         -- format: 0, 1, or 2.
@@ -204,6 +258,7 @@ local function midi_processor(song)
                         -- midi format 2: each temporaly-independant track, should set up its own time signature info.
 
 
+                        -- state:read_variable_length_quantity()
 
                         -- DEV: end early
                         state.data_index = #song.raw_data +1
