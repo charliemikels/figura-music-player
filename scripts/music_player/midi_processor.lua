@@ -52,6 +52,9 @@ local function midi_processor(song)
     function state:raw_data_next_byte()
         local return_data = song.raw_data[self.data_index]
         self.data_index = self.data_index + 1
+        if self.current_chunk and self.current_chunk.data_index then
+            self.current_chunk.data_index = self.current_chunk.data_index +1
+        end
         return return_data
     end
 
@@ -122,16 +125,24 @@ local function midi_processor(song)
                             state:raw_data_next_byte(),
                             state:raw_data_next_byte()
                         })
+                        state.current_chunk.data_index = 1
                         break
 
-                    elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first track in file
+                    elseif state.current_chunk.data_index > state.current_chunk.length then
+                        -- at end of chunk
+                        -- (if chunk.data_index == chunk.length, then we need to grab the last state:raw_data_next_byte())
+
+                        state.current_chunk = nil
+
+                    elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first chunk in file
                         -- All midi headers are 6 bytes, with 3 2-byte (16-bit) words.
                         state.midi_header_info = {}
-                            -- format: 0, 1, or 2.
-                            --
-                            -- * 0 = one track in the entire file
-                            -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
-                            -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
+
+                        -- format: 0, 1, or 2.
+                        --
+                        -- * 0 = one track in the entire file
+                        -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
+                        -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
                         state.midi_header_info.format = bytes_to_number({state:raw_data_next_byte(), state:raw_data_next_byte()})
 
                         -- Number of tracks
@@ -168,18 +179,38 @@ local function midi_processor(song)
                             state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
                         end
 
-                        if state.current_chunk.length > 6 then
-                            print("Header chunk is larger than 6 bytes for some reason. Skipping to next chunk.")
+                        if state.current_chunk.data_index <= state.current_chunk.length then
+                            print("Header chunk is larger than expected. Skipping to next chunk.")
                             state.data_index = state.data_index + (state.current_chunk.length - 6)
                         end
 
                         -- Done processing the header chunk
                         state.current_chunk = nil
 
+                    elseif state.current_chunk.type == "MTrk" then
+                        -- we've should have already processed the length of the track chunk.
+                        -- TODO: Update state:raw_data_next_byte() to tick through the state.data_index counter, AND
+                        --       some sort of state.current_cunk.data_index. That way, we can track our progress through
+                        --       the chunk, and know when we should be done.
+
+                        -- Track chunks are repeating (delta-times, and events). delta-times are a "variable-lenght quantity"
+                        --       create a "parce variable-lenght" function that reads the raw_data, and picks out the number
+                        --       it represents, returning in a way that the next part of raw data is after said number.
+
+
+                        -- Setting up tempo and time signature. Default should be 120bpm and 4/4.
+                        -- midi format 0: there should be only one track. The first few events will describe the time signature
+                        -- midi format 1: the first track sets up the default time signature info for the whole file.
+                        -- midi format 2: each temporaly-independant track, should set up its own time signature info.
+
+
+
                         -- DEV: end early
                         state.data_index = #song.raw_data +1
                         break
+
                     end
+
                 end
             end
 
@@ -222,6 +253,8 @@ local function midi_processor(song)
         getValue = function()
             if not future.isDone() then
                 error("Future is has not finished. Check with future.isDone() before calling getValue.")
+            elseif future.hasError() then
+                return nil
             end
             error("TODO: Future.getValue not implemented.")
         end,
