@@ -2,6 +2,53 @@
 
 -- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 
+---@enum midi_event_types
+local midi_event_types = {
+    meta = 0xFF,
+    system_exclusive_message = 0xF0,
+    continued_system_exclusive_message = 0xF7,
+}
+
+---@enum midi_meta_event_types
+local midi_meta_event_types = {
+    ---optional, format 0 and 1 have only one sequence. but format 2 might have multiple. Sequence_number is used to keep sequences in order.
+    sequence_number = 0x00,
+    ---Generic text event. Provides notes about the song, or about a part of it. Events 0x01 - 0x0F are all text events of some sort.
+    text_event = 0x01,
+    ---Text event with copyright info.
+    copyright_notice = 0x02,
+    ---If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.) Else, it's the name of the track
+    sequence_or_track_name = 0x03,
+    ---Description or type of instrument to use for this track. See also Midi channel prefix
+    instrument_name = 0x04,
+    ---typicaly, lyric events are stored per-sylable
+    lyric = 0x05,
+    ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usualy only if first track.
+    marker = 0x06,
+    ---With film, a description of what happens on screen.
+    cue_point = 0x07,
+    --Sets a prefix for the channel. (0-15 (?)). Used to assosiate this channel with any following events.
+    midi_channel_prefix = 0x20,
+    ---Required. Marker for a cannonical end of a track. (Ending isn't "when last note ends, but whenever this event appears.")
+    end_of_track = 0x2F,
+    ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
+    ---Note this is in time-per beat, not the traditional beat-per-time.
+    set_tempo = 0x51,
+    ---Part of Format 2. Marks when this track is supposed to start.
+    smpte_offset = 0x54,
+    ---Time signature.
+    --- - <numerator: int>
+    --- - <denominator: negative-power-of-two>.
+    --- - the 3rd and 4th bytes are metronome data.
+    time_signature = 0x58,
+    ---Key signature.
+    --- - <numb of sharps and flats (negative == flat, positive == sharps. 0 == C)>
+    --- - <0 == major, 1 == minor>
+    key_signature = 0x59,
+    ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
+    sequencer_specific_meta_event = 0x7F
+}
+
 ---Converts a number into a string with both Dec and Hex values. Primaraly for debug
 ---@param number number
 ---@return string
@@ -49,6 +96,7 @@ local function midi_processor(song)
         is_done = false,
         stage = "init",
         raw_data = {},
+        processed_song_metadata = {},
         incomplete_instructions = {
             -- .track = {
             --      .channel = { instruction }
@@ -78,7 +126,10 @@ local function midi_processor(song)
         return return_data
     end
 
-
+    ---Assumes current index is the start of a variable-length-quantity, and attempts to read it as a number.
+    ---Uses state:raw_data_next_byte() under the hood, so the data_index is advanced when ran.
+    ---@param self self
+    ---@return number
     function state:read_variable_length_quantity()
         -- Some values in midi are stored as "variable-length quantities."
         -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoreticaly," could go longer.
@@ -184,7 +235,7 @@ local function midi_processor(song)
 
                     elseif state.current_chunk.data_index > state.current_chunk.length then
                         -- at end of chunk
-                        -- (if chunk.data_index == chunk.length, then we need to grab the last state:raw_data_next_byte())
+                        -- (if instead chunk.data_index == chunk.length, then we would still need to grab the last state:raw_data_next_byte())
 
                         state.current_chunk = nil
 
@@ -198,6 +249,11 @@ local function midi_processor(song)
                         -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
                         -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
                         state.midi_header_info.format = bytes_to_number({state:raw_data_next_byte(), state:raw_data_next_byte()})
+
+                        if state.midi_header_info.format == "2" then
+                            error("MIDI format 2 not yet supported."
+                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                        end
 
                         -- Number of tracks
                         state.midi_header_info.number_of_tracks = bytes_to_number({state:raw_data_next_byte(),state:raw_data_next_byte()})
@@ -242,14 +298,62 @@ local function midi_processor(song)
                         state.current_chunk = nil
 
                     elseif state.current_chunk.type == "MTrk" then
-                        -- we've should have already processed the length of the track chunk.
-                        -- TODO: Update state:raw_data_next_byte() to tick through the state.data_index counter, AND
-                        --       some sort of state.current_cunk.data_index. That way, we can track our progress through
-                        --       the chunk, and know when we should be done.
+                        -- We've already checked if the current chunk has ended. So we should have some midi event before us
 
-                        -- Track chunks are repeating (delta-times, and events). delta-times are a "variable-lenght quantity"
-                        --       create a "parce variable-lenght" function that reads the raw_data, and picks out the number
-                        --       it represents, returning in a way that the next part of raw data is after said number.
+                        -- Track chunks are repeating (delta-times, and events). delta-times are a variable-lenght quantity.
+                        -- The start of a track is likely a delta 0 and some meta events.
+
+                        local event_delta = state:read_variable_length_quantity()
+                        local event_code = state:raw_data_next_byte()
+                        print(number_to_dec_and_hex(event_code))
+
+                        -- events have a few flavors: midi event, sysex events, and meta events.
+                        if event_code == midi_event_types.meta then
+                            -- meta events all start with `FF`. They have this format: `FF <type> <length> <bytes>`
+                            -- where `type` is a byte less that `128`, `length` is a variable-length quantity, and
+                            -- the rest is just data. There are a few meta events that we care about. But many we
+                            -- may not recognize.
+
+                            ---@type midi_meta_event_types
+                            local meta_event_type = state:raw_data_next_byte()
+
+                            local meta_event_length = state:read_variable_length_quantity()
+                            local meta_event_bytes = {}
+                            for _ = 1, meta_event_length do
+                                table.insert(meta_event_bytes, state:raw_data_next_byte())
+                            end
+
+                            -- process specific meta events.
+                            if meta_event_type == midi_meta_event_types.copyright_notice then
+                                state.processed_song_metadata.copyright_notice = string.char(table.unpack(meta_event_bytes))
+                                print(state.processed_song_metadata.copyright_notice)
+                            else
+                                print("Unrecognized meta event", meta_event_type)
+                            end
+
+                            -- print(number_to_dec_and_hex(meta_event_type))
+                            -- printTable(meta_event_bytes)
+
+                        elseif event_code == midi_event_types.system_exclusive_message
+                            or event_code == midi_event_types.continued_system_exclusive_message
+                        then
+                            -- sysex events are messages for "the system." I don't think we need to worry about this type.
+                            -- sysex events is sometimes stored as packets within the midi file.
+                            -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
+                            -- Start of message chain   = `F0 <variable-length quantity> <bytes>`, where final byte is not `F7`
+                            -- Continuation of message  = `F7 <variable-length quantity> <bytes>`, where final byte is not `F7`
+                            -- end of message chain     = `F7 <variable-length quantity> <bytes>`, where final byte is `F7`.
+                            -- A final `F7` indicates that the message is done. But we shouldn't need to worry about
+                            -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
+                            -- we can just skip the entire length of bytes.
+
+                            error("TODO: sysex events")
+                        else
+                            -- Standard midi event. Refer to lookup table.
+
+                            error("TODO: standard midi events")
+                        end
+
 
 
                         -- Setting up tempo and time signature. Default should be 120bpm and 4/4.
@@ -258,7 +362,6 @@ local function midi_processor(song)
                         -- midi format 2: each temporaly-independant track, should set up its own time signature info.
 
 
-                        -- state:read_variable_length_quantity()
 
                         -- DEV: end early
                         state.data_index = #song.raw_data +1
