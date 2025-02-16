@@ -9,44 +9,93 @@ local midi_event_types = {
     continued_system_exclusive_message = 0xF7,
 }
 
----@enum midi_meta_event_types
-local midi_meta_event_types = {
-    ---optional, format 0 and 1 have only one sequence. but format 2 might have multiple. Sequence_number is used to keep sequences in order.
-    sequence_number = 0x00,
+
+---Collection of functions to process midi meta events, indexed by their event ID byte.
+---
+---The function that calls these functions should have already read the data needed for these functions.
+---So if an unrecognized event happens, we can safely ignore it.
+---@type table<integer, fun(state: MidiProcessorState, length: integer, bytes: integer[])>
+local midi_meta_event_functions = {
+
+    ---sequence_number
+    ---
+    ---Optional. Format 0 and 1 have only one sequence, But format 2 might have multiple. Sequence_number is used to keep sequences in order.
+    -- [0x00] = function(state, length, bytes) end,
+
+    ---text_event
+    ---
     ---Generic text event. Provides notes about the song, or about a part of it. Events 0x01 - 0x0F are all text events of some sort.
-    text_event = 0x01,
+    -- [0x01] = function(state, length, bytes) end,
+
+    ---copyright_notice
+    ---
     ---Text event with copyright info.
-    copyright_notice = 0x02,
-    ---If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.) Else, it's the name of the track
-    sequence_or_track_name = 0x03,
-    ---Description or type of instrument to use for this track. See also Midi channel prefix
-    instrument_name = 0x04,
-    ---typicaly, lyric events are stored per-sylable
-    lyric = 0x05,
+    [0x02] = function(state, length, bytes)
+        state.processed_song_metadata.copyright_notice = string.char(table.unpack(bytes))
+    end,
+
+    ---sequence_or_track_name
+    ---
+    ---Text event. If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.) Else, it's the name of the track
+    -- [0x03] = function(state, length, bytes) end,
+
+    ---instrument_name
+    ---
+    ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
+    -- [0x04] = function(state, length, bytes) end,
+
+    ---lyric
+    ---
+    ---Text event. defines the lyric to sing at a speciffic time. Typicaly, lyric events are stored per-sylable
+    -- [0x05] = function(state, length, bytes) end,
+
+    ---marker
+    ---
     ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usualy only if first track.
-    marker = 0x06,
+    -- [0x06] = function(state, length, bytes) end,
+
+    ---cue_point
+    ---
     ---With film, a description of what happens on screen.
-    cue_point = 0x07,
-    --Sets a prefix for the channel. (0-15 (?)). Used to assosiate this channel with any following events.
-    midi_channel_prefix = 0x20,
-    ---Required. Marker for a cannonical end of a track. (Ending isn't "when last note ends, but whenever this event appears.")
-    end_of_track = 0x2F,
+    -- [0x07] = function(state, length, bytes) end,
+
+    ---midi_channel_prefix
+    ---
+    ---Sets a prefix for the channel. (0-15 (?)). Used to assosiate this channel with any following events.
+    -- [0x20] = function(state, length, bytes) end,
+
+    ---end_of_track
+    ---
+    ---**Required.** Marker for a cannonical end of a track.
+    ---(Unlike in ABC, MIDI songs end when this event is hit. In ABC, it ends whenever the last note is done.)
+    -- [0x2F] = function(state, length, bytes) end,
+
+    ---set_tempo
+    ---
     ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
     ---Note this is in time-per beat, not the traditional beat-per-time.
-    set_tempo = 0x51,
+    -- [0x51] = function(state, length, bytes) end,
+
+    ---smpte_offset
+    ---
     ---Part of Format 2. Marks when this track is supposed to start.
-    smpte_offset = 0x54,
-    ---Time signature.
+    -- [0x54] = function(state, length, bytes) end,
+
+    ---time_signature
     --- - <numerator: int>
     --- - <denominator: negative-power-of-two>.
     --- - the 3rd and 4th bytes are metronome data.
-    time_signature = 0x58,
-    ---Key signature.
+    -- [0x58] = function(state, length, bytes) end,
+
+    ---key_signature.
     --- - <numb of sharps and flats (negative == flat, positive == sharps. 0 == C)>
     --- - <0 == major, 1 == minor>
-    key_signature = 0x59,
+    -- [0x59] = function(state, length, bytes) end,
+
+    ---sequencer_specific_meta_event
+    ---
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
-    sequencer_specific_meta_event = 0x7F
+    -- [0x7F] = function(state, length, bytes) end
 }
 
 ---Converts a number into a string with both Dec and Hex values. Primaraly for debug
@@ -92,6 +141,7 @@ local function midi_processor(song)
     --     error("Viewer tried to process a song.")
     -- end
 
+    ---@class MidiProcessorState
     song.data_processor_state = {
         is_done = false,
         stage = "init",
@@ -305,7 +355,7 @@ local function midi_processor(song)
 
                         local event_delta = state:read_variable_length_quantity()
                         local event_code = state:raw_data_next_byte()
-                        print(number_to_dec_and_hex(event_code))
+                        print("event_code:", number_to_dec_and_hex(event_code))
 
                         -- events have a few flavors: midi event, sysex events, and meta events.
                         if event_code == midi_event_types.meta then
@@ -314,9 +364,7 @@ local function midi_processor(song)
                             -- the rest is just data. There are a few meta events that we care about. But many we
                             -- may not recognize.
 
-                            ---@type midi_meta_event_types
                             local meta_event_type = state:raw_data_next_byte()
-
                             local meta_event_length = state:read_variable_length_quantity()
                             local meta_event_bytes = {}
                             for _ = 1, meta_event_length do
@@ -324,15 +372,11 @@ local function midi_processor(song)
                             end
 
                             -- process specific meta events.
-                            if meta_event_type == midi_meta_event_types.copyright_notice then
-                                state.processed_song_metadata.copyright_notice = string.char(table.unpack(meta_event_bytes))
-                                print(state.processed_song_metadata.copyright_notice)
+                            if midi_meta_event_functions[meta_event_type] then
+                                midi_meta_event_functions[meta_event_type](state, meta_event_length, meta_event_bytes)
                             else
                                 print("Unrecognized meta event", meta_event_type)
                             end
-
-                            -- print(number_to_dec_and_hex(meta_event_type))
-                            -- printTable(meta_event_bytes)
 
                         elseif event_code == midi_event_types.system_exclusive_message
                             or event_code == midi_event_types.continued_system_exclusive_message
@@ -347,19 +391,23 @@ local function midi_processor(song)
                             -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
                             -- we can just skip the entire length of bytes.
 
-                            error("TODO: sysex events")
+                            local sysex_event_length = state:read_variable_length_quantity()
+                            local sysex_event_bytes = {}
+                            for _ = 1, sysex_event_length do
+                                table.insert(sysex_event_bytes, state:raw_data_next_byte())
+                            end
+
+                            log("skipping sysex event:", table.unpack(sysex_event_bytes))
+
+                            -- error("TODO: sysex events")
                         else
                             -- Standard midi event. Refer to lookup table.
+
+                            -- by the time we get here, we should have already seen the tempo and key signature meta events.
 
                             error("TODO: standard midi events")
                         end
 
-
-
-                        -- Setting up tempo and time signature. Default should be 120bpm and 4/4.
-                        -- midi format 0: there should be only one track. The first few events will describe the time signature
-                        -- midi format 1: the first track sets up the default time signature info for the whole file.
-                        -- midi format 2: each temporaly-independant track, should set up its own time signature info.
 
 
 
