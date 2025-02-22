@@ -190,8 +190,10 @@ local midi_meta_event_functions = {
 ---Collection of functions to process midi message events, indexed by their event ID byte.
 ---
 ---These functions are responcible for reading their own data. All events must be handeled in some way.
----@type table<integer, fun(state: MidiProcessorState, delta: number, channel: number)>
+---@type table<integer, fun(state: MidiProcessorState, delta: number, channel: number?)>
 local midi_message_functions = {
+    -- ↓ Has channel ID
+
     ---Note Off event
     -- [tonumber("10000000", 2)] = function(state, delta, channel) end,
 
@@ -296,7 +298,7 @@ local midi_message_functions = {
     ---
     ---Reset all receivers to the system power-up status.
     ---
-    ---For us, this will never happen since code `11111111` is a meta event.
+    ---For us, this should never happen since code `11111111` is a meta event.
     [tonumber("11111111", 2)] = function(state, delta, channel)
         error("Meta event tried to be processed as a normal midi message.")
     end
