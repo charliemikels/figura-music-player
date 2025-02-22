@@ -57,7 +57,6 @@ local midi_event_types = {
     continued_system_exclusive_message = 0xF7,
 }
 
-
 ---Collection of functions to process midi meta events, indexed by their event ID byte.
 ---
 ---The function that calls these functions should have already read the data needed for these functions.
@@ -85,7 +84,9 @@ local midi_meta_event_functions = {
     ---sequence_or_track_name
     ---
     ---Text event. If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.) Else, it's the name of the track
-    -- [0x03] = function(state, length, bytes) end,
+    [0x03] = function(state, length, bytes)
+        state.current_chunk.track_name = string.char(table.unpack(bytes))
+    end,
 
     ---instrument_name
     ---
@@ -116,13 +117,42 @@ local midi_meta_event_functions = {
     ---
     ---**Required.** Marker for a cannonical end of a track.
     ---(Unlike in ABC, MIDI songs end when this event is hit. In ABC, it ends whenever the last note is done.)
-    -- [0x2F] = function(state, length, bytes) end,
+    [0x2F] = function(state, length, bytes)
+        -- TODO: Save "end of song point"
+        -- Clean up/save remaining data in current track.
+
+        -- Some tracks may not have saved any note data. We may want throw a flag in the track data so that we don't have to display it in the UI.
+        -- EG: `Wii Sports - Theme.mid`: The first track only time signature and some other meta data, then closes.
+
+        -- Resetting for next track happens at the end of the midi-chunk loop
+
+
+        -- tmp
+        if End_Of_Track_Event_Not_First_Time then
+            -- dev
+            error("TODO: Finish End of track Meta Event: 0x2F")
+        end
+        End_Of_Track_Event_Not_First_Time = true
+        print("")
+        print("TODO: Finish End of track Meta Event: 0x2F")
+        print("")
+    end,
 
     ---set_tempo
     ---
     ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
     ---Note this is in time-per beat, not the traditional beat-per-time.
-    -- [0x51] = function(state, length, bytes) end,
+    [0x51] = function(state, length, bytes)
+        local microseconds_per_midi_quarter_note = bytes_to_number(bytes)
+
+        state.current_chunk.tempo = microseconds_per_midi_quarter_note
+        state.current_chunk.bpm = 60000000 / microseconds_per_midi_quarter_note
+
+        if not state.midi_header_info.initial_tempo then
+            state.midi_header_info.initial_tempo = state.current_chunk.tempo
+            state.midi_header_info.initial_bpm = state.current_chunk.bpm
+        end
+    end,
 
     ---smpte_offset
     ---
@@ -133,7 +163,18 @@ local midi_meta_event_functions = {
     --- - <numerator: int>
     --- - <denominator: negative-power-of-two>.
     --- - the 3rd and 4th bytes are metronome data.
-    -- [0x58] = function(state, length, bytes) end,
+    [0x58] = function(state, length, bytes)
+        local numerator = bytes[1]
+        local denominator = 2^(bytes[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
+        -- local number_of_midi_clocks_in_a_metronome_click = bytes[3]
+        -- local number_of_notated_32nd_notes_in_a_midi_quarter_note = bytes[4]
+
+        state.current_chunk.time_signature = { numerator = numerator, denominator = denominator }
+
+        if not state.midi_header_info.initial_time_signature then
+            state.midi_header_info.initial_time_signature = { numerator = numerator, denominator = denominator }
+        end
+    end,
 
     ---key_signature.
     --- - <numb of sharps and flats (negative == flat, positive == sharps. 0 == C)>
@@ -167,7 +208,14 @@ local function midi_processor(song)
             -- ??
         },
         data_index = 1,
-        midi_header_info = {},
+        midi_header_info = {
+            default_time_signature = {numerator = 4, denominator = 4},
+            default_tempo = 500000, -- 120 BPM in microseconds per beat.
+            default_bpm = 120,      -- Calculated number. Midi stores temp in microseconds per beat. ↑
+            initial_time_signature = nil,   -- initial should be set by the time signature and tempo midi events in the first track. (format 0 and 1)
+            initial_tempo = nil,            --      in format 2, they should be at the start of every temporaly independant track.
+            initial_bpm = nil,
+        },
         current_chunk = nil
     }
 
@@ -294,6 +342,19 @@ local function midi_processor(song)
                             state:raw_data_next_byte()
                         })
                         state.current_chunk.data_index = 1
+
+
+                        -- Transfer meta info that transfers between tracks.
+                        state.current_chunk.tempo = state.midi_header_info.initial_tempo or state.midi_header_info.default_tempo
+                        state.current_chunk.bpm = state.midi_header_info.initial_bpm or state.midi_header_info.default_bpm
+                        state.current_chunk.time_signature = (
+                            state.midi_header_info.initial_time_signature
+                            and {   numerator   = state.midi_header_info.initial_time_signature.numerator,
+                                    denominator = state.midi_header_info.initial_time_signature.denominator }
+                            or  {   numerator   = state.midi_header_info.default_time_signature.numerator,
+                                    denominator = state.midi_header_info.default_time_signature.denominator }
+                        )
+
                         break
 
                     elseif state.current_chunk.data_index > state.current_chunk.length then
@@ -304,7 +365,7 @@ local function midi_processor(song)
 
                     elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first chunk in file
                         -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
-                        state.midi_header_info = {}
+                        -- state.midi_header_info = {}
 
                         -- format: 0, 1, or 2.
                         --
@@ -366,6 +427,8 @@ local function midi_processor(song)
                         -- Track chunks are repeating (delta-times, and events). delta-times are a variable-lenght quantity.
                         -- The start of a track is likely a delta 0 and some meta events.
 
+                        -- Some meta events are expected at the start of the first track.
+
                         local event_delta = state:read_variable_length_quantity()
                         local event_code = state:raw_data_next_byte()
                         print("event_code:", number_to_dec_and_hex(event_code))
@@ -388,7 +451,7 @@ local function midi_processor(song)
                             if midi_meta_event_functions[meta_event_type] then
                                 midi_meta_event_functions[meta_event_type](state, meta_event_length, meta_event_bytes)
                             else
-                                print("Unrecognized meta event", meta_event_type)
+                                print("Unrecognized meta event:", number_to_hex(meta_event_type))
                             end
 
                         elseif event_code == midi_event_types.system_exclusive_message
@@ -425,7 +488,7 @@ local function midi_processor(song)
 
 
                         -- DEV: end early
-                        state.data_index = #song.raw_data +1
+                        -- state.data_index = #song.raw_data +1
                         break
 
                     end
