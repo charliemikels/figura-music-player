@@ -47,9 +47,6 @@ end
 
 
 
-
-
-
 ---@enum midi_event_types
 local midi_event_types = {
     meta = 0xFF,
@@ -174,6 +171,8 @@ local midi_meta_event_functions = {
         if not state.midi_header_info.initial_time_signature then
             state.midi_header_info.initial_time_signature = { numerator = numerator, denominator = denominator }
         end
+
+        print("TODO: time_signature meta event: Double check meaning of 'a negative power of two' for the denominator.")
     end,
 
     ---key_signature.
@@ -186,6 +185,123 @@ local midi_meta_event_functions = {
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
     -- [0x7F] = function(state, length, bytes) end
 }
+
+
+---Collection of functions to process midi message events, indexed by their event ID byte.
+---
+---These functions are responcible for reading their own data. All events must be handeled in some way.
+---@type table<integer, fun(state: MidiProcessorState, delta: number, channel: number)>
+local midi_message_functions = {
+    ---Note Off event
+    -- [tonumber("10000000", 2)] = function(state, delta, channel) end,
+
+    ---Note On event
+    -- [tonumber("10010000", 2)] = function(state, delta, channel) end,
+
+    ---Polyphonic Key Pressure (Aftertouch)
+    -- [tonumber("10100000", 2)] = function(state, delta, channel) end,
+
+    ---Control Change / Channel Mode Messages
+    ---
+    ---Some Controller numbers are reserved. See "Channel Mode Messages"
+    -- [tonumber("10110000", 2)] = function(state, delta, channel) end,
+
+    ---Program change
+    -- [tonumber("11000000", 2)] = function(state, delta, channel) end,
+
+    ---Channel Presure
+    -- [tonumber("11010000", 2)] = function(state, delta, channel) end,
+
+    ---Pitch Wheel Change
+    -- [tonumber("11100000", 2)] = function(state, delta, channel) end,
+
+    -- ↑ Has channel ID
+    -- ↓ No channel ID
+
+    ---System Exclusive
+    ---
+    ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
+    ---
+    ---This is the same code as the system_exclusive_message type that we're already handeling. We shouldn't encounter this message at this stage.
+    [tonumber("11110000", 2)] = function(state, delta, channel)
+        error("System Exclusive Message tried to be processed as a normal midi message.")
+    end,
+
+    ---Undefined
+    -- [tonumber("11110001", 2)] = function(state, delta, channel) end,
+
+    ---Song Position Pointer
+    -- [tonumber("11110010", 2)] = function(state, delta, channel) end,
+
+    ---Song Select
+    ---
+    ---Used to select what sequence/song to play.
+    -- [tonumber("11110011", 2)] = function(state, delta, channel) end,
+
+    ---Undefined
+    -- [tonumber("11110100", 2)] = function(state, delta, channel) end,
+
+    ---Undefined
+    -- [tonumber("11110101", 2)] = function(state, delta, channel) end,
+
+    ---Tune request
+    ---
+    ---Request all analogue systems to tune themselves.
+    -- [tonumber("11110110", 2)] = function(state, delta, channel) end,
+
+    ---End of system exclusive dump.
+    ---
+    ---The System Exclusive message handeler will usualy take care of this.
+    [tonumber("11110111", 2)] = function(state, delta, channel)
+        error("End of a System Exclusive Message tried to be processed as a normal midi message.")
+    end,
+
+    -- ↓ System "Real-time" messages.
+    -- We can probably ignore just about all of these.
+
+    ---Timing Clock
+    ---
+    ---Sent 24 times per quarter note when synchronisation is required
+    -- [tonumber("11111000", 2)] = function(state, delta, channel) end,
+
+    ---Undefined
+    -- [tonumber("11111001", 2)] = function(state, delta, channel) end,
+
+    ---Start
+    ---
+    ---Start the current sequence playing
+    -- [tonumber("11111010", 2)] = function(state, delta, channel) end,
+
+    ---Continue
+    ---
+    ---Continue at the point the sequence was stopped
+    -- [tonumber("11111011", 2)] = function(state, delta, channel) end,
+
+    ---Stop
+    ---
+    ---Stop the current sequence
+    -- [tonumber("11111100", 2)] = function(state, delta, channel) end,
+
+    ---Undefined
+    -- [tonumber("11111101", 2)] = function(state, delta, channel) end,
+
+    ---Active Sensing
+    ---
+    ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
+    ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
+    ---return to normal, non active sensing opperation.
+    [tonumber("11111110", 2)] = function(state, delta, channel) end,
+
+    ---Reset
+    ---
+    ---Reset all receivers to the system power-up status.
+    ---
+    ---For us, this will never happen since code `11111111` is a meta event.
+    [tonumber("11111111", 2)] = function(state, delta, channel)
+        error("Meta event tried to be processed as a normal midi message.")
+    end
+}
+
 
 ---Convert a song with midi data into a processed song.
 ---@param song Song
@@ -477,14 +593,35 @@ local function midi_processor(song)
 
                             -- error("TODO: sysex events")
                         else
-                            -- Standard midi event. Refer to lookup table.
+                            -- Standard midi message. Refer to lookup table.
 
                             -- by the time we get here, we should have already seen the tempo and key signature meta events.
 
-                            error("TODO: standard midi events")
+
+                            -- Midi Messenge < `11110000` use the last 4 bits to represent a channel ID
+                            local first_half_mask = tonumber("11110000", 2)
+                            local midi_channel = (
+                                (event_code < first_half_mask)
+                                and bit32.band(event_code, bit32.bnot(first_half_mask))
+                                or nil
+                            )
+                            local midi_message_id = (
+                                (event_code < first_half_mask)
+                                and bit32.band(event_code, first_half_mask)
+                                or event_code
+                            )
+
+                            print("Midi message:", number_to_hex(midi_message_id), "|", "Channel:", number_to_hex(midi_channel))
+
+                            if midi_message_functions[midi_message_id] then
+                                midi_message_functions[midi_message_id](state, event_delta, midi_channel)
+                            else
+                                error("Unknown midi message: " .. number_to_hex(event_code))
+                            end
+
+
+                            -- error("TODO: standard midi events")
                         end
-
-
 
 
                         -- DEV: end early
