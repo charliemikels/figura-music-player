@@ -2,6 +2,54 @@
 
 -- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 
+
+---Converts a number into a string with both Dec and Hex values. Primaraly for debug
+---@param number number
+---@return string
+local function number_to_dec_and_hex(number)
+    return string.format("Dec: %.0f | Hex: %x", number, number)
+end
+
+---Converts a number into a string with that number's Hex value. Primaraly for debug
+---@param number number
+---@return string
+local function number_to_hex(number)
+    return string.format("%x", number)
+end
+
+---converts a set of bytes to a number.
+---@param bytes integer[]
+---@return number
+local function bytes_to_number(bytes)
+    local result = 0
+    for i, v in ipairs(bytes) do
+        result = result + bit32.lshift(v, ((#bytes - i) * 8))
+    end
+    return result
+end
+
+---Similar to bytes_to_number, but ensures incomming numebrs are 7 bits long.
+---Use with variable-length quantities
+---TODO: if only used with variable length quantities, move into that function.
+---@param bytes integer[]
+---@return number
+local function combine_seven_bit_numbers(bytes)
+    local everything_but_first_bit = tonumber("01111111", 2)
+    local result = 0
+    for _, next_7byte in ipairs(bytes) do
+        result = bit32.bor( -- lshift fills space it makes with 0s. use or to "paste" data into space created.
+            bit32.lshift( result, 7 ), -- make space for next byte
+            bit32.band(next_7byte, everything_but_first_bit) -- ensure value is only 7 bits. (might break if input is larget than 8 bits? idk)
+        )
+    end
+    return result
+end
+
+
+
+
+
+
 ---@enum midi_event_types
 local midi_event_types = {
     meta = 0xFF,
@@ -97,41 +145,6 @@ local midi_meta_event_functions = {
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
     -- [0x7F] = function(state, length, bytes) end
 }
-
----Converts a number into a string with both Dec and Hex values. Primaraly for debug
----@param number number
----@return string
-local function number_to_dec_and_hex(number)
-    return string.format("Dec: %.0f | Hex: %x", number, number)
-end
-
----converts a set of bytes to a number.
----@param bytes integer[]
----@return number
-local function bytes_to_number(bytes)
-    local result = 0
-    for i, v in ipairs(bytes) do
-        result = result + bit32.lshift(v, ((#bytes - i) * 8))
-    end
-    return result
-end
-
----Similar to bytes_to_number, but ensures incomming numebrs are 7 bits long.
----Use with variable-length quantities
----TODO: if only used with variable length quantities, move into that function.
----@param bytes integer[]
----@return number
-local function combine_seven_bit_numbers(bytes)
-    local everything_but_first_bit = tonumber("01111111", 2)
-    local result = 0
-    for _, next_7byte in ipairs(bytes) do
-        result = bit32.bor( -- lshift fills space it makes with 0s. use or to "paste" data into space created.
-            bit32.lshift( result, 7 ), -- make space for next byte
-            bit32.band(next_7byte, everything_but_first_bit) -- ensure value is only 7 bits. (might break if input is larget than 8 bits? idk)
-        )
-    end
-    return result
-end
 
 ---Convert a song with midi data into a processed song.
 ---@param song Song
