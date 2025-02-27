@@ -3,6 +3,17 @@
 -- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 
 
+
+-- Defaults and limits
+
+---Limits to keep to reduce lag when processing large files.
+local max_read_steps_per_event    = 100000  -- This stage has very few instructions, so it's max count can be very high.
+local max_process_steps_per_event = 1000    -- This stage is far more expensive than max_read_steps.
+
+
+
+
+
 ---Converts a number into a string with both Dec and Hex values. Primaraly for debug
 ---@param number number
 ---@return string
@@ -317,6 +328,326 @@ local midi_message_functions = {
 }
 
 
+---@alias midi_processor_stage
+---| '"init"'
+---| '"read"'
+---| '"process_header"'
+---| '"process_tracks"'
+---| '"done"'
+
+---@type table<string, fun(song: Song, state: MidiProcessorState)>
+local midi_processor_loop_stage_functions = {
+    init = function(song, state)
+        -- Ensure everything is ready to go for reading and organizing
+
+        -- Set up input stream for read step, or skip read if not needed
+        if song.data_source == "files" then
+            state.file_stream = file:openReadStream(song.truepath)
+            state.stage = "read"
+        else
+            state.stage = "process_header"
+        end
+        print("init done")
+    end,
+
+    read = function(song, state)
+        -- read in data, one byte at a time,
+        for i = 1, max_read_steps_per_event, 1 do
+            if
+                not state.file_stream:available()
+                or state.file_stream:available() <= 0
+            then
+                break
+            else
+                -- Midi files split into chunks like head and track.
+                -- We'll want to process the head first, but then process the tracks together.
+                -- (Tracks just organize messages. The 16 midi channels are the real stars as far as playback is concerned.)
+                -- As we read, organize data by chunk.
+                if
+                    state.reader.current_chunk_length_counter
+                    and state.reader.current_chunk_length_counter <= 0
+                then
+                    -- Must be at the start of a new chunk.
+
+                    ---Stores the raw data for a single chunk in a midi file.
+                    ---@class midi_chunk
+                    local new_chunk = {
+                        --Chunk types start with a 4 char type, then a 32 bit length
+                        type = string.char(
+                            state.file_stream:read(),
+                            state.file_stream:read(),
+                            state.file_stream:read(),
+                            state.file_stream:read()
+                        ),
+
+                        --32-bit unsigned int, represents how many bytes in the entire chunk.
+                        length = bytes_to_number({
+                            state.file_stream:read(),
+                            state.file_stream:read(),
+                            state.file_stream:read(),
+                            state.file_stream:read()
+                        }),
+
+                        --Raw data from file for this chunk
+                        ---@type integer[]
+                        data = {},
+
+                        ---During the process stage, we need to keep track of our progress through each track
+                        process_progress = 0,
+
+                        ---Durring the process stage, we need to read track messages in chronological order.
+                        ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
+                        sum_delta = 0,
+                    }
+
+                    state.reader.current_chunk_length_counter = new_chunk.length
+
+                    table.insert(state.chunks, new_chunk)
+                else
+                    -- Currently inside of a chunk, read data and throw into current chunk.
+                    table.insert(state.chunks[#state.chunks].data, state.file_stream:read())
+                    state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
+                end
+            end
+        end
+
+        if state.file_stream:available() <= 0 then
+            -- Last loop had last item. move on
+            song.raw_data = state.raw_data
+            state.raw_data = nil
+            state.file_stream:close()
+            state.file_stream = nil
+            state.stage = "process_header"
+
+            print("read done")
+        end
+    end,
+
+    process_header = function(song, state)
+        error("TODO: stage == process_header")
+    end,
+
+    process_tracks = function(song, state)
+        if state.data_index >= #song.raw_data then
+            state.stage = "done"
+            state.is_done = true
+            print("process done")
+        else
+
+            -- TODO:
+            -- As it turns out, the tracks in a midi file don't actualy mean that much for playback. Any event that modifies a channel
+            -- is not isolated to that channel, and instead effects the channel acrost all tracks. Meaning some things that can effect
+            -- the current note might appear later in the file. Therfore, I **can't** process one track then the next, but all the
+            -- tracks simultaniously, where I read the next chronological event (based on the timestamp).
+            --
+            -- I can acheive this by scanning the file for the start of each track (Should be simple since every track says where it ends,
+            -- aka, where each next track begins.) Then for each track, keep a running counter of the delta to the next event. Consume the
+            -- soonest delta, then subtract that delta from each running counter in every other track. This is probably the reccomended
+            -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
+            --
+            -- ✅TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
+            -- TODO: Edit process loop to process the MThd chunk, then for each track: get the soonest event, rather than the "next-in-the-file" event.
+            -- TODO: Move file progress tracking code to within each track, rather than the whole file.
+            error("See todo above this error")
+
+            for i = 1, max_process_steps_per_event, 1 do
+                if state.current_chunk == nil then
+                    -- no chunk data. Let's set that up
+
+                    --Midi chunks always start with 4 Chars to ID the chunk,
+                    -- then a 32-bit length (4 bytes) to indicate how many bytes are in the chunk.
+                    state.current_chunk = {}
+
+                    --Chunk type: string with 4 chars.
+                    --"MThd" == midi header. "MTrk" == track. Any unrecognized are probably ignorable.
+                    state.current_chunk.type = string.char(
+                        state:raw_data_next_byte(),
+                        state:raw_data_next_byte(),
+                        state:raw_data_next_byte(),
+                        state:raw_data_next_byte()
+                    )
+
+                    --32-bit unsigned int, represents how many bytes in the entire chunk.
+                    state.current_chunk.length = bytes_to_number({
+                        state:raw_data_next_byte(),
+                        state:raw_data_next_byte(),
+                        state:raw_data_next_byte(),
+                        state:raw_data_next_byte()
+                    })
+                    state.current_chunk.data_index = 1
+
+
+                    -- Transfer meta info that transfers between tracks.
+                    state.current_chunk.tempo = state.midi_header_info.initial_tempo or state.midi_header_info.default_tempo
+                    state.current_chunk.bpm = state.midi_header_info.initial_bpm or state.midi_header_info.default_bpm
+                    state.current_chunk.time_signature = (
+                        state.midi_header_info.initial_time_signature
+                        and {   numerator   = state.midi_header_info.initial_time_signature.numerator,
+                                denominator = state.midi_header_info.initial_time_signature.denominator }
+                        or  {   numerator   = state.midi_header_info.default_time_signature.numerator,
+                                denominator = state.midi_header_info.default_time_signature.denominator }
+                    )
+
+                    break
+
+                elseif state.current_chunk.data_index > state.current_chunk.length then
+                    -- at end of chunk
+                    -- (if instead chunk.data_index == chunk.length, then we would still need to grab the last state:raw_data_next_byte())
+
+                    state.current_chunk = nil
+
+                elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first chunk in file
+                    -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
+                    -- state.midi_header_info = {}
+
+                    -- format: 0, 1, or 2.
+                    --
+                    -- * 0 = one track in the entire file
+                    -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
+                    -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
+                    state.midi_header_info.format = bytes_to_number({state:raw_data_next_byte(), state:raw_data_next_byte()})
+
+                    if state.midi_header_info.format == "2" then
+                        error("MIDI format 2 not yet supported."
+                            .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                    end
+
+                    -- Number of tracks
+                    state.midi_header_info.number_of_tracks = bytes_to_number({state:raw_data_next_byte(),state:raw_data_next_byte()})
+
+                    -- division / timing data
+                    -- bit 15 = format type: 0 == ticks per quarter-note. 1 == timecode system
+                    local first_bit_mask = tonumber("10000000", 2)
+                    local everything_but_first_bit_mask = bit32.bnot(first_bit_mask)
+                    local first_byte_of_timing_data = state:raw_data_next_byte()
+                    local second_byte_of_timing_data = state:raw_data_next_byte()
+
+                    if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
+                        --first bit of first byte of timing data is 1. Use time-code-based method
+
+                        -- bit 15 = time type. Already checked
+                        state.midi_header_info.timing_method = 1
+                        -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
+                        -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
+                        --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
+                        --
+                        -- TODO
+
+                        -- bit 7-0 = resolution within a frame
+                        -- TODO
+
+                        error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
+                            .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                    else
+                        --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
+                        local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
+                        local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
+                        state.midi_header_info.timing_method = 0
+                        state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
+                    end
+
+                    if state.current_chunk.data_index <= state.current_chunk.length then
+                        print("Header chunk is larger than expected. Skipping to next chunk.")
+                        state.data_index = state.data_index + (state.current_chunk.length - 6)
+                    end
+
+                    -- Done processing the header chunk
+                    state.current_chunk = nil
+
+                elseif state.current_chunk.type == "MTrk" then
+                    -- We've already checked if the current chunk has ended. So we should have some midi event before us
+
+                    -- Track chunks are repeating (delta-times, and events). delta-times are a variable-lenght quantity.
+                    -- The start of a track is likely a delta 0 and some meta events.
+
+                    -- Some meta events are expected at the start of the first track.
+
+                    local event_delta = state:read_variable_length_quantity()
+                    local event_code = state:raw_data_next_byte()
+                    print("event_code:", number_to_dec_and_hex(event_code))
+
+                    -- events have a few flavors: midi event, sysex events, and meta events.
+                    if event_code == midi_event_types.meta then
+                        -- meta events all start with `FF`. They have this format: `FF <type> <length> <bytes>`
+                        -- where `type` is a byte less that `128`, `length` is a variable-length quantity, and
+                        -- the rest is just data. There are a few meta events that we care about. But many we
+                        -- may not recognize.
+
+                        local meta_event_type = state:raw_data_next_byte()
+                        local meta_event_length = state:read_variable_length_quantity()
+                        local meta_event_bytes = {}
+                        for _ = 1, meta_event_length do
+                            table.insert(meta_event_bytes, state:raw_data_next_byte())
+                        end
+
+                        -- process specific meta events.
+                        if midi_meta_event_functions[meta_event_type] then
+                            midi_meta_event_functions[meta_event_type](state, meta_event_length, meta_event_bytes)
+                        else
+                            print("Unrecognized meta event:", number_to_hex(meta_event_type))
+                        end
+
+                    elseif event_code == midi_event_types.system_exclusive_message
+                        or event_code == midi_event_types.continued_system_exclusive_message
+                    then
+                        -- sysex events are messages for "the system." I don't think we need to worry about this type.
+                        -- sysex events is sometimes stored as packets within the midi file.
+                        -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
+                        -- Start of message chain   = `F0 <variable-length quantity> <bytes>`, where final byte is not `F7`
+                        -- Continuation of message  = `F7 <variable-length quantity> <bytes>`, where final byte is not `F7`
+                        -- end of message chain     = `F7 <variable-length quantity> <bytes>`, where final byte is `F7`.
+                        -- A final `F7` indicates that the message is done. But we shouldn't need to worry about
+                        -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
+                        -- we can just skip the entire length of bytes.
+
+                        local sysex_event_length = state:read_variable_length_quantity()
+                        local sysex_event_bytes = {}
+                        for _ = 1, sysex_event_length do
+                            table.insert(sysex_event_bytes, state:raw_data_next_byte())
+                        end
+
+                        log("skipping sysex event:", table.unpack(sysex_event_bytes))
+
+                        -- error("TODO: sysex events")
+                    else
+                        -- Standard midi message. Refer to lookup table.
+
+                        -- by the time we get here, we should have already seen the tempo and key signature meta events.
+
+
+                        -- Midi Messenge < `11110000` use the last 4 bits to represent a channel ID
+                        local first_half_mask = tonumber("11110000", 2)
+                        local midi_channel = (
+                            (event_code < first_half_mask)
+                            and bit32.band(event_code, bit32.bnot(first_half_mask))
+                            or nil
+                        )
+                        local midi_message_id = (
+                            (event_code < first_half_mask)
+                            and bit32.band(event_code, first_half_mask)
+                            or event_code
+                        )
+
+                        print("Midi message:", number_to_hex(midi_message_id), "|", "Channel:", number_to_hex(midi_channel))
+
+                        if midi_message_functions[midi_message_id] then
+                            midi_message_functions[midi_message_id](state, event_delta, midi_channel)
+                        else
+                            error("Unhandled midi message: " .. number_to_hex(event_code))
+                        end
+                    end
+                end
+            end
+        end
+    end,
+
+    done = function(song, stage)
+        error("reached new done. Clean up should be handled by state.is_done check.")
+    end
+}
+
+
+
 ---Convert a song with midi data into a processed song.
 ---@param song Song
 ---@return Future
@@ -328,6 +659,8 @@ local function midi_processor(song)
     ---@class MidiProcessorState
     song.data_processor_state = {
         is_done = false,
+
+        ---@type midi_processor_stage
         stage = "init",
 
         -- stores the raw midi data, organized by chunk
@@ -366,10 +699,6 @@ local function midi_processor(song)
         },
         -- current_chunk = nil  →
     }
-
-    ---Limits to keep to reduce lag when processing large files.
-    local max_read_steps_per_event    = 100000  -- This stage has very few instructions, so it's max count can be very high.
-    local max_process_steps_per_event = 1000    -- This stage is far more expensive than max_read_steps.
 
     local state = song.data_processor_state
 
@@ -423,308 +752,14 @@ local function midi_processor(song)
     end
 
     local function processor_loop()
-        if state.stage == "init" then
-            -- Ensure everything is ready to go for reading and organizing
-
-            -- Set up input stream for read step, or skip read if not needed
-            if song.data_source == "files" then
-                state.file_stream = file:openReadStream(song.truepath)
-                state.stage = "read"
-            else
-                state.stage = "process"
-            end
-            print("init done")
-
-        elseif state.stage == "read" then
-            -- read in data, one byte at a time,
-            for i = 1, max_read_steps_per_event, 1 do
-                if
-                    not state.file_stream:available()
-                    or state.file_stream:available() <= 0
-                then
-                    break
-                else
-                    -- Midi files split into chunks like head and track.
-                    -- We'll want to process the head first, but then process the tracks together.
-                    -- (Tracks just organize messages. The 16 midi channels are the real stars as far as playback is concerned.)
-                    -- As we read, organize data by chunk.
-                    if
-                        state.reader.current_chunk_length_counter
-                        and state.reader.current_chunk_length_counter <= 0
-                    then
-                        -- Must be at the start of a new chunk.
-
-                        ---Stores the raw data for a single chunk in a midi file.
-                        ---@class midi_chunk
-                        local new_chunk = {
-                            --Chunk types start with a 4 char type, then a 32 bit length
-                            type = string.char(
-                                state.file_stream:read(),
-                                state.file_stream:read(),
-                                state.file_stream:read(),
-                                state.file_stream:read()
-                            ),
-
-                            --32-bit unsigned int, represents how many bytes in the entire chunk.
-                            length = bytes_to_number({
-                                state.file_stream:read(),
-                                state.file_stream:read(),
-                                state.file_stream:read(),
-                                state.file_stream:read()
-                            }),
-
-                            --Raw data from file for this chunk
-                            ---@type integer[]
-                            data = {},
-
-                            ---During the process stage, we need to keep track of our progress through each track
-                            process_progress = 0,
-
-                            ---Durring the process stage, we need to read track messages in chronological order.
-                            ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
-                            sum_delta = 0,
-                        }
-
-                        state.reader.current_chunk_length_counter = new_chunk.length
-
-                        table.insert(state.chunks, new_chunk)
-                    else
-                        -- Currently inside of a chunk, read data and throw into current chunk.
-                        table.insert(state.chunks[#state.chunks].data, state.file_stream:read())
-                        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
-                    end
-                end
-            end
-
-            if state.file_stream:available() <= 0 then
-                -- Last loop had last item. move on
-                song.raw_data = state.raw_data
-                state.raw_data = nil
-                state.file_stream:close()
-                state.file_stream = nil
-                state.stage = "process"
-
-                print("read done")
-            end
-
-        elseif state.stage == "process" then
-            if state.data_index >= #song.raw_data then
-                state.stage = "done"
-                state.is_done = true
-                print("process done")
-            else
-
-                -- TODO:
-                -- As it turns out, the tracks in a midi file don't actualy mean that much for playback. Any event that modifies a channel
-                -- is not isolated to that channel, and instead effects the channel acrost all tracks. Meaning some things that can effect
-                -- the current note might appear later in the file. Therfore, I **can't** process one track then the next, but all the
-                -- tracks simultaniously, where I read the next chronological event (based on the timestamp).
-                --
-                -- I can acheive this by scanning the file for the start of each track (Should be simple since every track says where it ends,
-                -- aka, where each next track begins.) Then for each track, keep a running counter of the delta to the next event. Consume the
-                -- soonest delta, then subtract that delta from each running counter in every other track. This is probably the reccomended
-                -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
-                --
-                -- ✅TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
-                -- TODO: Edit process loop to process the MThd chunk, then for each track: get the soonest event, rather than the "next-in-the-file" event.
-                -- TODO: Move file progress tracking code to within each track, rather than the whole file.
-                error("See todo above this error")
-
-                for i = 1, max_process_steps_per_event, 1 do
-                    if state.current_chunk == nil then
-                        -- no chunk data. Let's set that up
-
-                        --Midi chunks always start with 4 Chars to ID the chunk,
-                        -- then a 32-bit length (4 bytes) to indicate how many bytes are in the chunk.
-                        state.current_chunk = {}
-
-                        --Chunk type: string with 4 chars.
-                        --"MThd" == midi header. "MTrk" == track. Any unrecognized are probably ignorable.
-                        state.current_chunk.type = string.char(
-                            state:raw_data_next_byte(),
-                            state:raw_data_next_byte(),
-                            state:raw_data_next_byte(),
-                            state:raw_data_next_byte()
-                        )
-
-                        --32-bit unsigned int, represents how many bytes in the entire chunk.
-                        state.current_chunk.length = bytes_to_number({
-                            state:raw_data_next_byte(),
-                            state:raw_data_next_byte(),
-                            state:raw_data_next_byte(),
-                            state:raw_data_next_byte()
-                        })
-                        state.current_chunk.data_index = 1
-
-
-                        -- Transfer meta info that transfers between tracks.
-                        state.current_chunk.tempo = state.midi_header_info.initial_tempo or state.midi_header_info.default_tempo
-                        state.current_chunk.bpm = state.midi_header_info.initial_bpm or state.midi_header_info.default_bpm
-                        state.current_chunk.time_signature = (
-                            state.midi_header_info.initial_time_signature
-                            and {   numerator   = state.midi_header_info.initial_time_signature.numerator,
-                                    denominator = state.midi_header_info.initial_time_signature.denominator }
-                            or  {   numerator   = state.midi_header_info.default_time_signature.numerator,
-                                    denominator = state.midi_header_info.default_time_signature.denominator }
-                        )
-
-                        break
-
-                    elseif state.current_chunk.data_index > state.current_chunk.length then
-                        -- at end of chunk
-                        -- (if instead chunk.data_index == chunk.length, then we would still need to grab the last state:raw_data_next_byte())
-
-                        state.current_chunk = nil
-
-                    elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first chunk in file
-                        -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
-                        -- state.midi_header_info = {}
-
-                        -- format: 0, 1, or 2.
-                        --
-                        -- * 0 = one track in the entire file
-                        -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
-                        -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
-                        state.midi_header_info.format = bytes_to_number({state:raw_data_next_byte(), state:raw_data_next_byte()})
-
-                        if state.midi_header_info.format == "2" then
-                            error("MIDI format 2 not yet supported."
-                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
-                        end
-
-                        -- Number of tracks
-                        state.midi_header_info.number_of_tracks = bytes_to_number({state:raw_data_next_byte(),state:raw_data_next_byte()})
-
-                        -- division / timing data
-                        -- bit 15 = format type: 0 == ticks per quarter-note. 1 == timecode system
-                        local first_bit_mask = tonumber("10000000", 2)
-                        local everything_but_first_bit_mask = bit32.bnot(first_bit_mask)
-                        local first_byte_of_timing_data = state:raw_data_next_byte()
-                        local second_byte_of_timing_data = state:raw_data_next_byte()
-
-                        if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
-                            --first bit of first byte of timing data is 1. Use time-code-based method
-
-                            -- bit 15 = time type. Already checked
-                            state.midi_header_info.timing_method = 1
-                            -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
-                            -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
-                            --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
-                            --
-                            -- TODO
-
-                            -- bit 7-0 = resolution within a frame
-                            -- TODO
-
-                            error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
-                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
-                        else
-                            --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
-                            local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
-                            local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
-                            state.midi_header_info.timing_method = 0
-                            state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
-                        end
-
-                        if state.current_chunk.data_index <= state.current_chunk.length then
-                            print("Header chunk is larger than expected. Skipping to next chunk.")
-                            state.data_index = state.data_index + (state.current_chunk.length - 6)
-                        end
-
-                        -- Done processing the header chunk
-                        state.current_chunk = nil
-
-                    elseif state.current_chunk.type == "MTrk" then
-                        -- We've already checked if the current chunk has ended. So we should have some midi event before us
-
-                        -- Track chunks are repeating (delta-times, and events). delta-times are a variable-lenght quantity.
-                        -- The start of a track is likely a delta 0 and some meta events.
-
-                        -- Some meta events are expected at the start of the first track.
-
-                        local event_delta = state:read_variable_length_quantity()
-                        local event_code = state:raw_data_next_byte()
-                        print("event_code:", number_to_dec_and_hex(event_code))
-
-                        -- events have a few flavors: midi event, sysex events, and meta events.
-                        if event_code == midi_event_types.meta then
-                            -- meta events all start with `FF`. They have this format: `FF <type> <length> <bytes>`
-                            -- where `type` is a byte less that `128`, `length` is a variable-length quantity, and
-                            -- the rest is just data. There are a few meta events that we care about. But many we
-                            -- may not recognize.
-
-                            local meta_event_type = state:raw_data_next_byte()
-                            local meta_event_length = state:read_variable_length_quantity()
-                            local meta_event_bytes = {}
-                            for _ = 1, meta_event_length do
-                                table.insert(meta_event_bytes, state:raw_data_next_byte())
-                            end
-
-                            -- process specific meta events.
-                            if midi_meta_event_functions[meta_event_type] then
-                                midi_meta_event_functions[meta_event_type](state, meta_event_length, meta_event_bytes)
-                            else
-                                print("Unrecognized meta event:", number_to_hex(meta_event_type))
-                            end
-
-                        elseif event_code == midi_event_types.system_exclusive_message
-                            or event_code == midi_event_types.continued_system_exclusive_message
-                        then
-                            -- sysex events are messages for "the system." I don't think we need to worry about this type.
-                            -- sysex events is sometimes stored as packets within the midi file.
-                            -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
-                            -- Start of message chain   = `F0 <variable-length quantity> <bytes>`, where final byte is not `F7`
-                            -- Continuation of message  = `F7 <variable-length quantity> <bytes>`, where final byte is not `F7`
-                            -- end of message chain     = `F7 <variable-length quantity> <bytes>`, where final byte is `F7`.
-                            -- A final `F7` indicates that the message is done. But we shouldn't need to worry about
-                            -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
-                            -- we can just skip the entire length of bytes.
-
-                            local sysex_event_length = state:read_variable_length_quantity()
-                            local sysex_event_bytes = {}
-                            for _ = 1, sysex_event_length do
-                                table.insert(sysex_event_bytes, state:raw_data_next_byte())
-                            end
-
-                            log("skipping sysex event:", table.unpack(sysex_event_bytes))
-
-                            -- error("TODO: sysex events")
-                        else
-                            -- Standard midi message. Refer to lookup table.
-
-                            -- by the time we get here, we should have already seen the tempo and key signature meta events.
-
-
-                            -- Midi Messenge < `11110000` use the last 4 bits to represent a channel ID
-                            local first_half_mask = tonumber("11110000", 2)
-                            local midi_channel = (
-                                (event_code < first_half_mask)
-                                and bit32.band(event_code, bit32.bnot(first_half_mask))
-                                or nil
-                            )
-                            local midi_message_id = (
-                                (event_code < first_half_mask)
-                                and bit32.band(event_code, first_half_mask)
-                                or event_code
-                            )
-
-                            print("Midi message:", number_to_hex(midi_message_id), "|", "Channel:", number_to_hex(midi_channel))
-
-                            if midi_message_functions[midi_message_id] then
-                                midi_message_functions[midi_message_id](state, event_delta, midi_channel)
-                            else
-                                error("Unhandled midi message: " .. number_to_hex(event_code))
-                            end
-
-                        end
-                    end
-                end
-            end
-
-        elseif state.is_done then
+        if state.is_done then
             -- this has a chance to run _after_ the future says it's done
             print("processor all done. Cleaning up.")
             events.WORLD_RENDER:remove(processor_loop)
+        elseif midi_processor_loop_stage_functions[state.stage] then
+            midi_processor_loop_stage_functions[state.stage](song, state)
+        else
+            error("Unknown stage: " .. state.stage)
         end
     end
 
