@@ -192,7 +192,7 @@ local midi_meta_event_functions = {
 ---These functions are responcible for reading their own data. All events must be handeled in some way.
 ---@type table<integer, fun(state: MidiProcessorState, delta: number, channel: number?)>
 local midi_message_functions = {
-    -- ↓ Has channel ID
+    -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
     -- [tonumber("10000000", 2)] = function(state, delta, channel) end,
@@ -218,7 +218,7 @@ local midi_message_functions = {
     -- [tonumber("11100000", 2)] = function(state, delta, channel) end,
 
     -- ↑ Has channel ID
-    -- ↓ No channel ID
+    -- ↓ No channel ID. Channel is not used.
 
     ---System Exclusive
     ---
@@ -230,7 +230,9 @@ local midi_message_functions = {
     end,
 
     ---Undefined
-    -- [tonumber("11110001", 2)] = function(state, delta, channel) end,
+    [tonumber("11110001", 2)] = function(state, delta, channel)
+        error("Undefined midi message")
+    end,
 
     ---Song Position Pointer
     -- [tonumber("11110010", 2)] = function(state, delta, channel) end,
@@ -241,10 +243,14 @@ local midi_message_functions = {
     -- [tonumber("11110011", 2)] = function(state, delta, channel) end,
 
     ---Undefined
-    -- [tonumber("11110100", 2)] = function(state, delta, channel) end,
+    [tonumber("11110100", 2)] = function(state, delta, channel)
+        error("Undefined midi message")
+    end,
 
     ---Undefined
-    -- [tonumber("11110101", 2)] = function(state, delta, channel) end,
+    [tonumber("11110101", 2)] = function(state, delta, channel)
+        error("Undefined midi message")
+    end,
 
     ---Tune request
     ---
@@ -267,7 +273,9 @@ local midi_message_functions = {
     -- [tonumber("11111000", 2)] = function(state, delta, channel) end,
 
     ---Undefined
-    -- [tonumber("11111001", 2)] = function(state, delta, channel) end,
+    [tonumber("11111001", 2)] = function(state, delta, channel)
+        error("Undefined midi message")
+    end,
 
     ---Start
     ---
@@ -285,7 +293,9 @@ local midi_message_functions = {
     -- [tonumber("11111100", 2)] = function(state, delta, channel) end,
 
     ---Undefined
-    -- [tonumber("11111101", 2)] = function(state, delta, channel) end,
+    [tonumber("11111101", 2)] = function(state, delta, channel)
+        error("Undefined midi message")
+    end,
 
     ---Active Sensing
     ---
