@@ -190,6 +190,8 @@ local midi_meta_event_functions = {
 ---Collection of functions to process midi message events, indexed by their event ID byte.
 ---
 ---These functions are responcible for reading their own data. All events must be handeled in some way.
+---
+---Remember, messages that modifiy a channel, modifies that channel for every tracks at that time stamp.
 ---@type table<integer, fun(state: MidiProcessorState, delta: number, channel: number?)>
 local midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
@@ -329,11 +331,20 @@ local function midi_processor(song)
         stage = "init",
         raw_data = {},
         processed_song_metadata = {},
-        incomplete_instructions = {
-            -- .track = {
-            --      .channel = { instruction }
-            -- }
-            -- ??
+        messages = {
+            -- Even though song files are organized into tracks, all tracks share the same 16 channels,
+            -- and all events impacting those channels impact that channel on all tracks.
+            -- EG: track 1 starts a note on ch 1, track 2 changes the pitch wheel on ch 1. Even though sepperate tracks, the note is still pitched.
+            -- I suspect most files will stick to one track per channel, but we cannot rely
+            -- on that assumption, especialy for any future format 2 support.
+            channels = {
+                -- [1] = {      -- in order list of all events sent to this channel.
+                --     { message_type = "…", track = ""}
+                -- }
+                -- [2] = {}
+                -- …
+                -- ["channel_independant"] = { … }
+            }
         },
         data_index = 1,
         midi_header_info = {
