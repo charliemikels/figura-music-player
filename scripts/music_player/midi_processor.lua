@@ -339,7 +339,7 @@ local function midi_processor(song)
             -- on that assumption, especialy for any future format 2 support.
             channels = {
                 -- [1] = {      -- in order list of all events sent to this channel.
-                --     { message_type = "…", track = ""}
+                --     { message_type = "…", track = "???"}
                 -- }
                 -- [2] = {}
                 -- …
@@ -456,6 +456,23 @@ local function midi_processor(song)
                 state.is_done = true
                 print("process done")
             else
+
+                -- TODO:
+                -- As it turns out, the tracks in a midi file don't actualy mean that much for playback. Any event that modifies a channel
+                -- is not isolated to that channel, and instead effects the channel acrost all tracks. Meaning some things that can effect
+                -- the current note might appear later in the file. Therfore, I **can't** process one track then the next, but all the
+                -- tracks simultaniously, where I read the next chronological event (based on the timestamp).
+                --
+                -- I can acheive this by scanning the file for the start of each track (Should be simple since every track says where it ends,
+                -- aka, where each next track begins.) Then for each track, keep a running counter of the delta to the next event. Consume the
+                -- soonest delta, then subtract that delta from each running counter in every other track. This is probably the reccomended
+                -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
+                --
+                -- TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
+                -- TODO: Edit process loop to process the MThd chunk, then for each track get the soonest event, rather than the "next-in-the-file" event.
+                -- TODO: Move file progress tracking code to within each track, rather than the whole file.
+                error("See todo above this error")
+
                 for i = 1, max_process_steps_per_event, 1 do
                     if state.current_chunk == nil then
                         -- no chunk data. Let's set that up
