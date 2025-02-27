@@ -329,7 +329,16 @@ local function midi_processor(song)
     song.data_processor_state = {
         is_done = false,
         stage = "init",
-        raw_data = {},
+
+        -- stores the raw midi data, organized by chunk
+        -- organized during the read stage.
+        ---@type midi_chunk[]
+        chunks = {},
+
+
+        reader = {
+            current_chunk_length_counter = 0
+        },
         processed_song_metadata = {},
         messages = {
             -- Even though song files are organized into tracks, all tracks share the same 16 channels,
@@ -355,7 +364,7 @@ local function midi_processor(song)
             initial_tempo = nil,            --      in format 2, they should be at the start of every temporaly independant track.
             initial_bpm = nil,
         },
-        current_chunk = nil
+        -- current_chunk = nil  →
     }
 
     ---Limits to keep to reduce lag when processing large files.
@@ -418,7 +427,7 @@ local function midi_processor(song)
             -- Ensure everything is ready to go for reading and organizing
 
             -- Set up input stream for read step, or skip read if not needed
-            if song.data_source == "files" and (song.raw_data == nil or song.raw_data == {}) then
+            if song.data_source == "files" then
                 state.file_stream = file:openReadStream(song.truepath)
                 state.stage = "read"
             else
@@ -430,12 +439,60 @@ local function midi_processor(song)
             -- read in data, one byte at a time,
             for i = 1, max_read_steps_per_event, 1 do
                 if
-                    state.file_stream:available()
-                    and state.file_stream:available() > 0
+                    not state.file_stream:available()
+                    or state.file_stream:available() <= 0
                 then
-                    table.insert(state.raw_data, state.file_stream:read())
-                else
                     break
+                else
+                    -- Midi files split into chunks like head and track.
+                    -- We'll want to process the head first, but then process the tracks together.
+                    -- (Tracks just organize messages. The 16 midi channels are the real stars as far as playback is concerned.)
+                    -- As we read, organize data by chunk.
+                    if
+                        state.reader.current_chunk_length_counter
+                        and state.reader.current_chunk_length_counter <= 0
+                    then
+                        -- Must be at the start of a new chunk.
+
+                        ---Stores the raw data for a single chunk in a midi file.
+                        ---@class midi_chunk
+                        local new_chunk = {
+                            --Chunk types start with a 4 char type, then a 32 bit length
+                            type = string.char(
+                                state.file_stream:read(),
+                                state.file_stream:read(),
+                                state.file_stream:read(),
+                                state.file_stream:read()
+                            ),
+
+                            --32-bit unsigned int, represents how many bytes in the entire chunk.
+                            length = bytes_to_number({
+                                state.file_stream:read(),
+                                state.file_stream:read(),
+                                state.file_stream:read(),
+                                state.file_stream:read()
+                            }),
+
+                            --Raw data from file for this chunk
+                            ---@type integer[]
+                            data = {},
+
+                            ---During the process stage, we need to keep track of our progress through each track
+                            process_progress = 0,
+
+                            ---Durring the process stage, we need to read track messages in chronological order.
+                            ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
+                            sum_delta = 0,
+                        }
+
+                        state.reader.current_chunk_length_counter = new_chunk.length
+
+                        table.insert(state.chunks, new_chunk)
+                    else
+                        -- Currently inside of a chunk, read data and throw into current chunk.
+                        table.insert(state.chunks[#state.chunks].data, state.file_stream:read())
+                        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
+                    end
                 end
             end
 
@@ -468,8 +525,8 @@ local function midi_processor(song)
                 -- soonest delta, then subtract that delta from each running counter in every other track. This is probably the reccomended
                 -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
                 --
-                -- TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
-                -- TODO: Edit process loop to process the MThd chunk, then for each track get the soonest event, rather than the "next-in-the-file" event.
+                -- ✅TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
+                -- TODO: Edit process loop to process the MThd chunk, then for each track: get the soonest event, rather than the "next-in-the-file" event.
                 -- TODO: Move file progress tracking code to within each track, rather than the whole file.
                 error("See todo above this error")
 
