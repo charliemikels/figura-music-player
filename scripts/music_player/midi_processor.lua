@@ -628,20 +628,11 @@ local function midi_processor(song)
                             if midi_message_functions[midi_message_id] then
                                 midi_message_functions[midi_message_id](state, event_delta, midi_channel)
                             else
-                                error("Unknown midi message: " .. number_to_hex(event_code))
+                                error("Unhandled midi message: " .. number_to_hex(event_code))
                             end
 
-
-                            -- error("TODO: standard midi events")
                         end
-
-
-                        -- DEV: end early
-                        -- state.data_index = #song.raw_data +1
-                        break
-
                     end
-
                 end
             end
 
