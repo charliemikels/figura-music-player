@@ -10,7 +10,11 @@
 local max_read_steps_per_event    = 100000  -- This stage has very few instructions, so it's max count can be very high.
 local max_process_steps_per_event = 1000    -- This stage is far more expensive than max_read_steps.
 
-
+---@enum midi_chunk_types
+local midi_chunk_types = {
+    header = "MThd",
+    track = "MTrk"
+}
 
 
 
@@ -424,31 +428,103 @@ local midi_processor_loop_stage_functions = {
     end,
 
     process_header = function(song, state)
-        error("TODO: stage == process_header")
+        local expected_header_chunk_length = 6
+
+        local header_chunk
+        for _, chunk in ipairs(state.chunks) do
+            if chunk.type == midi_chunk_types.header then
+                if header_chunk then
+                    error("Header chunk already defined.")
+                else
+                    header_chunk = chunk
+                end
+            end
+        end
+        if not header_chunk then
+           error("No header chunk found")
+        end
+
+        -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
+        -- state.midi_header_info = {}
+
+        -- format: 0, 1, or 2.
+        --
+        -- * 0 = one track in the entire file
+        -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
+        -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
+        state.midi_header_info.format = bytes_to_number({header_chunk.data[1], header_chunk.data[2]})
+
+        if state.midi_header_info.format == "2" then
+            error("MIDI format 2 not yet supported."
+                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+        end
+
+        -- Number of tracks
+        state.midi_header_info.number_of_tracks = bytes_to_number({header_chunk.data[3],header_chunk.data[4]})
+
+        -- division / timing data
+        -- bit 15 = format type: 0 == ticks per quarter-note. 1 == timecode system
+        local first_bit_mask = tonumber("10000000", 2)
+        local everything_but_first_bit_mask = bit32.bnot(first_bit_mask)
+        local first_byte_of_timing_data = header_chunk.data[5]
+        local second_byte_of_timing_data = header_chunk.data[6]
+
+        if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
+            --first bit of first byte of timing data is 1. Use time-code-based method
+
+            -- bit 15 = time type. Already checked
+            state.midi_header_info.timing_method = 1
+            -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
+            -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
+            --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
+            --
+            -- TODO
+
+            -- bit 7-0 = resolution within a frame
+            -- TODO
+
+            error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
+                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+        else
+            --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
+            local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
+            local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
+            state.midi_header_info.timing_method = 0
+            state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
+        end
+
+        if header_chunk.length > expected_header_chunk_length then
+            print("Header chunk is larger than expected. Got " .. tostring(header_chunk.length)
+                .. " instead of " .. tostring(expected_header_chunk_length)
+            )
+        end
+
+        -- Done processing the header chunk. Move on to tracks next loop.
+        state.stage = "process_tracks"
     end,
 
     process_tracks = function(song, state)
+        -- TODO:
+        -- As it turns out, the tracks in a midi file don't actualy mean that much for playback. Any event that modifies a channel
+        -- is not isolated to that channel, and instead effects the channel acrost all tracks. Meaning some things that can effect
+        -- the current note might appear later in the file. Therfore, I **can't** process one track then the next, but all the
+        -- tracks simultaniously, where I read the next chronological event (based on the timestamp).
+        --
+        -- I can acheive this by scanning the file for the start of each track (Should be simple since every track says where it ends,
+        -- aka, where each next track begins.) Then for each track, keep a running counter of the delta to the next event. Consume the
+        -- soonest delta, then subtract that delta from each running counter in every other track. This is probably the reccomended
+        -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
+        --
+        -- ✅TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
+        -- ⏳TODO: Edit process loop to process the MThd chunk, then for each track: get the soonest event, rather than the "next-in-the-file" event.
+        -- TODO: Move file progress tracking code to within each track, rather than the whole file.
+        error("See todo above this error")
+
         if state.data_index >= #song.raw_data then
             state.stage = "done"
             state.is_done = true
             print("process done")
         else
-
-            -- TODO:
-            -- As it turns out, the tracks in a midi file don't actualy mean that much for playback. Any event that modifies a channel
-            -- is not isolated to that channel, and instead effects the channel acrost all tracks. Meaning some things that can effect
-            -- the current note might appear later in the file. Therfore, I **can't** process one track then the next, but all the
-            -- tracks simultaniously, where I read the next chronological event (based on the timestamp).
-            --
-            -- I can acheive this by scanning the file for the start of each track (Should be simple since every track says where it ends,
-            -- aka, where each next track begins.) Then for each track, keep a running counter of the delta to the next event. Consume the
-            -- soonest delta, then subtract that delta from each running counter in every other track. This is probably the reccomended
-            -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
-            --
-            -- ✅TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
-            -- TODO: Edit process loop to process the MThd chunk, then for each track: get the soonest event, rather than the "next-in-the-file" event.
-            -- TODO: Move file progress tracking code to within each track, rather than the whole file.
-            error("See todo above this error")
 
             for i = 1, max_process_steps_per_event, 1 do
                 if state.current_chunk == nil then
@@ -497,62 +573,7 @@ local midi_processor_loop_stage_functions = {
                     state.current_chunk = nil
 
                 elseif state.current_chunk.type == "MThd" then  -- MIDI header. should be first chunk in file
-                    -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
-                    -- state.midi_header_info = {}
-
-                    -- format: 0, 1, or 2.
-                    --
-                    -- * 0 = one track in the entire file
-                    -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
-                    -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
-                    state.midi_header_info.format = bytes_to_number({state:raw_data_next_byte(), state:raw_data_next_byte()})
-
-                    if state.midi_header_info.format == "2" then
-                        error("MIDI format 2 not yet supported."
-                            .." Send this MIDI file (".. song.name ..") to the script author for testing.")
-                    end
-
-                    -- Number of tracks
-                    state.midi_header_info.number_of_tracks = bytes_to_number({state:raw_data_next_byte(),state:raw_data_next_byte()})
-
-                    -- division / timing data
-                    -- bit 15 = format type: 0 == ticks per quarter-note. 1 == timecode system
-                    local first_bit_mask = tonumber("10000000", 2)
-                    local everything_but_first_bit_mask = bit32.bnot(first_bit_mask)
-                    local first_byte_of_timing_data = state:raw_data_next_byte()
-                    local second_byte_of_timing_data = state:raw_data_next_byte()
-
-                    if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
-                        --first bit of first byte of timing data is 1. Use time-code-based method
-
-                        -- bit 15 = time type. Already checked
-                        state.midi_header_info.timing_method = 1
-                        -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
-                        -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
-                        --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
-                        --
-                        -- TODO
-
-                        -- bit 7-0 = resolution within a frame
-                        -- TODO
-
-                        error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
-                            .." Send this MIDI file (".. song.name ..") to the script author for testing.")
-                    else
-                        --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
-                        local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
-                        local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
-                        state.midi_header_info.timing_method = 0
-                        state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
-                    end
-
-                    if state.current_chunk.data_index <= state.current_chunk.length then
-                        print("Header chunk is larger than expected. Skipping to next chunk.")
-                        state.data_index = state.data_index + (state.current_chunk.length - 6)
-                    end
-
-                    -- Done processing the header chunk
-                    state.current_chunk = nil
+                    error()
 
                 elseif state.current_chunk.type == "MTrk" then
                     -- We've already checked if the current chunk has ended. So we should have some midi event before us
@@ -667,7 +688,6 @@ local function midi_processor(song)
         -- organized during the read stage.
         ---@type midi_chunk[]
         chunks = {},
-
 
         reader = {
             current_chunk_length_counter = 0
