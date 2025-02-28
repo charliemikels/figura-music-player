@@ -335,11 +335,11 @@ local midi_message_functions = {
 ---@alias midi_processor_stage
 ---| '"init"'
 ---| '"read"'
----| '"process_header"'
 ---| '"process_tracks"'
+---| '"not_included"'
 ---| '"done"'
 
----@type table<string, fun(song: Song, state: MidiProcessorState)>
+---@type table<midi_processor_stage, fun(song: Song, state: MidiProcessorState)>
 local midi_processor_loop_stage_functions = {
     init = function(song, state)
         -- Ensure everything is ready to go for reading and organizing
@@ -355,7 +355,7 @@ local midi_processor_loop_stage_functions = {
     end,
 
     read = function(song, state)
-        -- read in data, one byte at a time,
+        -- read in data, a few bytes at a time, so that we don't freeze the game reading a hughe file.
         for i = 1, max_read_steps_per_event, 1 do
             if
                 not state.file_stream:available()
@@ -367,10 +367,7 @@ local midi_processor_loop_stage_functions = {
                 -- We'll want to process the head first, but then process the tracks together.
                 -- (Tracks just organize messages. The 16 midi channels are the real stars as far as playback is concerned.)
                 -- As we read, organize data by chunk.
-                if
-                    state.reader.current_chunk_length_counter
-                    and state.reader.current_chunk_length_counter <= 0
-                then
+                if  not state.reader.current_chunk then
                     -- Must be at the start of a new chunk.
 
                     ---Stores the raw data for a single chunk in a midi file.
@@ -404,13 +401,87 @@ local midi_processor_loop_stage_functions = {
                         sum_delta = 0,
                     }
 
-                    state.reader.current_chunk_length_counter = new_chunk.length
+                    if new_chunk.type == midi_chunk_types.track then
+                        table.insert(state.chunks.tracks, new_chunk)
+                        state.reader.current_chunk = new_chunk
+                    elseif new_chunk.type == midi_chunk_types.header then
+                        -- header chunks are usualy very small (6 bytes). It's worth while to just process it now.
 
-                    table.insert(state.chunks.unsorted, new_chunk)
+                        if state.chunks.header then error("Tried to process the header chunk, but state.chunks.header is not empty.") end
+
+                        -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
+                        -- state.midi_header_info = {}
+                        local header_chunk = new_chunk
+                        local expected_header_chunk_length = 6
+
+                        for _ = 1, header_chunk.length do
+                            table.insert(header_chunk.data, state.file_stream:read())
+                        end
+
+                        if header_chunk.length > expected_header_chunk_length then
+                            print("Header chunk is larger than expected. Got " .. tostring(header_chunk.length)
+                                .. " instead of " .. tostring(expected_header_chunk_length)
+                            )
+                        end
+
+                        -- format: 0, 1, or 2.
+                        --
+                        -- * 0 = one track in the entire file
+                        -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
+                        -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
+                        state.midi_header_info.format = bytes_to_number({header_chunk.data[1], header_chunk.data[2]})
+
+                        if state.midi_header_info.format == "2" then
+                            error("MIDI format 2 not yet supported."
+                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                        end
+
+                        -- Number of tracks
+                        state.midi_header_info.number_of_tracks = bytes_to_number({header_chunk.data[3],header_chunk.data[4]})
+
+                        -- division / timing data
+                        -- bit 15 = format type: 0 == ticks per quarter-note. 1 == timecode system
+                        local first_bit_mask = tonumber("10000000", 2)
+                        local everything_but_first_bit_mask = bit32.bnot(first_bit_mask)
+                        local first_byte_of_timing_data = header_chunk.data[5]
+                        local second_byte_of_timing_data = header_chunk.data[6]
+
+                        if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
+                            --first bit of first byte of timing data is 1. Use time-code-based method
+
+                            -- bit 15 = time type. Already checked
+                            state.midi_header_info.timing_method = 1
+                            -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
+                            -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
+                            --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
+                            --
+                            -- TODO
+
+                            -- bit 7-0 = resolution within a frame
+                            -- TODO
+
+                            error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
+                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                        else
+                            --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
+                            local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
+                            local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
+                            state.midi_header_info.timing_method = 0
+                            state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
+                        end
+
+                        state.chunks.header = header_chunk
+                        state.reader.current_chunk_length_counter = 0
+                    else
+                        table.insert(state.chunks.unknown_chunks, new_chunk)
+                        state.reader.current_chunk = new_chunk
+                    end
+
                 else
-                    -- Currently inside of a chunk, read data and throw into current chunk.
-                    table.insert(state.chunks.unsorted[#state.chunks.unsorted].data, state.file_stream:read())
+                    table.insert(state.reader.current_chunk.data, state.file_stream:read())
                     state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
+
+                    if state.reader.current_chunk_length_counter <= 0 then state.reader.current_chunk = nil end
                 end
             end
         end
@@ -422,95 +493,32 @@ local midi_processor_loop_stage_functions = {
             state.file_stream:close()
             state.file_stream = nil
 
-            state.reader.current_chunk_length_counter = nil -- TODO: destroy reader?
+            state.reader.current_chunk = nil
+            state.reader.current_chunk_length_counter = nil
+            state.reader = nil
 
-            -- Organize chunks for later processing.
-            for _, chunk in ipairs(state.chunks.unsorted) do
-                if chunk.type == midi_chunk_types.track then
-                    table.insert(state.chunks.tracks, chunk)
-                elseif chunk.type == midi_chunk_types.header then
-                    if state.chunks.header then
-                        error("Header chunk already defined.")
-                    else
-                        state.chunks.header = chunk
-                    end
-                else
-                    print("Unrecognized chunk type", chunk.type)
-                end
-            end
-            if not state.chunks.header then
-               error("No header chunk found")
-            end
-
-            state.stage = "process_header"
+            state.stage = "process_tracks"
             print("read done")
         end
     end,
 
-    process_header = function(song, state)
-        local header_chunk = state.chunks.header
-        local expected_header_chunk_length = 6
-
-        -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
-        -- state.midi_header_info = {}
-
-        -- format: 0, 1, or 2.
-        --
-        -- * 0 = one track in the entire file
-        -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
-        -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
-        state.midi_header_info.format = bytes_to_number({header_chunk.data[1], header_chunk.data[2]})
-
-        if state.midi_header_info.format == "2" then
-            error("MIDI format 2 not yet supported."
-                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+    process_tracks = function(song, state)
+        for i = 1, max_process_steps_per_event, 1 do
+            -- local min_sum_delta = 0
+            -- for track in local min_sum_delta = 0
+            -- -- New process_tracks flow:
+            -- -- 1. Get next message (chronologicaly).
+            -- --    - We can do this by either scanning all tracks and find the soonest their sum_deltas,
+            -- --      or have a sorted list of next events, one item per track. then at the end of the loop,
+            -- --      insert the next event from the current track into the sorted list.
+            -- -- 2. Process that one message.
+            -- --
+            -- end
         end
-
-        -- Number of tracks
-        state.midi_header_info.number_of_tracks = bytes_to_number({header_chunk.data[3],header_chunk.data[4]})
-
-        -- division / timing data
-        -- bit 15 = format type: 0 == ticks per quarter-note. 1 == timecode system
-        local first_bit_mask = tonumber("10000000", 2)
-        local everything_but_first_bit_mask = bit32.bnot(first_bit_mask)
-        local first_byte_of_timing_data = header_chunk.data[5]
-        local second_byte_of_timing_data = header_chunk.data[6]
-
-        if bit32.btest(first_byte_of_timing_data, first_bit_mask) then
-            --first bit of first byte of timing data is 1. Use time-code-based method
-
-            -- bit 15 = time type. Already checked
-            state.midi_header_info.timing_method = 1
-            -- bit 14-8 = one of 4 values: -24, -25, -29, or -30. Stored in two's compliment
-            -- "…corresponding to the four standard SMPTE and MIDI Time Code formats
-            --      (-29 corresponds to 30 drop frame), and represents the number of frames per second."
-            --
-            -- TODO
-
-            -- bit 7-0 = resolution within a frame
-            -- TODO
-
-            error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
-                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
-        else
-            --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
-            local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
-            local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
-            state.midi_header_info.timing_method = 0
-            state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
-        end
-
-        if header_chunk.length > expected_header_chunk_length then
-            print("Header chunk is larger than expected. Got " .. tostring(header_chunk.length)
-                .. " instead of " .. tostring(expected_header_chunk_length)
-            )
-        end
-
-        -- Done processing the header chunk. Move on to tracks next loop.
-        state.stage = "process_tracks"
+        error("new process tracks function")
     end,
 
-    process_tracks = function(song, state)
+    OLD_process_tracks = function(song, state)
         -- TODO:
         -- As it turns out, the tracks in a midi file don't actualy mean that much for playback. Any event that modifies a channel
         -- is not isolated to that channel, and instead effects the channel acrost all tracks. Meaning some things that can effect
@@ -695,7 +703,7 @@ local function midi_processor(song)
         -- organized during the read stage.
         chunks = {
             ---@type midi_chunk[]?
-            unsorted = {},
+            unknown_chunks = {},
 
             ---@type midi_chunk?
             header = nil,
