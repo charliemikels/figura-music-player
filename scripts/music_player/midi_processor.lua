@@ -406,43 +406,50 @@ local midi_processor_loop_stage_functions = {
 
                     state.reader.current_chunk_length_counter = new_chunk.length
 
-                    table.insert(state.chunks, new_chunk)
+                    table.insert(state.chunks.unsorted, new_chunk)
                 else
                     -- Currently inside of a chunk, read data and throw into current chunk.
-                    table.insert(state.chunks[#state.chunks].data, state.file_stream:read())
+                    table.insert(state.chunks.unsorted[#state.chunks.unsorted].data, state.file_stream:read())
                     state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
                 end
             end
         end
 
         if state.file_stream:available() <= 0 then
-            -- Last loop had last item. move on
+            -- Last loop had last item. Do Final cleanup and move on.
             song.raw_data = state.raw_data
             state.raw_data = nil
             state.file_stream:close()
             state.file_stream = nil
-            state.stage = "process_header"
 
+            state.reader.current_chunk_length_counter = nil -- TODO: destroy reader?
+
+            -- Organize chunks for later processing.
+            for _, chunk in ipairs(state.chunks.unsorted) do
+                if chunk.type == midi_chunk_types.track then
+                    table.insert(state.chunks.tracks, chunk)
+                elseif chunk.type == midi_chunk_types.header then
+                    if state.chunks.header then
+                        error("Header chunk already defined.")
+                    else
+                        state.chunks.header = chunk
+                    end
+                else
+                    print("Unrecognized chunk type", chunk.type)
+                end
+            end
+            if not state.chunks.header then
+               error("No header chunk found")
+            end
+
+            state.stage = "process_header"
             print("read done")
         end
     end,
 
     process_header = function(song, state)
+        local header_chunk = state.chunks.header
         local expected_header_chunk_length = 6
-
-        local header_chunk
-        for _, chunk in ipairs(state.chunks) do
-            if chunk.type == midi_chunk_types.header then
-                if header_chunk then
-                    error("Header chunk already defined.")
-                else
-                    header_chunk = chunk
-                end
-            end
-        end
-        if not header_chunk then
-           error("No header chunk found")
-        end
 
         -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
         -- state.midi_header_info = {}
@@ -686,8 +693,16 @@ local function midi_processor(song)
 
         -- stores the raw midi data, organized by chunk
         -- organized during the read stage.
-        ---@type midi_chunk[]
-        chunks = {},
+        chunks = {
+            ---@type midi_chunk[]?
+            unsorted = {},
+
+            ---@type midi_chunk?
+            header = nil,
+
+            ---@type midi_chunk[]?
+            tracks = {},
+        },
 
         reader = {
             current_chunk_length_counter = 0
