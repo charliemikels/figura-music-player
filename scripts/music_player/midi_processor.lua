@@ -60,11 +60,27 @@ local function combine_seven_bit_numbers(bytes)
     return result
 end
 
+---comment
+---@param state MidiProcessorState
+---@param byte number
+local function undo_byte_read(state, byte)
+    table.insert(state.reader.byte_read_undo_history, byte)
+    if state.reader.current_chunk_length_counter then
+        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter +1
+    end
+end
+
 ---Grabs the next byte from raw_data, and keeps track of progress through the raw data and current chunk.
 ---@param state MidiProcessorState
 ---@return number
+---@see undo_byte_read
 local function read_next_file_byte(state)
-    local return_data = state.reader.file_stream:read()
+    local return_data
+    if state.reader.byte_read_undo_history[#state.reader.byte_read_undo_history] then
+        return_data = table.remove(state.reader.byte_read_undo_history, #state.reader.byte_read_undo_history)
+    else
+       return_data = state.reader.file_stream:read()
+    end
     if state.reader.current_chunk_length_counter then
         -- In most cases we could trust meta event 0x2F (end_of_track) to know when the track chunk ends.
         -- but in the rare case that we find an unknown chunk, we'll need to use some sort of counter system to know when it's done.
@@ -260,7 +276,11 @@ local midi_message_functions = {
     ---Control Change / Channel Mode Messages
     ---
     ---Some Controller numbers are reserved. See "Channel Mode Messages"
-    -- [tonumber("10110000", 2)] = function(state, message) end,
+    [tonumber("10110000", 2)] = function(state, message)
+        -- These are two sepperate event types. Be sure to handle each depending on the state.
+        message.data.controller_number = read_next_file_byte(state)
+        message.data.controller_value = read_next_file_byte(state)
+    end,
 
     ---Program change
     -- [tonumber("11000000", 2)] = function(state, message) end,
@@ -554,10 +574,25 @@ local midi_processor_loop_stage_functions = {
                     if  state.reader.current_chunk.type == midi_chunk_types.track then
                         -- Current chunk is track. get next message then continue loop.
 
+                        -- delta_time is allways included
                         local delta = read_variable_length_quantity(state) -- variable length quantity
-                        local event_id_byte = read_next_file_byte(state) -- One byte. Some event IDs also carry channel information.
 
-                        -- Midi Messages < `11110000` use the last 4 bits to represent a channel ID
+                        -- messages may ommit their status ID if they have the same ID as the status before it. ("Running status")
+                        -- Check next byte. If it's a data byte, backtrack reader and use previous status ID
+                        local first_bit_mask = tonumber("10000000", 2)
+                        -- TODO
+                        local event_id_byte = read_next_file_byte(state)
+                        if event_id_byte < first_bit_mask then
+                            -- this isn't a standard midi event. This is data for running status.
+                            undo_byte_read(state, event_id_byte)
+                            event_id_byte = state.reader.running_status_id
+                            print("running status")
+                        else
+                            state.reader.running_status_id = event_id_byte
+                        end
+
+
+                        -- Midi Messages < `0x11110000` use the last 4 bits to represent a channel ID
                         local first_half_mask = tonumber("11110000", 2)
                         local midi_channel = (
                             (event_id_byte < first_half_mask)
@@ -687,7 +722,8 @@ local function midi_processor(song)
 
         reader = {
             file_stream = nil, ---@type InputStream|nil
-            current_chunk_length_counter = 0
+            current_chunk_length_counter = 0,
+            byte_read_undo_history = {} ---@type number[]
         },
         processed_song_metadata = {},
         messages = {
