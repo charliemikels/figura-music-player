@@ -60,14 +60,26 @@ local function combine_seven_bit_numbers(bytes)
     return result
 end
 
----comment
+
+---Function to keep progress tracker logic in sync between the read and undo_read functions.
+---@see undo_byte_read
+---@see read_next_file_byte
+---@param state MidiProcessorState
+---@param progress_delta number
+local function update_file_reading_progress_trackers(state, progress_delta)
+    if state.reader.current_chunk_length_counter then
+        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - progress_delta
+    end
+end
+
+---There are some situations where we have to read the next byte to see what we need to do with it,
+---For cases like running_status, we might encounter a data byte too early.
+---@see read_next_file_byte
 ---@param state MidiProcessorState
 ---@param byte number
 local function undo_byte_read(state, byte)
     table.insert(state.reader.byte_read_undo_history, byte)
-    if state.reader.current_chunk_length_counter then
-        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter +1
-    end
+    update_file_reading_progress_trackers(state, -1)
 end
 
 ---Grabs the next byte from raw_data, and keeps track of progress through the raw data and current chunk.
@@ -81,11 +93,7 @@ local function read_next_file_byte(state)
     else
        return_data = state.reader.file_stream:read()
     end
-    if state.reader.current_chunk_length_counter then
-        -- In most cases we could trust meta event 0x2F (end_of_track) to know when the track chunk ends.
-        -- but in the rare case that we find an unknown chunk, we'll need to use some sort of counter system to know when it's done.
-        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter -1
-    end
+    update_file_reading_progress_trackers(state, 1)
     return return_data
 end
 
