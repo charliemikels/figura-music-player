@@ -60,76 +60,131 @@ local function combine_seven_bit_numbers(bytes)
     return result
 end
 
+---Grabs the next byte from raw_data, and keeps track of progress through the raw data and current chunk.
+---@param state MidiProcessorState
+---@return number
+local function read_next_file_byte(state)
+    local return_data = state.reader.file_stream:read()
+    if state.reader.current_chunk_length_counter then
+        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter -1
+    end
+    -- self.data_index = self.data_index + 1
+    -- if self.current_chunk and self.current_chunk.data_index then
+    --     self.current_chunk.data_index = self.current_chunk.data_index +1
+    -- end
+    return return_data
+end
 
+---comment
+---@param state MidiProcessorState
+---@return number
+local function read_variable_length_quantity(state)
+    -- Some values in midi are stored as "variable-length quantities."
+    -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoreticaly," could go longer.
+    --
+    -- Bit 7 (the first bit, where the last is bit 0) for each number is actualy the flag that tells us
+    -- whether to continue reading or if we've reached the end. The last byte in the sequence has a 0 at
+    -- bit 7, and every byte before will have a 1. Bits 6-0 hold the actual number.
+    --
+    -- Examples:
+    -- midi file → real value
+    -- 00000000 → 00000000  |  00 → 00 00 00 00
+    -- 01000000 → 01000000  |  40 → 00 00 00 40
+    -- 10000001 00000000 → 10000000
+    -- 11000000 00000000 → 00100000 00000000
+    -- 10000001 10000000 00000000 → 01000000 00000000
+    -- 11111111 11111111 11111111 01111111 → 00001111 11111111 11111111 11111111  | FF FF FF 7F → 0F FF FF FF
+    --
+    -- largest midi value: FF FF FF 7F → resulting in 0FFFFFFF. Although, theoreticaly, it could go higher.
 
----@enum midi_event_types
-local midi_event_types = {
-    meta = 0xFF,
-    system_exclusive_message = 0xF0,
-    continued_system_exclusive_message = 0xF7,
-}
+    local continue_bit_mask = tonumber("10000000", 2)
+    local number_data_mask = bit32.bnot(continue_bit_mask)
+
+    -- gather relevent bytes
+    local bytes = {}
+    repeat
+        local current_byte = read_next_file_byte(state)
+        table.insert(bytes, bit32.band(current_byte, number_data_mask))
+    until not bit32.btest(current_byte, continue_bit_mask)
+
+    return combine_seven_bit_numbers(bytes)
+end
 
 ---Collection of functions to process midi meta events, indexed by their event ID byte.
 ---
----The function that calls these functions should have already read the data needed for these functions.
----So if an unrecognized event happens, we can safely ignore it.
----@type table<integer, fun(state: MidiProcessorState, length: integer, bytes: integer[])>
+---These are used during the read stage. Called from midi_message_functions[11111111]. Fills in message.data
+---
+---@see MidiMessage
+---
+---It is technicaly safe to implement an empty function to ignore a meta event.
+---The function that calls these functions has already read in the data.
+---
+---@type table<integer, fun(state: MidiProcessorState, message: MidiMessage)>
 local midi_meta_event_functions = {
 
     ---sequence_number
     ---
     ---Optional. Format 0 and 1 have only one sequence, But format 2 might have multiple. Sequence_number is used to keep sequences in order.
-    -- [0x00] = function(state, length, bytes) end,
+    -- [0x00] = function(state, message) end,
 
     ---text_event
     ---
     ---Generic text event. Provides notes about the song, or about a part of it. Events 0x01 - 0x0F are all text events of some sort.
-    -- [0x01] = function(state, length, bytes) end,
+    -- [0x01] = function(state, message) end,
 
     ---copyright_notice
     ---
     ---Text event with copyright info.
-    [0x02] = function(state, length, bytes)
-        state.processed_song_metadata.copyright_notice = string.char(table.unpack(bytes))
+    [0x02] = function(state, message)
+        message.data.copyright_notice = string.char(table.unpack(message.event_raw_data))
     end,
 
     ---sequence_or_track_name
     ---
-    ---Text event. If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.) Else, it's the name of the track
-    [0x03] = function(state, length, bytes)
-        state.current_chunk.track_name = string.char(table.unpack(bytes))
+    ---Text event. If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.)
+    ---Else, it's the name of this specific track.
+    [0x03] = function(state, message)
+        message.data.track_name = string.char(table.unpack(message.event_raw_data))
     end,
 
     ---instrument_name
     ---
     ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
-    -- [0x04] = function(state, length, bytes) end,
+    [0x04] = function(state, message)
+        message.data.text = string.char(table.unpack(message.event_raw_data))
+    end,
 
     ---lyric
     ---
     ---Text event. defines the lyric to sing at a speciffic time. Typicaly, lyric events are stored per-sylable
-    -- [0x05] = function(state, length, bytes) end,
+    [0x05] = function(state, message)
+        message.data.lyric = string.char(table.unpack(message.event_raw_data))
+    end,
 
     ---marker
     ---
     ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usualy only if first track.
-    -- [0x06] = function(state, length, bytes) end,
+    [0x06] = function(state, message)
+        message.data.marker = string.char(table.unpack(message.event_raw_data))
+    end,
 
     ---cue_point
     ---
     ---With film, a description of what happens on screen.
-    -- [0x07] = function(state, length, bytes) end,
+    [0x07] = function(state, message)
+        message.data.cue_point = string.char(table.unpack(message.event_raw_data))
+    end,
 
     ---midi_channel_prefix
     ---
     ---Sets a prefix for the channel. (0-15 (?)). Used to assosiate this channel with any following events.
-    -- [0x20] = function(state, length, bytes) end,
+    -- [0x20] = function(state, message) end,
 
     ---end_of_track
     ---
     ---**Required.** Marker for a cannonical end of a track.
     ---(Unlike in ABC, MIDI songs end when this event is hit. In ABC, it ends whenever the last note is done.)
-    [0x2F] = function(state, length, bytes)
+    [0x2F] = function(state, message)
         -- TODO: Save "end of song point"
         -- Clean up/save remaining data in current track.
 
@@ -138,67 +193,51 @@ local midi_meta_event_functions = {
 
         -- Resetting for next track happens at the end of the midi-chunk loop
 
-
-        -- tmp
-        if End_Of_Track_Event_Not_First_Time then
-            -- dev
-            error("TODO: Finish End of track Meta Event: 0x2F")
+        message.data.end_of_track = true
+        if state.reader.current_chunk_length_counter > 0 then
+            error("End of track event found, but chunk counter is still greater than 0")
         end
-        End_Of_Track_Event_Not_First_Time = true
-        print("")
-        print("TODO: Finish End of track Meta Event: 0x2F")
-        print("")
     end,
 
     ---set_tempo
     ---
     ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
     ---Note this is in time-per beat, not the traditional beat-per-time.
-    [0x51] = function(state, length, bytes)
-        local microseconds_per_midi_quarter_note = bytes_to_number(bytes)
-
-        state.current_chunk.tempo = microseconds_per_midi_quarter_note
-        state.current_chunk.bpm = 60000000 / microseconds_per_midi_quarter_note
-
-        if not state.midi_header_info.initial_tempo then
-            state.midi_header_info.initial_tempo = state.current_chunk.tempo
-            state.midi_header_info.initial_bpm = state.current_chunk.bpm
-        end
+    [0x51] = function(state, message)
+        local microseconds_per_midi_quarter_note = bytes_to_number(message.event_raw_data)
+        message.data.tempo = microseconds_per_midi_quarter_note
+        message.data.bpm = 60000000 / microseconds_per_midi_quarter_note    -- BPM may be easier for libraries to understand. keep arround as an option?
     end,
 
     ---smpte_offset
     ---
     ---Part of Format 2. Marks when this track is supposed to start.
-    -- [0x54] = function(state, length, bytes) end,
+    -- [0x54] = function(state, message) end,
 
     ---time_signature
     --- - <numerator: int>
     --- - <denominator: negative-power-of-two>.
     --- - the 3rd and 4th bytes are metronome data.
-    [0x58] = function(state, length, bytes)
-        local numerator = bytes[1]
-        local denominator = 2^(bytes[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
+    [0x58] = function(state, message)
+        local numerator = message.event_raw_data[1]
+        local denominator = 2^(message.event_raw_data[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
+        print("TODO: time_signature meta event: Double check meaning of 'a negative power of two' for the denominator.")
+
         -- local number_of_midi_clocks_in_a_metronome_click = bytes[3]
         -- local number_of_notated_32nd_notes_in_a_midi_quarter_note = bytes[4]
 
-        state.current_chunk.time_signature = { numerator = numerator, denominator = denominator }
-
-        if not state.midi_header_info.initial_time_signature then
-            state.midi_header_info.initial_time_signature = { numerator = numerator, denominator = denominator }
-        end
-
-        print("TODO: time_signature meta event: Double check meaning of 'a negative power of two' for the denominator.")
+        message.data.time_signature = { numerator = numerator, denominator = denominator }
     end,
 
     ---key_signature.
     --- - <numb of sharps and flats (negative == flat, positive == sharps. 0 == C)>
     --- - <0 == major, 1 == minor>
-    -- [0x59] = function(state, length, bytes) end,
+    -- [0x59] = function(state, message) end,
 
     ---sequencer_specific_meta_event
     ---
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
-    -- [0x7F] = function(state, length, bytes) end
+    -- [0x7F] = function(state, message) end
 }
 
 
@@ -206,33 +245,33 @@ local midi_meta_event_functions = {
 ---
 ---These functions are responcible for reading their own data. All events must be handeled in some way.
 ---
----Remember, messages that modifiy a channel, modifies that channel for every tracks at that time stamp.
----@type table<integer, fun(state: MidiProcessorState, delta: number, channel: number?)>
+---These are ran during the `read` stage to handle to turn message bytes into message objects that we can further process later.
+---@type table<integer, fun(state: MidiProcessorState, message: MidiMessage)>
 local midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
-    -- [tonumber("10000000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("10000000", 2)] = function(state, message) end,
 
     ---Note On event
-    -- [tonumber("10010000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("10010000", 2)] = function(state, message) end,
 
     ---Polyphonic Key Pressure (Aftertouch)
-    -- [tonumber("10100000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("10100000", 2)] = function(state, message) end,
 
     ---Control Change / Channel Mode Messages
     ---
     ---Some Controller numbers are reserved. See "Channel Mode Messages"
-    -- [tonumber("10110000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("10110000", 2)] = function(state, message) end,
 
     ---Program change
-    -- [tonumber("11000000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11000000", 2)] = function(state, message) end,
 
     ---Channel Presure
-    -- [tonumber("11010000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11010000", 2)] = function(state, message) end,
 
     ---Pitch Wheel Change
-    -- [tonumber("11100000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11100000", 2)] = function(state, message) end,
 
     -- ↑ Has channel ID
     -- ↓ No channel ID. Channel is not used.
@@ -240,45 +279,62 @@ local midi_message_functions = {
     ---System Exclusive
     ---
     ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
-    ---
-    ---This is the same code as the system_exclusive_message type that we're already handeling. We shouldn't encounter this message at this stage.
-    [tonumber("11110000", 2)] = function(state, delta, channel)
-        error("System Exclusive Message tried to be processed as a normal midi message.")
+    [tonumber("11110000", 2)] = function(state, message)
+        -- sysex events are messages for "the system." I don't think we need to worry about this type.
+        -- sysex events are sometimes stored as packets within the midi file.
+        -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
+        -- Start of message chain   = `F0 <variable-length quantity> <bytes>`, where final byte is not `F7`
+        -- Continuation of message  = `F7 <variable-length quantity> <bytes>`, where final byte is not `F7`
+        -- end of message chain     = `F7 <variable-length quantity> <bytes>`, where final byte is `F7`.
+        -- A final `F7` indicates that the message is done. But we shouldn't need to worry about
+        -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
+        -- we can just skip the entire length of bytes.
+
+        local sysex_event_length = read_variable_length_quantity(state)
+        for _ = 1, sysex_event_length do
+            local byte = read_next_file_byte(state)
+            table.insert(message.event_raw_data, byte)
+            table.insert(message.data, byte)
+        end
     end,
 
     ---Undefined
-    [tonumber("11110001", 2)] = function(state, delta, channel)
+    [tonumber("11110001", 2)] = function(state, message)
         error("Undefined midi message")
     end,
 
     ---Song Position Pointer
-    -- [tonumber("11110010", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11110010", 2)] = function(state, message) end,
 
     ---Song Select
     ---
     ---Used to select what sequence/song to play.
-    -- [tonumber("11110011", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11110011", 2)] = function(state, message) end,
 
     ---Undefined
-    [tonumber("11110100", 2)] = function(state, delta, channel)
+    [tonumber("11110100", 2)] = function(state, message)
         error("Undefined midi message")
     end,
 
     ---Undefined
-    [tonumber("11110101", 2)] = function(state, delta, channel)
+    [tonumber("11110101", 2)] = function(state, message)
         error("Undefined midi message")
     end,
 
     ---Tune request
     ---
     ---Request all analogue systems to tune themselves.
-    -- [tonumber("11110110", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11110110", 2)] = function(state, message) end,
 
-    ---End of system exclusive dump.
-    ---
-    ---The System Exclusive message handeler will usualy take care of this.
-    [tonumber("11110111", 2)] = function(state, delta, channel)
-        error("End of a System Exclusive Message tried to be processed as a normal midi message.")
+    ---System exclusive message
+    [tonumber("11110111", 2)] = function(state, message)
+        -- There are two System Exclusive messages. See event ID `11110000` (F0) for more detail
+        local sysex_event_length = read_variable_length_quantity(state)
+        for _ = 1, sysex_event_length do
+            local byte = read_next_file_byte(state)
+            table.insert(message.event_raw_data, byte)
+            table.insert(message.data, byte)
+        end
     end,
 
     -- ↓ System "Real-time" messages.
@@ -287,30 +343,30 @@ local midi_message_functions = {
     ---Timing Clock
     ---
     ---Sent 24 times per quarter note when synchronisation is required
-    -- [tonumber("11111000", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11111000", 2)] = function(state, message) end,
 
     ---Undefined
-    [tonumber("11111001", 2)] = function(state, delta, channel)
+    [tonumber("11111001", 2)] = function(state, message)
         error("Undefined midi message")
     end,
 
     ---Start
     ---
     ---Start the current sequence playing
-    -- [tonumber("11111010", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11111010", 2)] = function(state, message) end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
-    -- [tonumber("11111011", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11111011", 2)] = function(state, message) end,
 
     ---Stop
     ---
     ---Stop the current sequence
-    -- [tonumber("11111100", 2)] = function(state, delta, channel) end,
+    -- [tonumber("11111100", 2)] = function(state, message) end,
 
     ---Undefined
-    [tonumber("11111101", 2)] = function(state, delta, channel)
+    [tonumber("11111101", 2)] = function(state, message)
         error("Undefined midi message")
     end,
 
@@ -319,15 +375,29 @@ local midi_message_functions = {
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
     ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
     ---return to normal, non active sensing opperation.
-    [tonumber("11111110", 2)] = function(state, delta, channel) end,
+    [tonumber("11111110", 2)] = function(state, message) end,
 
-    ---Reset
+    ---Meta event
     ---
-    ---Reset all receivers to the system power-up status.
+    ---Meta events have their own sub IDs and functions assosiated with them.
     ---
-    ---For us, this should never happen since code `11111111` is a meta event.
-    [tonumber("11111111", 2)] = function(state, delta, channel)
-        error("Meta event tried to be processed as a normal midi message.")
+    ---@see midi_meta_event_functions
+    [tonumber("11111111", 2)] = function(state, message)
+        local meta_event_id = read_next_file_byte(state)
+        local sysex_event_length = read_variable_length_quantity(state)
+        for _ = 1, sysex_event_length do
+            table.insert(message.event_raw_data, read_next_file_byte(state))
+        end
+
+        message.data = {}
+        message.data.meta_event_id = meta_event_id
+
+        if midi_meta_event_functions[meta_event_id] then
+            print("meta ID = "..number_to_dec_and_hex(meta_event_id))
+            midi_meta_event_functions[meta_event_id](state, message)
+        else
+            error("Unimplemented meta event: "..tostring(meta_event_id))
+        end
     end
 }
 
@@ -336,7 +406,6 @@ local midi_message_functions = {
 ---| '"init"'
 ---| '"read"'
 ---| '"process_tracks"'
----| '"not_included"'
 ---| '"done"'
 
 ---@type table<midi_processor_stage, fun(song: Song, state: MidiProcessorState)>
@@ -346,10 +415,10 @@ local midi_processor_loop_stage_functions = {
 
         -- Set up input stream for read step, or skip read if not needed
         if song.data_source == "files" then
-            state.file_stream = file:openReadStream(song.truepath)
+            state.reader.file_stream = file:openReadStream(song.truepath)
             state.stage = "read"
         else
-            state.stage = "process_header"
+            state.stage = "process_tracks"
         end
         print("init done")
     end,
@@ -358,8 +427,8 @@ local midi_processor_loop_stage_functions = {
         -- read in data, a few bytes at a time, so that we don't freeze the game reading a hughe file.
         for i = 1, max_read_steps_per_event, 1 do
             if
-                not state.file_stream:available()
-                or state.file_stream:available() <= 0
+                not state.reader.file_stream:available()
+                or state.reader.file_stream:available() <= 0
             then
                 break
             else
@@ -375,18 +444,18 @@ local midi_processor_loop_stage_functions = {
                     local new_chunk = {
                         --Chunk types start with a 4 char type, then a 32 bit length
                         type = string.char(
-                            state.file_stream:read(),
-                            state.file_stream:read(),
-                            state.file_stream:read(),
-                            state.file_stream:read()
+                            read_next_file_byte(state),
+                            read_next_file_byte(state),
+                            read_next_file_byte(state),
+                            read_next_file_byte(state)
                         ),
 
                         --32-bit unsigned int, represents how many bytes in the entire chunk.
                         length = bytes_to_number({
-                            state.file_stream:read(),
-                            state.file_stream:read(),
-                            state.file_stream:read(),
-                            state.file_stream:read()
+                            read_next_file_byte(state),
+                            read_next_file_byte(state),
+                            read_next_file_byte(state),
+                            read_next_file_byte(state)
                         }),
 
                         --Raw data from file for this chunk
@@ -404,6 +473,9 @@ local midi_processor_loop_stage_functions = {
                     if new_chunk.type == midi_chunk_types.track then
                         table.insert(state.chunks.tracks, new_chunk)
                         state.reader.current_chunk = new_chunk
+                        state.reader.current_chunk_length_counter = new_chunk.length
+                        print("Found new track")
+
                     elseif new_chunk.type == midi_chunk_types.header then
                         -- header chunks are usualy very small (6 bytes). It's worth while to just process it now.
 
@@ -415,7 +487,7 @@ local midi_processor_loop_stage_functions = {
                         local expected_header_chunk_length = 6
 
                         for _ = 1, header_chunk.length do
-                            table.insert(header_chunk.data, state.file_stream:read())
+                            table.insert(header_chunk.data, read_next_file_byte(state))
                         end
 
                         if header_chunk.length > expected_header_chunk_length then
@@ -472,26 +544,79 @@ local midi_processor_loop_stage_functions = {
 
                         state.chunks.header = header_chunk
                         state.reader.current_chunk_length_counter = 0
+
                     else
                         table.insert(state.chunks.unknown_chunks, new_chunk)
                         state.reader.current_chunk = new_chunk
+                        print("Found a chunk with an unknown type.")
                     end
 
-                else
-                    table.insert(state.reader.current_chunk.data, state.file_stream:read())
-                    state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
+                else -- We've inside of a chunk. Read file data into the current chunk.
 
-                    if state.reader.current_chunk_length_counter <= 0 then state.reader.current_chunk = nil end
+                    if  state.reader.current_chunk.type == midi_chunk_types.track then
+                        -- Current chunk is track. get next message then continue loop.
+
+                        local delta = read_variable_length_quantity(state) -- variable length quantity
+                        local event_id_byte = read_next_file_byte(state) -- One byte. Some event IDs also carry channel information.
+
+                        -- Midi Messages < `11110000` use the last 4 bits to represent a channel ID
+                        local first_half_mask = tonumber("11110000", 2)
+                        local midi_channel = (
+                            (event_id_byte < first_half_mask)
+                            and bit32.band(event_id_byte, bit32.bnot(first_half_mask))
+                            or nil
+                        )
+                        local event_id_without_channel = (
+                            (event_id_byte < first_half_mask)
+                            and bit32.band(event_id_byte, first_half_mask)
+                            or event_id_byte
+                        )
+
+                        ---@class MidiMessage
+                        local midi_message = {
+                            delta = delta,
+                            event_id_byte = event_id_byte,  ---@type integer
+                            event_id = event_id_without_channel,
+                            channel_id = midi_channel,
+                            event_raw_data = {},
+                            data = {}
+                        }
+
+                        -- Midi messages come in 3, sorta 4 flavors, but they all start with a delta and then the event ID
+                        -- Meta events: <deltaTime> `FF` <Meta-event-type> <variable-length length> <bytes>
+                        -- System exclusive: <deltaTime> [`F0` or `F7`] <variable-length length> <bytes>
+                            -- System exclusive messages may be split into packets, and may be interupted by "real time" messages. (Like time code)
+                            -- `F7` is also used to mark the end of a sysex message, so that the reader knows it has the whole thing.
+                            -- `F0` allways marks the start of a sysex message. `F7` is the start of all following packets.
+
+                        print("Message ID = ", number_to_dec_and_hex(midi_message.event_id))
+
+                        if midi_message_functions[midi_message.event_id] then
+                            midi_message_functions[midi_message.event_id](state, midi_message, state.reader.file_stream)
+                        else
+                            error("Unrecognized midi_message with ID ".. number_to_dec_and_hex(midi_message.event_id))
+                        end
+
+                    else
+                        -- Unknown chunk data. drop it in, move on.
+                        table.insert(state.reader.current_chunk.data, read_next_file_byte(state))
+                        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
+                    end
+
+                    if state.reader.current_chunk_length_counter <= 0 then
+                        -- End of chunk. Clear it so that next loop we get a new chunk.
+                        state.reader.current_chunk = nil
+                    end
                 end
             end
         end
 
-        if state.file_stream:available() <= 0 then
+        if state.reader.file_stream:available() <= 0 then
             -- Last loop had last item. Do Final cleanup and move on.
             song.raw_data = state.raw_data
             state.raw_data = nil
-            state.file_stream:close()
-            state.file_stream = nil
+            state.reader.file_stream:close()
+            state.reader.file_stream = nil
 
             state.reader.current_chunk = nil
             state.reader.current_chunk_length_counter = nil
@@ -503,19 +628,28 @@ local midi_processor_loop_stage_functions = {
     end,
 
     process_tracks = function(song, state)
+        error("finish process_tracks stage")
         for i = 1, max_process_steps_per_event, 1 do
-            -- local min_sum_delta = 0
-            -- for track in local min_sum_delta = 0
-            -- -- New process_tracks flow:
-            -- -- 1. Get next message (chronologicaly).
-            -- --    - We can do this by either scanning all tracks and find the soonest their sum_deltas,
-            -- --      or have a sorted list of next events, one item per track. then at the end of the loop,
-            -- --      insert the next event from the current track into the sorted list.
-            -- -- 2. Process that one message.
-            -- --
-            -- end
+
+            local soonest_time = math.huge
+            local soonest_track
+
+            for _, track in ipairs(state.chunks.tracks) do
+
+                local time_of_next_message = track.sum_delta + track.delta_of_next_message
+                if time_of_next_message < soonest_time then
+                    soonest_time = time_of_next_message
+                    soonest_track = track
+                end
+            -- New process_tracks flow:
+            -- 1. Get next message (chronologicaly).
+            --    - We can do this by either scanning all tracks and find the soonest their sum_deltas,
+            --      or have a sorted list of next events, one item per track. then at the end of the loop,
+            --      insert the next event from the current track into the sorted list.
+            -- 2. Process that one message.
+            --
+            end
         end
-        error("new process tracks function")
     end,
 
     OLD_process_tracks = function(song, state)
@@ -531,7 +665,7 @@ local midi_processor_loop_stage_functions = {
         -- method, since I need to quickly scan the whole file once, but then I only need one loop to handle the details.
         --
         -- ✅TODO: During the "read", ingest the data and keep track of an start-of-track indexes. Possibly read these into their own table.
-        -- ⏳TODO: Edit process loop to process the MThd chunk, then for each track: get the soonest event, rather than the "next-in-the-file" event.
+        -- ⏳TODO: Edit process loop to process the MThd chunk✅, then for each track: get the soonest event, rather than the "next-in-the-file" event.
         -- TODO: Move file progress tracking code to within each track, rather than the whole file.
         error("See todo above this error")
 
@@ -713,6 +847,7 @@ local function midi_processor(song)
         },
 
         reader = {
+            file_stream = nil, --@type InputStream|nil
             current_chunk_length_counter = 0
         },
         processed_song_metadata = {},
@@ -744,55 +879,6 @@ local function midi_processor(song)
     }
 
     local state = song.data_processor_state
-
-    ---Grabs the next byte from raw_data, and keeps track of progress through the raw data and current chunk.
-    ---@param self self
-    ---@return number
-    function state:raw_data_next_byte()
-        local return_data = song.raw_data[self.data_index]
-        self.data_index = self.data_index + 1
-        if self.current_chunk and self.current_chunk.data_index then
-            self.current_chunk.data_index = self.current_chunk.data_index +1
-        end
-        return return_data
-    end
-
-    ---Assumes current index is the start of a variable-length-quantity, and attempts to read it as a number.
-    ---Uses state:raw_data_next_byte() under the hood, so the data_index is advanced when ran.
-    ---@param self self
-    ---@return number
-    function state:read_variable_length_quantity()
-        -- Some values in midi are stored as "variable-length quantities."
-        -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoreticaly," could go longer.
-        --
-        -- Bit 7 (the first bit, where the last is bit 0) for each number is actualy the flag that tells us
-        -- whether to continue reading or if we've reached the end. The last byte in the sequence has a 0 at
-        -- bit 7, and every byte before will have a 1. Bits 6-0 hold the actual number.
-        --
-        -- Examples:
-        -- midi file → real value
-        -- 00000000 → 00000000  |  00 → 00 00 00 00
-        -- 01000000 → 01000000  |  40 → 00 00 00 40
-        -- 10000001 00000000 → 10000000
-        -- 11000000 00000000 → 00100000 00000000
-        -- 10000001 10000000 00000000 → 01000000 00000000
-        -- 11111111 11111111 11111111 01111111 → 00001111 11111111 11111111 11111111  | FF FF FF 7F → 0F FF FF FF
-        --
-        -- largest midi value: FF FF FF 7F → resulting in 0FFFFFFF. Although, theoreticaly, it could go higher.
-
-        local continue_bit_mask = tonumber("10000000", 2)
-        local number_data_mask = bit32.bnot(continue_bit_mask)
-
-        -- gather relevent bytes
-
-        local bytes = {}
-        repeat
-            local current_byte = self:raw_data_next_byte()
-            table.insert(bytes, bit32.band(current_byte, number_data_mask))
-        until not bit32.btest(current_byte, continue_bit_mask)
-
-        return combine_seven_bit_numbers(bytes)
-    end
 
     local function processor_loop()
         if state.is_done then
