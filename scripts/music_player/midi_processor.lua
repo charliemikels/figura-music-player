@@ -592,7 +592,7 @@ local midi_processor_loop_stage_functions = {
                         print("Message ID = ", number_to_dec_and_hex(midi_message.event_id))
 
                         if midi_message_functions[midi_message.event_id] then
-                            midi_message_functions[midi_message.event_id](state, midi_message, state.reader.file_stream)
+                            midi_message_functions[midi_message.event_id](state, midi_message)
                         else
                             error("Unrecognized midi_message with ID ".. number_to_dec_and_hex(midi_message.event_id))
                         end
@@ -847,7 +847,7 @@ local function midi_processor(song)
         },
 
         reader = {
-            file_stream = nil, --@type InputStream|nil
+            file_stream = nil, ---@type InputStream|nil
             current_chunk_length_counter = 0
         },
         processed_song_metadata = {},
