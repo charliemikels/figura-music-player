@@ -10,7 +10,7 @@
 local max_read_steps_per_event    = 100000  -- This stage has very few instructions, so it's max count can be very high.
 local max_process_steps_per_event = 1000    -- This stage is far more expensive than max_read_steps.
 
----@enum midi_chunk_types
+---@enum MidiChunkTypes
 local midi_chunk_types = {
     header = "MThd",
     track = "MTrk"
@@ -273,10 +273,16 @@ local midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
-    -- [tonumber("10000000", 2)] = function(state, message) end,
+    [tonumber("10000000", 2)] = function(state, message)
+        message.data.note = read_next_file_byte(state)
+        message.data.velocity = read_next_file_byte(state)
+    end,
 
     ---Note On event
-    -- [tonumber("10010000", 2)] = function(state, message) end,
+    [tonumber("10010000", 2)] = function(state, message)
+        message.data.note = read_next_file_byte(state)
+        message.data.velocity = read_next_file_byte(state)
+    end,
 
     ---Polyphonic Key Pressure (Aftertouch)
     -- [tonumber("10100000", 2)] = function(state, message) end,
@@ -291,7 +297,9 @@ local midi_message_functions = {
     end,
 
     ---Program change
-    -- [tonumber("11000000", 2)] = function(state, message) end,
+    [tonumber("11000000", 2)] = function(state, message)
+        message.data.patch_number = read_next_file_byte(state)
+    end,
 
     ---Channel Presure
     -- [tonumber("11010000", 2)] = function(state, message) end,
@@ -468,7 +476,9 @@ local midi_processor_loop_stage_functions = {
                     ---Stores the raw data for a single chunk in a midi file.
                     ---@class midi_chunk
                     local new_chunk = {
+
                         --Chunk types start with a 4 char type, then a 32 bit length
+                        ---@type MidiChunkTypes
                         type = string.char(
                             read_next_file_byte(state),
                             read_next_file_byte(state),
