@@ -634,7 +634,7 @@ local midi_processor_loop_stage_functions = {
 
             for _, track in ipairs(state.chunks.tracks) do
 
-                local time_of_next_message = track.sum_delta + track.delta_of_next_message
+                local time_of_next_message = track.sum_delta --+ track.delta_of_next_message
                 if time_of_next_message < soonest_time then
                     soonest_time = time_of_next_message
                     soonest_track = track
