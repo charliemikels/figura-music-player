@@ -147,12 +147,17 @@ local midi_meta_event_functions = {
     ---sequence_number
     ---
     ---Optional. Format 0 and 1 have only one sequence, But format 2 might have multiple. Sequence_number is used to keep sequences in order.
-    -- [0x00] = function(state, message) end,
+    ---Must come before non-zero delta times, and before all transmitable midi events.
+    [0x00] = function(state, message)
+        message.data.sequence_number = message.event_raw_data[1]
+    end,
 
     ---text_event
     ---
     ---Generic text event. Provides notes about the song, or about a part of it. Events 0x01 - 0x0F are all text events of some sort.
-    -- [0x01] = function(state, message) end,
+    [0x01] = function(state, message)
+        message.data.generic_text = string.char(table.unpack(message.event_raw_data))
+    end,
 
     ---copyright_notice
     ---
@@ -173,7 +178,7 @@ local midi_meta_event_functions = {
     ---
     ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
     [0x04] = function(state, message)
-        message.data.text = string.char(table.unpack(message.event_raw_data))
+        message.data.instrument_name = string.char(table.unpack(message.event_raw_data))
     end,
 
     ---lyric
@@ -199,8 +204,12 @@ local midi_meta_event_functions = {
 
     ---midi_channel_prefix
     ---
-    ---Sets a prefix for the channel. (0-15 (?)). Used to assosiate this channel with any following events.
-    -- [0x20] = function(state, message) end,
+    ---Sets a prefix for the channel. (0-15 (?)). Ties any following events (eg sysex events) to selected channel, until
+    ---next event that defines a channel, or next channel_prefix meta event.
+    [0x20] = function(state, message)
+        message.data.sequence_number = message.event_raw_data[1]
+
+    end,
 
     ---end_of_track
     ---
@@ -233,7 +242,7 @@ local midi_meta_event_functions = {
 
     ---smpte_offset
     ---
-    ---Part of Format 2. Marks when this track is supposed to start.
+    ---Part of Format 2. Marks the timestamp when this track is supposed to start. Default to
     -- [0x54] = function(state, message) end,
 
     ---time_signature
@@ -252,14 +261,22 @@ local midi_meta_event_functions = {
     end,
 
     ---key_signature.
-    --- - <numb of sharps and flats (negative == flat, positive == sharps. 0 == C)>
+    --- - <numb of sharps / flats (negative == flat, positive == sharps. 0 == C)>
     --- - <0 == major, 1 == minor>
-    -- [0x59] = function(state, message) end,
+    [0x59] = function(state, message)
+        local unsigned_sharps_or_flats = message.event_raw_data[1]
+        message.data.key_signature = {
+            sharps_or_flats = (unsigned_sharps_or_flats >= 128 and unsigned_sharps_or_flats - 256 or unsigned_sharps_or_flats),
+            major_or_minor = message.event_raw_data[2]
+        }
+    end,
 
     ---sequencer_specific_meta_event
     ---
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
-    -- [0x7F] = function(state, message) end
+    [0x7F] = function(state, message)
+        message.data.sequencer_specific_meta_event_data = message.event_raw_data
+    end
 }
 
 
@@ -275,21 +292,29 @@ local midi_message_functions = {
     ---Note Off event
     [tonumber("10000000", 2)] = function(state, message)
         message.data.note = read_next_file_byte(state)
-        message.data.velocity = read_next_file_byte(state)
+        message.data.velocity = read_next_file_byte(state)  -- Note off velocity is frequently ignored by all but the fancy synths.
+        message.data.note_enabled = false
     end,
 
     ---Note On event
+    ---Special case: if velocity is 0, treat as a note off event. Stacks well with running status.
     [tonumber("10010000", 2)] = function(state, message)
         message.data.note = read_next_file_byte(state)
         message.data.velocity = read_next_file_byte(state)
+        message.data.note_enabled = (message.data.velocity ~= 0)
+        -- I know this ↑ looks like parcing, but if we're gonna do `note_enabled` for Note Off, then we should set it correctly here.
+        -- Note On events with velocity of `0` are treated like a Note Off events.
     end,
 
     ---Polyphonic Key Pressure (Aftertouch)
-    -- [tonumber("10100000", 2)] = function(state, message) end,
+    [tonumber("10100000", 2)] = function(state, message)
+        message.data.note = read_next_file_byte(state)
+        message.data.note_after_touch = read_next_file_byte(state)
+    end,
 
     ---Control Change / Channel Mode Messages
     ---
-    ---Some Controller numbers are reserved. See "Channel Mode Messages"
+    ---Some controller numbers are reserved. See "Channel Mode Messages"
     [tonumber("10110000", 2)] = function(state, message)
         -- These are two sepperate event types. Be sure to handle each depending on the state.
         message.data.controller_number = read_next_file_byte(state)
@@ -301,11 +326,22 @@ local midi_message_functions = {
         message.data.patch_number = read_next_file_byte(state)
     end,
 
-    ---Channel Presure
-    -- [tonumber("11010000", 2)] = function(state, message) end,
+    ---Channel Presure (Channel Aftertouch)
+    [tonumber("11010000", 2)] = function(state, message)
+        message.data.channel_after_touch = read_next_file_byte(state)
+    end,
 
     ---Pitch Wheel Change
-    -- [tonumber("11100000", 2)] = function(state, message) end,
+    ---
+    ---The pitch wheel is measured by a fourteen bit value. Where 3FFF is the maximum value.
+    ---
+    ---Center (no pitch change) is Hex = 2000, Dec = 8192.
+    ---
+    ---"Sensitivity is a function of the transmitter." Usualy this is ±2 semitones. Midi by default doesn't encode the range,
+    ---but some use a `RPN` (Registered Parameter Number) to encode this message in the control codes.
+    [tonumber("11100000", 2)] = function(state, message)
+        message.data.pitch_wheel = combine_seven_bit_numbers({ read_next_file_byte(state), read_next_file_byte(state) })
+    end,
 
     -- ↑ Has channel ID
     -- ↓ No channel ID. Channel is not used.
@@ -358,7 +394,9 @@ local midi_message_functions = {
     ---Tune request
     ---
     ---Request all analogue systems to tune themselves.
-    -- [tonumber("11110110", 2)] = function(state, message) end,
+    [tonumber("11110110", 2)] = function(state, message)
+        -- no data, nothing to tune, safely ignore.
+    end,
 
     ---System exclusive message
     [tonumber("11110111", 2)] = function(state, message)
@@ -377,7 +415,9 @@ local midi_message_functions = {
     ---Timing Clock
     ---
     ---Sent 24 times per quarter note when synchronisation is required
-    -- [tonumber("11111000", 2)] = function(state, message) end,
+    [tonumber("11111000", 2)] = function(state, message)
+        -- no data, no devices to syncronize, safely ignore.
+    end,
 
     ---Undefined
     [tonumber("11111001", 2)] = function(state, message)
@@ -387,17 +427,23 @@ local midi_message_functions = {
     ---Start
     ---
     ---Start the current sequence playing
-    -- [tonumber("11111010", 2)] = function(state, message) end,
+    [tonumber("11111010", 2)] = function(state, message)
+        -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
+    end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
-    -- [tonumber("11111011", 2)] = function(state, message) end,
+    [tonumber("11111011", 2)] = function(state, message)
+        -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
+    end,
 
     ---Stop
     ---
     ---Stop the current sequence
-    -- [tonumber("11111100", 2)] = function(state, message) end,
+    [tonumber("11111100", 2)] = function(state, message)
+        -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
+    end,
 
     ---Undefined
     [tonumber("11111101", 2)] = function(state, message)
@@ -409,7 +455,9 @@ local midi_message_functions = {
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
     ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
     ---return to normal, non active sensing opperation.
-    [tonumber("11111110", 2)] = function(state, message) end,
+    [tonumber("11111110", 2)] = function(state, message)
+        -- no data, realtime situations only to make sure everything stays online. Safely ignore.
+    end,
 
     ---Meta event
     ---
