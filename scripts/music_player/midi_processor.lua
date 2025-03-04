@@ -7,8 +7,8 @@
 -- Defaults and limits
 
 ---Limits to keep to reduce lag when processing large files.
-local max_read_steps_per_event    = 100000  -- This stage has very few instructions, so it's max count can be very high.
-local max_process_steps_per_event = 1000    -- This stage is far more expensive than max_read_steps.
+local max_read_steps_per_event    = 100000
+local max_process_steps_per_event = 1000
 
 ---@enum MidiChunkTypes
 local midi_chunk_types = {
