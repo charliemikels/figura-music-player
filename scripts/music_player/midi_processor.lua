@@ -475,7 +475,7 @@ local midi_message_functions = {
         message.data.meta_event_id = meta_event_id
 
         if midi_meta_event_functions[meta_event_id] then
-            print("meta ID = "..number_to_dec_and_hex(meta_event_id))
+            -- print("meta ID = "..number_to_dec_and_hex(meta_event_id))
             midi_meta_event_functions[meta_event_id](state, message)
         else
             error("Unimplemented meta event: "..tostring(meta_event_id))
@@ -558,7 +558,7 @@ local midi_processor_loop_stage_functions = {
                         table.insert(state.chunks.tracks, new_chunk)
                         state.reader.current_chunk = new_chunk
                         state.reader.current_chunk_length_counter = new_chunk.length
-                        print("Found new track")
+                        -- print("Found new track")
 
                     elseif new_chunk.type == midi_chunk_types.header then
                         -- header chunks are usualy very small (6 bytes). It's worth while to just process it now.
@@ -652,7 +652,7 @@ local midi_processor_loop_stage_functions = {
                             -- this isn't a standard midi event. This is data for running status.
                             undo_byte_read(state, event_id_byte)
                             event_id_byte = state.reader.running_status_id
-                            print("running status")
+                            -- print("running status")
                         else
                             state.reader.running_status_id = event_id_byte
                         end
@@ -688,7 +688,7 @@ local midi_processor_loop_stage_functions = {
                             -- `F7` is also used to mark the end of a sysex message, so that the reader knows it has the whole thing.
                             -- `F0` allways marks the start of a sysex message. `F7` is the start of all following packets.
 
-                        print("Message ID = ", number_to_dec_and_hex(midi_message.event_id))
+                        -- print("Message ID = ", number_to_dec_and_hex(midi_message.event_id))
 
                         if midi_message_functions[midi_message.event_id] then
                             midi_message_functions[midi_message.event_id](state, midi_message)
