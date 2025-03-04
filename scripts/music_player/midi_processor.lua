@@ -496,6 +496,12 @@ local midi_processor_loop_stage_functions = {
         -- Ensure everything is ready to go for reading and organizing
 
         -- Set up input stream for read step, or skip read if not needed
+
+        -- TODO: remove song.data_source entirely? Because we could bundle our own native file format,
+        -- we probably don't want to bundle midi files. IE: this function will only be called with filesAPI.
+        -- It is worth while to keep track of songs that have host-only data (needs pings) vs songs that are
+        -- bundled with the avatar. (Don't need pings for data, just start/stop.) But for the midi parcer
+        -- itself, this distinction is not exactly nessesary.
         if song.data_source == "files" then
             state.reader.file_stream = file:openReadStream(song.truepath)
             state.stage = "read"
@@ -546,6 +552,14 @@ local midi_processor_loop_stage_functions = {
                         ---@type integer[]
                         data = {},
 
+                        --Tracks are organized into events and messages. Use this for organized messenge data.
+                        ---@type MidiMessage[]
+                        messages = {},
+
+                        --Counter to determine the next message in a track.
+                        ---@type integer
+                        message_index = 1,
+
                         ---During the process stage, we need to keep track of our progress through each track
                         process_progress = 0,
 
@@ -568,6 +582,7 @@ local midi_processor_loop_stage_functions = {
                         -- All midi headers should be 6 bytes, with 3 2-byte (16-bit) words.
                         -- state.midi_header_info = {}
                         local header_chunk = new_chunk
+
                         local expected_header_chunk_length = 6
 
                         for _ = 1, header_chunk.length do
@@ -585,7 +600,7 @@ local midi_processor_loop_stage_functions = {
                         -- * 0 = one track in the entire file
                         -- * 1 = multiple tracks, each track listed one after the other. { full_track_1, full_track_2 }
                         -- * 2 = multiple tracks woven through each other. { partial_track_1, partial_track_2, partial_track_1, partial_track_2, … }
-                        state.midi_header_info.format = bytes_to_number({header_chunk.data[1], header_chunk.data[2]})
+                        state.midi_header_info.format = bytes_to_number({ header_chunk.data[1], header_chunk.data[2] })
 
                         if state.midi_header_info.format == "2" then
                             error("MIDI format 2 not yet supported."
@@ -633,6 +648,7 @@ local midi_processor_loop_stage_functions = {
                         table.insert(state.chunks.unknown_chunks, new_chunk)
                         state.reader.current_chunk = new_chunk
                         print("Found a chunk with an unknown type.")
+
                     end
 
                 else -- We've inside of a chunk. Read file data into the current chunk.
@@ -692,6 +708,7 @@ local midi_processor_loop_stage_functions = {
 
                         if midi_message_functions[midi_message.event_id] then
                             midi_message_functions[midi_message.event_id](state, midi_message)
+                            table.insert(state.reader.current_chunk.messages, midi_message)
                         else
                             error("Unrecognized midi_message with ID ".. number_to_dec_and_hex(midi_message.event_id))
                         end
@@ -727,27 +744,36 @@ local midi_processor_loop_stage_functions = {
     end,
 
     process = function(song, state)
-        error("finish process_tracks stage")
         for i = 1, max_process_steps_per_event, 1 do
+
+            -- Get next message to process
 
             local soonest_time = math.huge
             local soonest_track
+            local soonest_message
 
-            for _, track in ipairs(state.chunks.tracks) do
+            -- Messages are stored in tracks, but the actual output shares the same 16 channels between tracks.
+            -- Figure out the next message between all tracks.
+            -- Favor tracks earlier in the file in case of a tie.
 
-                local time_of_next_message = track.sum_delta --+ track.delta_of_next_message
+            for track_index, track in ipairs(state.chunks.tracks) do
+
+                local time_of_next_message = track.sum_delta + track.messages[track.message_index].delta
                 if time_of_next_message < soonest_time then
                     soonest_time = time_of_next_message
                     soonest_track = track
+                    soonest_message = track.messages[track.message_index]
                 end
-            -- New process_tracks flow:
-            -- 1. Get next message (chronologicaly).
-            --    - We can do this by either scanning all tracks and find the soonest their sum_deltas,
-            --      or have a sorted list of next events, one item per track. then at the end of the loop,
-            --      insert the next event from the current track into the sorted list.
-            -- 2. Process that one message.
-            --
             end
+
+            soonest_track.message_index = soonest_track.message_index+1
+
+            print("soonest_track:")
+            printTable(soonest_track)
+
+            -- see state.processed_song_data for output?
+
+            error("process soonest message into an instruction that we'll use for playback.")
         end
     end,
 
@@ -788,11 +814,13 @@ local function midi_processor(song)
 
         reader = {
             file_stream = nil, ---@type InputStream|nil
-            current_chunk_length_counter = 0,
-            byte_read_undo_history = {} ---@type number[]
+            current_chunk_length_counter = 0,   ---@type integer
+            byte_read_undo_history = {} ---@type integer[]
         },
-        processed_song_metadata = {},
-        messages = {
+        processed_song_data = {
+            metadata = {
+                -- copyright data, title, etc.
+            },
             -- Even though song files are organized into tracks, all tracks share the same 16 channels,
             -- and all events impacting those channels impact that channel on all tracks.
             -- EG: track 1 starts a note on ch 1, track 2 changes the pitch wheel on ch 1. Even though sepperate tracks, the note is still pitched.
@@ -800,7 +828,9 @@ local function midi_processor(song)
             -- on that assumption, especialy for any future format 2 support.
             channels = {
                 -- [1] = {      -- in order list of all events sent to this channel.
-                --     { message_type = "…", track = "???"}
+                --      ["channel_metadata"] = { name, ID, reccomended instrument? }
+                --      [messenges] = {…}
+                --
                 -- }
                 -- [2] = {}
                 -- …
