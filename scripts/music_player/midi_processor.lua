@@ -132,7 +132,7 @@ local function read_variable_length_quantity(state)
     return combine_seven_bit_numbers(bytes)
 end
 
----Collection of functions to process midi meta events, indexed by their event ID byte.
+---Collection of functions to read midi meta events, indexed by their event ID byte.
 ---
 ---These are used during the read stage. Called from midi_message_functions[11111111]. Fills in message.data
 ---
@@ -142,7 +142,7 @@ end
 ---The function that calls these functions has already read in the data.
 ---
 ---@type table<integer, fun(state: MidiProcessorState, message: MidiMessage)>
-local midi_meta_event_functions = {
+local midi_meta_event_reading_functions = {
 
     ---sequence_number
     ---
@@ -280,13 +280,13 @@ local midi_meta_event_functions = {
 }
 
 
----Collection of functions to process midi message events, indexed by their event ID byte.
+---Collection of functions to read midi message events from a midi file, indexed by their event ID byte.
 ---
----These functions are responcible for reading their own data. All events must be handeled in some way.
+---These functions are responcible for reading their own data from the File API. All events must be handeled in some way.
 ---
----These are ran during the `read` stage to handle to turn message bytes into message objects that we can further process later.
+---These are ran during the `read` stage to turn message bytes (in file order) into message objects that we can further sort and process later.
 ---@type table<integer, fun(state: MidiProcessorState, message: MidiMessage)>
-local midi_message_functions = {
+local midi_message_reading_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
@@ -474,14 +474,22 @@ local midi_message_functions = {
         message.data = {}
         message.data.meta_event_id = meta_event_id
 
-        if midi_meta_event_functions[meta_event_id] then
+        if midi_meta_event_reading_functions[meta_event_id] then
             -- print("meta ID = "..number_to_dec_and_hex(meta_event_id))
-            midi_meta_event_functions[meta_event_id](state, message)
+            midi_meta_event_reading_functions[meta_event_id](state, message)
         else
             error("Unimplemented meta event: "..tostring(meta_event_id))
         end
     end
 }
+
+---Collection of functions to process midi message events, indexed by their event ID byte.
+---
+---These functions are called as messages are found chronologicaly and are used to build the final instruction list.
+---
+---These are ran during the `process` stage to turn messages (in chronological order) from the file into our custom player format.
+---@type table<integer, fun(state: MidiProcessorState, message: MidiMessage)>
+local midi_message_processing_functions = {}
 
 
 ---@alias midi_processor_stage
@@ -706,8 +714,8 @@ local midi_processor_loop_stage_functions = {
 
                         -- print("Message ID = ", number_to_dec_and_hex(midi_message.event_id))
 
-                        if midi_message_functions[midi_message.event_id] then
-                            midi_message_functions[midi_message.event_id](state, midi_message)
+                        if midi_message_reading_functions[midi_message.event_id] then
+                            midi_message_reading_functions[midi_message.event_id](state, midi_message)
                             table.insert(state.reader.current_chunk.messages, midi_message)
                         else
                             error("Unrecognized midi_message with ID ".. number_to_dec_and_hex(midi_message.event_id))
