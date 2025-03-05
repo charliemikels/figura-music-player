@@ -729,7 +729,7 @@ local midi_processor_loop_stage_functions = {
 
         if state.reader.file_stream:available() <= 0 then
             -- Last loop had last item. Do Final cleanup and move on.
-            song.raw_data = state.raw_data
+            -- song.raw_data = state.raw_data
             state.raw_data = nil
             state.reader.file_stream:close()
             state.reader.file_stream = nil
@@ -740,6 +740,7 @@ local midi_processor_loop_stage_functions = {
 
             state.stage = "process"
             print("read done")
+            return
         end
     end,
 
@@ -751,29 +752,44 @@ local midi_processor_loop_stage_functions = {
             local soonest_time = math.huge
             local soonest_track
             local soonest_message
-
-            -- Messages are stored in tracks, but the actual output shares the same 16 channels between tracks.
-            -- Figure out the next message between all tracks.
-            -- Favor tracks earlier in the file in case of a tie.
+            local soonest_track_index
 
             for track_index, track in ipairs(state.chunks.tracks) do
-
-                local time_of_next_message = track.sum_delta + track.messages[track.message_index].delta
-                if time_of_next_message < soonest_time then
-                    soonest_time = time_of_next_message
-                    soonest_track = track
-                    soonest_message = track.messages[track.message_index]
+                if #track.messages >= track.message_index then
+                    local time_of_next_message = track.sum_delta + track.messages[track.message_index].delta
+                    if time_of_next_message < soonest_time then
+                        soonest_time = time_of_next_message
+                        soonest_track = track
+                        soonest_track_index = track_index
+                        soonest_message = track.messages[track.message_index]
+                    end
                 end
             end
 
-            soonest_track.message_index = soonest_track.message_index+1
+            if not soonest_message then
+                -- No soonest message was set. → There are no more messages. →
+                print("process done")
+                state.stage = "done"
+                return
+            end
 
-            print("soonest_track:")
-            printTable(soonest_track)
+            -- print(soonest_track_index, soonest_track.message_index, soonest_time)
+
+            -- print("soonest_track:")
+            -- printTable(soonest_track)
 
             -- see state.processed_song_data for output?
 
-            error("process soonest message into an instruction that we'll use for playback.")
+            soonest_track.sum_delta = soonest_track.sum_delta + soonest_track.messages[soonest_track.message_index].delta
+            soonest_track.message_index = soonest_track.message_index+1
+
+            if not soonest_track.messages[soonest_track.message_index] then
+                -- this message is the last message in the track. Do any track-realated checks cleanup.
+
+                -- state.chunks.tracks[soonest_track_index] = nil
+                print("end of track", soonest_track_index, #soonest_track.messages, soonest_track.sum_delta)
+            end
+            -- error("development halt")
         end
     end,
 
@@ -816,6 +832,9 @@ local function midi_processor(song)
             file_stream = nil, ---@type InputStream|nil
             current_chunk_length_counter = 0,   ---@type integer
             byte_read_undo_history = {} ---@type integer[]
+        },
+        processor = {
+
         },
         processed_song_data = {
             metadata = {
