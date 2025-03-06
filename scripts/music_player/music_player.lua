@@ -49,25 +49,26 @@ local supported_file_types = {
 
 
 
-
+---The song data created by the file processor functions
+---
+---Stores enough data to apply settings about the song (number of tracks / assigned instruments / disabled tracks),
+---and instructions ready to turn into packets.
 ---@class ProcessedSong
----@field identifier string
 ---@field instructions Instruction[]
 ---@field name string
 ---@field durration number
 ---@field tracks Track[]
 
 ---@class Instruction
----@field track Track Shortcut to track information. Link from tracks table in ProcessedSong
+---@field track_index integer
 ---@field start_time number
 ---@field end_time number
----@field active_sounds nil|Sound The actual sound object for the instruction.
----@field keyframes nil TODO: Keep track of volume and pitch changes during start/end time
+---@field modifiers table? TODO: Modify note during playback
+---@field active_sounds Sound? The actual sound object for the instruction.
 
 ---@class Track
 ---@field name string
----@field instrument nil TODO: instrument name
-
+---@field instrument nil TODO: instrument object
 
 ---A meta api to control the music player script. Use it to create and manage MusicPlayers.
 ---This api is returned when this script is called with `require()`.
