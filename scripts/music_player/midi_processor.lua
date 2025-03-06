@@ -61,46 +61,50 @@ local function combine_seven_bit_numbers(bytes)
 end
 
 
----Function to keep progress tracker logic in sync between the read and undo_read functions.
----@see undo_byte_read
----@see read_next_file_byte
----@param state MidiProcessorState
----@param progress_delta number
-local function update_file_reading_progress_trackers(state, progress_delta)
-    if state.reader.current_chunk_length_counter then
-        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - progress_delta
-    end
-end
+-- ---Function to keep progress tracker logic in sync between the read and undo_read functions.
+-- ---@see undo_byte_read
+-- ---@see read_next_file_byte
+-- ---@param state MidiProcessorState
+-- ---@param progress_delta number
+-- local function update_file_reading_progress_trackers(state, progress_delta)
+--     if state.reader.current_chunk_length_counter then
+--         state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - progress_delta
+--     end
+-- end
 
----There are some situations where we have to read the next byte to see what we need to do with it,
----For cases like running_status, we might encounter a data byte too early.
----@see read_next_file_byte
----@param state MidiProcessorState
----@param byte number
-local function undo_byte_read(state, byte)
-    table.insert(state.reader.byte_read_undo_history, byte)
-    update_file_reading_progress_trackers(state, -1)
-end
+-- ---There are some situations where we have to read the next byte to see what we need to do with it,
+-- ---For cases like running_status, we might encounter a data byte too early.
+-- ---@see read_next_file_byte
+-- ---@param state MidiProcessorState
+-- ---@param byte number
+-- local function undo_file_byte_read(state, byte)
+--     table.insert(state.reader.byte_read_undo_history, byte)
+--     update_file_reading_progress_trackers(state, -1)
+-- end
 
 ---Grabs the next byte from raw_data, and keeps track of progress through the raw data and current chunk.
 ---@param state MidiProcessorState
 ---@return number
 ---@see undo_byte_read
 local function read_next_file_byte(state)
-    local return_data
-    if state.reader.byte_read_undo_history[#state.reader.byte_read_undo_history] then
-        return_data = table.remove(state.reader.byte_read_undo_history, #state.reader.byte_read_undo_history)
-    else
-       return_data = state.reader.file_stream:read()
+    if state.reader.current_chunk_length_counter then
+        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
     end
-    update_file_reading_progress_trackers(state, 1)
-    return return_data
+    return state.reader.file_stream:read()
+end
+
+---Like read_next_file_byte, returns the next byte from the data list, and auto incriments chunk.data_index
+---@param chunk MidiChunk
+local function read_next_chunk_byte(chunk)
+    local return_byte = chunk.data[chunk.data_index]
+    chunk.data_index = chunk.data_index + 1
+    return return_byte
 end
 
 ---comment
----@param state MidiProcessorState
+---@param track MidiChunk
 ---@return number
-local function read_variable_length_quantity(state)
+local function read_variable_length_quantity(track)
     -- Some values in midi are stored as "variable-length quantities."
     -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoreticaly," could go longer.
     --
@@ -125,7 +129,7 @@ local function read_variable_length_quantity(state)
     -- gather relevent bytes
     local bytes = {}
     repeat
-        local current_byte = read_next_file_byte(state)
+        local current_byte = read_next_chunk_byte(track)
         table.insert(bytes, bit32.band(current_byte, number_data_mask))
     until not bit32.btest(current_byte, continue_bit_mask)
 
@@ -483,14 +487,6 @@ local midi_message_reading_functions = {
     end
 }
 
----Collection of functions to process midi message events, indexed by their event ID byte.
----
----These functions are called as messages are found chronologicaly and are used to build the final instruction list.
----
----These are ran during the `process` stage to turn messages (in chronological order) from the file into our custom player format.
----@type table<integer, fun(state: MidiProcessorState, message: MidiMessage)>
-local midi_message_processing_functions = {}
-
 
 ---@alias midi_processor_stage
 ---| '"init"'
@@ -536,7 +532,7 @@ local midi_processor_loop_stage_functions = {
                     -- Must be at the start of a new chunk.
 
                     ---Stores the raw data for a single chunk in a midi file.
-                    ---@class midi_chunk
+                    ---@class MidiChunk
                     local new_chunk = {
 
                         --Chunk types start with a 4 char type, then a 32 bit length
@@ -560,26 +556,27 @@ local midi_processor_loop_stage_functions = {
                         ---@type integer[]
                         data = {},
 
-                        --Tracks are organized into events and messages. Use this for organized messenge data.
-                        ---@type MidiMessage[]
-                        messages = {},
-
-                        --Counter to determine the next message in a track.
+                        -- Keeps track of our progress through the data table.
+                        -- See read_next_chunk_data_byte(chunk)
                         ---@type integer
-                        message_index = 1,
-
-                        ---During the process stage, we need to keep track of our progress through each track
-                        process_progress = 0,
+                        data_index = 1,
 
                         ---Durring the process stage, we need to read track messages in chronological order.
                         ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
+                        ---@type number
                         sum_delta = 0,
+
+                        ---Holds the delta of the next event.
+                        ---Used to compare this track against every other track, without doing var-length calculations every loop
+                        ---@type integer
+                        next_event_delta = 1,
                     }
+
+                    state.reader.current_chunk = new_chunk
+                    state.reader.current_chunk_length_counter = new_chunk.length
 
                     if new_chunk.type == midi_chunk_types.track then
                         table.insert(state.chunks.tracks, new_chunk)
-                        state.reader.current_chunk = new_chunk
-                        state.reader.current_chunk_length_counter = new_chunk.length
                         -- print("Found new track")
 
                     elseif new_chunk.type == midi_chunk_types.header then
@@ -650,83 +647,17 @@ local midi_processor_loop_stage_functions = {
                         end
 
                         state.chunks.header = header_chunk
+
+                        state.reader.current_chunk = nil
                         state.reader.current_chunk_length_counter = 0
 
                     else
                         table.insert(state.chunks.unknown_chunks, new_chunk)
-                        state.reader.current_chunk = new_chunk
                         print("Found a chunk with an unknown type.")
-
                     end
 
                 else -- We've inside of a chunk. Read file data into the current chunk.
-
-                    if  state.reader.current_chunk.type == midi_chunk_types.track then
-                        -- Current chunk is track. get next message then continue loop.
-
-                        -- delta_time is allways included
-                        local delta = read_variable_length_quantity(state) -- variable length quantity
-
-                        -- messages may ommit their status ID if they have the same ID as the status before it. ("Running status")
-                        -- Check next byte. If it's a data byte, backtrack reader and use previous status ID
-                        local first_bit_mask = tonumber("10000000", 2)
-                        -- TODO
-                        local event_id_byte = read_next_file_byte(state)
-                        if event_id_byte < first_bit_mask then
-                            -- this isn't a standard midi event. This is data for running status.
-                            undo_byte_read(state, event_id_byte)
-                            event_id_byte = state.reader.running_status_id
-                            -- print("running status")
-                        else
-                            state.reader.running_status_id = event_id_byte
-                        end
-
-
-                        -- Midi Messages < `0x11110000` use the last 4 bits to represent a channel ID
-                        local first_half_mask = tonumber("11110000", 2)
-                        local midi_channel = (
-                            (event_id_byte < first_half_mask)
-                            and bit32.band(event_id_byte, bit32.bnot(first_half_mask))
-                            or nil
-                        )
-                        local event_id_without_channel = (
-                            (event_id_byte < first_half_mask)
-                            and bit32.band(event_id_byte, first_half_mask)
-                            or event_id_byte
-                        )
-
-                        ---@class MidiMessage
-                        local midi_message = {
-                            delta = delta,
-                            event_id_byte = event_id_byte,  ---@type integer
-                            event_id = event_id_without_channel,
-                            channel_id = midi_channel,
-                            event_raw_data = {},
-                            data = {}
-                        }
-
-                        -- Midi messages come in 3, sorta 4 flavors, but they all start with a delta and then the event ID
-                        -- Meta events: <deltaTime> `FF` <Meta-event-type> <variable-length length> <bytes>
-                        -- System exclusive: <deltaTime> [`F0` or `F7`] <variable-length length> <bytes>
-                            -- System exclusive messages may be split into packets, and may be interupted by "real time" messages. (Like time code)
-                            -- `F7` is also used to mark the end of a sysex message, so that the reader knows it has the whole thing.
-                            -- `F0` allways marks the start of a sysex message. `F7` is the start of all following packets.
-
-                        -- print("Message ID = ", number_to_dec_and_hex(midi_message.event_id))
-
-                        if midi_message_reading_functions[midi_message.event_id] then
-                            midi_message_reading_functions[midi_message.event_id](state, midi_message)
-                            table.insert(state.reader.current_chunk.messages, midi_message)
-                        else
-                            error("Unrecognized midi_message with ID ".. number_to_dec_and_hex(midi_message.event_id))
-                        end
-
-                    else
-                        -- Unknown chunk data. drop it in, move on.
-                        table.insert(state.reader.current_chunk.data, read_next_file_byte(state))
-                        state.reader.current_chunk_length_counter = state.reader.current_chunk_length_counter - 1
-                    end
-
+                    table.insert(state.reader.current_chunk.data, read_next_file_byte(state))
                     if state.reader.current_chunk_length_counter <= 0 then
                         -- End of chunk. Clear it so that next loop we get a new chunk.
                         state.reader.current_chunk = nil
@@ -746,6 +677,12 @@ local midi_processor_loop_stage_functions = {
             state.reader.current_chunk_length_counter = nil
             state.reader = nil
 
+            for _, track in pairs(state.chunks.tracks) do
+                -- Jumpstart process phase by pre-calculating the delta of the first event in each track.
+                -- For most tracks, this will probably just be 0
+                track.next_event_delta = read_variable_length_quantity(track)
+            end
+
             state.stage = "process"
             print("read done")
             return
@@ -753,33 +690,77 @@ local midi_processor_loop_stage_functions = {
     end,
 
     process = function(song, state)
+        -- Midi files store midi events `<delta_time><event_id><event_data>`
+        -- In order to not calculate delta_time every time to figure out the next chronological event,
+        -- We will calculate it ahead of time during the end of Read, and update it for the current track at the end of this loop.
+        -- So effectively, we will read the data like this: `<event_id><event_data><next_event_delta_time>`
+
         for i = 1, max_process_steps_per_event, 1 do
 
             -- Get next message to process
-
             local soonest_time = math.huge
             local soonest_track
-            local soonest_message
             local soonest_track_index
 
             for track_index, track in ipairs(state.chunks.tracks) do
-                if #track.messages >= track.message_index then
-                    local time_of_next_message = track.sum_delta + track.messages[track.message_index].delta
+                if #track.data >= track.data_index then
+                    local time_of_next_message = track.sum_delta + track.next_event_delta
                     if time_of_next_message < soonest_time then
                         soonest_time = time_of_next_message
                         soonest_track = track
                         soonest_track_index = track_index
-                        soonest_message = track.messages[track.message_index]
                     end
                 end
             end
-
-            if not soonest_message then
-                -- No soonest message was set. → There are no more messages. →
+            if not soonest_track then
+                -- No soonest message was set. → There are no more messages. → Done processing.
                 print("process done")
                 state.stage = "done"
                 return
             end
+
+            -- messages may ommit their status ID if they have the same ID as the status before it. ("Running status")
+            -- Check next byte. If it's a data byte, backtrack reader and use previous status ID
+            local first_bit_mask = tonumber("10000000", 2)
+            local event_id_byte = read_next_chunk_byte(soonest_track)
+            if event_id_byte < first_bit_mask then
+                -- this isn't a standard midi event, This is the data for running status.
+                -- Backtrack, and use the previous event ID
+                soonest_track.data_index = soonest_track.data_index -1
+                event_id_byte = state.reader.running_status_id
+            else
+                state.processor.running_status_id = event_id_byte
+            end
+
+            -- Midi Messages < `0x11110000` use the last 4 bits to represent a channel ID
+            local first_half_mask = tonumber("11110000", 2)
+            local midi_channel = (
+                (event_id_byte < first_half_mask)
+                and bit32.band(event_id_byte, bit32.bnot(first_half_mask))
+                or nil
+            )
+            local event_id_without_channel = (
+                (event_id_byte < first_half_mask)
+                and bit32.band(event_id_byte, first_half_mask)
+                or event_id_byte
+            )
+
+
+
+            --
+            -- ---@class MidiMessage
+            -- local midi_message = {
+            --     delta = delta,
+            --     event_id_byte = event_id_byte,  ---@type integer
+            --     event_id = event_id_without_channel,
+            --     channel_id = midi_channel,
+            --     event_raw_data = {},
+            --     data = {}
+            -- }
+
+
+
+
 
             -- print(soonest_track_index, soonest_track.message_index, soonest_time)
 
@@ -788,16 +769,13 @@ local midi_processor_loop_stage_functions = {
 
             -- see state.processed_song_data for output?
 
-            soonest_track.sum_delta = soonest_track.sum_delta + soonest_track.messages[soonest_track.message_index].delta
-            soonest_track.message_index = soonest_track.message_index+1
-
-            if not soonest_track.messages[soonest_track.message_index] then
-                -- this message is the last message in the track. Do any track-realated checks cleanup.
-
-                -- state.chunks.tracks[soonest_track_index] = nil
+            soonest_track.sum_delta = soonest_track.sum_delta + soonest_track.next_event_delta
+            if soonest_track.data_index >= soonest_track.length then
                 print("end of track", soonest_track_index, #soonest_track.messages, soonest_track.sum_delta)
+            else
+                soonest_track.next_event_delta = read_variable_length_quantity(soonest_track)
             end
-            -- error("development halt")
+            error("development halt")
         end
     end,
 
@@ -826,23 +804,25 @@ local function midi_processor(song)
         -- stores the raw midi data, organized by chunk
         -- organized during the read stage.
         chunks = {
-            ---@type midi_chunk[]?
+            ---@type MidiChunk[]
             unknown_chunks = {},
 
-            ---@type midi_chunk?
+            ---@type MidiChunk?
             header = nil,
 
-            ---@type midi_chunk[]?
+            ---@type MidiChunk[]
             tracks = {},
         },
 
         reader = {
             file_stream = nil, ---@type InputStream|nil
             current_chunk_length_counter = 0,   ---@type integer
-            byte_read_undo_history = {} ---@type integer[]
         },
         processor = {
-
+            ---Message IDs can be omitted if the current ID is identical to the previous ID.
+            ---Store the most resent ID here
+            ---@type integer?
+            running_status_id = nil,
         },
         processed_song_data = {
             metadata = {
