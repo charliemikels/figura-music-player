@@ -280,7 +280,7 @@ local midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
-    -- [tonumber("10000000", 2)] = function(state, message)
+    -- [tonumber("10000000", 2)] = function(state, track, channel)
     --     message.data.note = read_next_file_byte(state)
     --     message.data.velocity = read_next_file_byte(state)  -- Note off velocity is frequently ignored by all but the fancy synths.
     --     message.data.note_enabled = false
@@ -288,7 +288,7 @@ local midi_message_functions = {
 
     ---Note On event
     ---Special case: if velocity is 0, treat as a note off event. Stacks well with running status.
-    -- [tonumber("10010000", 2)] = function(state, message)
+    -- [tonumber("10010000", 2)] = function(state, track, channel)
     --     message.data.note = read_next_file_byte(state)
     --     message.data.velocity = read_next_file_byte(state)
     --     message.data.note_enabled = (message.data.velocity ~= 0)
@@ -297,7 +297,7 @@ local midi_message_functions = {
     -- end,
 
     ---Polyphonic Key Pressure (Aftertouch)
-    -- [tonumber("10100000", 2)] = function(state, message)
+    -- [tonumber("10100000", 2)] = function(state, track, channel)
     --     message.data.note = read_next_file_byte(state)
     --     message.data.note_after_touch = read_next_file_byte(state)
     -- end,
@@ -305,19 +305,19 @@ local midi_message_functions = {
     ---Control Change / Channel Mode Messages
     ---
     ---Some controller numbers are reserved. See "Channel Mode Messages"
-    -- [tonumber("10110000", 2)] = function(state, message)
+    -- [tonumber("10110000", 2)] = function(state, track, channel)
     --     -- These are two sepperate event types. Be sure to handle each depending on the state.
     --     message.data.controller_number = read_next_file_byte(state)
     --     message.data.controller_value = read_next_file_byte(state)
     -- end,
 
     ---Program change
-    -- [tonumber("11000000", 2)] = function(state, message)
+    -- [tonumber("11000000", 2)] = function(state, track, channel)
     --     message.data.patch_number = read_next_file_byte(state)
     -- end,
 
     ---Channel Presure (Channel Aftertouch)
-    -- [tonumber("11010000", 2)] = function(state, message)
+    -- [tonumber("11010000", 2)] = function(state, track, channel)
     --     message.data.channel_after_touch = read_next_file_byte(state)
     -- end,
 
@@ -329,7 +329,7 @@ local midi_message_functions = {
     ---
     ---"Sensitivity is a function of the transmitter." Usualy this is ±2 semitones. Midi by default doesn't encode the range,
     ---but some use a `RPN` (Registered Parameter Number) to encode this message in the control codes.
-    -- [tonumber("11100000", 2)] = function(state, message)
+    -- [tonumber("11100000", 2)] = function(state, track, channel)
     --     message.data.pitch_wheel = combine_seven_bit_numbers({ read_next_file_byte(state), read_next_file_byte(state) })
     -- end,
 
@@ -339,7 +339,7 @@ local midi_message_functions = {
     ---System Exclusive
     ---
     ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
-    -- [tonumber("11110000", 2)] = function(state, message)
+    -- [tonumber("11110000", 2)] = function(state, track, channel)
     --     -- sysex events are messages for "the system." I don't think we need to worry about this type.
     --     -- sysex events are sometimes stored as packets within the midi file.
     --     -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
@@ -359,37 +359,37 @@ local midi_message_functions = {
     -- end,
 
     ---Undefined
-    [tonumber("11110001", 2)] = function(state, track)
+    [tonumber("11110001", 2)] = function(state, track, channel)
         error("Undefined midi message")
     end,
 
     ---Song Position Pointer
-    -- [tonumber("11110010", 2)] = function(state, message) end,
+    -- [tonumber("11110010", 2)] = function(state, track, channel) end,
 
     ---Song Select
     ---
     ---Used to select what sequence/song to play.
-    -- [tonumber("11110011", 2)] = function(state, message) end,
+    -- [tonumber("11110011", 2)] = function(state, track, channel) end,
 
     ---Undefined
-    [tonumber("11110100", 2)] = function(state, track)
+    [tonumber("11110100", 2)] = function(state, track, channel)
         error("Undefined midi message")
     end,
 
     ---Undefined
-    [tonumber("11110101", 2)] = function(state, track)
+    [tonumber("11110101", 2)] = function(state, track, channel)
         error("Undefined midi message")
     end,
 
     ---Tune request
     ---
     ---Request all analogue systems to tune themselves.
-    [tonumber("11110110", 2)] = function(state, track)
+    [tonumber("11110110", 2)] = function(state, track, channel)
         -- no data, nothing to tune, safely ignore.
     end,
 
     ---System exclusive message
-    -- [tonumber("11110111", 2)] = function(state, message)
+    -- [tonumber("11110111", 2)] = function(state, track, channel)
     --     -- There are two System Exclusive messages. See event ID `11110000` (F0) for more detail
     --     local sysex_event_length = read_variable_length_quantity(state)
     --     for _ = 1, sysex_event_length do
@@ -405,38 +405,38 @@ local midi_message_functions = {
     ---Timing Clock
     ---
     ---Sent 24 times per quarter note when synchronisation is required
-    [tonumber("11111000", 2)] = function(state, track)
+    [tonumber("11111000", 2)] = function(state, track, channel)
         -- no data, no devices to syncronize, safely ignore.
     end,
 
     ---Undefined
-    [tonumber("11111001", 2)] = function(state, track)
+    [tonumber("11111001", 2)] = function(state, track, channel)
         error("Undefined midi message")
     end,
 
     ---Start
     ---
     ---Start the current sequence playing
-    [tonumber("11111010", 2)] = function(state, track)
+    [tonumber("11111010", 2)] = function(state, track, channel)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
-    [tonumber("11111011", 2)] = function(state, track)
+    [tonumber("11111011", 2)] = function(state, track, channel)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Stop
     ---
     ---Stop the current sequence
-    [tonumber("11111100", 2)] = function(state, track)
+    [tonumber("11111100", 2)] = function(state, track, channel)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Undefined
-    [tonumber("11111101", 2)] = function(state, track)
+    [tonumber("11111101", 2)] = function(state, track, channel)
         error("Undefined midi message")
     end,
 
@@ -445,7 +445,7 @@ local midi_message_functions = {
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
     ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
     ---return to normal, non active sensing opperation.
-    [tonumber("11111110", 2)] = function(state, track)
+    [tonumber("11111110", 2)] = function(state, track, channel)
         -- no data, realtime situations only to make sure everything stays online. Safely ignore.
     end,
 
@@ -454,7 +454,7 @@ local midi_message_functions = {
     ---Meta events have their own sub IDs and functions assosiated with them.
     ---
     ---@see midi_meta_event_functions
-    [tonumber("11111111", 2)] = function(state, track)
+    [tonumber("11111111", 2)] = function(state, track, channel)
         local meta_event_id = read_next_chunk_byte(track)
         local meta_event_length = read_variable_length_quantity(track)
         local meta_event_data = {}
