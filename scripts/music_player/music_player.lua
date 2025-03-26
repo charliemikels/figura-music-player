@@ -1,10 +1,5 @@
 -- Tanner Limes was here.
--- Music Player V5.0.0-beta.1 (Midi)
-print("\n\n\n")
-print("== MIDI - Script init: ".. client.getSystemTime() .." ==")
-events.ENTITY_INIT:register(function ()
-    print("== MIDI - Entity init: ".. client.getSystemTime() .." ==")
-end)
+-- Music Player V5.0.0-beta.2 (Midi)
 
 -- Defaults --
 local dev_warn_unrecognized_file_in_library = false
@@ -27,7 +22,7 @@ local supported_file_types = {
     -- },
     midi = {
         extensions = {"mid", "midi"},
-        processor = require("./midi_processor")
+        -- processor = require("./midi_processor")
     }
 }
 

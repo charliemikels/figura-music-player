@@ -2,6 +2,6 @@
     "authors":["Tanner Limes"],
     "name": "Figura Music Player",
     "description": "Play Midi and ABC music",
-    "version": "5.0.0-beta.1",
+    "version": "5.0.0-beta.2",
     "color": "#78ff92"
 }

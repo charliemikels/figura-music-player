@@ -880,4 +880,13 @@ local function midi_processor(song)
     return future
 end
 
+local return_api = {
+    extensions = {"mid", "midi"},
+
+    -- TODO: For ABC files, we need to merge relevent ABC files (percussion tracks). The ABC processor should have it's own
+    -- "library checker / scanner" thing to scan the file list and produce a final song list.
+    library_checker = function() error() end,
+    processor = midi_processor
+}
+
 return midi_processor
