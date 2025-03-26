@@ -1,6 +1,6 @@
 -- Tanner Limes was here.
 -- Music Player V5.0.0-beta.2
---
+
 -- core.lua:
 -- The primary entrypoint into the music player scripts, and definitions for some shared types.
 

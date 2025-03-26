@@ -1,4 +1,4 @@
----@module "scripts.music_player.music_player"
+---@module "../core"
 
 -- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 

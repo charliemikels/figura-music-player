@@ -1,4 +1,11 @@
 
+-- An abstraction for handeling different file processor scripts in the file processors dir. (Midi, ABC, etc)
+--
+-- TODO: Circle back to this speciffic script. Song tables are assigned a data_processor when they're created.
+--       Library is (at time of writing) the only other script that uses this script specifficaly, and it's only
+--       doing one thing (file_processor_api.song_list_from_paths). We could instead move this script into the
+--       library script.
+
 ---@class FileProcessor
 ---@field build_song_list_from_path_list fun(paths:string[]):Song[]
 ---@field process_song fun(song:Song)

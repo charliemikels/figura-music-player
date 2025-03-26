@@ -1,4 +1,7 @@
 
+-- Logic related to managing song libraries, including registering new songs, and finding songs by ID or other search types.
+
+
 ---Recursively searches for files in a directory.
 ---@param start_path string
 ---@return table[]
