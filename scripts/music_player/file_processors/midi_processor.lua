@@ -880,13 +880,35 @@ local function midi_processor(song)
     return future
 end
 
-local return_api = {
+local midi_processor_api = {
     extensions = {"mid", "midi"},
+    song_list_from_paths = function(self, display_and_full_paths)
+        -- All the midi files we care about are self contained. Each file is a single song.
+        -- This is different from ABC files, where song tracks are sometimes split between files.
+        -- But for midi, we just need to see if the file is a midi file, and wrap it in a song table.
 
-    -- TODO: For ABC files, we need to merge relevent ABC files (percussion tracks). The ABC processor should have it's own
-    -- "library checker / scanner" thing to scan the file list and produce a final song list.
-    library_checker = function() error() end,
+        local midi_songs = {}
+        for i, file_paths in ipairs(display_and_full_paths) do
+            local file_ext = file_paths.full_path:match("%.([^%.]+)$"):lower()
+            for _, supported_file_ext in pairs(self.extensions) do
+                if supported_file_ext == file_ext then
+                    ---@type Song
+                    local new_song = {
+                        id = file_paths.full_path,
+                        name = file_paths.short_path,
+                        short_name = file_paths.short_path:match("([^/]*)%."),
+                        source = {type = "files", full_path = file_paths.full_path},
+                        start_data_processor = self.processor
+                    }
+                    table.insert(midi_songs, new_song)
+                    break
+                end
+            end
+        end
+        return midi_songs
+    end,
+
     processor = midi_processor
 }
 
-return midi_processor
+return midi_processor_api

@@ -1,8 +1,14 @@
 -- Tanner Limes was here.
 -- Music Player V5.0.0-beta.2 (Midi)
 
+if true then
+    print("music_player.lua temporaraly disabled during file reorganization time.")
+    return
+end
+
 -- Defaults --
 local dev_warn_unrecognized_file_in_library = false
+
 
 
 ---@class MusicPlayerBuilderOptions
@@ -27,20 +33,6 @@ local supported_file_types = {
 }
 
 -- Defining a bunch of types -- -----------------------------------------------
-
-
-
----@class Song
----@field identifier string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
----@field truepath string The authoritative path given to the files API
----@field name string The name used in the displayed song list
----@field short_name string The name used when displayed to others
----@field library string the path to the library where the song lives.
----@field processed_data nil|ProcessedSong The instructions produced after processing raw_data
----@field raw_data nil|table|string The raw data for a song. Usualy empty and loaded later when data_source is "file"
----@field data_source ("files"|"manual") The data source for a song. "Manual" must have non-nil `data` field.
----@field start_data_processor fun(self:Song): Future
----@field data_processor_state nil|table
 
 
 
