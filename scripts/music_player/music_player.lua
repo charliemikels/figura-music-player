@@ -27,7 +27,7 @@ local supported_file_types = {
     -- },
     midi = {
         extensions = {"mid", "midi"},
-        processor = require("scripts.music_player.midi_processor")
+        processor = require("./midi_processor")
     }
 }
 
