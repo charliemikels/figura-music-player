@@ -272,6 +272,8 @@ function script_api:build_empty_MusicPlayer()
 end
 
 ---Build a musicPlayer based on a given options table.
+---@param options MusicPlayerBuilderOptions
+---@return MusicPlayerAPI
 function script_api:build_MusicPlayer(options)
     options = options or {}
 
