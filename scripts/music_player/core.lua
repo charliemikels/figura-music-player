@@ -13,6 +13,18 @@ end)
 
 -- Shared types ---------------------------------------------------------------
 
+---Futures store the state of an async process. When the process is done, a value or an error can be extracted from the future.
+---
+---The Future type already sorta exist in Figura (see the networkin/HTTP module),
+---but I really wanted a `:then` function to make chaining easier, so I'm defining my own type.
+---@class TL_Future
+---@field is_done fun(self:TL_Future): boolean      Never errors.
+---@field throw_error fun(self:TL_Future)           Throws any stored errors.
+---@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
+---@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
+---@field then fun(self:TL_Future, fn:function, args:any[]): any?   Register a function to run after the future is done.
+---@field set_done fun(self:TL_Future)              Internal: set the state of the future to done. Calls any functions registered with `:then`
+
 ---@alias Byte number
 
 ---@alias DataSourceTypes "files"|"local"|"manual"
