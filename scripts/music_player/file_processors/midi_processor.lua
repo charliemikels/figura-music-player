@@ -841,40 +841,49 @@ local function midi_processor(song)
     -- it's fine.
     events.WORLD_RENDER:register(processor_loop)
 
-    local future = {}
-    ---@type Future
-    future = {
-        isDone = function()
-            if state.is_done then return true end
+    ---@type TL_Future
+    local future = {
+        is_done = function(self)
+            return (state.is_done and true or false)
         end,
-        hasError = function()
-            error("TODO: Implement Future.hasError.")
-            if true then
-                return true
-            end
-            return false
+
+        stored_error = nil,
+        has_error = function(self)
+            error("TODO: Finish implementing future.has_error.")
+            return (self.stored_error and true or false)
         end,
-        throwError = function()
-            error("TODO: Implement Future.throwError.")
-            return nil
+
+        throw_error = function(self)
+            error("TODO: Implement future.throw_error.")
         end,
-        getValue = function()
-            if not future.isDone() then
-                error("Future is has not finished. Check with future.isDone() before calling getValue.")
-            elseif future.hasError() then
+
+        get_value = function(self)
+            if not self:is_done() then
+                error("Future is has not finished. Check with future:is_done() before calling future:get_value().")
+            elseif self:has_error() then
                 return nil
             end
             error("TODO: Future.getValue not implemented.")
         end,
-        getOrError = function()
-            if future.hasError() then
-                future.throwError()
-            elseif not future.isDone() then
-                error("Future.getOrError() was called before the future was done. use Future.isDone() to check if the future is done.")
+
+        get_or_error = function(self)
+            if self:has_error() then
+                self:throw_error()
+            elseif not self:is_done() then
+                error("Future.get_or_error() was called before the future was done. use future.is_done() to check if the future is done.")
             else
-                return future.getValue()
+                return self:get_value()
             end
         end,
+
+        callback_functions = {},
+        set_callback = function(self, fn, args)
+            table.insert(self.callback_functions, {fn = fn, args = args})
+        end,
+
+        set_done = function(self)
+            error("finish future.set_done. It should set the 'done' state to true, and run any callback functions.")
+        end
     }
 
     return future

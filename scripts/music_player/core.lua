@@ -18,7 +18,8 @@ end)
 ---The Future type already sorta exist in Figura (see the networkin/HTTP module),
 ---but I really wanted a `:then` function to make chaining easier, so I'm defining my own type.
 ---@class TL_Future
----@field is_done fun(self:TL_Future): boolean      Never errors.
+---@field is_done fun(self:TL_Future): boolean      Returns false if background process is still running
+---@field has_error fun(self:TL_Future): boolean    Returns true if an error occured inside the future
 ---@field throw_error fun(self:TL_Future)           Throws any stored errors.
 ---@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
 ---@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
