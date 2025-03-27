@@ -490,11 +490,11 @@ local midi_processor_loop_stage_functions = {
         -- It is worth while to keep track of songs that have host-only data (needs pings) vs songs that are
         -- bundled with the avatar. (Don't need pings for data, just start/stop.) But for the midi parcer
         -- itself, this distinction is not exactly nessesary.
-        if song.data_source == "files" then
-            state.reader.file_stream = file:openReadStream(song.truepath)
+        if song.source.type == "files" then
+            state.reader.file_stream = file:openReadStream(song.source.full_path)
             state.stage = "read"
         else
-            error("song.data_source is not `files`. Non files API sources are not supported yet.")
+            error("song.source.type is not `files`. Non files API sources are not supported yet.")
         end
         print("init done")
     end,
