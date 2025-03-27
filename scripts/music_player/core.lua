@@ -22,7 +22,7 @@ end)
 ---@field throw_error fun(self:TL_Future)           Throws any stored errors.
 ---@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
 ---@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
----@field then fun(self:TL_Future, fn:function, args:any[]): any?   Register a function to run after the future is done.
+---@field set_callback fun(self:TL_Future, fn:function, args:any[]): any?   Register a function to run after the future is done.
 ---@field set_done fun(self:TL_Future)              Internal: set the state of the future to done. Calls any functions registered with `:then`
 
 ---@alias Byte number
