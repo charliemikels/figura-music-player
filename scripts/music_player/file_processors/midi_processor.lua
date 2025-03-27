@@ -765,7 +765,7 @@ local midi_processor_loop_stage_functions = {
 
 ---Convert a song with midi data into a processed song.
 ---@param song Song
----@return Future
+---@return TL_Future
 local function midi_processor(song)
     -- if not host:isHost() then
     --     error("Viewer tried to process a song.")
