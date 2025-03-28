@@ -32,6 +32,7 @@ end)
 ---@field callback_functions function[]
 ---@field future TL_Future
 ---@field is_done boolean
+---@field set_done fun(self:TL_FutureContext)
 
 
 ---@alias Byte number
