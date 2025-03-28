@@ -16,7 +16,10 @@ local file_processors = {}
 
 ---@type FileProcessor[]
 for _, script in ipairs(listFiles("./file_processors", true)) do
-    table.insert(file_processors, require(script))
+    local success, value = pcall(function() table.insert(file_processors, require(script)) end)
+    if not success then
+        print("Error: Failed to require file processor `"..script.."` found in the `file_processors` folder. Full error below:\n\n"..tostring(value))
+    end
 end
 
 -- TODO: Bug report. If a script has the same name as a folder, listing the files in the folder will include the script outside of the folder
