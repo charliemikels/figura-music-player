@@ -4,7 +4,18 @@ action_wheel:setPage(root_action_wheel_page)
 
 local midi_player_core_api = require("scripts/music_player/core")
 local music_player_api = midi_player_core_api:build_default_experiance()
-music_player_api.library:get_song_by_sorted_index(1):start_data_processor()
+music_player_api.library
+    :get_song_by_sorted_index(1)
+    :start_data_processor()
+    :set_callback(
+        function(future)
+            print("Callback ran")
+            print(future)
+            print(future:is_done())
+            print(future:has_error())
+            print(future:get_value())
+        end
+    )
 
 -- printTable(music_player_api.get_song_by_sorted_index(1))
 -- local song_process_future = music_player_api.get_song_by_id("TL_Songbook/MM/games/Wii Sports - Theme.mid"):start_data_processor()

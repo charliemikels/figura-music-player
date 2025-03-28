@@ -817,15 +817,73 @@ local function midi_processor(song)
 
     local state = song.data_processor_state
 
+    local future_context = {}
+    ---@type TL_FutureContext
+    future_context = {
+        value = nil,
+        error = nil,
+        callback_functions = {},
+        is_done = false,
+        set_done = function(self)
+            self.is_done = true
+            for _, callback in ipairs(future_context.callback_functions) do
+                callback(self.future)
+
+            end
+        end,
+
+        future = {
+            is_done = function(self)
+                return future_context.is_done
+            end,
+
+            has_error = function(self)
+                return (future_context.error and true or false)
+            end,
+
+            throw_error = function(self)
+                error(future_context.error)
+            end,
+
+            get_value = function(self)
+                if not self:is_done() then
+                    error("Future is has not finished. Check with future:is_done() before calling future:get_value().")
+                elseif self:has_error() then
+                    return future_context.error
+                end
+                error("TODO: Future.getValue not implemented.")
+            end,
+
+            get_or_error = function(self)
+                if self:has_error() then
+                    self:throw_error()
+                elseif not self:is_done() then
+                    error("Future.get_or_error() was called before the future was done. use future.is_done() to check if the future is done.")
+                else
+                    return self:get_value()
+                end
+            end,
+
+            set_callback = function(self, fn, ...)
+                print("setting callback")
+                table.insert(future_context.callback_functions, fn)
+            end,
+        }
+    }
+
     local function processor_loop()
         if state.is_done then
             -- this has a chance to run _after_ the future says it's done
             print("processor all done. Cleaning up.")
             events.WORLD_RENDER:remove(processor_loop)
         elseif midi_processor_loop_stage_functions[state.stage] then
-            midi_processor_loop_stage_functions[state.stage](song, state)
-        else
-            error("Unknown stage: " .. state.stage)
+            local success, value = pcall(function() midi_processor_loop_stage_functions[state.stage](song, state) end)
+            if not success then
+                future_context.error = value
+                future_context:set_done()
+                state.is_done = true
+                events.WORLD_RENDER:remove(processor_loop)
+            end
         end
     end
 
@@ -841,62 +899,6 @@ local function midi_processor(song)
     -- it's fine.
     events.WORLD_RENDER:register(processor_loop)
 
-    local future_context = {}
-    ---@type TL_FutureContext
-    future_context = {
-        value = nil,
-        error = nil,
-        callback_functions = {},
-        was_done = false,
-
-        future = {
-            is_done = function(self)
-                local is_done = state.is_done and true or false
-                if is_done and not future_context.was_done then
-                    for _, callback_tbl in ipairs(future_context.callback_functions) do
-                        callback_tbl.fn(table.unpack(callback_tbl.args))
-                    end
-                end
-                return (state.is_done and true or false)
-            end,
-
-            stored_error = nil,
-            has_error = function(self)
-                return (future_context.error and true or false)
-            end,
-
-            throw_error = function(self)
-                error(future_context.error)
-            end,
-
-            get_value = function(self)
-                if not self:is_done() then
-                    error("Future is has not finished. Check with future:is_done() before calling future:get_value().")
-                elseif self:has_error() then
-                    return nil
-                end
-                error("TODO: Future.getValue not implemented.")
-            end,
-
-            get_or_error = function(self)
-                if self:has_error() then
-                    self:throw_error()
-                elseif not self:is_done() then
-                    error("Future.get_or_error() was called before the future was done. use future.is_done() to check if the future is done.")
-                else
-                    return self:get_value()
-                end
-            end,
-
-            set_callback = function(self, fn, args)
-                table.insert(future_context.callback_functions, {fn = fn, args = args})
-            end,
-
-            set_done = function(self)
-                error("finish future.set_done. It should set the 'done' state to true, and run any callback functions.")
-            end
-        }
-    }
     return future_context.future
 end
 
