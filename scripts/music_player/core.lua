@@ -23,7 +23,7 @@ end)
 ---@field throw_error fun(self:TL_Future)           Throws any stored errors.
 ---@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
 ---@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
----@field set_callback fun(self:TL_Future, fn:function): any?   Register a function to run after the future is done.
+---@field register_callback fun(self:TL_Future, fn:function): any?   Register a function to run after the future is done.
 
 ---Context for the future, so that I can prevent users from directly accessing some parts of the future
 ---@class TL_FutureContext

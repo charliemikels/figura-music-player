@@ -864,7 +864,7 @@ local function midi_processor(song)
                 end
             end,
 
-            set_callback = function(self, fn, ...)
+            register_callback = function(self, fn)
                 print("setting callback")
                 table.insert(future_context.callback_functions, fn)
             end,

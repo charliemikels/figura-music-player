@@ -7,7 +7,7 @@ local music_player_api = midi_player_core_api:build_default_experiance()
 music_player_api.library
     :get_song_by_sorted_index(1)
     :start_data_processor()
-    :set_callback(
+    :register_callback(
         function(future)
             print("Callback ran")
             print(future)
