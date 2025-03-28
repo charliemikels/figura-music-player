@@ -24,7 +24,15 @@ end)
 ---@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
 ---@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
 ---@field set_callback fun(self:TL_Future, fn:function, args:any[]): any?   Register a function to run after the future is done.
----@field set_done fun(self:TL_Future)              Internal: set the state of the future to done. Calls any functions registered with `:then`
+
+---Context for the future, so that I can prevent users from directly accessing some parts of the future
+---@class TL_FutureContext
+---@field value any?
+---@field errors any?
+---@field callback_functions table  --{ {fn=function, args={arg1, arg2, arg3}}, {fn=function2, args={…}} }
+---@field future TL_Future
+---@field was_done boolean
+
 
 ---@alias Byte number
 
