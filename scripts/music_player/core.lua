@@ -23,7 +23,7 @@ end)
 ---@field throw_error fun(self:TL_Future)           Throws any stored errors.
 ---@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
 ---@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
----@field register_callback fun(self:TL_Future, fn:function): any?   Register a function to run after the future is done.
+---@field register_callback fun(self:TL_Future, fn:function):TL_Future   Register a function to run after the future is done.
 
 ---Context for the future, so that I can prevent users from directly accessing some parts of the future
 ---@class TL_FutureContext
@@ -56,7 +56,7 @@ end)
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
 ---@field processed_data nil|ProcessedSong The instructions produced after processing raw_data
----@field start_data_processor fun(self:Song): Future
+---@field start_data_processor fun(self:Song): TL_Future
 
 
 
@@ -88,6 +88,8 @@ local core_api = {
     build_default_experiance = function()
         local library = require("./libraries"):build_default_library()
 
+        ---@class CoreApi
+        ---@field library Library
         return {
             library = library,
         }

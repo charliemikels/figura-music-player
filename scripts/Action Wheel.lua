@@ -10,10 +10,9 @@ music_player_api.library
     :register_callback(
         function(future)
             print("Callback ran")
-            print(future)
-            print(future:is_done())
-            print(future:has_error())
-            print(future:get_value())
+            print("is done:", future:is_done())
+            print("has error:", future:has_error())
+            print("value:", future:get_value())
         end
     )
 

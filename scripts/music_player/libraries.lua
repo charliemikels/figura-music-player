@@ -37,6 +37,23 @@ local function list_files_in_path_recursively(start_path)
     return return_files
 end
 
+---Defining this function outside of the public library functions because,
+---if done right, we should never need the user to sort the library manualy.
+---@param library Library
+local function sort_library(library)
+    if library.song_keys_are_sorted then return end
+
+    ---@type Song[]
+    local sorted_songs = {}
+    for _, song in pairs(library.songs) do
+        table.insert(sorted_songs, #sorted_songs +1, song)
+    end
+    table.sort(sorted_songs, function(a,b) return a.name:lower() < b.name:lower() end)
+
+    library.sorted_songs = sorted_songs
+    library.song_keys_are_sorted = true
+end
+
 ---Assorted functions for the library table.
 ---@type table
 local library_functions = {
@@ -48,24 +65,11 @@ local library_functions = {
             self.songs[song.id] = song
         end
     end,
-    sort_library = function(self)
-        if self.song_keys_are_sorted then return end
-
-        ---@type Song[]
-        local sorted_songs = {}
-        for _, song in pairs(self.songs) do
-            table.insert(sorted_songs, #sorted_songs +1, song)
-        end
-        table.sort(sorted_songs, function(a,b) return a.name:lower() < b.name:lower() end)
-
-        self.sorted_songs = sorted_songs
-        self.song_keys_are_sorted = true
-    end,
     get_song_by_id = function(self, id)
         return self.songs[id]
     end,
     get_song_by_sorted_index = function(self, index)
-        if not self.song_keys_are_sorted then self:sort_library() end
+        if not self.song_keys_are_sorted then sort_library(self) end
         return self.sorted_songs[index]
     end,
 }
@@ -78,11 +82,13 @@ local libraries_api = {
         ---@class Library
         ---@field songs table<string, Song> Canonical song list.
         ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
+        ---@field add_source_directory fun(self:Library, path:string)
+        ---@field get_song_by_id fun(self:Library, id:string):Song
+        ---@field get_song_by_sorted_index fun(self:Library, index:integer):Song
         local library = {
             songs = {},
             sorted_songs = {},
             add_source_directory = library_functions.add_source_directory,
-            sort_library = library_functions.sort_library,
             get_song_by_id = library_functions.get_song_by_id,
             get_song_by_sorted_index = library_functions.get_song_by_sorted_index
         }
