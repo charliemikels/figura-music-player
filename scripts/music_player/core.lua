@@ -62,11 +62,13 @@ end)
 ---@field name string
 ---@field instrument nil TODO: instrument object
 
+---@class CoreApi
+---@field build_default_experiance fun():MusicPlayerCore    TODO: revisit this type declaration
 local core_api = {
     build_default_experiance = function()
         local library = require("./libraries"):build_default_library()
 
-        ---@class CoreApi
+        ---@class MusicPlayerCore
         ---@field library Library
         return {
             library = library,
