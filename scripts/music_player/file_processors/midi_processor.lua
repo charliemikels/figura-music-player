@@ -817,7 +817,7 @@ local function midi_processor(song)
     local state = song.data_processor_state
 
     ---@type TL_FutureController, TL_Future
-    local future_controller, return_future = require("./../futures"):new_future()
+    local future_controller, return_future = require("./../futures").new_future("Song")
 
     local function processor_loop()
         if state.is_done then

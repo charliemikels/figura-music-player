@@ -7,9 +7,17 @@
 local future_factory = {
 
     ---Creates a bright future
+    ---@param type_of_value `T`     -- TODO: Generics are still WIP. Revisit, or just type as `string`.
     ---@return TL_FutureController
     ---@return TL_Future
-    new_future = function ()
+    new_future = function(type_of_value, catch_for_colon_syntax)
+        if type(type_of_value) == "table" and type_of_value.new_future then
+            -- caller probably used `:` syntax, which means `type_of_value` is actualy `self`. Let's help them out and try the 2nd paramiter.
+            type_of_value = catch_for_colon_syntax
+        end
+        if type(type_of_value) ~= "string" then error("Please pass a type (as a string) when creating a future.") end
+
+        local up__type_of_value = type_of_value       ---@type string     Marks what type the future is expected to contain.
         local up__is_done = false   ---@type boolean    Flags if this future is done
         local up__error             ---@type string?    Error messages belonging to a failed the future
         local up__value             ---@type any?       The value of a successfull future.
@@ -19,6 +27,8 @@ local future_factory = {
         local function up__done_or_error()
             if not up__is_done then error("Future is not done") end
         end
+
+        -- TODO: LuaLS Generics are currently (2025-04-22) WIP. Revisit the `any`s in this declaration once more stable.
 
         ---Futures store the state of an async process. When the process is done, a value or an error can be extracted from the future.
         ---
@@ -33,6 +43,7 @@ local future_factory = {
         ---@field throw_error fun(self:TL_Future)                   Throws any stored errors.
         ---@field get_error fun(self:TL_Future): any                Returns any stored errors.
         ---@field get_value fun(self:TL_Future): any                Returns any stored values.
+        ---@field get_expected_value_type fun(self:TL_Future): string        Returns the expected type of the value. Can be ran before future is done.
         ---@field get_value_or_get_error fun(self:TL_Future): any?  If no errors, return the value. Otherwise, return error as the value.
         ---@field get_value_or_throw_error fun(self:TL_Future): any?  If no errors, return the value. Otherwise, throw the error.
         ---@field register_callback fun(self:TL_Future, fn:fun(future:TL_Future)):TL_Future   Register a function to run after the future is done.
@@ -65,6 +76,10 @@ local future_factory = {
             get_value = function(self)
                 up__done_or_error()
                 return up__value
+            end,
+
+            get_expected_value_type = function(self)
+                return up__type_of_value
             end,
 
             get_value_or_get_error = function(self)
