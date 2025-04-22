@@ -762,7 +762,6 @@ local midi_processor_loop_stage_functions = {
 }
 
 
-
 ---Convert a song with midi data into a processed song.
 ---@param song Song
 ---@return TL_Future
@@ -850,17 +849,19 @@ local function midi_processor(song)
     return return_future
 end
 
+---@type FileProcessor
 local midi_processor_api = {
-    extensions = {"mid", "midi"},
+
     song_list_from_paths = function(self, display_and_full_paths)
         -- All the midi files we care about are self contained. Each file is a single song.
         -- This is different from ABC files, where song tracks are sometimes split between files.
         -- But for midi, we just need to see if the file is a midi file, and wrap it in a song table.
 
+        local supported_extensions = {"mid", "midi"}
         local midi_songs = {}
         for i, file_paths in ipairs(display_and_full_paths) do
             local file_ext = file_paths.full_path:match("%.([^%.]+)$"):lower()
-            for _, supported_file_ext in pairs(self.extensions) do
+            for _, supported_file_ext in pairs(supported_extensions) do
                 if supported_file_ext == file_ext then
                     ---@type Song
                     local new_song = {
@@ -868,7 +869,7 @@ local midi_processor_api = {
                         name = file_paths.short_path,
                         short_name = file_paths.short_path:match("([^/]*)%."),
                         source = {type = "files", full_path = file_paths.full_path},
-                        start_data_processor = self.processor
+                        start_data_processor = self.process_song
                     }
                     table.insert(midi_songs, new_song)
                     break
@@ -878,7 +879,7 @@ local midi_processor_api = {
         return midi_songs
     end,
 
-    processor = midi_processor
+    process_song = midi_processor
 }
 
 return midi_processor_api

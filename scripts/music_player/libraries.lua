@@ -1,13 +1,17 @@
 
 -- Logic related to managing song libraries, including registering new songs, and finding songs by ID or other search types.
 
+---Used to organize and talk about paths.
+---@class FullAndShortPathPair
+---@field full_path string?     The full path used by the files api.
+---@field short_path string     The shorter "display path" any UI might prefer to display.
 
 ---Recursively searches for files in a directory.
 ---@param start_path string
----@return table[]
+---@return FullAndShortPathPair[]
 local function list_files_in_path_recursively(start_path)
     if not host:isHost() then
-        error("Viewer script attempted to load a song library")
+        error("A non-host script attempted to call `list_files_in_path_recursively`. This uses the Files API and is not allowed")
     end
 
     if not file:isPathAllowed(start_path) then
