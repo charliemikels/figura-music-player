@@ -13,30 +13,6 @@ end)
 
 -- Shared types ---------------------------------------------------------------
 
----Futures store the state of an async process. When the process is done, a value or an error can be extracted from the future.
----
----The Future type already sorta exist in Figura (see the networkin/HTTP module),
----but I really wanted a `:then` function to make chaining easier, so I'm defining my own type.
----@class TL_Future
----@field is_done fun(self:TL_Future): boolean      Returns false if background process is still running
----@field has_error fun(self:TL_Future): boolean    Returns true if an error occured inside the future
----@field throw_error fun(self:TL_Future)           Throws any stored errors.
----@field get_value fun(self:TL_Future): any        Returns any stored values. Errors if not done,
----@field get_or_error fun(self:TL_Future): any?    In no errors, return the value. Otherwise, throw errors.
----@field register_callback fun(self:TL_Future, fn:fun(future:TL_Future)):TL_Future   Register a function to run after the future is done.
-
----Context for the future, so that I can prevent users from directly accessing some parts of the future
----@class TL_FutureContext
----@field value any?
----@field error any?
----@field callback_functions fun(future:TL_Future)[]    -- DEV: keep this annotation in sync with TL_Future → register_callback
----@field future TL_Future
----@field is_done boolean
----@field set_done fun(self:TL_FutureContext)                       Use set_done_with_error or set_done_with_success instead. Runs queued callback functions set from register_callback.
----@field set_done_with_error fun(self:TL_FutureContext, any)    Marks the future as done and populates the error field
----@field set_done_with_success fun(self:TL_FutureContext, any)     Marks the future as done and populates the value field
-
-
 ---@alias Byte number
 
 ---@alias DataSourceTypes "files"|"local"|"manual"

@@ -817,70 +817,8 @@ local function midi_processor(song)
 
     local state = song.data_processor_state
 
-    local future_context = {}
-    ---@type TL_FutureContext
-    future_context = {      -- TODO: Revisit `TL_FutureContext`. Nessesary?     -- TODO: Futures will be reused in abc_processor. Make a stand along script/builder function to make consistent futures for us?     -- Or just, whatever. make sure the interface is consistent ourselves..
-        value = nil,
-        error = nil,
-        callback_functions = {},
-        is_done = false,
-
-        set_done = function(self)
-            self.is_done = true
-            for _, callback in ipairs(future_context.callback_functions) do
-                callback(self.future)
-            end
-        end,
-
-        set_done_with_error = function(self, error)
-            self.error = error
-            self:set_done()
-        end,
-
-        set_done_with_success = function(self, value)
-            self.value = value
-            self:set_done()
-        end,
-
-        future = {
-            is_done = function(self)
-                return future_context.is_done
-            end,
-
-            has_error = function(self)
-                return (future_context.error and true or false)
-            end,
-
-            throw_error = function(self)
-                error(future_context.error)
-            end,
-
-            get_value = function(self)
-                if not self:is_done() then
-                    error("Future is has not finished. Check with future:is_done() before calling future:get_value().")
-                elseif self:has_error() then
-                    return future_context.error
-                end
-                error("TODO: Future.getValue not implemented.")
-            end,
-
-            get_or_error = function(self)
-                if self:has_error() then
-                    self:throw_error()
-                elseif not self:is_done() then
-                    error("Future.get_or_error() was called before the future was done. use future.is_done() to check if the future is done.")
-                else
-                    return self:get_value()
-                end
-            end,
-
-            register_callback = function(self, fn)
-                print("setting callback")
-                table.insert(future_context.callback_functions, fn)
-                return self
-            end,
-        }
-    }
+    ---@type TL_FutureController, TL_Future
+    local future_controller, return_future = require("./../futures"):new_future()
 
     local function processor_loop()
         if state.is_done then
@@ -890,7 +828,7 @@ local function midi_processor(song)
         elseif midi_processor_loop_stage_functions[state.stage] then
             local success, value = pcall(function() midi_processor_loop_stage_functions[state.stage](song, state) end)
             if not success then
-                future_context:set_done_with_error(value)
+                future_controller:set_done_with_error(value)
                 state.is_done = true
                 events.WORLD_RENDER:remove(processor_loop)
             end
@@ -909,7 +847,7 @@ local function midi_processor(song)
     -- it's fine.
     events.WORLD_RENDER:register(processor_loop)
 
-    return future_context.future
+    return return_future
 end
 
 local midi_processor_api = {

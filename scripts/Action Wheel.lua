@@ -12,7 +12,7 @@ music_player_api.library
             print("Callback ran")
             print("is done:", future:is_done())
             print("has error:", future:has_error())
-            print("value:", future:get_value())
+            print("value:", future:get_value_or_get_error())
         end
     )
 
