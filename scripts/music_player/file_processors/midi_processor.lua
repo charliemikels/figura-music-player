@@ -819,17 +819,27 @@ local function midi_processor(song)
 
     local future_context = {}
     ---@type TL_FutureContext
-    future_context = {
+    future_context = {      -- TODO: Revisit `TL_FutureContext`. Nessesary?     -- TODO: Futures will be reused in abc_processor. Make a stand along script/builder function to make consistent futures for us?     -- Or just, whatever. make sure the interface is consistent ourselves..
         value = nil,
         error = nil,
         callback_functions = {},
         is_done = false,
+
         set_done = function(self)
             self.is_done = true
             for _, callback in ipairs(future_context.callback_functions) do
                 callback(self.future)
-
             end
+        end,
+
+        set_done_with_error = function(self, error)
+            self.error = error
+            self:set_done()
+        end,
+
+        set_done_with_success = function(self, value)
+            self.value = value
+            self:set_done()
         end,
 
         future = {
@@ -880,8 +890,7 @@ local function midi_processor(song)
         elseif midi_processor_loop_stage_functions[state.stage] then
             local success, value = pcall(function() midi_processor_loop_stage_functions[state.stage](song, state) end)
             if not success then
-                future_context.error = value
-                future_context:set_done()
+                future_context:set_done_with_error(value)
                 state.is_done = true
                 events.WORLD_RENDER:remove(processor_loop)
             end

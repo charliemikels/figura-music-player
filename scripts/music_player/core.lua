@@ -28,11 +28,13 @@ end)
 ---Context for the future, so that I can prevent users from directly accessing some parts of the future
 ---@class TL_FutureContext
 ---@field value any?
----@field errors any?
----@field callback_functions function[]
+---@field error any?
+---@field callback_functions fun(future:TL_Future)[]    -- DEV: keep this annotation in sync with TL_Future → register_callback
 ---@field future TL_Future
 ---@field is_done boolean
----@field set_done fun(self:TL_FutureContext)
+---@field set_done fun(self:TL_FutureContext)                       Use set_done_with_error or set_done_with_success instead. Runs queued callback functions set from register_callback.
+---@field set_done_with_error fun(self:TL_FutureContext, any)    Marks the future as done and populates the error field
+---@field set_done_with_success fun(self:TL_FutureContext, any)     Marks the future as done and populates the value field
 
 
 ---@alias Byte number
