@@ -466,7 +466,7 @@ local midi_message_functions = {
             print("meta ID = "..number_to_dec_and_hex(meta_event_id))
             midi_meta_event_functions[meta_event_id](state, track, meta_event_data, channel)
         else
-            error("Unimplemented meta event: "..tostring(meta_event_id))
+            error("Unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
         end
     end
 }
