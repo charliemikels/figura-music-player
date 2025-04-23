@@ -130,7 +130,7 @@ local midi_meta_event_functions = {
     ---
     ---Optional. Format 0 and 1 have only one sequence, But format 2 might have multiple. Sequence_number is used to keep sequences in order.
     ---Must come before non-zero delta times, and before all transmitable midi events.
-    -- [0x00] = function(state, message)
+    -- [0x00] = function(state, track, data, channel)
     --     message.data.sequence_number = message.event_raw_data[1]
     -- end,
 
@@ -167,28 +167,28 @@ local midi_meta_event_functions = {
     ---instrument_name
     ---
     ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
-    -- [0x04] = function(state, message)
+    -- [0x04] = function(state, track, data, channel)
     --     message.data.instrument_name = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---lyric
     ---
     ---Text event. defines the lyric to sing at a speciffic time. Typicaly, lyric events are stored per-sylable
-    -- [0x05] = function(state, message)
+    -- [0x05] = function(state, track, data, channel)
     --     message.data.lyric = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---marker
     ---
     ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usualy only if first track.
-    -- [0x06] = function(state, message)
+    -- [0x06] = function(state, track, data, channel)
     --     message.data.marker = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---cue_point
     ---
     ---With film, a description of what happens on screen.
-    -- [0x07] = function(state, message)
+    -- [0x07] = function(state, track, data, channel)
     --     message.data.cue_point = string.char(table.unpack(message.event_raw_data))
     -- end,
 
@@ -196,7 +196,7 @@ local midi_meta_event_functions = {
     ---
     ---Sets a prefix for the channel. (0-15 (?)). Ties any following events (eg sysex events) to selected channel, until
     ---next event that defines a channel, or next channel_prefix meta event.
-    -- [0x20] = function(state, message)
+    -- [0x20] = function(state, track, data, channel)
     --     message.data.sequence_number = message.event_raw_data[1]
 
     -- end,
@@ -205,7 +205,7 @@ local midi_meta_event_functions = {
     ---
     ---**Required.** Marker for a cannonical end of a track.
     ---(Unlike in ABC, MIDI songs end when this event is hit. In ABC, it ends whenever the last note is done.)
-    -- [0x2F] = function(state, message)
+    -- [0x2F] = function(state, track, data, channel)
     --     -- TODO: Save "end of song point"
     --     -- Clean up/save remaining data in current track.
 
@@ -224,7 +224,7 @@ local midi_meta_event_functions = {
     ---
     ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
     ---Note this is in time-per beat, not the traditional beat-per-time.
-    -- [0x51] = function(state, message)
+    -- [0x51] = function(state, track, data, channel)
     --     local microseconds_per_midi_quarter_note = bytes_to_number(message.event_raw_data)
     --     message.data.tempo = microseconds_per_midi_quarter_note
     --     message.data.bpm = 60000000 / microseconds_per_midi_quarter_note    -- BPM may be easier for libraries to understand. keep arround as an option?
@@ -233,27 +233,27 @@ local midi_meta_event_functions = {
     ---smpte_offset
     ---
     ---Part of Format 2. Marks the timestamp when this track is supposed to start. Default to
-    -- [0x54] = function(state, message) end,
+    -- [0x54] = function(state, track, data, channel) end,
 
     ---time_signature
     --- - <numerator: int>
     --- - <denominator: negative-power-of-two>.
     --- - the 3rd and 4th bytes are metronome data.
-    -- [0x58] = function(state, message)
-    --     local numerator = message.event_raw_data[1]
-    --     local denominator = 2^(message.event_raw_data[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
+    -- [0x58] = function(state, track, data, channel)
+    --     local numerator = data[1]
+    --     local denominator = 2^(data[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
     --     print("TODO: time_signature meta event: Double check meaning of 'a negative power of two' for the denominator.")
 
     --     -- local number_of_midi_clocks_in_a_metronome_click = bytes[3]
     --     -- local number_of_notated_32nd_notes_in_a_midi_quarter_note = bytes[4]
-
-    --     message.data.time_signature = { numerator = numerator, denominator = denominator }
+    --     error("TODO: Implement time signature logic. Consider a new \"meta\" instruction type?? (Possible: also use for text events?)")
+    --     -- local time_signature = { numerator = numerator, denominator = denominator }
     -- end,
 
     ---key_signature.
     --- - <numb of sharps / flats (negative == flat, positive == sharps. 0 == C)>
     --- - <0 == major, 1 == minor>
-    -- [0x59] = function(state, message)
+    -- [0x59] = function(state, track, data, channel)
     --     local unsigned_sharps_or_flats = message.event_raw_data[1]
     --     message.data.key_signature = {
     --         sharps_or_flats = (unsigned_sharps_or_flats >= 128 and unsigned_sharps_or_flats - 256 or unsigned_sharps_or_flats),
@@ -264,7 +264,7 @@ local midi_meta_event_functions = {
     ---sequencer_specific_meta_event
     ---
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
-    -- [0x7F] = function(state, message)
+    -- [0x7F] = function(state, track, data, channel)
     --     message.data.sequencer_specific_meta_event_data = message.event_raw_data
     -- end
 }
