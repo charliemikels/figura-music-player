@@ -121,7 +121,7 @@ local future_factory = {
         ---@field set_done_with_value fun(self:TL_FutureController, value:any)
         ---@field set_done_with_error fun(self:TL_FutureController, error:string)
         ---@field set_progress fun(self:TL_FutureController, progress:number)       `Progress` represents the completion of the future.
-        ---@field get_future function(self:TL_FutureController)                     Returns the future assosiated with this controller.
+        ---@field get_future fun(self:TL_FutureController):TL_Future                 Returns the future assosiated with this controller.
         local future_controller = {
             is_done = function(self) return up__is_done end,
             set_done_with_value = function(self, value) up__value = value; up__set_done(); end,
