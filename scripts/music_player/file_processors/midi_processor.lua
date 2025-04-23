@@ -790,6 +790,14 @@ local function midi_processor(song)
             tracks = {},
         },
 
+        -- Stores temporary info ab50out notes.
+        ---@type table<integer, table<integer, Instruction>>
+        instruction_builder = {
+            -- channel_index { note_index = { instruction } }
+        },
+        ---@type Instruction[]
+        complete_instructions = {},
+
         reader = {
             file_stream = nil, ---@type InputStream|nil
             current_chunk_length_counter = 0,   ---@type integer
