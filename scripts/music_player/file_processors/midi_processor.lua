@@ -730,9 +730,10 @@ local midi_processor_loop_stage_functions = {
                 -- This isn't a standard midi event, This is the data for running status.
                 -- Backtrack, and use the previous event ID
                 soonest_track.data_index = soonest_track.data_index -1
-                event_id_byte = state.reader.running_status_id
+                event_id_byte = soonest_track.running_status_id
             else
-                state.processor.running_status_id = event_id_byte
+                --store current status in case
+                soonest_track.running_status_id = event_id_byte
             end
 
             -- Midi Messages < `0x11110000` use the last 4 bits to represent a channel ID
@@ -816,7 +817,7 @@ local function midi_processor(song)
             ---Message IDs can be omitted if the current ID is identical to the previous ID.
             ---Store the most resent ID here
             ---@type integer?
-            running_status_id = nil,
+            -- running_status_id = nil,     -- Moved to track
         },
         data_index = 1,
         midi_header_info = {
