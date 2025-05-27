@@ -226,15 +226,28 @@ local midi_meta_event_functions = {
     ---
     ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
     ---Note this is in time-per beat, not the traditional beat-per-time.
-    -- [0x51] = function(state, track, data, channel, start_time)
-    --     local microseconds_per_midi_quarter_note = bytes_to_number(message.event_raw_data)
-    --     message.data.tempo = microseconds_per_midi_quarter_note
-    --     message.data.bpm = 60000000 / microseconds_per_midi_quarter_note    -- BPM may be easier for libraries to understand. keep arround as an option?
-    -- end,
+    ---
+    ---This does not impact playback, but needed to sync animations to the song.
+    [0x51] = function(state, track, data, channel, start_time)
+        local microseconds_per_midi_quarter_note = bytes_to_number(data)
+
+        ---@type Instruction
+        local instruction = {
+            track_index = 0,
+            duration = 0,
+            start_time = start_time,
+            note = 0x51,
+            modifiers = {
+                tempo = microseconds_per_midi_quarter_note,
+                bpm = 60000000 / microseconds_per_midi_quarter_note
+            }
+        }
+        table.insert(state.complete_instructions, instruction)
+    end,
 
     ---smpte_offset
     ---
-    ---Part of Format 2. Marks the timestamp when this track is supposed to start. Default to
+    ---Part of Format 2. Marks the timestamp when this track is supposed to start.
     -- [0x54] = function(state, track, data, channel, start_time) end,
 
     ---time_signature
@@ -260,16 +273,27 @@ local midi_meta_event_functions = {
         table.insert(state.complete_instructions, instruction)
     end,
 
-    ---key_signature.
-    --- - <numb of sharps / flats (negative == flat, positive == sharps. 0 == C)>
-    --- - <0 == major, 1 == minor>
-    -- [0x59] = function(state, track, data, channel, start_time)
-    --     local unsigned_sharps_or_flats = message.event_raw_data[1]
-    --     message.data.key_signature = {
-    --         sharps_or_flats = (unsigned_sharps_or_flats >= 128 and unsigned_sharps_or_flats - 256 or unsigned_sharps_or_flats),
-    --         major_or_minor = message.event_raw_data[2]
-    --     }
-    -- end,
+    ---key_signature
+    ---
+    ---Unlike ABC, does not impact playback. Midi notes themselves communicate what notes to play.
+    [0x59] = function(state, track, data, channel, start_time)
+        -- local unsigned_sharps_or_flats = data[1]
+        -- local sharps_or_flats = data[1]  -- numb of sharps/flats (negative == flats, positive == sharps. 0 == C)
+        -- local major_or_minor = data[2]   --  0 == major, 1 == minor
+
+        -- ---@type Instruction
+        -- local instruction = {
+        --     track_index = 0,
+        --     duration = 0,
+        --     start_time = start_time,
+        --     note = 0x59,
+        --     modifiers = {
+        --         sharps_or_flats = sharps_or_flats,
+        --         major_or_minor = major_or_minor,
+        --     }
+        -- }
+        -- table.insert(state.complete_instructions, instruction)
+    end,
 
     ---sequencer_specific_meta_event
     ---
