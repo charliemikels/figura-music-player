@@ -125,21 +125,21 @@ end
 ---It is technicaly safe to implement an empty function to ignore a meta event.
 ---The function that calls these functions has already read in the data.
 ---
----@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, data: integer[], channel: integer?)>
+---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, data: integer[], channel: integer?, start_time: number)>
 local midi_meta_event_functions = {
 
     ---sequence_number
     ---
     ---Optional. Format 0 and 1 have only one sequence, But format 2 might have multiple. Sequence_number is used to keep sequences in order.
     ---Must come before non-zero delta times, and before all transmitable midi events.
-    -- [0x00] = function(state, track, data, channel)
+    -- [0x00] = function(state, track, data, channel, start_time)
     --     message.data.sequence_number = message.event_raw_data[1]
     -- end,
 
     ---text_event
     ---
     ---Generic text event. Provides notes about the song, or about a part of it. Events 0x01 - 0x0F are all text events of some sort.
-    [0x01] = function(state, track, data, channel)
+    [0x01] = function(state, track, data, channel, start_time)
         -- we have no system to display generic text.
         -- local text = string.char(table.unpack(data))
     end,
@@ -147,7 +147,7 @@ local midi_meta_event_functions = {
     ---copyright_notice
     ---
     ---Text event with copyright info.
-    [0x02] = function(state, track, data, channel)
+    [0x02] = function(state, track, data, channel, start_time)
         -- Revisit. right now there's no planned system to display copyright info for a song.
         -- local copyright_notice = string.char(table.unpack(data))
     end,
@@ -156,7 +156,7 @@ local midi_meta_event_functions = {
     ---
     ---Text event. If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.)
     ---Else, it's the name of this specific track.
-    [0x03] = function(state, track, data, channel)
+    [0x03] = function(state, track, data, channel, start_time)
         if track.index > 1 then
             -- Not the very first track, data is the name of this specific track.
             local track_name = string.char(table.unpack(data))
@@ -169,28 +169,28 @@ local midi_meta_event_functions = {
     ---instrument_name
     ---
     ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
-    -- [0x04] = function(state, track, data, channel)
+    -- [0x04] = function(state, track, data, channel, start_time)
     --     message.data.instrument_name = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---lyric
     ---
     ---Text event. defines the lyric to sing at a speciffic time. Typicaly, lyric events are stored per-sylable
-    -- [0x05] = function(state, track, data, channel)
+    -- [0x05] = function(state, track, data, channel, start_time)
     --     message.data.lyric = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---marker
     ---
     ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usualy only if first track.
-    -- [0x06] = function(state, track, data, channel)
+    -- [0x06] = function(state, track, data, channel, start_time)
     --     message.data.marker = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---cue_point
     ---
     ---With film, a description of what happens on screen.
-    -- [0x07] = function(state, track, data, channel)
+    -- [0x07] = function(state, track, data, channel, start_time)
     --     message.data.cue_point = string.char(table.unpack(message.event_raw_data))
     -- end,
 
@@ -198,7 +198,7 @@ local midi_meta_event_functions = {
     ---
     ---Sets a prefix for the channel. (0-15 (?)). Ties any following events (eg sysex events) to selected channel, until
     ---next event that defines a channel, or next channel_prefix meta event.
-    -- [0x20] = function(state, track, data, channel)
+    -- [0x20] = function(state, track, data, channel, start_time)
     --     message.data.sequence_number = message.event_raw_data[1]
 
     -- end,
@@ -207,7 +207,7 @@ local midi_meta_event_functions = {
     ---
     ---**Required.** Marker for a cannonical end of a track.
     ---(Unlike in ABC, MIDI songs end when this event is hit. In ABC, it ends whenever the last note is done.)
-    -- [0x2F] = function(state, track, data, channel)
+    -- [0x2F] = function(state, track, data, channel, start_time)
     --     -- TODO: Save "end of song point"
     --     -- Clean up/save remaining data in current track.
 
@@ -226,7 +226,7 @@ local midi_meta_event_functions = {
     ---
     ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
     ---Note this is in time-per beat, not the traditional beat-per-time.
-    -- [0x51] = function(state, track, data, channel)
+    -- [0x51] = function(state, track, data, channel, start_time)
     --     local microseconds_per_midi_quarter_note = bytes_to_number(message.event_raw_data)
     --     message.data.tempo = microseconds_per_midi_quarter_note
     --     message.data.bpm = 60000000 / microseconds_per_midi_quarter_note    -- BPM may be easier for libraries to understand. keep arround as an option?
@@ -235,7 +235,7 @@ local midi_meta_event_functions = {
     ---smpte_offset
     ---
     ---Part of Format 2. Marks the timestamp when this track is supposed to start. Default to
-    -- [0x54] = function(state, track, data, channel) end,
+    -- [0x54] = function(state, track, data, channel, start_time) end,
 
     ---time_signature
     ---
@@ -243,7 +243,7 @@ local midi_meta_event_functions = {
     ---We will keep parts of it arround for posibly syncing animations.
     ---
     ---Should default to 4/4
-    [0x58] = function(state, _, data, _)
+    [0x58] = function(state, _, data, _, start_time)
         local numerator = data[1]
         local denominator = 2^(data[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
         -- local number_of_midi_clocks_in_a_metronome_click = data[3]
@@ -253,7 +253,7 @@ local midi_meta_event_functions = {
         local instruction = {
             track_index = 0,
             duration = 0,
-            start_time = error("set start time freom current state"),
+            start_time = start_time,
             note = 0x58,
             modifiers = { numerator = numerator, denominator = denominator }
         }
@@ -263,7 +263,7 @@ local midi_meta_event_functions = {
     ---key_signature.
     --- - <numb of sharps / flats (negative == flat, positive == sharps. 0 == C)>
     --- - <0 == major, 1 == minor>
-    -- [0x59] = function(state, track, data, channel)
+    -- [0x59] = function(state, track, data, channel, start_time)
     --     local unsigned_sharps_or_flats = message.event_raw_data[1]
     --     message.data.key_signature = {
     --         sharps_or_flats = (unsigned_sharps_or_flats >= 128 and unsigned_sharps_or_flats - 256 or unsigned_sharps_or_flats),
@@ -274,7 +274,7 @@ local midi_meta_event_functions = {
     ---sequencer_specific_meta_event
     ---
     ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
-    -- [0x7F] = function(state, track, data, channel)
+    -- [0x7F] = function(state, track, data, channel, start_time)
     --     message.data.sequencer_specific_meta_event_data = message.event_raw_data
     -- end
 }
@@ -285,12 +285,12 @@ local midi_meta_event_functions = {
 ---When these functions return, track.data_index should be ready to index the delta of the next event
 ---
 ---These are ran during the `process` stage to turn data bytes into .
----@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: integer?)>
+---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: integer?, start_time: number)>
 local midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
-    -- [tonumber("10000000", 2)] = function(state, track, channel)
+    -- [tonumber("10000000", 2)] = function(state, track, channel, start_time)
     --     message.data.note = read_next_file_byte(state)
     --     message.data.velocity = read_next_file_byte(state)  -- Note off velocity is frequently ignored by all but the fancy synths.
     --     message.data.note_enabled = false
@@ -298,7 +298,7 @@ local midi_message_functions = {
 
     ---Note On event
     ---Special case: if velocity is 0, treat as a note off event. Stacks well with running status.
-    -- [tonumber("10010000", 2)] = function(state, track, channel)
+    -- [tonumber("10010000", 2)] = function(state, track, channel, start_time)
     --     message.data.note = read_next_file_byte(state)
     --     message.data.velocity = read_next_file_byte(state)
     --     message.data.note_enabled = (message.data.velocity ~= 0)
@@ -307,7 +307,7 @@ local midi_message_functions = {
     -- end,
 
     ---Polyphonic Key Pressure (Aftertouch)
-    -- [tonumber("10100000", 2)] = function(state, track, channel)
+    -- [tonumber("10100000", 2)] = function(state, track, channel, start_time)
     --     message.data.note = read_next_file_byte(state)
     --     message.data.note_after_touch = read_next_file_byte(state)
     -- end,
@@ -315,19 +315,19 @@ local midi_message_functions = {
     ---Control Change / Channel Mode Messages
     ---
     ---Some controller numbers are reserved. See "Channel Mode Messages"
-    -- [tonumber("10110000", 2)] = function(state, track, channel)
+    -- [tonumber("10110000", 2)] = function(state, track, channel, start_time)
     --     -- These are two sepperate event types. Be sure to handle each depending on the state.
     --     message.data.controller_number = read_next_file_byte(state)
     --     message.data.controller_value = read_next_file_byte(state)
     -- end,
 
     ---Program change
-    -- [tonumber("11000000", 2)] = function(state, track, channel)
+    -- [tonumber("11000000", 2)] = function(state, track, channel, start_time)
     --     message.data.patch_number = read_next_file_byte(state)
     -- end,
 
     ---Channel Presure (Channel Aftertouch)
-    -- [tonumber("11010000", 2)] = function(state, track, channel)
+    -- [tonumber("11010000", 2)] = function(state, track, channel, start_time)
     --     message.data.channel_after_touch = read_next_file_byte(state)
     -- end,
 
@@ -339,7 +339,7 @@ local midi_message_functions = {
     ---
     ---"Sensitivity is a function of the transmitter." Usualy this is ±2 semitones. Midi by default doesn't encode the range,
     ---but some use a `RPN` (Registered Parameter Number) to encode this message in the control codes.
-    -- [tonumber("11100000", 2)] = function(state, track, channel)
+    -- [tonumber("11100000", 2)] = function(state, track, channel, start_time)
     --     message.data.pitch_wheel = combine_seven_bit_numbers({ read_next_file_byte(state), read_next_file_byte(state) })
     -- end,
 
@@ -349,7 +349,7 @@ local midi_message_functions = {
     ---System Exclusive
     ---
     ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
-    -- [tonumber("11110000", 2)] = function(state, track, channel)
+    -- [tonumber("11110000", 2)] = function(state, track, channel, start_time)
     --     -- sysex events are messages for "the system." I don't think we need to worry about this type.
     --     -- sysex events are sometimes stored as packets within the midi file.
     --     -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
@@ -369,37 +369,37 @@ local midi_message_functions = {
     -- end,
 
     ---Undefined
-    [tonumber("11110001", 2)] = function(state, track, channel)
+    [tonumber("11110001", 2)] = function(state, track, channel, start_time)
         error("Undefined midi message")
     end,
 
     ---Song Position Pointer
-    -- [tonumber("11110010", 2)] = function(state, track, channel) end,
+    -- [tonumber("11110010", 2)] = function(state, track, channel, start_time) end,
 
     ---Song Select
     ---
     ---Used to select what sequence/song to play.
-    -- [tonumber("11110011", 2)] = function(state, track, channel) end,
+    -- [tonumber("11110011", 2)] = function(state, track, channel, start_time) end,
 
     ---Undefined
-    [tonumber("11110100", 2)] = function(state, track, channel)
+    [tonumber("11110100", 2)] = function(state, track, channel, start_time)
         error("Undefined midi message")
     end,
 
     ---Undefined
-    [tonumber("11110101", 2)] = function(state, track, channel)
+    [tonumber("11110101", 2)] = function(state, track, channel, start_time)
         error("Undefined midi message")
     end,
 
     ---Tune request
     ---
     ---Request all analogue systems to tune themselves.
-    [tonumber("11110110", 2)] = function(state, track, channel)
+    [tonumber("11110110", 2)] = function(state, track, channel, start_time)
         -- no data, nothing to tune, safely ignore.
     end,
 
     ---System exclusive message
-    -- [tonumber("11110111", 2)] = function(state, track, channel)
+    -- [tonumber("11110111", 2)] = function(state, track, channel, start_time)
     --     -- There are two System Exclusive messages. See event ID `11110000` (F0) for more detail
     --     local sysex_event_length = read_variable_length_quantity(state)
     --     for _ = 1, sysex_event_length do
@@ -415,38 +415,38 @@ local midi_message_functions = {
     ---Timing Clock
     ---
     ---Sent 24 times per quarter note when synchronisation is required
-    [tonumber("11111000", 2)] = function(state, track, channel)
+    [tonumber("11111000", 2)] = function(state, track, channel, start_time)
         -- no data, no devices to syncronize, safely ignore.
     end,
 
     ---Undefined
-    [tonumber("11111001", 2)] = function(state, track, channel)
+    [tonumber("11111001", 2)] = function(state, track, channel, start_time)
         error("Undefined midi message")
     end,
 
     ---Start
     ---
     ---Start the current sequence playing
-    [tonumber("11111010", 2)] = function(state, track, channel)
+    [tonumber("11111010", 2)] = function(state, track, channel, start_time)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
-    [tonumber("11111011", 2)] = function(state, track, channel)
+    [tonumber("11111011", 2)] = function(state, track, channel, start_time)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Stop
     ---
     ---Stop the current sequence
-    [tonumber("11111100", 2)] = function(state, track, channel)
+    [tonumber("11111100", 2)] = function(state, track, channel, start_time)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Undefined
-    [tonumber("11111101", 2)] = function(state, track, channel)
+    [tonumber("11111101", 2)] = function(state, track, channel, start_time)
         error("Undefined midi message")
     end,
 
@@ -455,7 +455,7 @@ local midi_message_functions = {
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
     ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
     ---return to normal, non active sensing opperation.
-    [tonumber("11111110", 2)] = function(state, track, channel)
+    [tonumber("11111110", 2)] = function(state, track, channel, start_time)
         -- no data, realtime situations only to make sure everything stays online. Safely ignore.
     end,
 
@@ -464,7 +464,7 @@ local midi_message_functions = {
     ---Meta events have their own sub IDs and functions assosiated with them.
     ---
     ---@see midi_meta_event_functions
-    [tonumber("11111111", 2)] = function(state, track, channel)
+    [tonumber("11111111", 2)] = function(state, track, channel, start_time)
         local meta_event_id = read_next_chunk_byte(track)
         local meta_event_length = read_variable_length_quantity(track)
         local meta_event_data = {}
@@ -474,7 +474,7 @@ local midi_message_functions = {
 
         if midi_meta_event_functions[meta_event_id] then
             print("meta ID = "..number_to_dec_and_hex(meta_event_id))
-            midi_meta_event_functions[meta_event_id](state, track, meta_event_data, channel)
+            midi_meta_event_functions[meta_event_id](state, track, meta_event_data, channel, start_time)
         else
             error("Unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
         end
@@ -699,15 +699,15 @@ local midi_processor_loop_stage_functions = {
 
             -- Get next message to process
 
-            local soonest_time = math.huge
+            local soonest_start_time = math.huge
             local soonest_track
             local soonest_track_index
 
             for track_index, track in ipairs(state.chunks.tracks) do
                 if #track.data >= track.data_index then
                     local time_of_next_message = track.sum_delta + track.next_event_delta
-                    if time_of_next_message < soonest_time then
-                        soonest_time = time_of_next_message
+                    if time_of_next_message < soonest_start_time then
+                        soonest_start_time = time_of_next_message
                         soonest_track = track
                         soonest_track_index = track_index
                     end
@@ -719,6 +719,7 @@ local midi_processor_loop_stage_functions = {
                 state.stage = "done"
                 return
             end
+
 
             -- Running Status:
             -- Messages may ommit their status ID if they have the same ID as the status before it. ("Running status")
@@ -750,13 +751,15 @@ local midi_processor_loop_stage_functions = {
             )
 
             if midi_message_functions[event_id_without_channel] then
-                print("processing event:", event_id_without_channel, "track:", soonest_track_index, "time:", soonest_time)
-                midi_message_functions[event_id_without_channel](state, soonest_track, midi_channel)
+                print("processing event:", event_id_without_channel, "track:", soonest_track_index, "time:", soonest_start_time)
+                midi_message_functions[event_id_without_channel](state, soonest_track, midi_channel, soonest_start_time)
             else
                 error("Unimplemented Event ID: "..number_to_dec_and_hex(event_id_without_channel))
             end
 
             -- see state.processed_song_data for output?
+
+            -- Pre-calculate next message start time for this track:
 
             soonest_track.sum_delta = soonest_track.sum_delta + soonest_track.next_event_delta
             if soonest_track.data_index >= soonest_track.length then
