@@ -10,6 +10,8 @@
 local max_read_steps_per_event    = 100000
 local max_process_steps_per_event = 1000
 
+local instructions_api = require("../instructions")
+
 ---@enum MidiChunkTypes
 local midi_chunk_types = {
     header = "MThd",
@@ -236,19 +238,27 @@ local midi_meta_event_functions = {
     -- [0x54] = function(state, track, data, channel) end,
 
     ---time_signature
-    --- - <numerator: int>
-    --- - <denominator: negative-power-of-two>.
-    --- - the 3rd and 4th bytes are metronome data.
-    -- [0x58] = function(state, track, data, channel)
-    --     local numerator = data[1]
-    --     local denominator = 2^(data[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
-    --     print("TODO: time_signature meta event: Double check meaning of 'a negative power of two' for the denominator.")
+    ---
+    ---Does not actualy impact playback of a midi file. But used for accurate score info and display.
+    ---We will keep parts of it arround for posibly syncing animations.
+    ---
+    ---Should default to 4/4
+    [0x58] = function(state, _, data, _)
+        local numerator = data[1]
+        local denominator = 2^(data[2]) -- denominator is stored as "a negative power of two". (2→4, 3→8 …)
+        -- local number_of_midi_clocks_in_a_metronome_click = data[3]
+        -- local number_of_notated_32nd_notes_per_beat = data[4]
 
-    --     -- local number_of_midi_clocks_in_a_metronome_click = bytes[3]
-    --     -- local number_of_notated_32nd_notes_in_a_midi_quarter_note = bytes[4]
-    --     error("TODO: Implement time signature logic. Consider a new \"meta\" instruction type?? (Possible: also use for text events?)")
-    --     -- local time_signature = { numerator = numerator, denominator = denominator }
-    -- end,
+        ---@type Instruction
+        local instruction = {
+            track_index = 0,
+            duration = 0,
+            start_time = error("set start time freom current state"),
+            note = 0x58,
+            modifiers = { numerator = numerator, denominator = denominator }
+        }
+        table.insert(state.complete_instructions, instruction)
+    end,
 
     ---key_signature.
     --- - <numb of sharps / flats (negative == flat, positive == sharps. 0 == C)>
@@ -808,8 +818,6 @@ local function midi_processor(song)
             ---@type integer?
             running_status_id = nil,
         },
-        ---@type ProcessedSong? Essentialy the final output of the midi processor functions.
-        processed_song_data = nil,
         data_index = 1,
         midi_header_info = {
             default_time_signature = {numerator = 4, denominator = 4},

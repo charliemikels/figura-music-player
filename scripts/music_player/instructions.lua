@@ -1,0 +1,16 @@
+---@class Instruction
+---@field track_index integer       Used by instruments system. Track 0 is a "meta track" and applies song-level changes like tempo and time signature changes
+---@field start_time number
+---@field duration number           May be 0
+---@field note number               The note to play, or ID of meta event
+---@field modifiers table?          TODO: Modify note during playback, or if end_time is 0 used for metadata
+
+
+
+---@class InstructionsAPI
+local instructions_factory = {
+    serialize = function(instruction) error("TODO") end,     -- serialize just one instruction.
+    unserialize = function(byte_array, curent_time) error("TODO") end,
+}
+
+return instructions_factory

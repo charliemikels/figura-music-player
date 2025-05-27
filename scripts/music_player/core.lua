@@ -51,13 +51,6 @@ end)
 ---@field durration number
 ---@field tracks Track[]
 
----@class Instruction
----@field track_index integer
----@field start_time number
----@field end_time number
----@field modifiers table? TODO: Modify note during playback
----@field active_sounds Sound? The actual sound object for the instruction.
-
 ---@class Track
 ---@field name string
 ---@field instrument nil TODO: instrument object
