@@ -385,7 +385,7 @@ local midi_message_functions = {
     ---System Exclusive
     ---
     ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
-    -- [tonumber("11110000", 2)] = function(state, track, channel, start_time)
+    -- [tonumber("11110000", 2)] = function(state, track, _, start_time)
     --     -- sysex events are messages for "the system." I don't think we need to worry about this type.
     --     -- sysex events are sometimes stored as packets within the midi file.
     --     -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
@@ -405,37 +405,37 @@ local midi_message_functions = {
     -- end,
 
     ---Undefined
-    [tonumber("11110001", 2)] = function(state, track, channel, start_time)
+    [tonumber("11110001", 2)] = function(state, track, _, start_time)
         error("Undefined midi message")
     end,
 
     ---Song Position Pointer
-    -- [tonumber("11110010", 2)] = function(state, track, channel, start_time) end,
+    -- [tonumber("11110010", 2)] = function(state, track, _, start_time) end,
 
     ---Song Select
     ---
     ---Used to select what sequence/song to play.
-    -- [tonumber("11110011", 2)] = function(state, track, channel, start_time) end,
+    -- [tonumber("11110011", 2)] = function(state, track, _, start_time) end,
 
     ---Undefined
-    [tonumber("11110100", 2)] = function(state, track, channel, start_time)
+    [tonumber("11110100", 2)] = function(state, track, _, start_time)
         error("Undefined midi message")
     end,
 
     ---Undefined
-    [tonumber("11110101", 2)] = function(state, track, channel, start_time)
+    [tonumber("11110101", 2)] = function(state, track, _, start_time)
         error("Undefined midi message")
     end,
 
     ---Tune request
     ---
     ---Request all analogue systems to tune themselves.
-    [tonumber("11110110", 2)] = function(state, track, channel, start_time)
+    [tonumber("11110110", 2)] = function(state, track, _, start_time)
         -- no data, nothing to tune, safely ignore.
     end,
 
     ---System exclusive message
-    -- [tonumber("11110111", 2)] = function(state, track, channel, start_time)
+    -- [tonumber("11110111", 2)] = function(state, track, _, start_time)
     --     -- There are two System Exclusive messages. See event ID `11110000` (F0) for more detail
     --     local sysex_event_length = read_variable_length_quantity(state)
     --     for _ = 1, sysex_event_length do
@@ -451,38 +451,38 @@ local midi_message_functions = {
     ---Timing Clock
     ---
     ---Sent 24 times per quarter note when synchronisation is required
-    [tonumber("11111000", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111000", 2)] = function(state, track, _, start_time)
         -- no data, no devices to syncronize, safely ignore.
     end,
 
     ---Undefined
-    [tonumber("11111001", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111001", 2)] = function(state, track, _, start_time)
         error("Undefined midi message")
     end,
 
     ---Start
     ---
     ---Start the current sequence playing
-    [tonumber("11111010", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111010", 2)] = function(state, track, _, start_time)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
-    [tonumber("11111011", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111011", 2)] = function(state, track, _, start_time)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Stop
     ---
     ---Stop the current sequence
-    [tonumber("11111100", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111100", 2)] = function(state, track, _, start_time)
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Undefined
-    [tonumber("11111101", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111101", 2)] = function(state, track, _, start_time)
         error("Undefined midi message")
     end,
 
@@ -491,7 +491,7 @@ local midi_message_functions = {
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
     ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
     ---return to normal, non active sensing opperation.
-    [tonumber("11111110", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111110", 2)] = function(state, track, _, start_time)
         -- no data, realtime situations only to make sure everything stays online. Safely ignore.
     end,
 
@@ -500,7 +500,7 @@ local midi_message_functions = {
     ---Meta events have their own sub IDs and functions assosiated with them.
     ---
     ---@see midi_meta_event_functions
-    [tonumber("11111111", 2)] = function(state, track, channel, start_time)
+    [tonumber("11111111", 2)] = function(state, track, _, start_time)
         local meta_event_id = read_next_chunk_byte(track)
         local meta_event_length = read_variable_length_quantity(track)
         local meta_event_data = {}
@@ -510,7 +510,7 @@ local midi_message_functions = {
 
         if midi_meta_event_functions[meta_event_id] then
             print("meta ID = "..number_to_dec_and_hex(meta_event_id))
-            midi_meta_event_functions[meta_event_id](state, track, meta_event_data, channel, start_time)
+            midi_meta_event_functions[meta_event_id](state, track, meta_event_data, nil, start_time)
         else
             error("Unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
         end
