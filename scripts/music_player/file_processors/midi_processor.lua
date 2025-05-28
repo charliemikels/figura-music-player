@@ -339,11 +339,23 @@ local midi_message_functions = {
     ---Control Change / Channel Mode Messages
     ---
     ---Some controller numbers are reserved. See "Channel Mode Messages"
-    -- [tonumber("10110000", 2)] = function(state, track, channel, start_time)
-    --     -- These are two sepperate event types. Be sure to handle each depending on the state.
-    --     message.data.controller_number = read_next_file_byte(state)
-    --     message.data.controller_value = read_next_file_byte(state)
-    -- end,
+    [tonumber("10110000", 2)] = function(state, track, channel, start_time)
+        -- These are two sepperate event types. Be sure to handle each depending on the state.
+        local controller_number = read_next_chunk_byte(track)
+        local controller_value = read_next_chunk_byte(track)
+
+        -- Table of functions similar to midi_message_functions and midi_meta_message_functions
+        -- But because I suspect this midi message will be infrequent, then it's probably safe just define it here
+        local control_changes_and_mode_changes_lookup = {
+            [121] = function() end,     -- Reset all controllers.   I'm just going to pretend I didn't see that.
+        }
+
+        if control_changes_and_mode_changes_lookup[controller_number] then
+            control_changes_and_mode_changes_lookup[controller_number]()
+        else
+            error("Controller number `"..tostring(controller_number).."` not in control_changes_and_mode_changes_lookup.")
+        end
+    end,
 
     ---Program change
     -- [tonumber("11000000", 2)] = function(state, track, channel, start_time)
