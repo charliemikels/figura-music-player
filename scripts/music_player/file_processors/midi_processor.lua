@@ -275,6 +275,7 @@ local control_change_and_mode_change_functions = {
     [121] = function() end,     -- Reset all controllers.   I'm just going to pretend I didn't see that.
 }
 
+
 ---Collection of functions to read midi meta events, indexed by their event ID byte.
 ---
 ---These are used during the read stage. Called from midi_message_functions[11111111]. Fills in message.data
@@ -353,14 +354,66 @@ local midi_meta_event_functions = {
     --     message.data.cue_point = string.char(table.unpack(message.event_raw_data))
     -- end,
 
+    -- Device (port) name
+    --
+    -- Instructs the current _track_ (chunk) to output to a speciffic "port,"
+    -- aka: output to a different midi device.
+    --
+    -- This can enable us to have more than 16 channels, if we keep track of tracks and devices
+    [0x09] = function(state, track, data, start_time)
+        local new_device_name = string.char(table.unpack(data))
+
+        if state.tmp_output_device_name and state.tmp_output_device_name ~= new_device_name then
+            print("current device:", state.tmp_output_device_name)
+            print("new device:", new_device_name)
+            error("Midi file is using more than one device. Revisit 'maximum of 16 channels' assumption.")
+        else
+            state.tmp_output_device_name = new_device_name
+        end
+
+        if track.output_device_name and track.output_device_name ~= new_device_name then
+            print("current device:", track.output_device_name)
+            print("new device:", new_device_name)
+            error("Track's device name is already set. File tried to change devices. (trying to use more than 16 channels?)")
+        end
+        track.output_device_name = new_device_name
+        -- remember to keep in sync with [0x21]
+    end,
+
     ---midi_channel_prefix
     ---
     ---Sets a prefix for the channel. (0-15 (?)). Ties any following events (eg sysex events) to selected channel, until
     ---next event that defines a channel, or next channel_prefix meta event.
+    ---
+    ---considered obsolete. https://www.mixagesoftware.com/en/midikit/help/HTML/meta_events.html
     -- [0x20] = function(state, track, data, start_time)
     --     message.data.sequence_number = message.event_raw_data[1]
-
     -- end,
+
+    -- Midi Port
+    --
+    -- Essentialy the same thing as [0x09], but data is one byte for the port index, instead of a string.
+    --
+    -- considered obsolete. Use `0x09`: "Device (port) name" instead. https://www.mixagesoftware.com/en/midikit/help/HTML/meta_events.html
+    [0x21] = function(state, track, data, start_time)
+        local new_device_name = data[1]
+
+        if state.tmp_output_device_name and state.tmp_output_device_name ~= new_device_name then
+            print("current device:", state.tmp_output_device_name)
+            print("new device:", new_device_name)
+            error("Midi file is using more than one port. Revisit 'maximum of 16 channels' assumption.")
+        else
+            state.tmp_output_device_name = new_device_name
+        end
+
+        if track.output_device_name and track.output_device_name ~= new_device_name then
+            print("current device:", track.output_device_name)
+            print("new device:", new_device_name)
+            error("Track's midi port is already set. File tried to change devices. (trying to use more than 16 channels?)")
+        end
+        track.output_device_name = new_device_name
+        -- remember to keep in sync with [0x09]
+    end,
 
     ---end_of_track
     ---
