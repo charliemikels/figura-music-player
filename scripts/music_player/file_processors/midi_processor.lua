@@ -474,22 +474,22 @@ midi_meta_event_functions = {
 
     ---end_of_track
     ---
-    ---**Required.** Marker for a cannonical end of a track.
-    ---(Unlike in ABC, MIDI songs end when this event is hit. In ABC, it ends whenever the last note is done.)
-    -- [0x2F] = function(state, track, data, start_time)
-    --     -- TODO: Save "end of song point"
-    --     -- Clean up/save remaining data in current track.
+    ---Marker for a cannonical end of a track.
+    [0x2F] = function(state, track, data, start_time)
+        -- Real cleanup will happen during the "done" stage
 
-    --     -- Some tracks may not have saved any note data. We may want throw a flag in the track data so that we don't have to display it in the UI.
-    --     -- EG: `Wii Sports - Theme.mid`: The first track only time signature and some other meta data, then closes.
+        print("end of track "..tostring(track.index)..". Ended at "..tostring(start_time))
 
-    --     -- Resetting for next track happens at the end of the midi-chunk loop
+        if track.data_index <= #track.data then
+            error("Midi processor reached an `end of track` event, but there is still data to read.")
+        end
 
-    --     message.data.end_of_track = true
-    --     if state.reader.current_chunk_length_counter > 0 then
-    --         error("End of track event found, but chunk counter is still greater than 0")
-    --     end
-    -- end,
+        track.has_ended = true
+        track.time_ended = start_time
+        if not state.processed_metadata.time_song_end or state.processed_metadata.time_song_end < start_time then
+            state.processed_metadata.time_song_end = start_time
+        end
+    end,
 
     ---set_tempo
     ---
@@ -939,6 +939,9 @@ local midi_processor_loop_stage_functions = {
                         ---This variable is used to keep track of what device this track is currently pointing to.
                         ---@type MidiDeviceName
                         current_device = default_midi_device_name,
+
+                        has_ended = false,
+                        time_ended = nil
                     }
 
                     state.reader.current_chunk = new_chunk
@@ -1074,7 +1077,7 @@ local midi_processor_loop_stage_functions = {
             local soonest_track_index
 
             for track_index, track in ipairs(state.chunks.tracks) do
-                if #track.data >= track.data_index then
+                if not track.has_ended then
                     local time_of_next_message = track.sum_delta + track.next_event_delta
                     if time_of_next_message < soonest_start_time then
                         soonest_start_time = time_of_next_message
@@ -1084,7 +1087,8 @@ local midi_processor_loop_stage_functions = {
                 end
             end
             if not soonest_track then
-                -- No soonest message was set. → There are no more messages. → Done processing.
+                -- No tracks passed the get-soonest-track logic. They must all be done.
+                print("All tracks ended")
                 print("process done")
                 state.stage = "done"
                 return
@@ -1132,9 +1136,7 @@ local midi_processor_loop_stage_functions = {
             -- Pre-calculate next message start time for this track:
 
             soonest_track.sum_delta = soonest_track.sum_delta + soonest_track.next_event_delta
-            if soonest_track.data_index >= soonest_track.length then
-                print("end of track", soonest_track_index, #soonest_track.messages, soonest_track.sum_delta)
-            else
+            if not soonest_track.has_ended then
                 soonest_track.next_event_delta = read_variable_length_quantity(soonest_track)
             end
         end
@@ -1185,9 +1187,10 @@ local function midi_processor(song)
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
-        ---@type {channel_data: table<MidiDeviceName, table<MidiChannelId, table>>}
+        ---@type {channel_data: table<MidiDeviceName, table<MidiChannelId, table>>, time_song_end: number?}
         processed_metadata = {
-            channel_data = {}
+            channel_data = {},
+            time_song_end = nil
         },
 
         -- A lookup table for track IDs used in complete instructions
