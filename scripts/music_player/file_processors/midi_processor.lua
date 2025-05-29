@@ -572,6 +572,7 @@ midi_meta_event_functions = {
     -- end
 }
 
+local midi_message_functions    -- pre-initilized so that note-on can call note-off when velocity is 0
 
 ---Collection of functions to process midi message events from a Midi Tracks, indexed by their event ID byte.
 ---
@@ -579,52 +580,46 @@ midi_meta_event_functions = {
 ---
 ---These are ran during the `process` stage to turn data bytes into .
 ---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId?, start_time: number)>
-local midi_message_functions = {
+midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
     ---Note Off event
-    -- [tonumber("10000000", 2)] = function(state, track, channel, start_time)
-    --     -- Save the data for the current note
-
-    --     -- message.data.note = read_next_file_byte(state)
-    --     -- message.data.velocity = read_next_file_byte(state)  -- Note off velocity is frequently ignored by all but the fancy synths.
-    --     -- message.data.note_enabled = false
-
-
-    --     -- get_or_set_and_get_track_id
-    --     local instruction = {
-    --         track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
-    --         duration = 0,
-    --         start_time = start_time,
-    --         note = 0x58,
-    --         modifiers = {}
-    --     }
-    --     error("implement note off event")
-    --     table.insert(state.complete_instructions, instruction)
-    -- end,
-
-    ---Note On event
-    ---Special case: if velocity is 0, treat as a note off event. Stacks well with running status.
-    [tonumber("10010000", 2)] = function(state, track, channel, start_time)
-        -- message.data.note = read_next_file_byte(state)
-        -- message.data.velocity = read_next_file_byte(state)
-        -- message.data.note_enabled = (message.data.velocity ~= 0)
+    [tonumber("10000000", 2)] = function(state, track, channel, start_time)
+        -- Save the data for the current note
 
         local note_id = read_next_chunk_byte(track)
         local note_velocity = read_next_chunk_byte(track)
 
-        print("device", track.current_device)
-        print("channel", channel)
-        print("expected track ID", get_or_set_and_get_track_id(state, track.current_device, channel))
-        print("note id", note_id)
-        print("note velocity", note_velocity)
+        local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
+        note_to_stop.duration = start_time - note_to_stop.start_time
 
-        if note_velocity == 0 then error("Forward notes with 0 velocity to the note off event.") end
+        print("Ending note:", note_id, "(dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
+
+        table.insert(state.complete_instructions, note_to_stop)
+        state.instruction_builder[track.current_device][channel].notes[note_id] = nil
+
+        print("Finished instructions:", #state.complete_instructions)
+    end,
+
+    ---Note On event
+    ---Special case: if velocity is 0, treat as a note off event. Stacks well with running status.
+    [tonumber("10010000", 2)] = function(state, track, channel, start_time)
+        local note_id = read_next_chunk_byte(track)
+        local note_velocity = read_next_chunk_byte(track)
+
+        if note_velocity == 0 then
+            print("Velocity is 0. Forwarding to note off.")
+            track.data_index = track.data_index - 2  -- rewind so that the stop event can just read the data itself.
+            midi_message_functions[tonumber("10000000", 2)](state, track, channel, start_time)
+            return
+        end
 
         if state.instruction_builder[track.current_device][channel].notes[note_id] then
             error("Note already has been set. Todo: what to do if we get two note on events.")
         else
             -- initialize a new note in the note builder
+
+            print("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
             ---@type Instruction
             local new_note_data = {
