@@ -866,7 +866,7 @@ local function midi_processor(song)
             tracks = {},
         },
 
-        -- Stores temporary info ab50out notes.
+        -- Stores temporary info about notes.
         ---@type table<integer, table<integer, Instruction>>
         instruction_builder = {
             -- channel_index { note_index = { instruction } }
@@ -878,13 +878,6 @@ local function midi_processor(song)
             file_stream = nil, ---@type InputStream|nil
             current_chunk_length_counter = 0,   ---@type integer
         },
-        processor = {
-            ---Message IDs can be omitted if the current ID is identical to the previous ID.
-            ---Store the most resent ID here
-            ---@type integer?
-            -- running_status_id = nil,     -- Moved to track
-        },
-        data_index = 1,
         midi_header_info = {
             default_time_signature = {numerator = 4, denominator = 4},
             default_tempo = 500000, -- 120 BPM in microseconds per beat.
@@ -893,7 +886,6 @@ local function midi_processor(song)
             initial_tempo = nil,            --      in format 2, they should be at the start of every temporaly independant track.
             initial_bpm = nil,
         },
-        -- current_chunk = nil  →
     }
 
     local state = song.data_processor_state
