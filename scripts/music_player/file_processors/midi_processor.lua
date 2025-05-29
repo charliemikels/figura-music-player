@@ -312,17 +312,13 @@ local patch_name_lookup = {
 ---@param data_type string
 local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
     ---@type integer, Instruction
-    for note_key, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
-        print("note updater want to update note", note_key)
-
+    for _, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
         ---@type NoteModifier
         local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
-
         table.insert(
             note_data.modifiers,
             new_modifier
         )
-        printTable(note_data.modifiers)
     end
 end
 
@@ -336,8 +332,8 @@ local control_change_and_mode_change_functions = {
     -- ignore start time, so long as we save any relevent data in the note on event
 
     [2] = function(state, track, channel, start_time, controller_value)    -- Breath controll
-        state.instruction_builder[track.current_device][channel].channel_state.breath_controll = controller_value
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "breath_controll")
+        -- state.instruction_builder[track.current_device][channel].channel_state.breath_controll = controller_value
+        -- update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "breath_controll")
     end,
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
