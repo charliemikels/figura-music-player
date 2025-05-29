@@ -53,6 +53,27 @@ local function add_new_device(state, new_device_name)
     end
 end
 
+-- A helper function to convert between midi device + channels to music player tracks.
+--
+-- Not to be confused with track chunks in a midi file.
+--
+---@param state MidiProcessorState
+---@param device_name MidiDeviceName
+---@param channel_id MidiChannelId
+---@return integer
+local function get_or_set_and_get_track_id(state, device_name, channel_id)
+    if not state.used_track_ids[device_name] then
+        state.used_track_ids[device_name] = {}
+    end
+
+    if not state.used_track_ids[device_name][channel_id] then
+        state.used_track_ids[device_name][channel_id] = state.next_track_id
+        state.next_track_id = state.next_track_id + 1
+    end
+
+    return state.used_track_ids[device_name][channel_id]
+end
+
 ---Converts a number into a string with both Dec and Hex values. Primaraly for debug
 ---@param number number
 ---@return string
@@ -1099,6 +1120,22 @@ local function midi_processor(song)
         processed_metadata = {
             channel_data = {}
         },
+
+        -- A lookup table for track IDs used in complete instructions
+        --
+        -- The music player will not really care about the exact device name or channel ID that appears
+        -- in the actual midi file, so we can simplify things and merge them into one ID number.
+        --
+        -- ID 0 is reserved for meta instructions like
+        --
+        ---@type table<MidiDeviceName, table<MidiChannelId, integer>>
+        used_track_ids = {},
+
+        -- A tracker to decide the next track ID humber, if one is not found.
+        --
+        -- Remember to incriment when creating a new player track
+        ---@type integer
+        next_track_id = 1,
 
         reader = {
             file_stream = nil, ---@type InputStream|nil
