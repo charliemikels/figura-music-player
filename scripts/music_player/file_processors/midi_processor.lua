@@ -303,6 +303,29 @@ local patch_name_lookup = {
     [128-1] = "Gunshot",
 }
 
+---comment
+---@param state MidiProcessorState
+---@param track MidiChunk
+---@param channel MidiChannelId
+---@param start_time number
+---@param controller_value integer
+---@param data_type string
+local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
+    ---@type integer, Instruction
+    for note_key, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
+        print("note updater want to update note", note_key)
+
+        ---@type NoteModifier
+        local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
+
+        table.insert(
+            note_data.modifiers,
+            new_modifier
+        )
+        printTable(note_data.modifiers)
+    end
+end
+
 -- for use with midi event 10110000: Control Change / Channel Mode Messages
 --
 -- See: https://nickfever.com/music/midi-cc-list
@@ -312,12 +335,19 @@ local control_change_and_mode_change_functions = {
     -- At this stage, we're reading all notes in chronological order. So we should be able to
     -- ignore start time, so long as we save any relevent data in the note on event
 
+    [2] = function(state, track, channel, start_time, controller_value)    -- Breath controll
+        state.instruction_builder[track.current_device][channel].channel_state.breath_controll = controller_value
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "breath_controll")
+    end,
+
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
         state.instruction_builder[track.current_device][channel].channel_state.volume = controller_value
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "volume")
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
         state.instruction_builder[track.current_device][channel].channel_state.pan = controller_value
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "pan")
     end,
 
     [91] = function() end,      -- Reverb. Ignoring.
@@ -595,31 +625,29 @@ local midi_message_functions = {
 
         if note_velocity == 0 then error("Forward notes with 0 velocity to the note off event.") end
 
-        if  state.instruction_builder[track.current_device]
-            and state.instruction_builder[track.current_device][channel]
-            and state.instruction_builder[track.current_device][channel][note_id]
-        then
+        if state.instruction_builder[track.current_device][channel].notes[note_id] then
             error("Note already has been set. Todo: what to do if we get two note on events.")
         else
             -- initialize a new note in the note builder
-
-            if not state.instruction_builder[track.current_device] then state.instruction_builder[track.current_device] = {} end
-            if not state.instruction_builder[track.current_device][channel] then state.instruction_builder[track.current_device][channel] = {} end
 
             ---@type Instruction
             local new_note_data = {
                 note = note_id,
                 start_time = start_time,
+                start_velocity = note_velocity,
                 track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
                 duration = nil,
-                modifiers = {
-                    [start_time] = {velocity = note_velocity},      -- TODO: this is a mess. Formalize this.
-                    -- [1] = {time = start_time, type = "velocity", value = note_velocity},     -- Alternate idea?
-                    -- TODO: record current channel info (channel volume, channel panning, detuning?, all that.) at this time.
-                }
+                modifiers = {}
             }
 
-            state.instruction_builder[track.current_device][channel][note_id] = new_note_data
+            -- import current channel state. not all values may be set
+            for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state) do
+                ---@type NoteModifier
+                local new_modifier = { start_time = start_time, type = key, value = value }
+                table.insert(new_note_data.modifiers, new_modifier)
+            end
+
+            state.instruction_builder[track.current_device][channel].notes[note_id] = new_note_data
         end
     end,
 
@@ -1160,7 +1188,7 @@ local function midi_processor(song)
         known_devices = {},
 
         -- Stores temporary info about notes.
-        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiProcessorChannelState, notes:table}>>
+        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiProcessorChannelState, notes:table<integer, Instruction>}>>
         instruction_builder = {},
         ---@type Instruction[]
         complete_instructions = {},

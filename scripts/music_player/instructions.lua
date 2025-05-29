@@ -3,9 +3,9 @@
 ---@field start_time number
 ---@field duration number           May be 0
 ---@field note number               The note to play, or ID of meta event
----@field modifiers table?          TODO: Modify note during playback, or if end_time is 0 used for metadata
+---@field modifiers NoteModifier[]  TODO: Modify note during playback, or if end_time is 0 used for metadata
 
-
+---@alias NoteModifier {start_time: number, type: string, value: number}
 
 ---@class InstructionsAPI
 local instructions_factory = {
