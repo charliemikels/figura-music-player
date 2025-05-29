@@ -249,7 +249,31 @@ local patch_name_lookup = {
     [128] = "Gunshot",
 }
 
+-- for use with midi event 10110000: Control Change / Channel Mode Messages
+--
+-- See: https://nickfever.com/music/midi-cc-list
+---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: integer, start_time: number, controller_value: integer)>
+local control_change_and_mode_change_functions = {
 
+    -- At this stage, we're reading all notes in chronological order. So we should be able to
+    -- ignore start time, so long as we save any relevent data in the note on event
+
+    [7] = function(state, track, channel, start_time, controller_value)    -- Volume
+        state.instruction_builder[channel].channel_state.volume = controller_value
+    end,
+    [10] = function (state, track, channel, start_time, controller_value)  -- Pan
+        -- 0 = hard left, 64 = center, 127 = hard right
+        state.instruction_builder[channel].channel_state.pan = controller_value
+    end,
+
+    [91] = function() end,      -- Reverb. Ignoring.
+    [92] = function() end,      -- Tremolo. Ignoring.
+    [93] = function() end,      -- Chorus. Ignoring.
+    [94] = function() end,      -- Detuning. Ignoring, though this wouldn't be too hard to implement. TODO: revisit.
+    [95] = function() end,      -- Phazer. Ignoring.
+
+    [121] = function() end,     -- Reset all controllers.   I'm just going to pretend I didn't see that.
+}
 
 ---Collection of functions to read midi meta events, indexed by their event ID byte.
 ---
@@ -479,16 +503,11 @@ local midi_message_functions = {
         local controller_number = read_next_chunk_byte(track)
         local controller_value = read_next_chunk_byte(track)
 
-        -- Table of functions similar to midi_message_functions and midi_meta_message_functions
-        -- But because I suspect this midi message will be infrequent, then it's probably safe just define it here
-        local control_changes_and_mode_changes_lookup = {
-            [121] = function() end,     -- Reset all controllers.   I'm just going to pretend I didn't see that.
-        }
-
-        if control_changes_and_mode_changes_lookup[controller_number] then
-            control_changes_and_mode_changes_lookup[controller_number]()
+        if control_change_and_mode_change_functions[controller_number] then
+            print("Running control change function", controller_number)
+            control_change_and_mode_change_functions[controller_number](state, track, channel, start_time, controller_value)
         else
-            error("Controller number `"..tostring(controller_number).."` not in control_changes_and_mode_changes_lookup.")
+            error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
             -- TODO: It looks like we're not expected to implement every controller event. There are some pre-defined events
             -- that we should take care of, but at some point, I think we can change this error to just a log message.
         end
@@ -993,9 +1012,29 @@ local function midi_processor(song)
         },
 
         -- Stores temporary info about notes.
-        ---@type table<integer, table<integer, Instruction>>
+        ---@type table<integer, {channel_state: MidiProcessorChannelState, notes:table}>
         instruction_builder = {
+            ---@class MidiProcessorChannelState
+            ---@field volume integer?
+            ---@field pan integer?
+
             -- channel_index { note_index = { instruction } }
+            [1]  = { channel_state = {}, notes = {} },
+            [2]  = { channel_state = {}, notes = {} },
+            [3]  = { channel_state = {}, notes = {} },
+            [4]  = { channel_state = {}, notes = {} },
+            [5]  = { channel_state = {}, notes = {} },
+            [6]  = { channel_state = {}, notes = {} },
+            [7]  = { channel_state = {}, notes = {} },
+            [8]  = { channel_state = {}, notes = {} },
+            [9]  = { channel_state = {}, notes = {} },
+            [10] = { channel_state = {}, notes = {} },
+            [11] = { channel_state = {}, notes = {} },
+            [12] = { channel_state = {}, notes = {} },
+            [13] = { channel_state = {}, notes = {} },
+            [14] = { channel_state = {}, notes = {} },
+            [15] = { channel_state = {}, notes = {} },
+            [16] = { channel_state = {}, notes = {} }
         },
         ---@type Instruction[]
         complete_instructions = {},
