@@ -511,7 +511,6 @@ local midi_message_functions = {
             state.processed_metadata.channel_data[channel].instrument_name = patch_name_lookup[patch_number]
             print("channel", channel, "selected instrument", patch_name_lookup[patch_number])
         end
-
     end,
 
     ---Channel Presure (Channel Aftertouch)
