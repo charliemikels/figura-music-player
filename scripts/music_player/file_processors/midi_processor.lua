@@ -1090,55 +1090,14 @@ local function midi_processor(song)
 
         -- Stores temporary info about notes.
         ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiProcessorChannelState, notes:table}>>
-        instruction_builder = {
-
-
-            [""] = {
-                -- channel_index { note_index = { instruction } }
-                [0]  = { channel_state = {}, notes = {} },
-                [1]  = { channel_state = {}, notes = {} },
-                [2]  = { channel_state = {}, notes = {} },
-                [3]  = { channel_state = {}, notes = {} },
-                [4]  = { channel_state = {}, notes = {} },
-                [5]  = { channel_state = {}, notes = {} },
-                [6]  = { channel_state = {}, notes = {} },
-                [7]  = { channel_state = {}, notes = {} },
-                [8]  = { channel_state = {}, notes = {} },  -- Externaly, documentation says "channels 1-16"
-                [9]  = { channel_state = {}, notes = {} },  -- and "channel 10" is percussion
-                [10] = { channel_state = {}, notes = {} },  -- but the file will probably say `9` since `0` == `1`
-                [11] = { channel_state = {}, notes = {} },
-                [12] = { channel_state = {}, notes = {} },
-                [13] = { channel_state = {}, notes = {} },
-                [14] = { channel_state = {}, notes = {} },
-                [15] = { channel_state = {}, notes = {} },
-            }
-        },
+        instruction_builder = {},
         ---@type Instruction[]
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
         ---@type {channel_data: table<MidiDeviceName, table<MidiChannelId, table>>}
         processed_metadata = {
-            channel_data = {
-                [""] = {
-                    [0] = {},
-                    [1] = {},
-                    [2] = {},
-                    [3] = {},
-                    [4] = {},
-                    [5] = {},
-                    [6] = {},
-                    [7] = {},
-                    [8] = {},
-                    [9] = {},
-                    [10] = {},
-                    [11] = {},
-                    [12] = {},
-                    [13] = {},
-                    [14] = {},
-                    [15] = {},
-                }
-            }
+            channel_data = {}
         },
 
         reader = {
