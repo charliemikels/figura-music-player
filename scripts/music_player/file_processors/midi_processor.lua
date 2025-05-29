@@ -500,15 +500,16 @@ local midi_message_functions = {
     [tonumber("11000000", 2)] = function(state, track, channel, start_time)
         local patch_number = read_next_chunk_byte(track)
 
-        if state.processed_metadata.channel_data[channel] and state.processed_metadata.channel_data[channel].instrument_id then
+        local this_channel_metadata = state.processed_metadata.channel_data[channel]
+
+        if this_channel_metadata.instrument_id then
             -- Instrument_id is already set. This might happen if the instrument changes in the middle of the song.
             -- In which case, we'll need to start worying about when a channel changes instruments, and perhaps re-organize
             -- how we store instructions.
             error("Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
         else
-            if not state.processed_metadata.channel_data[channel] then state.processed_metadata.channel_data[channel] = {} end
-            state.processed_metadata.channel_data[channel].instrument_id = patch_number
-            state.processed_metadata.channel_data[channel].instrument_name = patch_name_lookup[patch_number]
+            this_channel_metadata.instrument_id = patch_number
+            this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
             print("channel", channel, "selected instrument", patch_name_lookup[patch_number])
         end
     end,
@@ -1001,7 +1002,24 @@ local function midi_processor(song)
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
         processed_metadata = {
-            channel_data = {}
+            channel_data = {
+                [1] = {},
+                [2] = {},
+                [3] = {},
+                [4] = {},
+                [5] = {},
+                [6] = {},
+                [7] = {},
+                [8] = {},
+                [9] = {},
+                [10] = {},
+                [11] = {},
+                [12] = {},
+                [13] = {},
+                [14] = {},
+                [15] = {},
+                [16] = {}
+            }
         },
 
         reader = {
