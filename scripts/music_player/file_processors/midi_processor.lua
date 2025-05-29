@@ -832,7 +832,7 @@ local midi_processor_loop_stage_functions = {
         end
     end,
 
-    done = function(song, stage)
+    done = function(song, state)
         error("reached new done. Clean up should be handled by state.is_done check.")
     end
 }
