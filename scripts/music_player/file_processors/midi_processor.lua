@@ -148,7 +148,7 @@ local midi_meta_event_functions = {
     ---
     ---Text event with copyright info.
     [0x02] = function(state, track, data, start_time)
-        -- Revisit. right now there's no planned system to display copyright info for a song.
+        -- TODO: Revisit. right now there's no planned system to display copyright info for a song.
         -- local copyright_notice = string.char(table.unpack(data))
     end,
 
@@ -156,14 +156,14 @@ local midi_meta_event_functions = {
     ---
     ---Text event. If in format 0, or first track in format 1, then this is the name of the sequence. (the whole song.)
     ---Else, it's the name of this specific track.
+    ---
+    ---We may want to care about this, but because we'll probably get the song name from the file name, and because
+    ---tracks don't actualy isolate anything (we really only care about the midi channels) then we can probably just
+    ---ignore this event entirely.
+    ---
+    ---See also: midi message 11000000 - Program change. Sets the reccomended instrument for the selected track.
     [0x03] = function(state, track, data, start_time)
-        if track.index > 1 then
-            -- Not the very first track, data is the name of this specific track.
-            local track_name = string.char(table.unpack(data))
-            error("Figure out how we convert MidiChunk tracks to ProcessedSong tracks to correctly store the name of the track. "
-                .."This is something we'll want to display."
-            )
-        end
+        -- local track_name = string.char(table.unpack(data))
     end,
 
     ---instrument_name
@@ -354,13 +354,39 @@ local midi_message_functions = {
             control_changes_and_mode_changes_lookup[controller_number]()
         else
             error("Controller number `"..tostring(controller_number).."` not in control_changes_and_mode_changes_lookup.")
+            -- TODO: It looks like we're not expected to implement every controller event. There are some pre-defined events
+            -- that we should take care of, but at some point, I think we can change this error to just a log message.
         end
     end,
 
     ---Program change
-    -- [tonumber("11000000", 2)] = function(state, track, channel, start_time)
-    --     message.data.patch_number = read_next_file_byte(state)
-    -- end,
+    ---
+    ---Sets the recomended instrument/patch for the channel
+    [tonumber("11000000", 2)] = function(state, track, channel, start_time)
+
+        -- See lookup table:
+        --
+        -- 1-8: piano
+        -- 9-16: Chromatic Percussion
+        -- 17-24: Organ
+        -- etc.
+        --
+        -- Channel 10 allways uses percussion
+        local patch_number = read_next_chunk_byte(track)
+
+        -- TODO: Update: SBC reorganizes imported midi data so that each displayed track is just a midi channel, reguardless
+        -- of what track chunk it came from. Therefore, Track names (set in meta event 0x03) are irrelevent as far as SBC
+        -- is aware, and it uses the data set in this method to set reccomended instruments.
+
+        error("Find a way to tell the user this information.")
+        -- This event tells us the instrument this channel expects to use at this time.
+
+        -- TODO: Check if a midi file can change programs mid-song. We may need to have
+        -- a set of "logical channels" so that we can ensure one channel has one instrument.
+        --
+        -- In my experiance with SBC, this shouldn't be nessesary, but might be worth checking.
+
+    end,
 
     ---Channel Presure (Channel Aftertouch)
     -- [tonumber("11010000", 2)] = function(state, track, channel, start_time)
