@@ -116,6 +116,141 @@ local function read_variable_length_quantity(track)
     return combine_seven_bit_numbers(bytes)
 end
 
+---List of patch/instrument names for use with message 11000000 "Program change"
+---@type table<integer, string >
+local patch_name_lookup = {
+    [1] = "Acoustic Grand Piano",
+    [2] = "Bright Acoustic Piano",
+    [3] = "Electric Grand Piano",
+    [4] = "Honky-tonk Piano",
+    [5] = "Electric Piano 1 (Rhodes Piano)",
+    [6] = "Electric Piano 2 (Chorused Piano)",
+    [7] = "Harpsichord",
+    [8] = "Clavinet",
+    [9] = "Celesta",
+    [10] = "Glockenspiel",
+    [11] = "Music Box",
+    [12] = "Vibraphone",
+    [13] = "Marimba",
+    [14] = "Xylophone",
+    [15] = "Tubular Bells",
+    [16] = "Dulcimer (Santur)",
+    [17] = "Drawbar Organ (Hammond)",
+    [18] = "Percussive Organ",
+    [19] = "Rock Organ",
+    [20] = "Church Organ",
+    [21] = "Reed Organ",
+    [22] = "Accordion (French)",
+    [23] = "Harmonica",
+    [24] = "Tango Accordion (Band neon)",
+    [25] = "Acoustic Guitar (nylon)",
+    [26] = "Acoustic Guitar (steel)",
+    [27] = "Electric Guitar (jazz)",
+    [28] = "Electric Guitar (clean)",
+    [29] = "Electric Guitar (muted)",
+    [30] = "Overdriven Guitar",
+    [31] = "Distortion Guitar",
+    [32] = "Guitar harmonics",
+    [33] = "Acoustic Bass",
+    [34] = "Electric Bass (fingered)",
+    [35] = "Electric Bass (picked)",
+    [36] = "Fretless Bass",
+    [37] = "Slap Bass 1",
+    [38] = "Slap Bass 2",
+    [39] = "Synth Bass 1",
+    [40] = "Synth Bass 2",
+    [41] = "Violin",
+    [42] = "Viola",
+    [43] = "Cello",
+    [44] = "Contrabass",
+    [45] = "Tremolo Strings",
+    [46] = "Pizzicato Strings",
+    [47] = "Orchestral Harp",
+    [48] = "Timpani",
+    [49] = "String Ensemble 1 (strings)",
+    [50] = "String Ensemble 2 (slow strings)",
+    [51] = "SynthStrings 1",
+    [52] = "SynthStrings 2",
+    [53] = "Choir Aahs",
+    [54] = "Voice Oohs",
+    [55] = "Synth Voice",
+    [56] = "Orchestra Hit",
+    [57] = "Trumpet",
+    [58] = "Trombone",
+    [59] = "Tuba",
+    [60] = "Muted Trumpet",
+    [61] = "French Horn",
+    [62] = "Brass Section",
+    [63] = "SynthBrass 1",
+    [64] = "SynthBrass 2",
+    [65] = "Soprano Sax",
+    [66] = "Alto Sax",
+    [67] = "Tenor Sax",
+    [68] = "Baritone Sax",
+    [69] = "Oboe",
+    [70] = "English Horn",
+    [71] = "Bassoon",
+    [72] = "Clarinet",
+    [73] = "Piccolo",
+    [74] = "Flute",
+    [75] = "Recorder",
+    [76] = "Pan Flute",
+    [77] = "Blown Bottle",
+    [78] = "Shakuhachi",
+    [79] = "Whistle",
+    [80] = "Ocarina",
+    [81] = "Lead 1 (square wave)",
+    [82] = "Lead 2 (sawtooth wave)",
+    [83] = "Lead 3 (calliope)",
+    [84] = "Lead 4 (chiffer)",
+    [85] = "Lead 5 (charang)",
+    [86] = "Lead 6 (voice solo)",
+    [87] = "Lead 7 (fifths)",
+    [88] = "Lead 8 (bass + lead)",
+    [89] = "Pad 1 (new age Fantasia)",
+    [90] = "Pad 2 (warm)",
+    [91] = "Pad 3 (polysynth)",
+    [92] = "Pad 4 (choir space voice)",
+    [93] = "Pad 5 (bowed glass)",
+    [94] = "Pad 6 (metallic pro)",
+    [95] = "Pad 7 (halo)",
+    [96] = "Pad 8 (sweep)",
+    [97] = "FX 1 (rain)",
+    [98] = "FX 2 (soundtrack)",
+    [99] = "FX 3 (crystal)",
+    [100] = "FX 4 (atmosphere)",
+    [101] = "FX 5 (brightness)",
+    [102] = "FX 6 (goblins)",
+    [103] = "FX 7 (echoes, drops)",
+    [104] = "FX 8 (sci-fi, star theme)",
+    [105] = "Sitar",
+    [106] = "Banjo",
+    [107] = "Shamisen",
+    [108] = "Koto",
+    [109] = "Kalimba",
+    [110] = "Bag pipe",
+    [111] = "Fiddle",
+    [112] = "Shanai",
+    [113] = "Tinkle Bell",
+    [114] = "Agogo",
+    [115] = "Steel Drums",
+    [116] = "Woodblock",
+    [117] = "Taiko Drum",
+    [118] = "Melodic Tom",
+    [119] = "Synth Drum",
+    [120] = "Reverse Cymbal",
+    [121] = "Guitar Fret Noise",
+    [122] = "Breath Noise",
+    [123] = "Seashore",
+    [124] = "Bird Tweet",
+    [125] = "Telephone Ring",
+    [126] = "Helicopter",
+    [127] = "Applause",
+    [128] = "Gunshot",
+}
+
+
+
 ---Collection of functions to read midi meta events, indexed by their event ID byte.
 ---
 ---These are used during the read stage. Called from midi_message_functions[11111111]. Fills in message.data
@@ -363,28 +498,19 @@ local midi_message_functions = {
     ---
     ---Sets the recomended instrument/patch for the channel
     [tonumber("11000000", 2)] = function(state, track, channel, start_time)
-
-        -- See lookup table:
-        --
-        -- 1-8: piano
-        -- 9-16: Chromatic Percussion
-        -- 17-24: Organ
-        -- etc.
-        --
-        -- Channel 10 allways uses percussion
         local patch_number = read_next_chunk_byte(track)
 
-        -- TODO: Update: SBC reorganizes imported midi data so that each displayed track is just a midi channel, reguardless
-        -- of what track chunk it came from. Therefore, Track names (set in meta event 0x03) are irrelevent as far as SBC
-        -- is aware, and it uses the data set in this method to set reccomended instruments.
-
-        error("Find a way to tell the user this information.")
-        -- This event tells us the instrument this channel expects to use at this time.
-
-        -- TODO: Check if a midi file can change programs mid-song. We may need to have
-        -- a set of "logical channels" so that we can ensure one channel has one instrument.
-        --
-        -- In my experiance with SBC, this shouldn't be nessesary, but might be worth checking.
+        if state.processed_metadata.channel_data[channel] and state.processed_metadata.channel_data[channel].instrument_id then
+            -- Instrument_id is already set. This might happen if the instrument changes in the middle of the song.
+            -- In which case, we'll need to start worying about when a channel changes instruments, and perhaps re-organize
+            -- how we store instructions.
+            error("Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
+        else
+            if not state.processed_metadata.channel_data[channel] then state.processed_metadata.channel_data[channel] = {} end
+            state.processed_metadata.channel_data[channel].instrument_id = patch_number
+            state.processed_metadata.channel_data[channel].instrument_name = patch_name_lookup[patch_number]
+            print("channel", channel, "selected instrument", patch_name_lookup[patch_number])
+        end
 
     end,
 
@@ -873,6 +999,11 @@ local function midi_processor(song)
         },
         ---@type Instruction[]
         complete_instructions = {},
+
+        -- Metadata about assigned instruments per channel and any host-only song-level information
+        processed_metadata = {
+            channel_data = {}
+        },
 
         reader = {
             file_stream = nil, ---@type InputStream|nil
