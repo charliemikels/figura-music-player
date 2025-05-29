@@ -558,20 +558,70 @@ local midi_message_functions = {
 
     ---Note Off event
     -- [tonumber("10000000", 2)] = function(state, track, channel, start_time)
-    --     message.data.note = read_next_file_byte(state)
-    --     message.data.velocity = read_next_file_byte(state)  -- Note off velocity is frequently ignored by all but the fancy synths.
-    --     message.data.note_enabled = false
+    --     -- Save the data for the current note
+
+    --     -- message.data.note = read_next_file_byte(state)
+    --     -- message.data.velocity = read_next_file_byte(state)  -- Note off velocity is frequently ignored by all but the fancy synths.
+    --     -- message.data.note_enabled = false
+
+
+    --     -- get_or_set_and_get_track_id
+    --     local instruction = {
+    --         track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
+    --         duration = 0,
+    --         start_time = start_time,
+    --         note = 0x58,
+    --         modifiers = {}
+    --     }
+    --     error("implement note off event")
+    --     table.insert(state.complete_instructions, instruction)
     -- end,
 
     ---Note On event
     ---Special case: if velocity is 0, treat as a note off event. Stacks well with running status.
-    -- [tonumber("10010000", 2)] = function(state, track, channel, start_time)
-    --     message.data.note = read_next_file_byte(state)
-    --     message.data.velocity = read_next_file_byte(state)
-    --     message.data.note_enabled = (message.data.velocity ~= 0)
-    --     -- I know this ↑ looks like parcing, but if we're gonna do `note_enabled` for Note Off, then we should set it correctly here.
-    --     -- Note On events with velocity of `0` are treated like a Note Off events.
-    -- end,
+    [tonumber("10010000", 2)] = function(state, track, channel, start_time)
+        -- message.data.note = read_next_file_byte(state)
+        -- message.data.velocity = read_next_file_byte(state)
+        -- message.data.note_enabled = (message.data.velocity ~= 0)
+
+        local note_id = read_next_chunk_byte(track)
+        local note_velocity = read_next_chunk_byte(track)
+
+        print("device", track.current_device)
+        print("channel", channel)
+        print("expected track ID", get_or_set_and_get_track_id(state, track.current_device, channel))
+        print("note id", note_id)
+        print("note velocity", note_velocity)
+
+        if note_velocity == 0 then error("Forward notes with 0 velocity to the note off event.") end
+
+        if  state.instruction_builder[track.current_device]
+            and state.instruction_builder[track.current_device][channel]
+            and state.instruction_builder[track.current_device][channel][note_id]
+        then
+            error("Note already has been set. Todo: what to do if we get two note on events.")
+        else
+            -- initialize a new note in the note builder
+
+            if not state.instruction_builder[track.current_device] then state.instruction_builder[track.current_device] = {} end
+            if not state.instruction_builder[track.current_device][channel] then state.instruction_builder[track.current_device][channel] = {} end
+
+            ---@type Instruction
+            local new_note_data = {
+                note = note_id,
+                start_time = start_time,
+                track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
+                duration = nil,
+                modifiers = {
+                    [start_time] = {velocity = note_velocity},      -- TODO: this is a mess. Formalize this.
+                    -- [1] = {time = start_time, type = "velocity", value = note_velocity},     -- Alternate idea?
+                    -- TODO: record current channel info (channel volume, channel panning, detuning?, all that.) at this time.
+                }
+            }
+
+            state.instruction_builder[track.current_device][channel][note_id] = new_note_data
+        end
+    end,
 
     ---Polyphonic Key Pressure (Aftertouch)
     -- [tonumber("10100000", 2)] = function(state, track, channel, start_time)
