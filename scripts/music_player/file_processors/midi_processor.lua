@@ -19,6 +19,39 @@ local midi_chunk_types = {
 }
 
 
+---For use with state and track chunk initilization.
+---@type MidiDeviceName
+local default_midi_device_name = ""
+
+---Meta event `0x09` can define new output devices with their own set of channels,
+---allowing us to have more than 16 total channels in a file.
+---
+---Use this function to standardize channel initilization within state.
+---
+---@param state MidiProcessorState
+---@param new_device_name MidiDeviceName
+local function add_new_device(state, new_device_name)
+
+    ---@class MidiProcessorChannelState
+    ---@field volume integer?
+    ---@field pan integer?
+
+    ---@alias MidiDeviceName string
+    ---@alias MidiChannelId integer
+
+    if state.known_devices[new_device_name] then
+        print("device `"..new_device_name.."` is already known.")
+        return
+    end
+    state.known_devices[new_device_name] = true
+
+    state.instruction_builder[new_device_name] = {}
+    state.processed_metadata.channel_data[new_device_name] = {}
+    for channel_id = 0, 15 do
+        state.instruction_builder[new_device_name][channel_id] = { channel_state = {}, notes = {} }
+        state.processed_metadata.channel_data[new_device_name][channel_id] = {}
+    end
+end
 
 ---Converts a number into a string with both Dec and Hex values. Primaraly for debug
 ---@param number number
@@ -252,18 +285,18 @@ local patch_name_lookup = {
 -- for use with midi event 10110000: Control Change / Channel Mode Messages
 --
 -- See: https://nickfever.com/music/midi-cc-list
----@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: integer, start_time: number, controller_value: integer)>
+---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId, start_time: number, controller_value: integer)>
 local control_change_and_mode_change_functions = {
 
     -- At this stage, we're reading all notes in chronological order. So we should be able to
     -- ignore start time, so long as we save any relevent data in the note on event
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
-        state.instruction_builder[channel].channel_state.volume = controller_value
+        state.instruction_builder[track.current_device][channel].channel_state.volume = controller_value
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
-        state.instruction_builder[channel].channel_state.pan = controller_value
+        state.instruction_builder[track.current_device][channel].channel_state.pan = controller_value
     end,
 
     [91] = function() end,      -- Reverb. Ignoring.
@@ -276,6 +309,7 @@ local control_change_and_mode_change_functions = {
 }
 
 
+local midi_meta_event_functions -- pre-declared so that event `0x21` can reuse `0x09`
 ---Collection of functions to read midi meta events, indexed by their event ID byte.
 ---
 ---These are used during the read stage. Called from midi_message_functions[11111111]. Fills in message.data
@@ -286,7 +320,7 @@ local control_change_and_mode_change_functions = {
 ---The function that calls these functions has already read in the data.
 ---
 ---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, data: integer[], start_time: number)>
-local midi_meta_event_functions = {
+midi_meta_event_functions = {
 
     ---sequence_number
     ---
@@ -363,21 +397,11 @@ local midi_meta_event_functions = {
     [0x09] = function(state, track, data, start_time)
         local new_device_name = string.char(table.unpack(data))
 
-        if state.tmp_output_device_name and state.tmp_output_device_name ~= new_device_name then
-            print("current device:", state.tmp_output_device_name)
-            print("new device:", new_device_name)
-            error("Midi file is using more than one device. Revisit 'maximum of 16 channels' assumption.")
-        else
-            state.tmp_output_device_name = new_device_name
-        end
+        track.current_device = new_device_name
 
-        if track.output_device_name and track.output_device_name ~= new_device_name then
-            print("current device:", track.output_device_name)
-            print("new device:", new_device_name)
-            error("Track's device name is already set. File tried to change devices. (trying to use more than 16 channels?)")
+        if not state.known_devices[new_device_name] then
+            add_new_device(state, new_device_name)
         end
-        track.output_device_name = new_device_name
-        -- remember to keep in sync with [0x21]
     end,
 
     ---midi_channel_prefix
@@ -396,23 +420,9 @@ local midi_meta_event_functions = {
     --
     -- considered obsolete. Use `0x09`: "Device (port) name" instead. https://www.mixagesoftware.com/en/midikit/help/HTML/meta_events.html
     [0x21] = function(state, track, data, start_time)
-        local new_device_name = data[1]
-
-        if state.tmp_output_device_name and state.tmp_output_device_name ~= new_device_name then
-            print("current device:", state.tmp_output_device_name)
-            print("new device:", new_device_name)
-            error("Midi file is using more than one port. Revisit 'maximum of 16 channels' assumption.")
-        else
-            state.tmp_output_device_name = new_device_name
-        end
-
-        if track.output_device_name and track.output_device_name ~= new_device_name then
-            print("current device:", track.output_device_name)
-            print("new device:", new_device_name)
-            error("Track's midi port is already set. File tried to change devices. (trying to use more than 16 channels?)")
-        end
-        track.output_device_name = new_device_name
-        -- remember to keep in sync with [0x09]
+        -- convert our data byte to a string so that we can use it as a name
+        local new_device_id_as_string_as_bytes = { string.byte(tostring(data[1])) }
+        midi_meta_event_functions[0x09](state, track, new_device_id_as_string_as_bytes, start_time)
     end,
 
     ---end_of_track
@@ -521,7 +531,7 @@ local midi_meta_event_functions = {
 ---When these functions return, track.data_index should be ready to index the delta of the next event
 ---
 ---These are ran during the `process` stage to turn data bytes into .
----@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: integer?, start_time: number)>
+---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId?, start_time: number)>
 local midi_message_functions = {
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
@@ -572,7 +582,7 @@ local midi_message_functions = {
     [tonumber("11000000", 2)] = function(state, track, channel, start_time)
         local patch_number = read_next_chunk_byte(track)
 
-        local this_channel_metadata = state.processed_metadata.channel_data[channel]
+        local this_channel_metadata = state.processed_metadata.channel_data[track.current_device][channel]
 
         if this_channel_metadata.instrument_id then
             -- Instrument_id is already set. This might happen if the instrument changes in the middle of the song.
@@ -829,6 +839,16 @@ local midi_processor_loop_stage_functions = {
                         ---first track in a file (eg, `0x03` == sequence_or_track_name)
                         ---@type integer?
                         index = nil,
+
+                        ---See meta events 0x09 and 0x21.
+                        ---Stores the current "device" this track outputs to.
+                        ---
+                        ---By default tracks share the same pool of 16 channels. But this assumes all tracks output to the same device.
+                        ---Multiple devices enables a midi file to go beyond just 16 channels.
+                        ---
+                        ---This variable is used to keep track of what device this track is currently pointing to.
+                        ---@type MidiDeviceName
+                        current_device = default_midi_device_name,
                     }
 
                     state.reader.current_chunk = new_chunk
@@ -1064,53 +1084,60 @@ local function midi_processor(song)
             tracks = {},
         },
 
-        -- Stores temporary info about notes.
-        ---@type table<integer, {channel_state: MidiProcessorChannelState, notes:table}>
-        instruction_builder = {
-            ---@class MidiProcessorChannelState
-            ---@field volume integer?
-            ---@field pan integer?
+        -- list of known devices. If meta event 0x09 tries to use a device not in this list, then we need to create a new device.
+        ---@type table<MidiDeviceName, boolean>
+        known_devices = {},
 
-            -- channel_index { note_index = { instruction } }
-            [0]  = { channel_state = {}, notes = {} },
-            [1]  = { channel_state = {}, notes = {} },
-            [2]  = { channel_state = {}, notes = {} },
-            [3]  = { channel_state = {}, notes = {} },
-            [4]  = { channel_state = {}, notes = {} },
-            [5]  = { channel_state = {}, notes = {} },
-            [6]  = { channel_state = {}, notes = {} },
-            [7]  = { channel_state = {}, notes = {} },
-            [8]  = { channel_state = {}, notes = {} },  -- Externaly, documentation says "channels 1-16"
-            [9]  = { channel_state = {}, notes = {} },  -- and "channel 10" is percussion
-            [10] = { channel_state = {}, notes = {} },  -- but the file will probably say `9` since `0` == `1`
-            [11] = { channel_state = {}, notes = {} },
-            [12] = { channel_state = {}, notes = {} },
-            [13] = { channel_state = {}, notes = {} },
-            [14] = { channel_state = {}, notes = {} },
-            [15] = { channel_state = {}, notes = {} },
+        -- Stores temporary info about notes.
+        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiProcessorChannelState, notes:table}>>
+        instruction_builder = {
+
+
+            [""] = {
+                -- channel_index { note_index = { instruction } }
+                [0]  = { channel_state = {}, notes = {} },
+                [1]  = { channel_state = {}, notes = {} },
+                [2]  = { channel_state = {}, notes = {} },
+                [3]  = { channel_state = {}, notes = {} },
+                [4]  = { channel_state = {}, notes = {} },
+                [5]  = { channel_state = {}, notes = {} },
+                [6]  = { channel_state = {}, notes = {} },
+                [7]  = { channel_state = {}, notes = {} },
+                [8]  = { channel_state = {}, notes = {} },  -- Externaly, documentation says "channels 1-16"
+                [9]  = { channel_state = {}, notes = {} },  -- and "channel 10" is percussion
+                [10] = { channel_state = {}, notes = {} },  -- but the file will probably say `9` since `0` == `1`
+                [11] = { channel_state = {}, notes = {} },
+                [12] = { channel_state = {}, notes = {} },
+                [13] = { channel_state = {}, notes = {} },
+                [14] = { channel_state = {}, notes = {} },
+                [15] = { channel_state = {}, notes = {} },
+            }
         },
         ---@type Instruction[]
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
+        ---@type {channel_data: table<MidiDeviceName, table<MidiChannelId, table>>}
         processed_metadata = {
             channel_data = {
-                [0] = {},
-                [1] = {},
-                [2] = {},
-                [3] = {},
-                [4] = {},
-                [5] = {},
-                [6] = {},
-                [7] = {},
-                [8] = {},
-                [9] = {},
-                [10] = {},
-                [11] = {},
-                [12] = {},
-                [13] = {},
-                [14] = {},
-                [15] = {},
+                [""] = {
+                    [0] = {},
+                    [1] = {},
+                    [2] = {},
+                    [3] = {},
+                    [4] = {},
+                    [5] = {},
+                    [6] = {},
+                    [7] = {},
+                    [8] = {},
+                    [9] = {},
+                    [10] = {},
+                    [11] = {},
+                    [12] = {},
+                    [13] = {},
+                    [14] = {},
+                    [15] = {},
+                }
             }
         },
 
@@ -1129,6 +1156,7 @@ local function midi_processor(song)
     }
 
     local state = song.data_processor_state
+    add_new_device(state, default_midi_device_name)
 
     ---@type TL_FutureController, TL_Future
     local future_controller, return_future = require("./../futures").new_future("Song")
