@@ -53,6 +53,24 @@ local function add_new_device(state, new_device_name)
     end
 end
 
+
+-- A helper function to convert between midi device + channels to music player tracks.
+--
+-- Not to be confused with track chunks in a midi file.
+--
+-- This version returns nil if the device and channel combo is currently unused
+--
+---@param state MidiProcessorState
+---@param device_name MidiDeviceName
+---@param channel_id MidiChannelId
+---@return integer?
+local function get_track_id(state, device_name, channel_id)
+    if not state.used_track_ids[device_name] then
+        return nil
+    end
+    return state.used_track_ids[device_name][channel_id]
+end
+
 -- A helper function to convert between midi device + channels to music player tracks.
 --
 -- Not to be confused with track chunks in a midi file.
@@ -352,7 +370,7 @@ local control_change_and_mode_change_functions = {
     [94] = function() end,      -- Detuning. Ignoring, though this wouldn't be too hard to implement. TODO: revisit.
     [95] = function() end,      -- Phazer. Ignoring.
 
-    [121] = function() end,     -- Reset all controllers.   I'm just going to pretend I didn't see that.
+    [121] = function() end,     -- Reset all controllers.   TODO: Revisit? this may be something simple like "purge all channel modifiers from current channel states"  -- TODO: is this per device, or over the whole file?
 }
 
 
@@ -1143,7 +1161,46 @@ local midi_processor_loop_stage_functions = {
     end,
 
     done = function(song, state)
-        error("reached new done. Clean up should be handled by state.is_done check.")
+        -- Check note builder for any left over notes.
+        for _, device_channels in pairs(state.instruction_builder) do
+            for _, channel_data in pairs(device_channels) do
+                if #channel_data.notes > 0 then
+                    error("Midi processor ended, but some notes were left not stopped.")
+                    -- TODO: Instead of erroring on left over notes, should we just set the end time at the song end time
+                end
+            end
+        end
+
+        -- ensure instructions are sorted.
+        table.sort(state.complete_instructions, function(a, b)
+            if a.start_time == b.start_time then return a.duration < b.duration end
+            return a.start_time < b.start_time end
+        )
+
+        -- reverse state.processed_metadata.channel_data[(dev)][(channel)] so that we can make a track list
+        for device_name, device in pairs(state.processed_metadata.channel_data) do
+            for channel_id, channel_info in pairs(device) do
+                local track_id = get_track_id(state, device_name, channel_id)
+                print(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
+                -- that doesn't seem quite right.
+            end
+        end
+        error("We're doing the instrument + device output logic wrongish. (Some channels are assigned an instrument before switching to a different device, and the original device is unused.) Are instrument IDs assigned to a channel, or per device channel, or to a track channel?")
+
+        ---@type ProcessedSong
+        local processed_song = {
+            name = song.short_name,
+            durration = state.processed_metadata.time_song_end,
+            instructions = state.complete_instructions,
+            tracks = {
+                --{ name = "trackname", instrument = "" }
+            }
+        }
+
+        -- TODO: Mash note instructions along with song metadata into a full processed song table.
+        --       Make sure to link the instrument IDs set in state.processed_metadata.channel_data[(dev)][(channel)].instrument_id
+        --       to the track_ids set with get_or_set_and_get_track_id
+        error("Reached done stage. Do cleanup.")
     end
 }
 
@@ -1234,6 +1291,10 @@ local function midi_processor(song)
             -- this has a chance to run _after_ the future says it's done
             print("processor all done. Cleaning up.")
             events.WORLD_RENDER:remove(processor_loop)
+
+            -- future_controller:set_done_with_value( some_sorta_song??? )
+            error("Everything closed down successfuly. update the future that lets it give data to the callback function")
+
         elseif midi_processor_loop_stage_functions[state.stage] then
             local success, value = pcall(function() midi_processor_loop_stage_functions[state.stage](song, state) end)
             if not success then
