@@ -713,7 +713,13 @@ midi_message_functions = {
             if track.meta_state.custom_program_name then    -- See also meta event 0x08, Program Name
                 this_channel_metadata.instrument_name = track.meta_state.custom_program_name
             else
-                this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
+                if channel+1 == 10 then
+                    -- TODO: there might be a percussion Program Change lookup table for specific kits.
+                    -- For now, this catch makes sure we don't say it's a piano or something.
+                    this_channel_metadata.instrument_name = "Percussion"
+                else
+                    this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
+                end
             end
             print("channel", channel, "selected instrument", patch_name_lookup[patch_number])
         end
