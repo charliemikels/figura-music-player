@@ -453,6 +453,17 @@ midi_meta_event_functions = {
     --     message.data.cue_point = string.char(table.unpack(message.event_raw_data))
     -- end,
 
+    -- Program name
+    --
+    -- See: https://drive.google.com/file/d/1hBRgTrIvv5K7jgeuz0rpeXXT9MNAj6qh/view
+    -- Names the program used in following bank select and program change messages.
+    --
+    -- We can use any names defined here instead of relying on the lookup table of program IDs to reccomended Names.
+    --
+    [0x08] = function(state, track, data, start_time)
+        track.meta_state.custom_program_name = string.char(table.unpack(data))
+    end,
+
     -- Device (port) name
     --
     -- Instructs the current _track_ (chunk) to output to a speciffic "port,"
@@ -699,7 +710,11 @@ midi_message_functions = {
             error("Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
         else
             this_channel_metadata.instrument_id = patch_number
-            this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
+            if track.meta_state.custom_program_name then    -- See also meta event 0x08, Program Name
+                this_channel_metadata.instrument_name = track.meta_state.custom_program_name
+            else
+                this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
+            end
             print("channel", channel, "selected instrument", patch_name_lookup[patch_number])
         end
     end,
@@ -927,6 +942,14 @@ local midi_processor_loop_stage_functions = {
                         --Raw data from file for this chunk
                         ---@type integer[]
                         data = {},
+
+                        --State holder for some meta events like 0x08 and 0x09
+                        ---@class MidiChunkMetaState
+                        meta_state = {
+
+                            ---@type string?
+                            custom_program_name = nil,
+                        },
 
                         -- Keeps track of our progress through the data table.
                         -- See read_next_chunk_data_byte(chunk)
