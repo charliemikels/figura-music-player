@@ -32,7 +32,7 @@ local default_midi_device_name = ""
 ---@param new_device_name MidiDeviceName
 local function add_new_device(state, new_device_name)
 
-    ---@class MidiProcessorChannelState
+    ---@class MidiDeviceChannelState
     ---@field volume integer?
     ---@field pan integer?
 
@@ -1267,7 +1267,7 @@ local function midi_processor(song)
         known_devices = {},
 
         -- Stores temporary info about notes.
-        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiProcessorChannelState, notes:table<integer, Instruction>}>>
+        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, notes:table<integer, Instruction>}>>
         instruction_builder = {},
         ---@type Instruction[]
         complete_instructions = {},
