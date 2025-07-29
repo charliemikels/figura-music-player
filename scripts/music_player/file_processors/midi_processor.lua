@@ -703,10 +703,13 @@ midi_message_functions = {
 
         local this_channel_metadata = state.processed_metadata.channel_data[track.current_device][channel]
 
-        if this_channel_metadata.instrument_id then
-            -- Instrument_id is already set. This might happen if the instrument changes in the middle of the song.
+        if this_channel_metadata.instrument_id and this_channel_metadata.instrument_id ~= patch_number then
+            -- Instrument_id is already set to something else. This might happen if the instrument changes in the middle of the song.
             -- In which case, we'll need to start worying about when a channel changes instruments, and perhaps re-organize
             -- how we store instructions.
+
+            print("old: channel", channel, "selected instrument", this_channel_metadata.instrument_name)
+            print("new: channel", channel, "selected instrument", patch_name_lookup[patch_number])
             error("Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
         else
             this_channel_metadata.instrument_id = patch_number
