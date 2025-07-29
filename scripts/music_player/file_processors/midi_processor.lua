@@ -460,6 +460,7 @@ midi_meta_event_functions = {
     --
     -- We can use any names defined here instead of relying on the lookup table of program IDs to reccomended Names.
     --
+    -- See also:
     [0x08] = function(state, track, data, start_time)
         track.meta_state.custom_program_name = string.char(table.unpack(data))
     end,
@@ -470,13 +471,56 @@ midi_meta_event_functions = {
     -- aka: output to a different midi device.
     --
     -- This can enable us to have more than 16 channels, if we keep track of tracks and devices
+    --
+    -- If this event is called, it should only be called once per track chunk, and happen before any sendable events.
+    --
+    -- See also: https://drive.google.com/file/d/1hBRgTrIvv5K7jgeuz0rpeXXT9MNAj6qh/view
     [0x09] = function(state, track, data, start_time)
         local new_device_name = string.char(table.unpack(data))
 
-        track.current_device = new_device_name
+        if track.current_device == new_device_name then
+            print("track", track.index," attempted to change devices to a device it's already using. (device", new_device_name, ")" )
+        elseif track.current_device == default_midi_device_name then
+            track.current_device = new_device_name
+            print("track", track.index, "switched to device", new_device_name)
+        else
+            print("Current device:", track.current_device)
+            print("new device:", new_device_name)
+            error("Midi tried to switch track #".. tostring(track.index)
+                .." to a new device (`"..tostring(new_device_name)
+                .."`) after it was already set to device `"..tostring(track.current_device)
+                .."`."
+            )
+        end
 
         if not state.known_devices[new_device_name] then
             add_new_device(state, new_device_name)
+        end
+
+        if track.meta_state.early_program_change_patch_number then
+            -- Program Change was called too early. Redo it's effects here. See midi event 11000000 Program Change
+            -- HACK: This is a bandaid fix because I'm too lazy to rework the entire reading data logic in order to allow for look-aheads
+
+            local patch_number = track.meta_state.early_program_change_patch_number
+            local channel = track.meta_state.early_program_change_channel_number
+            local too_early_channel_metadata = state.processed_metadata.channel_data[new_device_name][channel]
+
+            too_early_channel_metadata.instrument_id = patch_number
+            if track.meta_state.custom_program_name then    -- See also meta event 0x08, Program Name
+                too_early_channel_metadata.instrument_name = track.meta_state.custom_program_name
+            else
+                if channel+1 == 10 then
+                    -- TODO: there might be a percussion Program Change lookup table for specific kits.
+                    -- For now, this catch makes sure we don't say it's a piano or something.
+                    too_early_channel_metadata.instrument_name = "Percussion"
+                else
+                    too_early_channel_metadata.instrument_name = patch_name_lookup[patch_number]
+                end
+            end
+            print("Late Change for new device: channel", channel, "selected instrument", patch_name_lookup[patch_number])
+
+            track.meta_state.early_program_change_patch_number = nil
+            track.meta_state.early_program_change_channel_number = nil
         end
     end,
 
@@ -703,14 +747,37 @@ midi_message_functions = {
 
         local this_channel_metadata = state.processed_metadata.channel_data[track.current_device][channel]
 
+        if start_time == 0 and track.current_device == default_midi_device_name then
+            -- Program change needs to be applied to a channel. But
+            -- some files have this event come _before_ the Device Name event,
+            -- which changes the bank of channels this track uses.
+            -- To solve this correctly, I would need to look ahead at all of the events at time=0
+            -- and see if the track needs to use a different device early.
+            -- This is hard to do right now because of the way I'm using `read_next_chunk_byte(track)`
+            -- and applying changes at the same time. I can't cleanly sepparate reading from processing.
+            -- Likewise, I can't cleanly backtrack either to retroactively fix issues.
+            --
+            -- But Right Now™, this one thing (program change before device name) is the Only™ real
+            -- problem this situation causes. So, as a hacky bandaid solution, I can store the data from this event
+            -- and check if the stored data exists in the Device Name event.
+            --
+            -- As a consiquence, this method WILL CHANGE THE PROGRAM of BOTH the default device and the new device.
+            -- But I think it's a safe assumption that any file that specifies a device name for one track
+            -- will probably™ specify a device for every track. We also later filter the channels to only the
+            -- ones we actualy use, so applying IDs to an unused default device will not be a problem long-term.
+
+            track.meta_state.early_program_change_patch_number = patch_number
+            track.meta_state.early_program_change_channel_number = channel
+        end
+
         if this_channel_metadata.instrument_id and this_channel_metadata.instrument_id ~= patch_number then
             -- Instrument_id is already set to something else. This might happen if the instrument changes in the middle of the song.
             -- In which case, we'll need to start worying about when a channel changes instruments, and perhaps re-organize
-            -- how we store instructions.
+            -- how we store instructions. (Currently Device.Channel → PlayerTracks, but might need to be device.channel.instrument → PlayerTracks)
 
             print("old: channel", channel, "selected instrument", this_channel_metadata.instrument_name)
             print("new: channel", channel, "selected instrument", patch_name_lookup[patch_number])
-            error("Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
+            error("TODO: Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
         else
             this_channel_metadata.instrument_id = patch_number
             if track.meta_state.custom_program_name then    -- See also meta event 0x08, Program Name
@@ -958,6 +1025,11 @@ local midi_processor_loop_stage_functions = {
 
                             ---@type string?
                             custom_program_name = nil,
+
+                            ---@type number?
+                            early_program_change_patch_number = nil,
+                            ---@type MidiChannelId?
+                            early_program_change_channel_number = nil
                         },
 
                         -- Keeps track of our progress through the data table.
@@ -1162,6 +1234,7 @@ local midi_processor_loop_stage_functions = {
             end
 
             -- Midi Messages < `0x11110000` use the last 4 bits to represent a channel ID
+            -- Strip channel info for cleaner lookup.
             local first_half_mask = tonumber("11110000", 2)
             local midi_channel = (
                 (event_id_byte < first_half_mask)
@@ -1214,10 +1287,13 @@ local midi_processor_loop_stage_functions = {
             for channel_id, channel_info in pairs(device) do
                 local track_id = get_track_id(state, device_name, channel_id)
                 print(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
-                -- that doesn't seem quite right.
+                -- Entries with track_id == nil have no notes and we can discard them.
+
             end
         end
-        error("We're doing the instrument + device output logic wrongish. (Some channels are assigned an instrument before switching to a different device, and the original device is unused.) Are instrument IDs assigned to a channel, or per device channel, or to a track channel?")
+        error("TODO: Finish above for loop")
+        printTable(state.used_track_ids)
+
 
         ---@type ProcessedSong
         local processed_song = {
