@@ -1331,27 +1331,53 @@ local midi_processor_loop_stage_functions = {
         )
 
         -- reverse state.processed_metadata.channel_data[(dev)][(channel)] so that we can make a track list
+
+        ---@type {number: table}
+        local player_track_data = {}
+
+        ---@type {string: number}
+        local seen_instruments = {}
         for device_name, device in pairs(state.processed_metadata.channel_data) do
             for channel_id, channel_info in pairs(device) do
                 local track_id = get_track_id(state, device_name, channel_id)
-                print(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
+                -- print(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
+                -- printTable(channel_info)
                 -- Entries with track_id == nil have no notes and we can discard them.
+                --
+                if track_id then
+                    player_track_data[track_id] = {}
 
+                    if channel_info.instrument_name and channel_info.instrument_name == "Percussion" then
+                        player_track_data[track_id].recommended_instrument_id = -1
+                    elseif channel_info.instrument_id then
+                        player_track_data[track_id].recommended_instrument_id = channel_info.instrument_id
+                    else
+                        player_track_data[track_id].recommended_instrument_id = 0
+                    end
+
+                    if not channel_info.instrument_name then
+                        player_track_data[track_id].recommended_instrument_name = "(no instrument reccomended)"
+                    elseif seen_instruments[channel_info.instrument_name] then
+                        player_track_data[track_id].recommended_instrument_name =
+                            channel_info.instrument_name .. " " .. tostring(seen_instruments[channel_info.instrument_name] + 1)
+                        seen_instruments[channel_info.instrument_name] = seen_instruments[channel_info.instrument_name] +1
+                    else
+                        player_track_data[track_id].recommended_instrument_name = channel_info.instrument_name
+                        seen_instruments[channel_info.instrument_name] = 1
+                    end
+                end
             end
         end
-        error("TODO: Finish above for loop")
-        printTable(state.used_track_ids)
-
+        seen_instruments = nil
 
         ---@type ProcessedSong
         local processed_song = {
             name = song.short_name,
             durration = state.processed_metadata.time_song_end,
             instructions = state.complete_instructions,
-            tracks = {
-                --{ name = "trackname", instrument = "" }
-            }
+            tracks = player_track_data
         }
+        printTable(processed_song)
 
         -- TODO: Mash note instructions along with song metadata into a full processed song table.
         --       Make sure to link the instrument IDs set in state.processed_metadata.channel_data[(dev)][(channel)].instrument_id
@@ -1411,7 +1437,7 @@ local function midi_processor(song)
         -- The music player will not really care about the exact device name or channel ID that appears
         -- in the actual midi file, so we can simplify things and merge them into one ID number.
         --
-        -- ID 0 is reserved for meta instructions like
+        -- ID 0 is reserved for meta instructions, like 0x58 Time Signature
         --
         ---@type table<MidiDeviceName, table<MidiChannelId, integer>>
         used_track_ids = {},
