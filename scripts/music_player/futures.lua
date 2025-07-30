@@ -23,6 +23,7 @@ local future_factory = {
         local up__value             ---@type any?       The value of a successfull future.
         local up__progress = 0      ---@type number      a number from 0 to 1 to represent a future's progress.
         local up__callback_fns = {} ---@type fun(future:TL_Future)[]    a collection of functions to be called after a future has finished.
+        local up__completed_callbacks = 0 ---@type integer  a tracker for completed callbacks. Used to keep track of ran callbacks, so that they are guarrentied to run in order.
 
         local function up__done_or_error()
             if not up__is_done then error("Future is not done") end
@@ -96,10 +97,15 @@ local future_factory = {
             end,
 
             register_callback = function(self, fn)
-                if up__is_done then  -- The future is now. Run callback immediatly
-                    fn(self)
-                else
-                    table.insert(up__callback_fns, fn)
+                table.insert(up__callback_fns, fn)
+                if up__is_done and #up__callback_fns == up__completed_callbacks then
+                    -- The future is done, and all previous callbacks have been ran. Restart a new callback cycle
+                    -- TODO: Sanity check this. Does it actualy work with late callbacks? multiple late callbacks?
+                    while #up__callback_fns > up__completed_callbacks do
+                        local callback_fn = up__callback_fns[up__completed_callbacks + 1]
+                        callback_fn(self)
+                        up__completed_callbacks = up__completed_callbacks +1
+                    end
                 end
                 return self
             end,
@@ -109,8 +115,10 @@ local future_factory = {
         local function up__set_done()
             if up__is_done then return end
             up__is_done = true
-            for _, callback in ipairs(up__callback_fns) do
-                callback(future)
+            while #up__callback_fns > up__completed_callbacks do
+                local callback_fn = up__callback_fns[up__completed_callbacks + 1]
+                callback_fn(future)
+                up__completed_callbacks = up__completed_callbacks +1
             end
         end
 
