@@ -398,24 +398,24 @@ local midi_meta_event_functions -- pre-declared so that event `0x21` can reuse `
 midi_meta_event_functions = {
 
     ---@alias MidiMetaEventKey
-    --- | 0x00 sequence number
-    --- | 0x01 text
-    --- | 0x02 copyright notice
-    --- | 0x03 sequence or track name
-    --- | 0x04 instrument name
-    --- | 0x05 lyric
-    --- | 0x06 marker
-    --- | 0x07 cue point
-    --- | 0x08 program name
-    --- | 0x09 device name
-    --- | 0x20 channel prefix
-    --- | 0x21 midi port
-    --- | 0x2F end of track
-    --- | 0x51 set tempo
-    --- | 0x54 smpte offset
-    --- | 0x58 time signature
-    --- | 0x59 key signature
-    --- | 0x7F sequencer specific meta event
+    --- | 0   0x00  sequence number
+    --- | 1   0x01  text
+    --- | 2   0x02  copyright notice
+    --- | 3   0x03  sequence or track name
+    --- | 4   0x04  instrument name
+    --- | 5   0x05  lyric
+    --- | 6   0x06  marker
+    --- | 7   0x07  cue point
+    --- | 8   0x08  program name
+    --- | 9   0x09  device name
+    --- | 32  0x20  channel prefix
+    --- | 33  0x21  midi port
+    --- | 47  0x2F  end of track
+    --- | 81  0x51  set tempo
+    --- | 84  0x54  smpte offset
+    --- | 88  0x58  time signature
+    --- | 89  0x59  key signature
+    --- | 127 0x7F  sequencer specific meta event
 
     ---sequence_number
     ---
@@ -687,26 +687,25 @@ midi_message_functions = {
 
     -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
 
-    ---@enum MidiStandardEventKey
-    --- | 0x80 note off                     (10000000)
-    --- | 0x90 note on                      (10010000)
-    --- | 0xA0 note aftertouch              (10100000)
-    --- | 0xB0 Control Change / Channel Mode Messages   (10110000)
-    --- | 0xC0 program change               (11000000)
-    --- | 0xD0 channel aftertouch           (11010000)
-    --- | 0xE0 pitch wheel                  (11100000)
-    --- | 0xF0 system exclusive start       (11110000)
-    ---
-    --- | 0xF2 song position pointer        (11110010)
-    --- | 0xF3 song select                  (11110011)
-    --- | 0xF6 tune request                 (11110110)
-    --- | 0xF7 system exclusive continue    (11110111)
-    --- | 0xF8 realtime timing clock        (11111000)
-    --- | 0xFA realtime playback start      (11111010)
-    --- | 0xFB realtime playback continue   (11111011)
-    --- | 0xFC realtime playback stop       (11111100)
-    --- | 0xFE realtime active sensing      (11111110)
-    --- | 0xFF meta event                   (11111111)
+    ---@alias MidiStandardEventKey
+    --- | 128  (0x80 / 10000000) note off
+    --- | 144  (0x90 / 10010000) note on
+    --- | 160  (0xA0 / 10100000) note aftertouch
+    --- | 176  (0xB0 / 10110000) Control Change / Channel Mode Messages
+    --- | 192  (0xC0 / 11000000) program change
+    --- | 208  (0xD0 / 11010000) channel aftertouch
+    --- | 224  (0xE0 / 11100000) pitch wheel
+    --- | 240  (0xF0 / 11110000) system exclusive start
+    --- | 242  (0xF2 / 11110010) song position pointer
+    --- | 243  (0xF3 / 11110011) song select
+    --- | 246  (0xF6 / 11110110) tune request
+    --- | 247  (0xF7 / 11110111) system exclusive continue
+    --- | 248  (0xF8 / 11111000) realtime timing clock
+    --- | 250  (0xFA / 11111010) realtime playback start
+    --- | 251  (0xFB / 11111011) realtime playback continue
+    --- | 252  (0xFC / 11111100) realtime playback stop
+    --- | 254  (0xFE / 11111110) realtime active sensing
+    --- | 255  (0xFF / 11111111) meta event
 
     ---Note Off event
     [0x80] = function(state, track, channel, start_time)
