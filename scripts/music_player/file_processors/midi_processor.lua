@@ -998,14 +998,16 @@ midi_message_functions = {
     end
 }
 
-
----@alias midi_processor_stage
+---@alias MidiProcessorStageKey
 ---| '"init"'
 ---| '"read"'
 ---| '"process"'
 ---| '"done"'
 
----@type table<midi_processor_stage, fun(song: Song, state: MidiProcessorState)>
+---@alias MidiProcessorFunctionReturn {progress: number, finished_song: ProcessedSong?}
+---@alias MidiProcessorFunction fun(song: Song, state: MidiProcessorState): MidiProcessorFunctionReturn
+
+---@type table<MidiProcessorStageKey, MidiProcessorFunction>
 local midi_processor_loop_stage_functions = {
     init = function(song, state)
         -- Ensure everything is ready to go for reading and organizing
@@ -1019,11 +1021,13 @@ local midi_processor_loop_stage_functions = {
         -- itself, this distinction is not exactly nessesary.
         if song.source.type == "files" then
             state.reader.file_stream = file:openReadStream(song.source.full_path)
+            if state.reader.file_stream:available() then state.reader.total_file_size = state.reader.file_stream:available() end
             state.stage = "read"
         else
             error("song.source.type is not `files`. Non files API sources are not supported yet.")
         end
         print("init done")
+        return { progress = 0 }
     end,
 
     read = function(song, state)
@@ -1228,8 +1232,13 @@ local midi_processor_loop_stage_functions = {
 
             state.stage = "process"
             print("read done")
-            return
         end
+        return {
+            progress = state.reader and (
+                ((state.reader.total_file_size - state.reader.file_stream:available()) / state.reader.total_file_size)
+                * 0.1
+            ) or 0.1
+        }
     end,
 
     process = function(_, state)
@@ -1261,7 +1270,7 @@ local midi_processor_loop_stage_functions = {
                 print("All tracks ended")
                 print("process done")
                 state.stage = "done"
-                return
+                return { progress = 0.9 }
             end
 
 
@@ -1311,6 +1320,20 @@ local midi_processor_loop_stage_functions = {
                 soonest_track.next_event_delta = read_variable_length_quantity(soonest_track)
             end
         end
+
+        local total_data = 0
+        local total_data_processed = 0
+        for track_index, track in ipairs(state.chunks.tracks) do
+            if not track.has_ended then
+                total_data = total_data + #track.data
+                total_data_processed = total_data_processed + track.data_index
+            end
+        end
+
+        return {progress = (
+            -- Target range: 0.1 to 0.9 (width of 0.8)
+            ((total_data_processed / total_data) * 0.8) + 0.2
+        )}
     end,
 
     done = function(song, state)
@@ -1379,10 +1402,13 @@ local midi_processor_loop_stage_functions = {
         }
         printTable(processed_song)
 
-        -- TODO: Mash note instructions along with song metadata into a full processed song table.
-        --       Make sure to link the instrument IDs set in state.processed_metadata.channel_data[(dev)][(channel)].instrument_id
-        --       to the track_ids set with get_or_set_and_get_track_id
-        error("Reached done stage. Do cleanup.")
+        print("Midi processor successfuly build a song.")
+
+        state.is_done = true
+        return {
+            progress = 1,
+            finished_song = processed_song
+        }
     end
 }
 
@@ -1399,7 +1425,7 @@ local function midi_processor(song)
     song.data_processor_state = {
         is_done = false,
 
-        ---@type midi_processor_stage
+        ---@type MidiProcessorStageKey
         stage = "init",
 
         -- stores the raw midi data, organized by chunk
@@ -1451,6 +1477,7 @@ local function midi_processor(song)
         reader = {
             file_stream = nil, ---@type InputStream|nil
             current_chunk_length_counter = 0,   ---@type integer
+            total_file_size = 0 ---@type integer
         },
         midi_header_info = {
             default_time_signature = {numerator = 4, denominator = 4},
@@ -1470,19 +1497,28 @@ local function midi_processor(song)
 
     local function processor_loop()
         if state.is_done then
-            -- this has a chance to run _after_ the future says it's done
-            print("processor all done. Cleaning up.")
+            -- this probably shouldn't happen. But in case it does, try to stop the render loop again.
             events.WORLD_RENDER:remove(processor_loop)
 
-            -- future_controller:set_done_with_value( some_sorta_song??? )
-            error("Everything closed down successfuly. update the future that lets it give data to the callback function")
-
         elseif midi_processor_loop_stage_functions[state.stage] then
-            local success, value = pcall(function() midi_processor_loop_stage_functions[state.stage](song, state) end)
+            ---@type boolean, string|MidiProcessorFunctionReturn
+            local success, value = pcall(midi_processor_loop_stage_functions[state.stage], song, state)
             if not success then
+                ---@cast value string
                 future_controller:set_done_with_error(value)
                 state.is_done = true
                 events.WORLD_RENDER:remove(processor_loop)
+            elseif value then
+                ---@cast value MidiProcessorFunctionReturn
+                if value.progress then
+                    future_controller:set_progress(value.progress)
+                    print("Progress:", value.progress)
+                end
+                if value.finished_song then
+                    future_controller:set_done_with_value(value.finished_song)
+                    state.is_done = true
+                    events.WORLD_RENDER:remove(processor_loop)
+                end
             end
         end
     end
