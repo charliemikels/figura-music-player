@@ -359,10 +359,7 @@ local control_change_and_mode_change_functions = {
     --- | 95 phazer
     --- | 121 reset controllers
 
-    [2] = function(state, track, channel, start_time, controller_value)    -- Breath control
-        -- state.instruction_builder[track.current_device][channel].channel_state.breath_controll = controller_value
-        -- update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "breath_controll")
-    end,
+    [2] = function() end,    -- Breath control
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
         state.instruction_builder[track.current_device][channel].channel_state.volume = controller_value
@@ -428,7 +425,7 @@ midi_meta_event_functions = {
     ---text_event
     ---
     ---Generic text event. Provides notes about the song, or about a part of it. Events 0x01 - 0x0F are all text events of some sort.
-    [0x01] = function(state, track, data, start_time)
+    [0x01] = function()
         -- we have no system to display generic text.
         -- local text = string.char(table.unpack(data))
     end,
@@ -436,7 +433,7 @@ midi_meta_event_functions = {
     ---copyright_notice
     ---
     ---Text event with copyright info.
-    [0x02] = function(state, track, data, start_time)
+    [0x02] = function()
         -- TODO: Revisit. right now there's no planned system to display copyright info for a song.
         -- local copyright_notice = string.char(table.unpack(data))
     end,
@@ -451,7 +448,7 @@ midi_meta_event_functions = {
     ---ignore this event entirely.
     ---
     ---See also: midi message 11000000 - Program change. Sets the reccomended instrument for the selected track.
-    [0x03] = function(state, track, data, start_time)
+    [0x03] = function()
         -- local track_name = string.char(table.unpack(data))
     end,
 
@@ -491,7 +488,7 @@ midi_meta_event_functions = {
     -- We can use any names defined here instead of relying on the lookup table of program IDs to reccomended Names.
     --
     -- See also:
-    [0x08] = function(state, track, data, start_time)
+    [0x08] = function(_, track, data, _)
         track.meta_state.custom_program_name = string.char(table.unpack(data))
     end,
 
@@ -505,7 +502,7 @@ midi_meta_event_functions = {
     -- If this event is called, it should only be called once per track chunk, and happen before any sendable events.
     --
     -- See also: https://drive.google.com/file/d/1hBRgTrIvv5K7jgeuz0rpeXXT9MNAj6qh/view
-    [0x09] = function(state, track, data, start_time)
+    [0x09] = function(state, track, data, _)
         local new_device_name = string.char(table.unpack(data))
 
         if track.current_device == new_device_name then
@@ -578,7 +575,7 @@ midi_meta_event_functions = {
     ---end_of_track
     ---
     ---Marker for a cannonical end of a track.
-    [0x2F] = function(state, track, data, start_time)
+    [0x2F] = function(state, track, _, start_time)
         -- Real cleanup will happen during the "done" stage
 
         print("end of track "..tostring(track.index)..". Ended at "..tostring(start_time))
@@ -600,7 +597,7 @@ midi_meta_event_functions = {
     ---Note this is in time-per beat, not the traditional beat-per-time.
     ---
     ---This does not impact playback, but needed to sync animations to the song.
-    [0x51] = function(state, track, data, start_time)
+    [0x51] = function(state, _, data, start_time)
         local microseconds_per_midi_quarter_note = bytes_to_number(data)
 
         ---@type Instruction
@@ -648,7 +645,7 @@ midi_meta_event_functions = {
     ---key_signature
     ---
     ---Unlike ABC, does not impact playback. Midi notes themselves communicate what notes to play.
-    [0x59] = function(state, track, data, start_time)
+    [0x59] = function()
         -- local unsigned_sharps_or_flats = data[1]
         -- local sharps_or_flats = data[1]  -- numb of sharps/flats (negative == flats, positive == sharps. 0 == C)
         -- local major_or_minor = data[2]   --  0 == major, 1 == minor
@@ -889,7 +886,7 @@ midi_message_functions = {
     -- end,
 
     ---Undefined
-    [0xF1] = function(state, track, _, start_time)
+    [0xF1] = function()
         error("Undefined midi message")
     end,
 
@@ -902,19 +899,19 @@ midi_message_functions = {
     -- [0xF3] = function(state, track, _, start_time) end,
 
     ---Undefined
-    [0xF4] = function(state, track, _, start_time)
+    [0xF4] = function()
         error("Undefined midi message")
     end,
 
     ---Undefined
-    [0xF5] = function(state, track, _, start_time)
+    [0xF5] = function()
         error("Undefined midi message")
     end,
 
     ---Tune request
     ---
     ---Request all analogue systems to tune themselves.
-    [0xF6] = function(state, track, _, start_time)
+    [0xF6] = function()
         -- no data, nothing to tune, safely ignore.
     end,
 
@@ -935,38 +932,38 @@ midi_message_functions = {
     ---Timing Clock
     ---
     ---Sent 24 times per quarter note when synchronisation is required
-    [0xF8] = function(state, track, _, start_time)
+    [0xF8] = function()
         -- no data, no devices to syncronize, safely ignore.
     end,
 
     ---Undefined
-    [0xF9] = function(state, track, _, start_time)
+    [0xF9] = function()
         error("Undefined midi message")
     end,
 
     ---Start
     ---
     ---Start the current sequence playing
-    [0xFA] = function(state, track, _, start_time)
+    [0xFA] = function()
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
-    [0xFB] = function(state, track, _, start_time)
+    [0xFB] = function()
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Stop
     ---
     ---Stop the current sequence
-    [0xFC] = function(state, track, _, start_time)
+    [0xFC] = function()
         -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Undefined
-    [0xFD] = function(state, track, _, start_time)
+    [0xFD] = function()
         error("Undefined midi message")
     end,
 
@@ -975,7 +972,7 @@ midi_message_functions = {
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
     ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
     ---return to normal, non active sensing opperation.
-    [0xFE] = function(state, track, _, start_time)
+    [0xFE] = function()
         -- no data, realtime situations only to make sure everything stays online. Safely ignore.
     end,
 
@@ -1031,7 +1028,7 @@ local midi_processor_loop_stage_functions = {
 
     read = function(song, state)
         -- read in data, a few bytes at a time, so that we don't freeze the game reading a hughe file.
-        for i = 1, max_read_steps_per_event, 1 do
+        for _ = 1, max_read_steps_per_event, 1 do
             if
                 not state.reader.file_stream:available()
                 or state.reader.file_stream:available() <= 0
@@ -1235,13 +1232,13 @@ local midi_processor_loop_stage_functions = {
         end
     end,
 
-    process = function(song, state)
+    process = function(_, state)
         -- Midi files store midi events `<delta_time><event_id><event_data>`
         -- In order to not calculate delta_time every time to figure out the next chronological event,
         -- We will calculate it ahead of time during the end of Read, and update it for the current track at the end of this loop.
         -- So effectively, we will read the data like this: `<event_id><event_data><next_event_delta_time>`
 
-        for i = 1, max_process_steps_per_event, 1 do
+        for _ = 1, max_process_steps_per_event, 1 do
 
             -- Get next message to process
 
@@ -1489,7 +1486,7 @@ local midi_processor_api = {
 
         local supported_extensions = {"mid", "midi"}
         local midi_songs = {}
-        for i, file_paths in ipairs(display_and_full_paths) do
+        for _, file_paths in ipairs(display_and_full_paths) do
             local file_ext = file_paths.full_path:match("%.([^%.]+)$"):lower()
             for _, supported_file_ext in pairs(supported_extensions) do
                 if supported_file_ext == file_ext then
