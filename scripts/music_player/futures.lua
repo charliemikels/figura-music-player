@@ -39,6 +39,7 @@ local future_factory = {
         ---but I really wanted a callback functions to make chaining easier, so I'm defining my own type.)
         ---@class TL_Future
         ---@field is_done fun(self:TL_Future): boolean              Returns false if background process is still running
+        ---@field get_progress fun(self:TL_Future): number          Returns a number from 0 to 1 (or whatever the value of "progress" is)
         ---@field has_error fun(self:TL_Future): boolean            Returns true if an error occured inside the future
         ---@field throw_error fun(self:TL_Future)                   Throws any stored errors.
         ---@field get_error fun(self:TL_Future): any                Returns any stored errors.
@@ -120,7 +121,7 @@ local future_factory = {
         ---@field is_done fun(self:TL_FutureController):boolean Returns the running state of the future. Controll this with `set_done_with_value()` and `set_done_with_error()`
         ---@field set_done_with_value fun(self:TL_FutureController, value:any)
         ---@field set_done_with_error fun(self:TL_FutureController, error:string)
-        ---@field set_progress fun(self:TL_FutureController, progress:number)       `Progress` represents the completion of the future.
+        ---@field set_progress fun(self:TL_FutureController, progress:number)       `Progress` is a number from 0-1 that represents the completion of the future.
         ---@field get_future fun(self:TL_FutureController):TL_Future                 Returns the future assosiated with this controller.
         local future_controller = {
             is_done = function(self) return up__is_done end,
