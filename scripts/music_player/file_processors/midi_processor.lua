@@ -1,4 +1,5 @@
 ---@module "../core"
+---@module "../instructions"
 
 -- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 
@@ -9,8 +10,6 @@
 ---Limits to keep to reduce lag when processing large files.
 local max_read_steps_per_event    = 100000
 local max_process_steps_per_event = 1000
-
-local instructions_api = require("../instructions")
 
 ---@enum MidiChunkTypes
 local midi_chunk_types = {
