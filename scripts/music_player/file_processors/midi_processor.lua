@@ -3,7 +3,7 @@
 
 -- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
 
-
+local do_debug_prints = false
 
 -- Defaults, enums, and and limits
 
@@ -16,6 +16,9 @@ local midi_chunk_types = {
     header = "MThd",
     track = "MTrk"
 }
+
+local function print_debug(...) if do_debug_prints then print(...) end end
+local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 
 ---For use with state and track chunk initilization.
 ---@type MidiDeviceName
@@ -38,7 +41,7 @@ local function add_new_device(state, new_device_name)
     ---@alias MidiChannelId integer
 
     if state.known_devices[new_device_name] then
-        print("device `"..new_device_name.."` is already known.")
+        print_debug("device `"..new_device_name.."` is already known.")
         return
     end
     state.known_devices[new_device_name] = true
@@ -505,13 +508,13 @@ midi_meta_event_functions = {
         local new_device_name = string.char(table.unpack(data))
 
         if track.current_device == new_device_name then
-            print("track", track.index," attempted to change devices to a device it's already using. (device", new_device_name, ")" )
+            print_debug("track", track.index," attempted to change devices to a device it's already using. (device", new_device_name, ")" )
         elseif track.current_device == default_midi_device_name then
             track.current_device = new_device_name
-            print("track", track.index, "switched to device", new_device_name)
+            print_debug("track", track.index, "switched to device", new_device_name)
         else
-            print("Current device:", track.current_device)
-            print("new device:", new_device_name)
+            print_debug("Current device:", track.current_device)
+            print_debug("new device:", new_device_name)
             error("Midi tried to switch track #".. tostring(track.index)
                 .." to a new device (`"..tostring(new_device_name)
                 .."`) after it was already set to device `"..tostring(track.current_device)
@@ -543,7 +546,7 @@ midi_meta_event_functions = {
                     too_early_channel_metadata.instrument_name = patch_name_lookup[patch_number]
                 end
             end
-            print("Late Change for new device: channel", channel, "selected instrument", patch_name_lookup[patch_number])
+            print_debug("Late Change for new device: channel", channel, "selected instrument", patch_name_lookup[patch_number])
 
             track.meta_state.early_program_change_patch_number = nil
             track.meta_state.early_program_change_channel_number = nil
@@ -577,7 +580,7 @@ midi_meta_event_functions = {
     [0x2F] = function(state, track, _, start_time)
         -- Real cleanup will happen during the "done" stage
 
-        print("end of track "..tostring(track.index)..". Ended at "..tostring(start_time))
+        print_debug("end of track "..tostring(track.index)..". Ended at "..tostring(start_time))
 
         if track.data_index <= #track.data then
             error("Midi processor reached an `end of track` event, but there is still data to read.")
@@ -713,12 +716,12 @@ midi_message_functions = {
         local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
         note_to_stop.duration = start_time - note_to_stop.start_time
 
-        print("Ending note:", note_id, "(dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
+        print_debug("Ending note:", note_id, "(dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
         table.insert(state.complete_instructions, note_to_stop)
         state.instruction_builder[track.current_device][channel].notes[note_id] = nil
 
-        print("Finished instructions:", #state.complete_instructions)
+        print_debug("Finished instructions:", #state.complete_instructions)
     end,
 
     ---Note On event
@@ -728,7 +731,7 @@ midi_message_functions = {
         local note_velocity = read_next_chunk_byte(track)
 
         if note_velocity == 0 then
-            print("Velocity is 0. Forwarding to note off.")
+            print_debug("Velocity is 0. Forwarding to note off.")
             track.data_index = track.data_index - 2  -- rewind so that the stop event can just read the data itself.
             midi_message_functions[tonumber("10000000", 2)](state, track, channel, start_time)
             return
@@ -739,7 +742,7 @@ midi_message_functions = {
         else
             -- initialize a new note in the note builder
 
-            print("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
+            print_debug("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
             ---@type Instruction
             local new_note_data = {
@@ -777,7 +780,7 @@ midi_message_functions = {
         local controller_value = read_next_chunk_byte(track)
 
         if control_change_and_mode_change_functions[controller_number] then
-            print("Running control change function", controller_number)
+            print_debug("Running control change function", controller_number)
             control_change_and_mode_change_functions[controller_number](state, track, channel, start_time, controller_value)
         else
             error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
@@ -822,8 +825,8 @@ midi_message_functions = {
             -- In which case, we'll need to start worying about when a channel changes instruments, and perhaps re-organize
             -- how we store instructions. (Currently Device.Channel → PlayerTracks, but might need to be device.channel.instrument → PlayerTracks)
 
-            print("old: channel", channel, "selected instrument", this_channel_metadata.instrument_name)
-            print("new: channel", channel, "selected instrument", patch_name_lookup[patch_number])
+            print_debug("old: channel", channel, "selected instrument", this_channel_metadata.instrument_name)
+            print_debug("new: channel", channel, "selected instrument", patch_name_lookup[patch_number])
             error("TODO: Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
         else
             this_channel_metadata.instrument_id = patch_number
@@ -838,7 +841,7 @@ midi_message_functions = {
                     this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
                 end
             end
-            print("channel", channel, "selected instrument", patch_name_lookup[patch_number])
+            print_debug("channel", channel, "selected instrument", patch_name_lookup[patch_number])
         end
     end,
 
@@ -989,7 +992,7 @@ midi_message_functions = {
         end
 
         if midi_meta_event_functions[meta_event_id] then
-            print("meta ID = "..number_to_dec_and_hex(meta_event_id))
+            print_debug("meta ID = "..number_to_dec_and_hex(meta_event_id))
             midi_meta_event_functions[meta_event_id](state, track, meta_event_data, start_time)
         else
             error("Unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
@@ -1025,7 +1028,7 @@ local midi_processor_loop_stage_functions = {
         else
             error("song.source.type is not `files`. Non files API sources are not supported yet.")
         end
-        print("init done")
+        print_debug("init done")
         return { progress = 0 }
     end,
 
@@ -1122,7 +1125,7 @@ local midi_processor_loop_stage_functions = {
 
                     if new_chunk.type == midi_chunk_types.track then
                         table.insert(state.chunks.tracks, new_chunk)
-                        -- print("Found new track")
+                        -- print_debug("Found new track")
 
                     elseif new_chunk.type == midi_chunk_types.header then
                         -- header chunks are usualy very small (6 bytes). It's worth while to just process it now.
@@ -1140,7 +1143,7 @@ local midi_processor_loop_stage_functions = {
                         end
 
                         if header_chunk.length > expected_header_chunk_length then
-                            print("Header chunk is larger than expected. Got " .. tostring(header_chunk.length)
+                            print_debug("Header chunk is larger than expected. Got " .. tostring(header_chunk.length)
                                 .. " instead of " .. tostring(expected_header_chunk_length)
                             )
                         end
@@ -1198,7 +1201,7 @@ local midi_processor_loop_stage_functions = {
 
                     else
                         table.insert(state.chunks.unknown_chunks, new_chunk)
-                        print("Found a chunk with an unknown type.")
+                        print_debug("Found a chunk with an unknown type.")
                     end
 
                 else -- We've inside of a chunk. Read file data into the current chunk.
@@ -1230,7 +1233,7 @@ local midi_processor_loop_stage_functions = {
             end
 
             state.stage = "process"
-            print("read done")
+            print_debug("read done")
         end
         return {
             progress = state.reader and (
@@ -1266,8 +1269,8 @@ local midi_processor_loop_stage_functions = {
             end
             if not soonest_track then
                 -- No tracks passed the get-soonest-track logic. They must all be done.
-                print("All tracks ended")
-                print("process done")
+                print_debug("All tracks ended")
+                print_debug("process done")
                 state.stage = "done"
                 return { progress = 0.9 }
             end
@@ -1304,7 +1307,7 @@ local midi_processor_loop_stage_functions = {
             )
 
             if midi_message_functions[event_id_without_channel] then
-                print("processing event:", event_id_without_channel, "track:", soonest_track_index, "time:", soonest_start_time)
+                print_debug("processing event:", event_id_without_channel, "track:", soonest_track_index, "time:", soonest_start_time)
                 midi_message_functions[event_id_without_channel](state, soonest_track, midi_channel, soonest_start_time)
             else
                 error("Unimplemented Event ID: "..number_to_dec_and_hex(event_id_without_channel))
@@ -1362,8 +1365,8 @@ local midi_processor_loop_stage_functions = {
         for device_name, device in pairs(state.processed_metadata.channel_data) do
             for channel_id, channel_info in pairs(device) do
                 local track_id = get_track_id(state, device_name, channel_id)
-                -- print(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
-                -- printTable(channel_info)
+                -- print_debug(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
+                -- printTable_debug(channel_info)
                 -- Entries with track_id == nil have no notes and we can discard them.
                 --
                 if track_id then
@@ -1399,9 +1402,9 @@ local midi_processor_loop_stage_functions = {
             instructions = state.complete_instructions,
             tracks = player_track_data
         }
-        printTable(processed_song)
+        printTable_debug(processed_song)
 
-        print("Midi processor successfuly build a song.")
+        print_debug("Midi processor successfuly build a song.")
 
         state.is_done = true
         return {
@@ -1511,7 +1514,7 @@ local function midi_processor(song)
                 ---@cast value MidiProcessorFunctionReturn
                 if value.progress then
                     future_controller:set_progress(value.progress)
-                    print("Progress:", value.progress)
+                    print_debug("Progress:", value.progress)
                 end
                 if value.finished_song then
                     future_controller:set_done_with_value(value.finished_song)
