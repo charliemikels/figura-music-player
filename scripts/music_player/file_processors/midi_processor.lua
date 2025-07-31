@@ -704,7 +704,7 @@ midi_message_functions = {
         -- Save the data for the current note
 
         local note_id = read_next_chunk_byte(track)
-        local note_velocity = read_next_chunk_byte(track)
+        local _ = read_next_chunk_byte(track)   -- note_velocity
 
         local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
         note_to_stop.duration = start_time - note_to_stop.start_time
