@@ -1318,7 +1318,7 @@ local midi_processor_loop_stage_functions = {
 
         local total_data = 0
         local total_data_processed = 0
-        for track_index, track in ipairs(state.chunks.tracks) do
+        for _, track in ipairs(state.chunks.tracks) do
             if not track.has_ended then
                 total_data = total_data + #track.data
                 total_data_processed = total_data_processed + track.data_index
