@@ -24,7 +24,12 @@ future_of_music:register_callback(
         ---@case processed_song ProcessedSong
         printTable(processed_song)
         print("giving song to player")
-        song_player_api.play_song_local(processed_song)
+        song_player_api.play_song_local(processed_song, {
+            -- default_normal_instrument = 0,
+            -- default_percussion_instrument = 0,
+            source = vec(0, 58, 0),
+            info_display_type = nil
+        })
     end
 )
 

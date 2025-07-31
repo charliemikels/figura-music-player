@@ -51,9 +51,9 @@ end)
 ---@field durration number
 ---@field tracks Track[]
 
+---Tracks ProcessedSong are the step immediatly before PlayingSong.
 ---@class Track
----@field name string
----@field instrument nil TODO: instrument object
+---@field recommended_instrument_id number
 
 ---@class CoreApi
 ---@field build_default_experiance fun():MusicPlayerCore    TODO: revisit this type declaration
