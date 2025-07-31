@@ -100,13 +100,6 @@ local function number_to_dec_and_hex(number)
     return string.format("Dec: %.0f | Hex: %x", number, number)
 end
 
----Converts a number into a string with that number's Hex value. Primaraly for debug
----@param number number
----@return string
-local function number_to_hex(number)
-    return string.format("%x", number)
-end
-
 ---converts a set of bytes to a number.
 ---@param bytes integer[]
 ---@return number
