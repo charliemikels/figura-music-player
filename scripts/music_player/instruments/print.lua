@@ -15,16 +15,17 @@ local print_instrument_factory = {
 
         ---@type Instrument
         new_instance = {
-            play_instruction = function(instruction)
-                printTable(instruction)
+            play_instruction = function(instruction, _)
+                print("start: " .. tostring(instruction.note) .. " for " .. tostring(instruction.duration) )
             end,
-            update_sounds = function(position) end,
+            update_sounds = function(_) end,
             stop_one_sound_immediatly = function() end,
             stop_all_sounds_immediatly = function() end,
+            is_finished = function() return (active_sounds == 0) end
         }
         return new_instance
     end,
-    sample = function() end
+    sample = function() end,
 }
 
 return { print_instrument_factory }

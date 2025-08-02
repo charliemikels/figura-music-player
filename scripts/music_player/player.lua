@@ -10,6 +10,10 @@
 --    Does not nessesaraly need to stop the song (events might start up again), but it needs to stop currently playing notes.
 -- 7. Expose controlls to the caller to start/pause/stop/end the song, and get progress.
 
+---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
+local fallback_normal_instrument_name = "print"
+---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
+local fallback_percussion_instrument_name = "print"
 
 ---A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.
 ---@alias InstrumentName string
@@ -23,7 +27,7 @@
 ---@class Instrument
 ---
 --- Queue the given instruction and play it immediatly. Remember to call update_sounds to eventualy stop the instruction.
----@field play_instruction fun(instruction: Instruction)
+---@field play_instruction fun(instruction: Instruction, position: Vector3)
 ---@field update_sounds fun(position: Vector3)
 ---
 --- For use with an emergency stop feature. In this case, we will likely need to use a world tick loop to stop the song.
@@ -33,33 +37,40 @@
 ---
 --- For when the user chooses to stop a song.
 ---@field stop_all_sounds_immediatly fun()
+---
+--- Returns true when the instrument has fully handeled all instructions given through play_instruction()
+---@field is_finished fun():boolean
 
 
 ---@type table<InstrumentName, InstrumentBuilder>
 local known_instruments = {}
 
+--- A function to fetch all instruments from the `./instruments` folder.
+--- Can be re-ran at any time to update the list.
+---
+--- TODO: Scan other avatars for any that are advertizing instruments.
 local function get_all_instruments()
     for _, script in ipairs(listFiles("./instruments", true)) do
-        local found_instruments
+        local found_instrument_builder_list
         local success, value = pcall(function()
-            found_instruments = require(script)
+            found_instrument_builder_list = require(script)
         end)
         if not success then
             print("Error: Failed to require the script `"..script.."` found in the `instruments` folder. Full error below:\n\n"..tostring(value))
         else
-            if type(found_instruments) ~= "table" then
+            if type(found_instrument_builder_list) ~= "table" then
                 print("The `"..script.."` script did not return a list of instruments.")
             else
-                for _, found_instrument in ipairs(found_instruments) do
-                    if      found_instrument.name
-                        and found_instrument.is_available
-                        and found_instrument.new_instance
+                for _, found_instrument_builder in ipairs(found_instrument_builder_list) do
+                    if      found_instrument_builder.name
+                        and found_instrument_builder.is_available
+                        and found_instrument_builder.new_instance
                     then
-                        if known_instruments[found_instrument.name] then
-                            print("instrument `" .. tostring( found_instrument.name) .. "` is already in known_instruments list")
+                        if known_instruments[found_instrument_builder.name] then
+                            print("instrument `" .. tostring( found_instrument_builder.name) .. "` is already in known_instruments list")
                         else
-                            print("Found instrument", found_instrument.name)
-                            known_instruments[found_instrument.name] = found_instrument
+                            print("Found instrument", found_instrument_builder.name)
+                            known_instruments[found_instrument_builder.name] = found_instrument_builder
                         end
                     else
                         print("An instrument was found in the `".. tostring(script) .."` script, but it doesn't look like an instrument.")
@@ -68,11 +79,21 @@ local function get_all_instruments()
             end
         end
     end
+    if not known_instruments[fallback_normal_instrument_name] then
+        error("fallback_normal_instrument_name "
+            .. tostring(fallback_normal_instrument_name)
+            .." did not appear in the known_instruments list"
+        )
+    end
+    if not known_instruments[fallback_percussion_instrument_name] then
+        error("fallback_percussion_instrument_name "
+            .. tostring(fallback_percussion_instrument_name)
+            .." did not appear in the known_instruments list"
+        )
+    end
 end
 get_all_instruments()
-printTable(known_instruments)
-get_all_instruments()
-printTable(known_instruments)
+
 
 
 
@@ -119,6 +140,48 @@ end
 --- TODO: Do we really need both? The song itself will only transfer the instrument ID once. We could get away with strings.
 ---@alias InstrumentID number
 
+---Called by an event loop
+---@param playing_song PlayingSong
+local function update_song(playing_song)
+    local current_time = client.getSystemTime()
+    local source_position = vec(0,60,0)  -- TODO: Replace with the source defined in playingSongConfig or whatever.
+    while playing_song.next_instruction_index <= #playing_song.instructions do
+        local this_instruction = playing_song.instructions[playing_song.next_instruction_index]
+        print(this_instruction)
+        if this_instruction.start_time > current_time - playing_song.start_time then
+            print("This ain't now")
+            break
+        end
+        playing_song.next_instruction_index = playing_song.next_instruction_index + 1
+        if this_instruction.track_index == 0 then
+            -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
+        else
+            playing_song.track_config[this_instruction.track_index].selected_instrument.play_instruction(this_instruction, source_position)
+        end
+    end
+    print("updating")
+
+
+    local all_instruments_done = true
+    for _, track_config in ipairs(playing_song.track_config) do
+        track_config.selected_instrument.update_sounds(source_position)
+        if all_instruments_done then
+            all_instruments_done = track_config.selected_instrument.is_finished()
+            -- will either continue being true, or this instrument is not done.
+        end
+    end
+
+    for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
+        deprecated_instrument.update_sounds(source_position)
+        if deprecated_instrument.is_finished() then
+            playing_song.deprecated_instruments[deprecated_instrument_key] = nil
+        else
+            all_instruments_done = false
+        end
+    end
+
+    -- TODO: Check if the song has finished, and all instruments have finished
+end
 
 
 ---@class SongPlayerAPI
@@ -141,32 +204,16 @@ local song_player_api = {
                     -- TODO: Consider: we could boild this down to just 0 == normal, 1 == Percussion,
                     -- Then use the Config API (???) to define default "normal" and "percussion" instruments.
 
-                ---@type number The ID of the chosen instrument. Populated by SongPlayerConfig.
-                selected_instrument = nil
+                ---@type Instrument
+                selected_instrument = known_instruments[(track_data.recommended_instrument_id == -1 and fallback_percussion_instrument_name or fallback_normal_instrument_name)].new_instance()
             }
             track_configs[track_index] = track_config
         end
         printTable(track_configs)
 
-        -- Possible instrument structure: {name: string, uuid: tbd, use_for: [midi program numbers this instrumment is suted for] }
-        --
-        -- If we want to be able to support instruments from other avatars, and have it be entirely dynamic, I think
-        -- we'll have to use UUIDs and strings of some sort.
-        --
-        -- Local instruments can have manualy defined IDs that are guarrentied to allways exist.
-        --
-        -- "Bridge" instruments that, eg, force Figura Piano to be usable, also will have predictable UUIDs, but not guarrentied to by accessable.
-        --
-        -- Full dynamic (eg created and hosted by another avatar) can still be assigned a unique ID by either incorporating the host's UUID
-        -- and a supplied ID / index / name combo, or Username, or something else. Again, they may not allways exist.
-        -- Downside is that these IDs will be very large, because it will be the whole UUID or Username or something, and not just a tiny number.
-        --
-        -- During playback, fallback to an instrument that explicitly supports the reccomended instrument.
-        --
-        -- PlayingSong must pair together: Track number, reccomended instrument type (eg, -1 == perc.), and Selected Instrument UUID
-
         ---@class PlayingSong
         playing_song = {
+
             name = song.name,
             song_uuid = client.intUUIDToString(client.generateUUID()),  -- In case we need to create a key or something to address this song.
                     -- TODO: is a full UUID the right choice for this? could we get away with a simple sequence number, then we could send it ?
@@ -177,11 +224,18 @@ local song_player_api = {
             instructions = song.instructions,
             next_instruction_index = 1,
 
+            --- List of Instrument that were use at some point during this song, but have since been swapped out for other instruments.
+            --- If they are still playing notes, put them here so that we can close them properly if needed.
+            ---@type Instrument[]
+            deprecated_instruments = {},
+
             ---@type PlayingSongTrackConfig[]
             track_config = track_configs, -- PlayingSongTrackConfig
         }
         printTable(playing_song)
         -- TODO: apply_config(config)
+        playing_song.start_time = client.getSystemTime()
+        update_song(playing_song)
     end
 }
 
