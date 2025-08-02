@@ -11,6 +11,71 @@
 -- 7. Expose controlls to the caller to start/pause/stop/end the song, and get progress.
 
 
+---A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.
+---@alias InstrumentName string
+
+---@class InstrumentBuilder
+---@field name InstrumentName
+---@field is_available fun():boolean
+---@field features table<string, boolean>?
+---@field new_instance fun():Instrument
+
+---@class Instrument
+---
+--- Queue the given instruction and play it immediatly. Remember to call update_sounds to eventualy stop the instruction.
+---@field play_instruction fun(instruction: Instruction)
+---@field update_sounds fun(position: Vector3)
+---
+--- For use with an emergency stop feature. In this case, we will likely need to use a world tick loop to stop the song.
+--- At low permissions, we only have a handfull of instructions, and so we can't just call every sound to stop it,
+--- We might need to go one at a time
+---@field stop_one_sound_immediatly fun()
+---
+--- For when the user chooses to stop a song.
+---@field stop_all_sounds_immediatly fun()
+
+
+---@type table<InstrumentName, InstrumentBuilder>
+local known_instruments = {}
+
+local function get_all_instruments()
+    for _, script in ipairs(listFiles("./instruments", true)) do
+        local found_instruments
+        local success, value = pcall(function()
+            found_instruments = require(script)
+        end)
+        if not success then
+            print("Error: Failed to require the script `"..script.."` found in the `instruments` folder. Full error below:\n\n"..tostring(value))
+        else
+            if type(found_instruments) ~= "table" then
+                print("The `"..script.."` script did not return a list of instruments.")
+            else
+                for _, found_instrument in ipairs(found_instruments) do
+                    if      found_instrument.name
+                        and found_instrument.is_available
+                        and found_instrument.new_instance
+                    then
+                        if known_instruments[found_instrument.name] then
+                            print("instrument `" .. tostring( found_instrument.name) .. "` is already in known_instruments list")
+                        else
+                            print("Found instrument", found_instrument.name)
+                            known_instruments[found_instrument.name] = found_instrument
+                        end
+                    else
+                        print("An instrument was found in the `".. tostring(script) .."` script, but it doesn't look like an instrument.")
+                    end
+                end
+            end
+        end
+    end
+end
+get_all_instruments()
+printTable(known_instruments)
+get_all_instruments()
+printTable(known_instruments)
+
+
+
 
 ---@class SongPlayerConfig
 ---@field default_normal_instrument InstrumentID    -- Shorthand to apply the same instrument to all tracks
@@ -47,6 +112,11 @@ end
 
 
 ---@alias TrackID number
+
+--- Unlike InstrumentName, which is static and linked to the instrument itself. InstrumentID will be defined per-song, and be used
+--- to look up a track's instrument.
+---
+--- TODO: Do we really need both? The song itself will only transfer the instrument ID once. We could get away with strings.
 ---@alias InstrumentID number
 
 
