@@ -161,7 +161,8 @@ local function update_song(playing_song)
                 .play_instruction(this_instruction, source_position)
         end
     end
-    print("updating")
+
+    -- All new instructions dispatched. Updating instruments.
 
     local all_instruments_done = true
     for _, track_config in ipairs(playing_song.track_config) do
@@ -172,12 +173,24 @@ local function update_song(playing_song)
         end
     end
 
-    for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
-        deprecated_instrument.update_sounds(source_position)
-        if deprecated_instrument.is_finished() then
-            playing_song.deprecated_instruments[deprecated_instrument_key] = nil
-        else
-            all_instruments_done = false
+    -- Check and update deprecated instruments
+    if #playing_song.deprecated_instruments > 0 then
+        local finished_deprecated_instrument_keys = {}
+        for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
+            deprecated_instrument.update_sounds(source_position)
+            if deprecated_instrument.is_finished() then
+                table.insert(finished_deprecated_instrument_keys, deprecated_instrument_key)
+            else
+                all_instruments_done = false
+            end
+        end
+        -- extra for loop to remove instruments.
+        -- There's a slim chance that removing an instrument from the list will change the order of pairs() output.
+        -- Meaning there's a chance an instrument might skip an update.
+        -- Honestly the likelyhood of this actualy mattering is extreamly low since the next time update_song() gets
+        -- called, any missed instruments will be updated then.
+        for _, key_to_remove in ipairs( finished_deprecated_instrument_keys ) do
+            playing_song.deprecated_instruments[key_to_remove] = nil
         end
     end
 
