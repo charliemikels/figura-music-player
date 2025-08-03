@@ -220,14 +220,12 @@ local song_player_api = {
 
             ---@class PlayingSongTrackConfig
             local track_config = {
-                ---@type number The instrument type provided by the file_processor. -1 == Percussion.
-                reccomended_instrument_type = track_data.recommended_instrument_id,
-                    -- TODO: Consider: we could boild this down to just 0 == normal, 1 == Percussion,
-                    -- Then use the Config API (???) to define default "normal" and "percussion" instruments.
+                ---@type number The instrument type provided by the file_processor. 1 == Percussion.
+                reccomended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
                 selected_instrument = known_instruments[
-                        (   track_data.recommended_instrument_id == -1
+                        (   track_data.instrument_type_id == 1
                             and fallback_percussion_instrument_name
                             or  fallback_normal_instrument_name
                         )

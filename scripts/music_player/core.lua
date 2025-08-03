@@ -53,7 +53,8 @@ end)
 
 ---Tracks ProcessedSong are the step immediatly before PlayingSong.
 ---@class Track
----@field recommended_instrument_id number
+---@field instrument_type_id 0|1 0 for normal, 1 for percussion.
+---@field recommended_instrument_name string? The name of an instrument for display in a UI
 
 ---@class CoreApi
 ---@field build_default_experiance fun():MusicPlayerCore    TODO: revisit this type declaration

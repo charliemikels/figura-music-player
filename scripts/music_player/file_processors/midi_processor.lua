@@ -1350,9 +1350,12 @@ local midi_processor_loop_stage_functions = {
 
         -- reverse state.processed_metadata.channel_data[(dev)][(channel)] so that we can make a player-ready track list
 
-        ---@type {number: table}
+        ---@type {number: Track}
         local player_track_data = {}
 
+        -- Used to keep track of what instrument names we've already used so that each track has a unique name in the UI
+        --
+        -- eg: "Alto Sax" and "Alto Sax 2"
         ---@type {string: number}
         local seen_instruments = {}
         for device_name, device in pairs(state.processed_metadata.channel_data) do
@@ -1363,26 +1366,29 @@ local midi_processor_loop_stage_functions = {
                 -- Entries with track_id == nil have no notes and we can discard them.
                 --
                 if track_id then
-                    player_track_data[track_id] = {}
 
-                    if channel_info.instrument_name and channel_info.instrument_name == "Percussion" then
-                        player_track_data[track_id].recommended_instrument_id = -1
-                    elseif channel_info.instrument_id then
-                        player_track_data[track_id].recommended_instrument_id = channel_info.instrument_id
-                    else
-                        player_track_data[track_id].recommended_instrument_id = 0
-                    end
+                    local track_instrument_type_id = (
+                        (channel_info.instrument_name and channel_info.instrument_name == "Percussion")
+                        and 1 or 0
+                    )
 
+                    local track_instrument_name
                     if not channel_info.instrument_name then
-                        player_track_data[track_id].recommended_instrument_name = "(no instrument reccomended)"
+                        track_instrument_name = "Unspecified"
                     elseif seen_instruments[channel_info.instrument_name] then
-                        player_track_data[track_id].recommended_instrument_name =
+                        track_instrument_name =
                             channel_info.instrument_name .. " " .. tostring(seen_instruments[channel_info.instrument_name] + 1)
                         seen_instruments[channel_info.instrument_name] = seen_instruments[channel_info.instrument_name] +1
                     else
-                        player_track_data[track_id].recommended_instrument_name = channel_info.instrument_name
+                        track_instrument_name = channel_info.instrument_name
                         seen_instruments[channel_info.instrument_name] = 1
                     end
+
+                    ---@type Track
+                    player_track_data[track_id] = {
+                        instrument_type_id = track_instrument_type_id,
+                        recommended_instrument_name = track_instrument_name
+                    }
                 end
             end
         end
