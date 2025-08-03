@@ -123,9 +123,9 @@ local function apply_config(playing_song, config)
         local instrument_selection_to_use_instead = nil
         if config.instrument_selections and config.instrument_selections[track_index] then
             instrument_selection_to_use_instead = config.instrument_selections[track_index]
-        elseif config.default_normal_instrument then        -- TODO: and track is a normal track.
+        elseif config.default_normal_instrument and track_config.reccomended_instrument_type == 0 then
             instrument_selection_to_use_instead = config.default_normal_instrument
-        elseif config.default_percussion_instrument then    -- TODO: and track is a percussion track.
+        elseif config.default_percussion_instrument and track_config.reccomended_instrument_type == 1 then
             instrument_selection_to_use_instead = config.default_percussion_instrument
         end
 
@@ -222,6 +222,8 @@ local song_player_api = {
 
             ---@class PlayingSongTrackConfig
             local track_config = {
+                ---@type 0|1 The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
+                reccomended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
                 selected_instrument = known_instruments[
