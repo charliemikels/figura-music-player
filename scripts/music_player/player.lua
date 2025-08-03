@@ -22,7 +22,7 @@ local fallback_percussion_instrument_name = "print"
 ---@field name InstrumentName
 ---@field is_available fun():boolean
 ---@field features table<string, boolean>?
----@field new_instance fun():Instrument
+---@field new_instance fun(params: integer[]):Instrument
 
 ---@class Instrument
 ---
@@ -95,11 +95,14 @@ end
 get_all_instruments()
 
 
+---@class InstrumentSelection
+---@field name InstrumentName   A key in known_instruments.
+---@field params integer[]?     list of params passed to the builder. List of integers for serialization. The instrument is in charge of understanding this.
 
 ---@class SongPlayerConfig
----@field default_normal_instrument InstrumentID    -- Shorthand to apply the same instrument to all tracks
----@field default_percussion_instrument InstrumentID    -- Shorthand to apply the same instrument to all drum tracks
----@field instrument_selections? table<TrackID, InstrumentID>
+---@field default_normal_instrument? InstrumentSelection
+---@field default_percussion_instrument? InstrumentSelection
+---@field instrument_selections? table<TrackID, InstrumentSelection>
 ---@field source Vector3|Entity
 ---@field info_display_type string      Configures if/how song info should be displayed in the world.
 
@@ -110,33 +113,37 @@ get_all_instruments()
 local function apply_config(playing_song, config)
     if not config then return end
 
-    -- TODO: consider default_normal_instrument and default_percussion_instrument
+    -- instrument config
 
-    if config.instrument_selections then
-        local removed_instruments = {}
-        for track_index, selection in ipairs(config.instrument_selections) do
-            error("TODO: When config changes, adjust ")
-            local previous_instrument = playing_song.track_config[track_index].selected_instrument
-            if selection ~= previous_instrument then
-                playing_song.track_config[track_index].selected_instrument = selection
-                table.insert(removed_instruments, previous_instrument)
+    -- During playing_song setup, we already assign a fallback instrument.
+    -- This should ensure that all instruments are initilized to something.
+
+    -- Update tracks instruments to match selected instruments.
+    for track_index, track_config in ipairs(playing_song.track_config) do
+        local instrument_selection_to_use_instead = nil
+        if config.instrument_selections and config.instrument_selections[track_index] then
+            instrument_selection_to_use_instead = config.instrument_selections[track_index]
+        elseif config.default_normal_instrument then        -- TODO: and track is a normal track.
+            instrument_selection_to_use_instead = config.default_normal_instrument
+        elseif config.default_percussion_instrument then    -- TODO: and track is a percussion track.
+            instrument_selection_to_use_instead = config.default_percussion_instrument
+        end
+
+        if instrument_selection_to_use_instead then
+            local previous_instrument = track_config.selected_instrument
+            track_config.selected_instrument = known_instruments[instrument_selection_to_use_instead.name].new_instance(instrument_selection_to_use_instead.params)
+            if not previous_instrument.is_finished() then
+                table.insert(playing_song.deprecated_instruments, previous_instrument)
             end
         end
-        -- We've swapped out the track's selected instruments with the ones in the config.
-        -- But if a removed instrument is no longer being used, we need to make sure we're still ticking.
-        error("TODO: keep track of removed instruments. Build a system that continues to tick them until all their notes have ended.")
-        -- Clone instument objects per song, keep them seperate from other pusic processes.
     end
+
+    -- TODO: config.source information
+    -- TODO: config.info_display_type whatnot
 end
 
 
 ---@alias TrackID number
-
---- Unlike InstrumentName, which is static and linked to the instrument itself. InstrumentID will be defined per-song, and be used
---- to look up a track's instrument.
----
---- TODO: Do we really need both? The song itself will only transfer the instrument ID once. We could get away with strings.
----@alias InstrumentID number
 
 ---Called by an event loop.
 ---Dispatches new instructions to instruments based on current system time, and updates all instruments (including deprecated).
@@ -224,7 +231,7 @@ local song_player_api = {
                             and fallback_percussion_instrument_name
                             or  fallback_normal_instrument_name
                         )
-                    ].new_instance()
+                    ].new_instance({})
             }
             track_configs[track_index] = track_config
         end
@@ -254,8 +261,8 @@ local song_player_api = {
             track_config = track_configs, -- PlayingSongTrackConfig
         }
 
-        printTable(playing_song)
-        -- TODO: apply_config(config)
+        apply_config(playing_song, config)
+
         playing_song.start_time = client.getSystemTime()
         update_song(playing_song)
     end

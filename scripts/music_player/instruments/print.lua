@@ -9,7 +9,7 @@ local print_instrument_factory = {
         sustain = true          -- Notes can "ring" for any amount of time. (Unlike music block notes)
     },
 
-    new_instance = function()
+    new_instance = function(params)
         local active_sounds = {}
         local new_instance
 
