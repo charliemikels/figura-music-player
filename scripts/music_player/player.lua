@@ -56,7 +56,11 @@ local function get_all_instruments()
             found_instrument_builder_list = require(script)
         end)
         if not success then
-            print("Error: Failed to require the script `"..script.."` found in the `instruments` folder. Full error below:\n\n"..tostring(value))
+            print("Error: Failed to require the script `"
+                ..script
+                .."` found in the `instruments` folder. Full error below:\n\n"
+                ..tostring(value)
+            )
         else
             if type(found_instrument_builder_list) ~= "table" then
                 print("The `"..script.."` script did not return a list of instruments.")
@@ -67,13 +71,19 @@ local function get_all_instruments()
                         and found_instrument_builder.new_instance
                     then
                         if known_instruments[found_instrument_builder.name] then
-                            print("instrument `" .. tostring( found_instrument_builder.name) .. "` is already in known_instruments list")
+                            print("instrument `"
+                                .. tostring( found_instrument_builder.name)
+                                .. "` is already in known_instruments list"
+                            )
                         else
                             print("Found instrument", found_instrument_builder.name)
                             known_instruments[found_instrument_builder.name] = found_instrument_builder
                         end
                     else
-                        print("An instrument was found in the `".. tostring(script) .."` script, but it doesn't look like an instrument.")
+                        print("An instrument was found in the `"
+                            .. tostring(script)
+                            .."` script, but it doesn't look like an instrument."
+                        )
                     end
                 end
             end
@@ -106,8 +116,8 @@ get_all_instruments()
 ---@field source Vector3|Entity
 ---@field info_display_type string      Configures if/how song info should be displayed in the world.
 
----Applies config infor to a PlayingSong
----Used during init, and durring playback.
+---Applies config to a PlayingSong
+---Used during init, and may be used durring playback.
 ---@param playing_song PlayingSong
 ---@param config SongPlayerConfig
 local function apply_config(playing_song, config)
@@ -131,7 +141,9 @@ local function apply_config(playing_song, config)
 
         if instrument_selection_to_use_instead then
             local previous_instrument = track_config.selected_instrument
-            track_config.selected_instrument = known_instruments[instrument_selection_to_use_instead.name].new_instance(instrument_selection_to_use_instead.params)
+            track_config.selected_instrument =
+                known_instruments[instrument_selection_to_use_instead.name]
+                .new_instance(instrument_selection_to_use_instead.params)
             if not previous_instrument.is_finished() then
                 table.insert(playing_song.deprecated_instruments, previous_instrument)
             end
