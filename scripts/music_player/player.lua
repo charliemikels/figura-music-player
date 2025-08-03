@@ -215,13 +215,13 @@ local song_player_api = {
         local playing_song_controller
 
         -- For playback, we don't need to store the names of the reccomended instruments.
+
+        ---type table<number, PlayingSongTrackConfig>
         local track_configs = {}
         for track_index, track_data in ipairs(song.tracks) do
 
             ---@class PlayingSongTrackConfig
             local track_config = {
-                ---@type number The instrument type provided by the file_processor. 1 == Percussion.
-                reccomended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
                 selected_instrument = known_instruments[
