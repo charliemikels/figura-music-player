@@ -1348,7 +1348,7 @@ local midi_processor_loop_stage_functions = {
             return a.start_time < b.start_time end
         )
 
-        -- reverse state.processed_metadata.channel_data[(dev)][(channel)] so that we can make a track list
+        -- reverse state.processed_metadata.channel_data[(dev)][(channel)] so that we can make a player-ready track list
 
         ---@type {number: table}
         local player_track_data = {}
