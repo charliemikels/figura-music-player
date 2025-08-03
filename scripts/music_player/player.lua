@@ -96,8 +96,6 @@ get_all_instruments()
 
 
 
-
-
 ---@class SongPlayerConfig
 ---@field default_normal_instrument InstrumentID    -- Shorthand to apply the same instrument to all tracks
 ---@field default_percussion_instrument InstrumentID    -- Shorthand to apply the same instrument to all drum tracks
@@ -140,7 +138,8 @@ end
 --- TODO: Do we really need both? The song itself will only transfer the instrument ID once. We could get away with strings.
 ---@alias InstrumentID number
 
----Called by an event loop
+---Called by an event loop.
+---Dispatches new instructions to instruments based on current system time, and updates all instruments (including deprecated).
 ---@param playing_song PlayingSong
 local function update_song(playing_song)
     local current_time = client.getSystemTime()
@@ -156,11 +155,13 @@ local function update_song(playing_song)
         if this_instruction.track_index == 0 then
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
         else
-            playing_song.track_config[this_instruction.track_index].selected_instrument.play_instruction(this_instruction, source_position)
+            playing_song
+                .track_config[this_instruction.track_index]
+                .selected_instrument
+                .play_instruction(this_instruction, source_position)
         end
     end
     print("updating")
-
 
     local all_instruments_done = true
     for _, track_config in ipairs(playing_song.track_config) do
@@ -205,7 +206,12 @@ local song_player_api = {
                     -- Then use the Config API (???) to define default "normal" and "percussion" instruments.
 
                 ---@type Instrument
-                selected_instrument = known_instruments[(track_data.recommended_instrument_id == -1 and fallback_percussion_instrument_name or fallback_normal_instrument_name)].new_instance()
+                selected_instrument = known_instruments[
+                        (   track_data.recommended_instrument_id == -1
+                            and fallback_percussion_instrument_name
+                            or  fallback_normal_instrument_name
+                        )
+                    ].new_instance()
             }
             track_configs[track_index] = track_config
         end
@@ -213,10 +219,12 @@ local song_player_api = {
 
         ---@class PlayingSong
         playing_song = {
-
+            ---@type string The name of the song
             name = song.name,
             song_uuid = client.intUUIDToString(client.generateUUID()),  -- In case we need to create a key or something to address this song.
                     -- TODO: is a full UUID the right choice for this? could we get away with a simple sequence number, then we could send it ?
+
+            ---@type number The total length of the song
             song_durration = song.durration,
             start_time = nil,   -- Compare with durration. If start time + durration <= current time, then song has ended
             elapsed_time = 0,   -- Might allow us to pause a song.
@@ -232,6 +240,7 @@ local song_player_api = {
             ---@type PlayingSongTrackConfig[]
             track_config = track_configs, -- PlayingSongTrackConfig
         }
+
         printTable(playing_song)
         -- TODO: apply_config(config)
         playing_song.start_time = client.getSystemTime()
