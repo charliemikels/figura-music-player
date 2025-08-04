@@ -109,13 +109,12 @@ get_all_instruments()
 ---@field name InstrumentName   A key in known_instruments.
 ---@field params integer[]?     list of params passed to the builder. List of integers for serialization. The instrument is in charge of understanding this.
 
----@alias SoundSource Vector3|LivingEntity
-
 ---@class SongPlayerConfig
 ---@field default_normal_instrument? InstrumentSelection
 ---@field default_percussion_instrument? InstrumentSelection
 ---@field instrument_selections? table<TrackID, InstrumentSelection>
----@field source SoundSource
+---@field source_pos Vector3?           The location where sound comes from. Setting source_pos will unset source_entity if one was set earlier.
+---@field source_entity LivingEntity?   When set, player will update source_pos to match the entitty's position.
 ---@field info_display_type string      Configures if/how song info should be displayed in the world.
 
 ---Applies config to a PlayingSong
@@ -147,10 +146,18 @@ local function apply_config(playing_song, config)
         end
     end
 
-    -- TODO: config.info_display_type whatnot
-    if config.source then
-        playing_song.source = config.source
+    if config.source_pos then
+        playing_song.source_pos = config.source_pos
+        playing_song.source_entity = nil
     end
+    if config.source_entity then
+        playing_song.source_entity = config.source_entity
+        if config.source_entity.getPos and config.source_entity:getPos() then
+            playing_song.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight() ,0)
+        end
+    end
+
+    -- TODO: config.info_display_type whatnot
 end
 
 
@@ -162,18 +169,13 @@ end
 local function update_song(playing_song)
     local current_time = client.getSystemTime()
 
-    local playing_song_source = playing_song.source
-    local source_position = playing_song.source_last_pos
-    if playing_song_source.isLiving then
-        ---@cast playing_song_source LivingEntity
-        source_position = playing_song_source:getPos(client:getFrameTime()) + vec(0, playing_song_source:getEyeHeight(), 0)
-        playing_song.source_last_pos = source_position
-    elseif playing_song_source.dot then
-        ---@cast playing_song_source Vector3
-        source_position = playing_song_source
-        playing_song.source_last_pos = source_position
+    -- Get sound position.
+
+    if playing_song.source_entity then
+        playing_song.source_pos =
+            playing_song.source_entity:getPos(client:getFrameTime())
+            + vec(0, playing_song.source_entity:getEyeHeight(), 0)
     end
-    print(source_position)
 
     -- During playing_song setup, we already assign a fallback instrument.
     -- This should ensure that all instruments are initilized to something.
@@ -192,7 +194,7 @@ local function update_song(playing_song)
             playing_song
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, source_position)
+                .play_instruction(this_instruction, playing_song.source_pos)
         end
     end
 
@@ -200,7 +202,7 @@ local function update_song(playing_song)
 
     local all_instruments_done = true
     for _, track_config in ipairs(playing_song.track_config) do
-        track_config.selected_instrument.update_sounds(source_position)
+        track_config.selected_instrument.update_sounds(playing_song.source_pos)
         if all_instruments_done then
             all_instruments_done = track_config.selected_instrument.is_finished()
             -- will either continue being true, or this instrument is not done.
@@ -211,7 +213,7 @@ local function update_song(playing_song)
     if #playing_song.deprecated_instruments > 0 then
         local finished_deprecated_instrument_keys = {}
         for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
-            deprecated_instrument.update_sounds(source_position)
+            deprecated_instrument.update_sounds(playing_song.source_pos)
             if deprecated_instrument.is_finished() then
                 table.insert(finished_deprecated_instrument_keys, deprecated_instrument_key)
             else
@@ -279,11 +281,11 @@ local song_player_api = {
             instructions = song.instructions,
             next_instruction_index = 1,
 
-            ---@type SoundSource
-            source = (player and player or vec(0,0,0)),
+            ---@type LivingEntity? If this is defined, overwrite source_pos every update()
+            source_entity = nil,
 
-            ---@type Vector3 Used to track the last safe position of a source, in the event a source entity gets unloaded or something.
-            source_last_pos = vec(0,0,0),
+            ---@type Vector3
+            source_pos = vec(0,0,0),
 
             --- List of Instrument that were use at some point during this song, but have since been swapped out for other instruments.
             --- If they are still playing notes, put them here so that we can close them properly if needed.
