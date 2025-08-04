@@ -11,16 +11,16 @@ local selected_song = music_player_api.library:get_song_by_sorted_index(4)
 print("selected song: ", selected_song.name)
 local future_of_music = selected_song:start_data_processor()
 future_of_music:register_callback(
-    function(future)
+    function(completed_future)
         print("--==  SONG PROCESSED  ==--")
-        if future:has_error() then
+        if completed_future:has_error() then
             print("There was an error")
-            local the_error = future:get_error()
+            local the_error = completed_future:get_error()
             print(the_error)
             return
         end
 
-        local processed_song = future:get_value()
+        local processed_song = completed_future:get_value()
         ---@case processed_song ProcessedSong
         printTable(processed_song)
         print("giving song to player")
