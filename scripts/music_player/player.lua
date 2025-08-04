@@ -231,17 +231,25 @@ local function update_song(playing_song)
     end
 
     -- TODO: Check if the song has finished, and all instruments have finished
+    if playing_song.song_durration + playing_song.start_time < current_time then
+        print("Song_durr + start_time is now less than current time.")
+        if all_instruments_done then
+            playing_song.controller.stop()
+            return
+        else
+            print("Song should stop, but not all instruments are done.")
+        end
+    end
 end
 
 
 ---@class SongPlayerAPI
 local song_player_api = {
-    ---@type fun(song: ProcessedSong, config: SongPlayerConfig)
-    play_song_local = function (song, config)
-        print("Playing", song.name)
+    ---@type fun(song: ProcessedSong, config: SongPlayerConfig): PlayingSongController
+    new_player = function (song, config)
+        print("New player for", song.name)
 
         local playing_song
-        local playing_song_controller
 
         -- For playback, we don't need to store the names of the reccomended instruments.
 
@@ -264,7 +272,7 @@ local song_player_api = {
             }
             track_configs[track_index] = track_config
         end
-        printTable(track_configs)
+
 
         ---@class PlayingSong
         playing_song = {
@@ -294,12 +302,33 @@ local song_player_api = {
 
             ---@type PlayingSongTrackConfig[]
             track_config = track_configs, -- PlayingSongTrackConfig
-        }
 
+            ---@class PlayingSongController
+            controller = {
+                is_playing = function() return (playing_song.start_time and true or false) end,
+                play = function()
+                    print("Playing", song.name)
+                    if playing_song.start_time then
+                        -- song is already playing.
+                        return
+                    end
+                    playing_song.start_time = client.getSystemTime()
+
+                end,
+                stop = function()
+                    print("Stopping", song.name)
+                    playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
+                    playing_song.start_time = nil
+                end,
+                ---@type fun(new_config: SongPlayerConfig)
+                set_new_config = function(new_config)
+                    apply_config(playing_song, new_config)
+                end
+            }
+        }
         apply_config(playing_song, config)
 
-        playing_song.start_time = client.getSystemTime()
-        update_song(playing_song)
+        return playing_song.controller
     end
 }
 
