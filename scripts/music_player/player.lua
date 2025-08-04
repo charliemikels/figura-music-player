@@ -109,11 +109,13 @@ get_all_instruments()
 ---@field name InstrumentName   A key in known_instruments.
 ---@field params integer[]?     list of params passed to the builder. List of integers for serialization. The instrument is in charge of understanding this.
 
+---@alias SoundSource Vector3|LivingEntity
+
 ---@class SongPlayerConfig
 ---@field default_normal_instrument? InstrumentSelection
 ---@field default_percussion_instrument? InstrumentSelection
 ---@field instrument_selections? table<TrackID, InstrumentSelection>
----@field source Vector3|Entity
+---@field source SoundSource
 ---@field info_display_type string      Configures if/how song info should be displayed in the world.
 
 ---Applies config to a PlayingSong
@@ -122,11 +124,6 @@ get_all_instruments()
 ---@param config SongPlayerConfig
 local function apply_config(playing_song, config)
     if not config then return end
-
-    -- instrument config
-
-    -- During playing_song setup, we already assign a fallback instrument.
-    -- This should ensure that all instruments are initilized to something.
 
     -- Update tracks instruments to match selected instruments.
     for track_index, track_config in ipairs(playing_song.track_config) do
@@ -150,8 +147,10 @@ local function apply_config(playing_song, config)
         end
     end
 
-    -- TODO: config.source information
     -- TODO: config.info_display_type whatnot
+    if config.source then
+        playing_song.source = config.source
+    end
 end
 
 
@@ -162,7 +161,23 @@ end
 ---@param playing_song PlayingSong
 local function update_song(playing_song)
     local current_time = client.getSystemTime()
-    local source_position = vec(0,60,0)  -- TODO: Replace with the source defined in playingSongConfig or whatever.
+
+    local playing_song_source = playing_song.source
+    local source_position = playing_song.source_last_pos
+    if playing_song_source.isLiving then
+        ---@cast playing_song_source LivingEntity
+        source_position = playing_song_source:getPos(client:getFrameTime()) + vec(0, playing_song_source:getEyeHeight(), 0)
+        playing_song.source_last_pos = source_position
+    elseif playing_song_source.dot then
+        ---@cast playing_song_source Vector3
+        source_position = playing_song_source
+        playing_song.source_last_pos = source_position
+    end
+    print(source_position)
+
+    -- During playing_song setup, we already assign a fallback instrument.
+    -- This should ensure that all instruments are initilized to something.
+
     while playing_song.next_instruction_index <= #playing_song.instructions do
         local this_instruction = playing_song.instructions[playing_song.next_instruction_index]
         print(this_instruction)
@@ -263,6 +278,12 @@ local song_player_api = {
                                 -- When resuming a song, get current time, subtract elapsed, and that should give a new start time.
             instructions = song.instructions,
             next_instruction_index = 1,
+
+            ---@type SoundSource
+            source = (player and player or vec(0,0,0)),
+
+            ---@type Vector3 Used to track the last safe position of a source, in the event a source entity gets unloaded or something.
+            source_last_pos = vec(0,0,0),
 
             --- List of Instrument that were use at some point during this song, but have since been swapped out for other instruments.
             --- If they are still playing notes, put them here so that we can close them properly if needed.
