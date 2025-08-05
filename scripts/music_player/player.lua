@@ -115,7 +115,15 @@ get_all_instruments()
 ---@field instrument_selections? table<TrackID, InstrumentSelection>
 ---@field source_pos Vector3?           The location where sound comes from. Setting source_pos will unset source_entity if one was set earlier.
 ---@field source_entity LivingEntity?   When set, player will update source_pos to match the entitty's position.
----@field info_display_type string      Configures if/how song info should be displayed in the world.
+---@field info_display_type string?      Configures if/how song info should be displayed in the world.
+---@field primary_update_event_key string?      See `events:getEvents()`. Defaults to "RENDER." Usefull for playing a song with a player_skull instead of the real avatar.
+---@field fallback_update_event_key string?     See `events:getEvents()`. Defaults to "TICK."
+---
+-- --- Auto stop is important if the song is comming from the player entity.
+-- --- Without it, whenever the player is unloaded (eg goes through a nether portal), any running music will freeze and
+-- --- drone on continualy until the the events start again, or the avatar is reloaded.
+-- --- Only set this to `false` for controlled environments.
+-- ---@field auto_stop_if_update_events_fail boolean?
 
 ---Applies config to a PlayingSong
 ---Used during init, and may be used durring playback.
@@ -182,20 +190,19 @@ local function update_song(playing_song)
 
     while playing_song.next_instruction_index <= #playing_song.instructions do
         local this_instruction = playing_song.instructions[playing_song.next_instruction_index]
-        print(this_instruction)
         if this_instruction.start_time > current_time - playing_song.start_time then
-            print("This ain't now")
             break
         end
-        playing_song.next_instruction_index = playing_song.next_instruction_index + 1
         if this_instruction.track_index == 0 then
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
         else
+            print("Instruction "..tostring(playing_song.next_instruction_index).." of ".. tostring(#playing_song.instructions)..".", this_instruction )
             playing_song
                 .track_config[this_instruction.track_index]
                 .selected_instrument
                 .play_instruction(this_instruction, playing_song.source_pos)
         end
+        playing_song.next_instruction_index = playing_song.next_instruction_index + 1
     end
 
     -- All new instructions dispatched. Updating instruments.
@@ -248,8 +255,122 @@ local song_player_api = {
     ---@type fun(song: ProcessedSong, config: SongPlayerConfig): PlayingSongController
     new_player = function (song, config)
         print("New player for", song.name)
-
         local playing_song
+
+        local primary_event_checks_without_update = 0
+        local fallback_event_checks_without_update = 0
+        local using_fallback_event = false
+
+        -- For use in the update loop.
+        local function update_this_song()
+            if using_fallback_event then
+                fallback_event_checks_without_update = 0
+            else
+                primary_event_checks_without_update = 0
+            end
+            update_song(playing_song)
+        end
+
+        local watcher_state_key = "idle"
+        local emergency_stop_instrument_key_for_next = nil
+        local event_watcher_and_swapper_state_machine
+        -- this watcher might be running at very low permission. we need to make sure it's doing as little per update as possible.
+        local function event_watcher_and_swapper()
+            event_watcher_and_swapper_state_machine[watcher_state_key]()
+        end
+        -- Essentialy 5 states:
+        -- Using primary, primary is fine, continue
+        -- Using primary, primary is down, switch to fallback
+        -- Using fallback, primary is down, continue
+        -- Using fallback, primary is fine, switch to primary
+        -- Using fallback, fallback is down, emergency stop.
+        event_watcher_and_swapper_state_machine = {
+            idle = function() end,
+            check_primary = function()
+                if primary_event_checks_without_update >= 20 then
+                    -- primary is no longer working. switch to fallback.
+                    watcher_state_key = "switch_to_fallback"
+                else
+                    -- Primary appears to be running as expected. Bump timeout count.
+                    primary_event_checks_without_update = primary_event_checks_without_update + 1
+                end
+            end,
+            switch_to_fallback = function()
+                print("switching to fallback event")
+                using_fallback_event = true
+                playing_song.primary_event:remove(update_this_song)
+                playing_song.fallback_event:register(update_this_song)
+                watcher_state_key = "check_fallback"
+            end,
+            check_fallback = function()
+                -- if here, primary was down. Check if fallback works, and then send back to retest primary.
+                if fallback_event_checks_without_update >= 20 then
+                    watcher_state_key = "begin_emergency_stop"
+                else
+                    -- fallback is running fine. Let's see if primary ha returned
+                    fallback_event_checks_without_update  = fallback_event_checks_without_update + 1
+                    watcher_state_key = "check_primary_from_fallback"
+                end
+            end,
+            check_primary_from_fallback = function() -- check to see if it's safe to return to the primary event loop.
+                if primary_event_checks_without_update >= 20 then -- primary is still down. return to fallback check
+                    watcher_state_key = "check_fallback"
+                else -- Primary is back online. Let's switch back
+                    watcher_state_key = "switch_to_primary"
+                    primary_event_checks_without_update = primary_event_checks_without_update + 1
+                end
+            end,
+            switch_to_primary = function()
+                print("switching to primary event")
+                using_fallback_event = false
+                playing_song.fallback_event:remove(update_this_song)
+                playing_song.primary_event:register(update_this_song)
+                watcher_state_key = "check_primary"
+            end,
+            begin_emergency_stop = function()
+                print("The primary and fallback events for song "..playing_song.name.." are not responding. Starting emergency stop.")
+                playing_song.fallback_event:remove(update_this_song)
+                playing_song.primary_event:remove(update_this_song)
+                playing_song.start_time = nil
+                playing_song.elapsed_time = nil
+                using_fallback_event = false
+                watcher_state_key = "emergency_stop_active_instruments"
+            end,
+            emergency_stop_active_instruments = function()
+                -- run through all tracks, kill running notes one at a time untill all are done.
+                local key, track = next(playing_song.track_config, emergency_stop_instrument_key_for_next)
+                if key then
+                    if track.selected_instrument.is_finished() then
+                        -- advance the "next()" loop for next time.
+                        emergency_stop_instrument_key_for_next = key
+                    else
+                        track.selected_instrument.stop_one_sound_immediatly()
+                    end
+                else
+                    -- key is nill, we've reached the end of the list
+                    emergency_stop_instrument_key_for_next = nil
+                    watcher_state_key = "emergency_stop_deprecated_instruments"
+                end
+            end,
+            emergency_stop_deprecated_instruments = function()
+                -- run through deprecated_instruments, kill running notes one at a time untill all are done.
+                local key, instrument = next(playing_song.deprecated_instruments, emergency_stop_instrument_key_for_next)
+                if key then
+                    if instrument.is_finished() then
+                        -- advance the "next()" loop for next time.
+                        emergency_stop_instrument_key_for_next = key
+                    else
+                        instrument.stop_one_sound_immediatly()
+                    end
+                else
+                    -- key is nill, we've reached the end of the list
+                    emergency_stop_instrument_key_for_next = nil
+                    watcher_state_key = "idle"
+                    -- TODO: Is there any extra clean up that needs to be done?
+                    events.WORLD_TICK:remove(event_watcher_and_swapper)
+                end
+            end,
+        }
 
         -- For playback, we don't need to store the names of the reccomended instruments.
 
@@ -295,6 +416,12 @@ local song_player_api = {
             ---@type Vector3
             source_pos = vec(0,0,0),
 
+            ---@type Event
+            primary_event = events:getEvents()[(config.primary_update_event_key or "RENDER")],
+
+            ---@type Event
+            fallback_event = events:getEvents()[(config.fallback_update_event_key or "TICK")],
+
             --- List of Instrument that were use at some point during this song, but have since been swapped out for other instruments.
             --- If they are still playing notes, put them here so that we can close them properly if needed.
             ---@type Instrument[]
@@ -312,13 +439,28 @@ local song_player_api = {
                         -- song is already playing.
                         return
                     end
+
+                    primary_event_checks_without_update = 0
+                    fallback_event_checks_without_update = 0
                     playing_song.start_time = client.getSystemTime()
+                    events.WORLD_TICK:register(event_watcher_and_swapper)
+                    watcher_state_key = "check_primary"
+                    playing_song.primary_event:register(update_this_song)
+
 
                 end,
                 stop = function()
                     print("Stopping", song.name)
-                    playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
+                    -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
+                    playing_song.elapsed_time = nil
                     playing_song.start_time = nil
+
+                    playing_song.primary_event:remove(update_this_song)
+                    playing_song.fallback_event:remove(update_this_song)
+                    events.WORLD_TICK:remove(event_watcher_and_swapper)
+                    watcher_state_key = "idle"
+                    primary_event_checks_without_update = 0
+                    fallback_event_checks_without_update = 0
                 end,
                 ---@type fun(new_config: SongPlayerConfig)
                 set_new_config = function(new_config)

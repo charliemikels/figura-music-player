@@ -10,18 +10,34 @@ local print_instrument_factory = {
     },
 
     new_instance = function(params)
-        local active_sounds = {}
+
+        ---@type table{time_started: number, instruction: Instruction}[]
+        local active_instructions = {}
         local new_instance
 
         ---@type Instrument
         new_instance = {
             play_instruction = function(instruction, _)
-                print("start: " .. tostring(instruction.note) .. " for " .. tostring(instruction.duration) )
+                print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+                table.insert(active_instructions, {
+                    time_started = client.getSystemTime(),
+                    instruction = instruction
+                })
             end,
-            update_sounds = function(_) end,
+            update_sounds = function(_)
+                for active_instruction_key, active_instruction in pairs(active_instructions) do
+                    if (active_instruction.time_started + active_instruction.instruction.duration) <= client.getSystemTime() then
+                        print("stopping: " .. tostring(active_instruction.instruction.note) .. " on trk" .. tostring(active_instruction.instruction.track_index))
+                        active_instructions[active_instruction_key] = nil
+                        -- As it turns out, setting an element to nil in a for pairs() loop is fine.
+                        -- See docs for pair() which point to next() https://www.lua.org/manual/5.4/manual.html#pdf-next
+                        -- "…You may however modify existing fields. In particular, you may set existing fields to nil."
+                    end
+                end
+            end,
             stop_one_sound_immediatly = function() end,
             stop_all_sounds_immediatly = function() end,
-            is_finished = function() return (active_sounds == 0) end
+            is_finished = function() return (#active_instructions == 0) end
         }
         return new_instance
     end,
