@@ -73,7 +73,7 @@ local print_instrument_factory = {
                     active_instructions[active_instruction_key] = nil
                 end
             end,
-            is_finished = function() return next(active_instructions) and true or false end
+            is_finished = function() return (#active_instructions == 0) end
         }
         return new_instance
     end,
