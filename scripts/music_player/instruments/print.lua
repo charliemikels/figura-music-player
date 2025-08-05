@@ -35,8 +35,13 @@ local print_instrument_factory = {
                     end
                 end
             end,
-            stop_one_sound_immediatly = function() end,
-            stop_all_sounds_immediatly = function() end,
+            stop_one_sound_immediatly = function()
+                local key, _ = next(active_instructions)
+                active_instructions[key] = nil
+            end,
+            stop_all_sounds_immediatly = function()
+                active_instructions = {}
+            end,
             is_finished = function() return (#active_instructions == 0) end
         }
         return new_instance
