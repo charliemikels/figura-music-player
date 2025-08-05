@@ -27,7 +27,7 @@ local fallback_percussion_instrument_name = "print"
 ---@class Instrument
 ---
 --- Queue the given instruction and play it immediatly. Remember to call update_sounds to eventualy stop the instruction.
----@field play_instruction fun(instruction: Instruction, position: Vector3)
+---@field play_instruction fun(instruction: Instruction, position: Vector3, time_since_due: integer)
 ---@field update_sounds fun(position: Vector3)
 ---
 --- For use with an emergency stop feature. In this case, we will likely need to use a world tick loop to stop the song.
@@ -190,7 +190,12 @@ local function update_song(playing_song)
 
     while playing_song.next_instruction_index <= #playing_song.instructions do
         local this_instruction = playing_song.instructions[playing_song.next_instruction_index]
-        if this_instruction.start_time > current_time - playing_song.start_time then
+        -- The amount of time between the current time, and the time this instruction should have been played.
+        -- positive == the instruction is late. 0 == it's right on time. negative == it doesn't need to play yet. ignore if negative.
+        local time_since_due = (current_time - playing_song.start_time) - this_instruction.start_time
+        if time_since_due < 0 then
+            -- instruction is not late, we'll take care of it later.
+            -- (If all notes are slightly late, then none of the notes are slightly late.)
             break
         end
         if this_instruction.track_index == 0 then
@@ -200,7 +205,7 @@ local function update_song(playing_song)
             playing_song
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, playing_song.source_pos)
+                .play_instruction(this_instruction, playing_song.source_pos, time_since_due)
         end
         playing_song.next_instruction_index = playing_song.next_instruction_index + 1
     end
