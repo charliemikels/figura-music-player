@@ -20,7 +20,7 @@ local fallback_percussion_instrument_name = "print"
 
 ---@class InstrumentBuilder
 ---@field name InstrumentName
----@field is_available fun():boolean
+---@field is_available fun():boolean    may be false for instruments with custom sounds and instruments from other avatars.
 ---@field features table<string, boolean>?
 ---@field new_instance fun(params: integer[]):Instrument
 
