@@ -25,13 +25,16 @@ future_of_music:register_callback(
         printTable(processed_song)
         print("giving song to player")
         local controller = song_player_api.new_player(processed_song, {
-            default_normal_instrument = {name = "print"},
+            default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "print"},
             -- source_pos = vec(0,0,0),
             source_entity = player,
             info_display_type = nil
         })
         controller.play()
+        --
+        -- printTable(sounds["scripts.music_player.instruments.triangle_sine.triangle_sine"]:play())
+        -- printTable(sounds:getCustomSounds())
     end
 )
 
