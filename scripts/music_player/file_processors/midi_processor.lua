@@ -600,6 +600,7 @@ midi_meta_event_functions = {
             track_index = 0,
             duration = 0,
             start_time = start_time,
+            start_velocity = 0,
             note = 0x51,
             modifiers = {
                 tempo = microseconds_per_midi_quarter_note,
@@ -631,6 +632,7 @@ midi_meta_event_functions = {
             track_index = 0,
             duration = 0,
             start_time = start_time,
+            start_velocity = 0,
             note = 0x58,
             modifiers = { numerator = numerator, denominator = denominator }
         }
