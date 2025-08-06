@@ -445,7 +445,7 @@ local song_player_api = {
 
                 ---@type fun()
                 play = function()
-                    print("Playing", song.name)
+                    print("Playing \"" .. tostring(song.name) .. "\"")
                     if playing_song.start_time then
                         -- song is already playing.
                         return
@@ -466,7 +466,7 @@ local song_player_api = {
 
                 ---@type fun()
                 stop = function()
-                    print("Stopping", song.name)
+                    print("Stopping \"".. tostring(song.name) .."\"")
                     -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
                     playing_song.elapsed_time = nil
                     playing_song.start_time = nil
