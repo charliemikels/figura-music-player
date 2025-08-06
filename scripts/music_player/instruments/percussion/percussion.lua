@@ -13,14 +13,11 @@ local function midi_note_to_multiplier(note_id)
     return 2^(semitones_from_a4 / 12)
 end
 
+--- Use with drumkit_sound_lookup()
+--- Stored as functions to quickly get a fresh sound instance every time.
+--- See https://zendrum.com/resource-site/drumnotes.htm to see how each midi note pairs to what sound.
 ---@type table<integer, fun():Sound>[]
-local drumkitSoundsTable = {
-	-- Table of functions that return a sound, so that we'll get a fresh sound every time.
-	-- use with drumkitSoundLookup()
-	-- keys are midi codes. see https://zendrum.com/resource-site/drumnotes.htm
-
-	-- Missing sounds default to a hat sound in drumkitSoundLookup()
-
+local drumkit_sounds_lookup = {
 	[35] = function() -- Acoustic Bass Drum
 		return sounds["block.note_block.basedrum"]:pitch(0.7)
 	end,
@@ -169,16 +166,13 @@ local drumkitSoundsTable = {
 ---@param midi_key integer
 ---@return Sound
 local function drumkit_sound_lookup(midi_key)
-	if drumkitSoundsTable[midi_key] then
-		return drumkitSoundsTable[midi_key]()
+	if drumkit_sounds_lookup[midi_key] then
+		return drumkit_sounds_lookup[midi_key]()
 	end
 	return sounds["minecraft:block.note_block.hat"]:setPitch(
 	    midi_note_to_multiplier(midi_key)
 	)
 end
-
-
-
 
 ---@type InstrumentBuilder
 local print_instrument_factory = {
@@ -203,41 +197,20 @@ local print_instrument_factory = {
                     :setSubtitle("Music from "..player:getName())
 
                 new_sound:play()
-
-                -- table.insert(active_instructions, {
-                --     time_started = client.getSystemTime() - time_since_due,
-                --     instruction = instruction,
-                --     sound = new_sound
-                -- })
             end,
             update_sounds = function(position)
-                -- for active_instruction_key, active_instruction in pairs(active_instructions) do
-                --     if (active_instruction.time_started + active_instruction.instruction.duration) <= client.getSystemTime() then
-                --         -- Stop this instruction
-                --         active_instruction.sound:stop()
-                --         active_instruction.sound = nil
-                --         active_instructions[active_instruction_key] = nil
-                --     else
-                --         active_instruction.sound:setPos(position)
-                --     end
-                -- end
+                -- Notes do not linger, nothing to update
             end,
             stop_one_sound_immediatly = function()
-                -- local active_instruction_key, active_instruction = next(active_instructions)
-                -- if active_instruction_key then
-                --     active_instruction.sound:stop()
-                --     active_instruction.sound = nil
-                --     active_instructions[active_instruction_key] = nil
-                -- end
+                -- Notes do not linger and so there's nothing to clean
             end,
             stop_all_sounds_immediatly = function()
-                -- for active_instruction_key, active_instruction in pairs(active_instructions) do
-                --     active_instruction.sound:stop()
-                --     active_instruction.sound = nil
-                --     active_instructions[active_instruction_key] = nil
-                -- end
+                -- Notes do not linger and so there's nothing to clean
             end,
-            is_finished = function() return true end
+            is_finished = function()
+                -- Notes do not linger and so there's nothing to clean
+                return true
+            end
         }
         return new_instance
     end,
