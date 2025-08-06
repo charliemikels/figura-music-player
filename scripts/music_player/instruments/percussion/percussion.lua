@@ -189,7 +189,7 @@ local print_instrument_factory = {
 
         ---@type Instrument
         local new_instance = {
-            play_instruction = function(instruction, position, time_since_due)
+            play_instruction = function(instruction, position, _)
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 local new_sound = drumkit_sound_lookup(instruction.note)
                     :setPos(position)
@@ -198,7 +198,7 @@ local print_instrument_factory = {
 
                 new_sound:play()
             end,
-            update_sounds = function(position)
+            update_sounds = function(_)
                 -- Notes do not linger, nothing to update
             end,
             stop_one_sound_immediatly = function()
