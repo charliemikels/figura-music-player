@@ -182,7 +182,7 @@ local function update_song(playing_song)
     if playing_song.source_entity then
         playing_song.source_pos =
             playing_song.source_entity:getPos(client:getFrameTime())
-            + vec(0, playing_song.source_entity:getEyeHeight(), 0)
+            + vec(0, (playing_song.source_entity:getBoundingBox().y * 0.5), 0)
     end
 
     -- During playing_song setup, we already assign a fallback instrument.
