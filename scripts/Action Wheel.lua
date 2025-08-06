@@ -5,10 +5,11 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(114)
+local selected_song = music_player_api.library:get_song_by_sorted_index(33)
 -- 1: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 4: Specialist (shorter)
 -- 114: keyboard cat
+-- 33: some DDR track, but it uses the pitch wheel.
 print("selected song: ", selected_song.name)
 local future_of_music = selected_song:start_data_processor()
 future_of_music:register_callback(
