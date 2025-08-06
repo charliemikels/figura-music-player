@@ -4,6 +4,14 @@
 local a4_id = 69 -- nice. Midi note numbers are 1 semitone away from the next note in the sequence.
 local base_volume = 4
 
+local triangle_sine_sound_key = nil
+for _, full_sound_id in pairs(sounds:getCustomSounds()) do
+	if string.find(full_sound_id, "triangle_sine.triangle_sine") then
+	    triangle_sine_sound_key = full_sound_id;
+		break
+	end
+end
+
 ---Converts a midi note ID to a multiplier usable in minecraft
 ---@param note_id integer
 ---@return number
@@ -16,7 +24,7 @@ end
 ---@type InstrumentBuilder
 local print_instrument_factory = {
     name = "Triangle Sine",         -- Also used when making unique identifiers
-    is_available = function() return avatar:canUseCustomSounds() end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
+    is_available = function() return triangle_sine_sound_key and avatar:canUseCustomSounds() end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
     features = {            -- Displayed to users so that they know what features this instrument supports.
         percussion = false,
         sustain = true          -- Notes can "ring" for any amount of time. (Unlike music block notes)
@@ -31,7 +39,7 @@ local print_instrument_factory = {
         local new_instance = {
             play_instruction = function(instruction, position, time_since_due)
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
-                local new_sound = sounds["scripts.music_player.instruments.triangle_sine.triangle_sine"]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
+                local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
                     :setPos(position)
                     :setVolume(base_volume)   -- TODO: :setVolume(4 * instruction.modifiers.___.volume)
 					:setLoop(true)
