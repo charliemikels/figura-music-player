@@ -726,6 +726,10 @@ midi_message_functions = {
         local _ = read_next_chunk_byte(track)   -- note_velocity
 
         local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
+        if not note_to_stop then
+            print_debug("Note off tried to stop a not that was not been started before. Ignoring")
+            return
+        end
         note_to_stop.duration = start_time - note_to_stop.start_time
 
         print_debug("Ending note:", note_id, "(dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
