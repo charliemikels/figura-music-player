@@ -182,6 +182,17 @@ local function read_variable_length_quantity(track)
     return combine_seven_bit_numbers(bytes)
 end
 
+
+local midi_default_tempo = 50000
+---Calculates a multiplier to convert between the file's delta ticks to a durration in miliseconds
+---@param division integer      Part of the midi header chunk. Defines delta ticks per quarter note
+---@param tempo integer         Set by meta event 0x51 (set_tempo). Defines microseconds (not milis) per midi quarter note.
+---@return number multiplier
+local function recalculate_ticks_to_milis_multiplier(division, tempo)
+    -- state.midi_header_info.ticks_pre_quarter_note
+    return (tempo / division) / 1000
+end
+
 ---List of patch/instrument names for use with message 11000000 "Program change"
 ---@type table<integer, string >
 local patch_name_lookup = {
@@ -588,12 +599,18 @@ midi_meta_event_functions = {
 
     ---set_tempo
     ---
-    ---Sets tempo in "microseconds per MIDI quarter-note" (aka: "24ths of a microsecond per MIDI clock")
-    ---Note this is in time-per beat, not the traditional beat-per-time.
+    --- Used to calculate the correct delta_time. Usualy seen only in the first track.
+    --- Stored in microseconds (not milis) per quarter note. If unspecified, default to 500000 (120 bpm)
     ---
-    ---This does not impact playback, but needed to sync animations to the song.
+    ---Impacts playback. Pair with "devisions" in the midi header chunk
     [0x51] = function(state, _, data, start_time)
         local microseconds_per_midi_quarter_note = bytes_to_number(data)
+        table.insert(state.processed_metadata.tempo_changes.times_when_tempo_changed, 1, start_time)   -- pos 1 to keep it in reverse order (so index 1 is most recent)
+        state.processed_metadata.tempo_changes.delta_tick_multipliers[start_time] =
+        recalculate_ticks_to_milis_multiplier(
+            state.midi_header_info.ticks_pre_quarter_note,
+            microseconds_per_midi_quarter_note
+        )
 
         ---@type Instruction
         local instruction = {
@@ -1091,7 +1108,7 @@ local midi_processor_loop_stage_functions = {
                         ---Durring the process stage, we need to read track messages in chronological order.
                         ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
                         ---@type number
-                        sum_delta = 0,
+                        sum_time = 0,
 
                         ---Holds the delta of the next event.
                         ---Used to compare this track against every other track, without doing var-length calculations every loop
@@ -1188,7 +1205,11 @@ local midi_processor_loop_stage_functions = {
                             local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
                             local ticks_per_quarter_note = bytes_to_number({ticks_per_quarter_note_fist_byte, second_byte_of_timing_data})
                             state.midi_header_info.timing_method = 0
+
                             state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
+                            local tick_to_milis_multiplier = recalculate_ticks_to_milis_multiplier(ticks_per_quarter_note, midi_default_tempo)
+                            table.insert(state.processed_metadata.tempo_changes.times_when_tempo_changed, 1, 0)
+                            state.processed_metadata.tempo_changes.delta_tick_multipliers[0] = tick_to_milis_multiplier
                         end
 
                         state.chunks.header = header_chunk
@@ -1256,7 +1277,29 @@ local midi_processor_loop_stage_functions = {
 
             for track_index, track in ipairs(state.chunks.tracks) do
                 if not track.has_ended then
-                    local time_of_next_message = track.sum_delta + track.next_event_delta
+                    -- calculate the start time of the next event in this track
+                    -- Be carefull with tempo changes. In a situation where trk 1 and 2 play a note at delta 0,
+                    -- and then trk 1 changes the tempo at its delta 5, then if both tracks end the note at
+                    -- delta 5 and 10 respectively (same total delta ticks), they still end the note at the same time.
+                    -- This means track B needs to be aware of all tempo changes throughout the song.
+
+                    -- see
+                    -- state.processed_metadata.tempo_changes.times_when_tempo_changed
+                    -- state.processed_metadata.tempo_changes.delta_tick_multipliers
+                    --
+                    local time_of_next_message
+                    if
+                        track.sum_time >= state.processed_metadata.tempo_changes.times_when_tempo_changed[1] -- list should be in _reverse_ order, where 1 is most recent.
+                    then
+                        -- we have already passed the most recent time change. We can just use it directly
+                        time_of_next_message = track.sum_time + (track.next_event_delta * state.processed_metadata.tempo_changes.delta_tick_multipliers[state.processed_metadata.tempo_changes.times_when_tempo_changed[1]])
+                    else
+                        -- the tempo has changed at some time between the previous note (sum_time) and now.
+                        -- We need to apply each tempo change seperately to figure out the absolute start time for next_event_delta
+                        error("TODO: the tempo changed in the middle of the file. implement the nessesary logic.")
+                    end
+
+                    -- time_of_next_message = track.sum_time + (track.next_event_delta)
                     if time_of_next_message < soonest_start_time then
                         soonest_start_time = time_of_next_message
                         soonest_track = track
@@ -1314,7 +1357,7 @@ local midi_processor_loop_stage_functions = {
 
             -- Pre-calculate next message start time for this track:
 
-            soonest_track.sum_delta = soonest_track.sum_delta + soonest_track.next_event_delta
+            soonest_track.sum_time = soonest_start_time
             if not soonest_track.has_ended then
                 soonest_track.next_event_delta = read_variable_length_quantity(soonest_track)
             end
@@ -1457,10 +1500,20 @@ local function midi_processor(song)
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
-        ---@type {channel_data: table<MidiDeviceName, table<MidiChannelId, table>>, time_song_end: number?}
+        --- @class MidiProcessorState.ProcessedMetadata
         processed_metadata = {
+            ---@type table<MidiDeviceName, table<MidiChannelId, table>>
             channel_data = {},
-            time_song_end = nil
+            ---@type number?
+            time_song_end = nil,
+
+            --- Lookup tables of start times to delta time multipliers.
+            --- See meta event 0x51 and recalculate_ticks_to_milis_multiplier().
+            ---@type {times_when_tempo_changed: number[], delta_tick_multipliers: table<number, number>}
+            tempo_changes = {
+                times_when_tempo_changed = {},  -- An reverced-ordered list of times where the tempo changes. These times are also keys for delta_tick_multipliers.
+                delta_tick_multipliers = {}     -- A list of delta tick multipliers indexed by the time when they became active.
+            }
         },
 
         -- A lookup table for track IDs used in complete instructions
@@ -1485,12 +1538,17 @@ local function midi_processor(song)
             total_file_size = 0 ---@type integer
         },
         midi_header_info = {
-            default_time_signature = {numerator = 4, denominator = 4},
-            default_tempo = 500000, -- 120 BPM in microseconds per beat.
-            default_bpm = 120,      -- Calculated number. Midi stores temp in microseconds per beat. ↑
-            initial_time_signature = nil,   -- initial should be set by the time signature and tempo midi events in the first track. (format 0 and 1)
-            initial_tempo = nil,            --      in format 2, they should be at the start of every temporaly independant track.
-            initial_bpm = nil,
+            ---@type 0|1|2      0 == no tracks, 1 == has tracks (play all at once), 2 = Manualy Timed Tracks
+            format = nil,
+
+            ---@type integer
+            number_of_tracks = nil,
+
+            ---@type 0|1
+            timing_method = nil,
+
+            ---@type integer
+            ticks_pre_quarter_note = nil
         },
     }
 
