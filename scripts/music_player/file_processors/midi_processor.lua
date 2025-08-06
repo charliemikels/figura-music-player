@@ -778,7 +778,8 @@ midi_message_functions = {
             print_debug("Running control change function", controller_number)
             control_change_and_mode_change_functions[controller_number](state, track, channel, start_time, controller_value)
         else
-            error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
+            print_debug("⚠ Ignoring unrecognized control change code", controller_number)
+            -- error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
             -- TODO: It looks like we're not expected to implement every controller event. There are some pre-defined events
             -- that we should take care of, but at some point, I think we can change this error to just a log message.
         end
@@ -990,7 +991,7 @@ midi_message_functions = {
             print_debug("meta ID = "..number_to_dec_and_hex(meta_event_id))
             midi_meta_event_functions[meta_event_id](state, track, meta_event_data, start_time)
         else
-            print_debug("Ignoring unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
+            print_debug("⚠ Ignoring unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
             -- error("Unimplemented meta event: "..number_to_dec_and_hex(meta_event_id))
         end
     end
