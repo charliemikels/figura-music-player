@@ -885,24 +885,24 @@ midi_message_functions = {
     ---System Exclusive
     ---
     ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
-    -- [0xF0] = function(state, track, _, start_time)
-    --     -- sysex events are messages for "the system." I don't think we need to worry about this type.
-    --     -- sysex events are sometimes stored as packets within the midi file.
-    --     -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
-    --     -- Start of message chain   = `F0 <variable-length quantity> <bytes>`, where final byte is not `F7`
-    --     -- Continuation of message  = `F7 <variable-length quantity> <bytes>`, where final byte is not `F7`
-    --     -- end of message chain     = `F7 <variable-length quantity> <bytes>`, where final byte is `F7`.
-    --     -- A final `F7` indicates that the message is done. But we shouldn't need to worry about
-    --     -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
-    --     -- we can just skip the entire length of bytes.
+    [0xF0] = function(_, track, _, _)
+        -- sysex events are messages for "the system." I don't think we need to worry about this type.
+        -- sysex events are sometimes stored as packets within the midi file.
+        -- normal one-message sysex = `F0 <variable-length quantity> <bytes>`, where final byte is `F7`
+        -- Start of message chain   = `F0 <variable-length quantity> <bytes>`, where final byte is not `F7`
+        -- Continuation of message  = `F7 <variable-length quantity> <bytes>`, where final byte is not `F7`
+        -- end of message chain     = `F7 <variable-length quantity> <bytes>`, where final byte is `F7`.
+        -- A final `F7` indicates that the message is done. But we shouldn't need to worry about
+        -- system messages like these at all. If we encounter an event starting with `F0` or `F7`,
+        -- we can just skip the entire length of bytes.
 
-    --     local sysex_event_length = read_variable_length_quantity(state)
-    --     for _ = 1, sysex_event_length do
-    --         local byte = read_next_file_byte(state)
-    --         table.insert(message.event_raw_data, byte)
-    --         table.insert(message.data, byte)
-    --     end
-    -- end,
+        local sysex_event_length = read_variable_length_quantity(track)
+        for _ = 1, sysex_event_length do
+            local _ = read_next_chunk_byte(track)
+            -- table.insert(message.event_raw_data, byte)
+            -- table.insert(message.data, byte)
+        end
+    end,
 
     ---Undefined
     [0xF1] = function()
