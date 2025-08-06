@@ -1,7 +1,7 @@
 ---@module "../core"
 ---@module "../instructions"
 
--- see: http://www.music.mcgill.ca/~ich/classes/mumt306/StandardMIDIfileformat.html
+-- see: https://www.freqsound.com/SIRA/MIDI%20Specification.pdf
 
 local do_debug_prints = false
 
