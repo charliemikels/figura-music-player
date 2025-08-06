@@ -40,7 +40,7 @@ local print_instrument_factory = {
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
                     :setPos(position)
-                    :setVolume((instruction.start_velocity/255))
+                    :setVolume((instruction.start_velocity/127))
                     -- :setAttenuation(2)
 					:setLoop(true)
 					:setPitch(midi_note_to_multiplier(instruction.note))
