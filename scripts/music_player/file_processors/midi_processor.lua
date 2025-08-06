@@ -754,31 +754,33 @@ midi_message_functions = {
         end
 
         if state.instruction_builder[track.current_device][channel].notes[note_id] then
-            error("Note already has been set. Todo: what to do if we get two note on events.")
-        else
-            -- initialize a new note in the note builder
-
-            print_debug("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
-
-            ---@type Instruction
-            local new_note_data = {
-                note = note_id,
-                start_time = start_time,
-                start_velocity = note_velocity,
-                track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
-                duration = nil,
-                modifiers = {}
-            }
-
-            -- import current channel state. not all values may be set
-            for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state) do
-                ---@type NoteModifier
-                local new_modifier = { start_time = start_time, type = key, value = value }
-                table.insert(new_note_data.modifiers, new_modifier)
-            end
-
-            state.instruction_builder[track.current_device][channel].notes[note_id] = new_note_data
+            print_debug("⚠ 0x90 `Note On` recieved for a note that is already playing. Technicaly undefined behavior? Restarting the note.")
+            track.data_index = track.data_index - 2  -- rewind so that the stop event can just read the data itself.
+            midi_message_functions[tonumber("10000000", 2)](state, track, channel, start_time)
+            -- no need to fast forward, we've already consumed the data we need and can just keep moving
         end
+        -- initialize a new note in the note builder
+
+        print_debug("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
+
+        ---@type Instruction
+        local new_note_data = {
+            note = note_id,
+            start_time = start_time,
+            start_velocity = note_velocity,
+            track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
+            duration = nil,
+            modifiers = {}
+        }
+
+        -- import current channel state. not all values may be set
+        for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state) do
+            ---@type NoteModifier
+            local new_modifier = { start_time = start_time, type = key, value = value }
+            table.insert(new_note_data.modifiers, new_modifier)
+        end
+
+        state.instruction_builder[track.current_device][channel].notes[note_id] = new_note_data
     end,
 
     ---Polyphonic Key Pressure (Aftertouch)
