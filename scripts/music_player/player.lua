@@ -1,14 +1,14 @@
 ---@module "../core"
 
 -- Things player.lua needs to do:
--- 1. Receive a ProcessedSong, or a ProcessedSongStream
--- 2. Start an event loop to watch the current time. Auto-kill the song and loop after durration is met.
--- 3. Every loop tick, check the list of instructions. If there are any new instructions, dispatch them to the relevent instrument.
--- 4. Update each instrument. (They handle things like volume changes and pitch changes when nessesary)
--- 5. Monitor the event loop (use another loop). Dynamicaly switch between high resolution (render) and high reliability (tick) when relevent.
--- 6. Be able to force-stop the song if no events are responding. This should use world tick. use very spearingly.
+-- - [x] Receive a ProcessedSong, or a ProcessedSongStream
+-- - [x] Start an event loop to watch the current time. Auto-kill the song and loop after durration is met.
+-- - [x] Every loop tick, check the list of instructions. If there are any new instructions, dispatch them to the relevent instrument.
+-- - [x] Update each instrument. (They handle things like volume changes and pitch changes when nessesary)
+-- - [x] Monitor the event loop (use another loop). Dynamicaly switch between high resolution (render) and high reliability (tick) when relevent.
+-- - [ ] Be able to force-stop the song if no events are responding. This should use world tick. use very spearingly.
 --    Does not nessesaraly need to stop the song (events might start up again), but it needs to stop currently playing notes.
--- 7. Expose controlls to the caller to start/pause/stop/end the song, and get progress.
+-- - [ ] Expose controlls to the caller to start/pause/stop/end the song, and get progress.
 
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
 local fallback_normal_instrument_name = "print"
@@ -201,7 +201,10 @@ local function update_song(playing_song)
         if this_instruction.track_index == 0 then
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
         else
-            print("Instruction "..tostring(playing_song.next_instruction_index).." of ".. tostring(#playing_song.instructions)..".", this_instruction )
+            print(
+                tostring(math.floor(playing_song.controller.get_progress() * 100)).."%",
+                "("..tostring(playing_song.next_instruction_index).." / ".. tostring(#playing_song.instructions)..")",
+                this_instruction )
             playing_song
                 .track_config[this_instruction.track_index]
                 .selected_instrument
@@ -437,7 +440,10 @@ local song_player_api = {
 
             ---@class PlayingSongController
             controller = {
+                ---@type fun():boolean
                 is_playing = function() return (playing_song.start_time and true or false) end,
+
+                ---@type fun()
                 play = function()
                     print("Playing", song.name)
                     if playing_song.start_time then
@@ -451,9 +457,14 @@ local song_player_api = {
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
                     playing_song.primary_event:register(update_this_song)
-
-
                 end,
+
+                ---@type fun():number
+                get_progress = function()
+                    return (client.getSystemTime() - playing_song.start_time) / playing_song.song_durration
+                end,
+
+                ---@type fun()
                 stop = function()
                     print("Stopping", song.name)
                     -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
