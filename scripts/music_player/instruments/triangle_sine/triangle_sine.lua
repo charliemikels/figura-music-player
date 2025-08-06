@@ -2,7 +2,6 @@
 
 -- local a4_frequency = 440    -- in hz
 local a4_id = 69 -- nice. Midi note numbers are 1 semitone away from the next note in the sequence.
-local base_volume = 4
 
 local triangle_sine_sound_key = nil
 for _, full_sound_id in pairs(sounds:getCustomSounds()) do
@@ -41,7 +40,8 @@ local print_instrument_factory = {
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
                     :setPos(position)
-                    :setVolume(base_volume)   -- TODO: :setVolume(4 * instruction.modifiers.___.volume)
+                    :setVolume((instruction.start_velocity/255))
+                    -- :setAttenuation(2)
 					:setLoop(true)
 					:setPitch(midi_note_to_multiplier(instruction.note))
                     :setSubtitle("Music from "..player:getName())

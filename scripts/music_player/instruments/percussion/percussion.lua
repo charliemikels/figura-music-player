@@ -2,7 +2,6 @@
 
 -- local a4_frequency = 440    -- in hz
 local a4_id = 69
-local base_volume = 4
 
 ---Converts a midi note ID to a multiplier usable in minecraft
 ---@param note_id integer
@@ -193,7 +192,7 @@ local print_instrument_factory = {
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 local new_sound = drumkit_sound_lookup(instruction.note)
                     :setPos(position)
-                    :setVolume(base_volume)   -- TODO: :setVolume(4 * instruction.modifiers.___.volume)
+                    :setVolume((instruction.start_velocity/255))   -- TODO: :setVolume(4 * instruction.modifiers.___.volume)
                     :setSubtitle("Music from "..player:getName())
 
                 new_sound:play()
