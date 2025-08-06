@@ -13,7 +13,7 @@
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
 local fallback_normal_instrument_name = "print"
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
-local fallback_percussion_instrument_name = "print"
+local fallback_percussion_instrument_name = "Percussion"
 
 ---A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.
 ---@alias InstrumentName string

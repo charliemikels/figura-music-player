@@ -26,7 +26,7 @@ future_of_music:register_callback(
         print("giving song to player")
         local controller = song_player_api.new_player(processed_song, {
             default_normal_instrument = {name = "Triangle Sine"},
-            default_percussion_instrument = {name = "print"},
+            default_percussion_instrument = {name = "Percussion"},
             -- source_pos = vec(0,0,0),
             source_entity = player,
             info_display_type = nil
