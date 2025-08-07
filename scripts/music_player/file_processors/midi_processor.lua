@@ -603,14 +603,17 @@ midi_meta_event_functions = {
     --- Stored in microseconds (not milis) per quarter note. If unspecified, default to 500000 (120 bpm)
     ---
     ---Impacts playback. Pair with "devisions" in the midi header chunk
-    [0x51] = function(state, _, data, start_time)
+    [0x51] = function(state, track, data, start_time)
         local microseconds_per_midi_quarter_note = bytes_to_number(data)
-        table.insert(state.processed_metadata.tempo_changes.times_when_tempo_changed, 1, start_time)   -- pos 1 to keep it in reverse order (so index 1 is most recent)
-        state.processed_metadata.tempo_changes.delta_tick_multipliers[start_time] =
-        recalculate_ticks_to_milis_multiplier(
-            state.midi_header_info.ticks_pre_quarter_note,
-            microseconds_per_midi_quarter_note
-        )
+        -- next_event_tick_delta is usualy only used in the "which event is next" calculation and is updated at the very end of the read
+        -- We are already in the read loop, so "next_event_tick_delta" is actualy this event's tick_delta
+        local event_start_tick = track.sum_ticks + track.next_event_tick_delta
+        table.insert(state.processed_metadata.tempo_changes.ticks_when_tempo_changed, 1, event_start_tick)   -- pos 1 to keep it in reverse order (so index 1 is most recent)
+        state.processed_metadata.tempo_changes.delta_tick_multipliers[event_start_tick] =
+            recalculate_ticks_to_milis_multiplier(
+                state.midi_header_info.ticks_pre_quarter_note,
+                microseconds_per_midi_quarter_note
+            )
 
         ---@type Instruction
         local instruction = {
@@ -1114,12 +1117,12 @@ local midi_processor_loop_stage_functions = {
                         ---Durring the process stage, we need to read track messages in chronological order.
                         ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
                         ---@type number
-                        sum_time = 0,
+                        sum_ticks = 0,
 
                         ---Holds the delta of the next event.
                         ---Used to compare this track against every other track, without doing var-length calculations every loop
                         ---@type integer
-                        next_event_delta = 1,
+                        next_event_tick_delta = 1,
 
                         ---For tracks, stores the index of this track. Sometimes, a meta event needs to know if it's in the
                         ---first track in a file (eg, `0x03` == sequence_or_track_name)
@@ -1214,7 +1217,7 @@ local midi_processor_loop_stage_functions = {
 
                             state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
                             local tick_to_milis_multiplier = recalculate_ticks_to_milis_multiplier(ticks_per_quarter_note, midi_default_tempo)
-                            table.insert(state.processed_metadata.tempo_changes.times_when_tempo_changed, 1, 0)
+                            table.insert(state.processed_metadata.tempo_changes.ticks_when_tempo_changed, 1, 0)
                             state.processed_metadata.tempo_changes.delta_tick_multipliers[0] = tick_to_milis_multiplier
                         end
 
@@ -1253,7 +1256,7 @@ local midi_processor_loop_stage_functions = {
                 -- Jumpstart process phase by pre-calculating the delta of the first event in each track.
                 -- For most tracks, this will probably just be 0
                 track.index = track_index
-                track.next_event_delta = read_variable_length_quantity(track)
+                track.next_event_tick_delta = read_variable_length_quantity(track)
             end
 
             state.stage = "process"
@@ -1277,37 +1280,17 @@ local midi_processor_loop_stage_functions = {
 
             -- Get next message to process
 
-            local soonest_start_time = math.huge
+            local soonest_start_tick = math.huge
+            local soonest_start_tick_delta
             local soonest_track
             local soonest_track_index
 
             for track_index, track in ipairs(state.chunks.tracks) do
                 if not track.has_ended then
-                    -- calculate the start time of the next event in this track
-                    -- Be carefull with tempo changes. In a situation where trk 1 and 2 play a note at delta 0,
-                    -- and then trk 1 changes the tempo at its delta 5, then if both tracks end the note at
-                    -- delta 5 and 10 respectively (same total delta ticks), they still end the note at the same time.
-                    -- This means track B needs to be aware of all tempo changes throughout the song.
-
-                    -- see
-                    -- state.processed_metadata.tempo_changes.times_when_tempo_changed
-                    -- state.processed_metadata.tempo_changes.delta_tick_multipliers
-                    --
-                    local time_of_next_message
-                    if
-                        track.sum_time >= state.processed_metadata.tempo_changes.times_when_tempo_changed[1] -- list should be in _reverse_ order, where 1 is most recent.
-                    then
-                        -- we have already passed the most recent time change. We can just use it directly
-                        time_of_next_message = track.sum_time + (track.next_event_delta * state.processed_metadata.tempo_changes.delta_tick_multipliers[state.processed_metadata.tempo_changes.times_when_tempo_changed[1]])
-                    else
-                        -- the tempo has changed at some time between the previous note (sum_time) and now.
-                        -- We need to apply each tempo change seperately to figure out the absolute start time for next_event_delta
-                        error("TODO: the tempo changed in the middle of the file. implement the nessesary logic.")
-                    end
-
-                    -- time_of_next_message = track.sum_time + (track.next_event_delta)
-                    if time_of_next_message < soonest_start_time then
-                        soonest_start_time = time_of_next_message
+                    local tick_of_next_message = track.sum_ticks + track.next_event_tick_delta
+                    if tick_of_next_message < soonest_start_tick then
+                        soonest_start_tick = tick_of_next_message
+                        soonest_start_tick_delta = track.next_event_tick_delta
                         soonest_track = track
                         soonest_track_index = track_index
                     end
@@ -1321,6 +1304,19 @@ local midi_processor_loop_stage_functions = {
                 return { progress = 0.9 }
             end
 
+            -- calculate the absolute time of this message
+
+            local sum_time_accumulator = 0
+            -- walk down the list of tempo changes and calculate the absolute time for this event
+            -- ticks_when_tempo_changed is sorted in reverse order. This loop goes from most recent tempo change to tick 0
+            for index, tick_where_tempo_changed in ipairs(state.processed_metadata.tempo_changes.ticks_when_tempo_changed) do
+                local upper_bound = (index-1 == 0 and soonest_start_tick or state.processed_metadata.tempo_changes.ticks_when_tempo_changed[index-1])
+                local lower_bound = tick_where_tempo_changed    -- TODO: we could could cache the previous event's sum_time, break early here, and then add the cache time. This would ensure this loop only goes as few itterations as needed.
+                local ticks_spent_in_this_range = upper_bound - lower_bound
+                local time_spent_in_this_range = ticks_spent_in_this_range * state.processed_metadata.tempo_changes.delta_tick_multipliers[tick_where_tempo_changed]
+                sum_time_accumulator = sum_time_accumulator + time_spent_in_this_range
+            end
+            local soonest_start_time = sum_time_accumulator
 
             -- Running Status:
             -- Messages may ommit their status ID if they have the same ID as the status before it. ("Running status")
@@ -1363,9 +1359,9 @@ local midi_processor_loop_stage_functions = {
 
             -- Pre-calculate next message start time for this track:
 
-            soonest_track.sum_time = soonest_start_time
+            soonest_track.sum_ticks = soonest_start_tick
             if not soonest_track.has_ended then
-                soonest_track.next_event_delta = read_variable_length_quantity(soonest_track)
+                soonest_track.next_event_tick_delta = read_variable_length_quantity(soonest_track)
             end
         end
 
@@ -1515,10 +1511,10 @@ local function midi_processor(song)
 
             --- Lookup tables of start times to delta time multipliers.
             --- See meta event 0x51 and recalculate_ticks_to_milis_multiplier().
-            ---@type {times_when_tempo_changed: number[], delta_tick_multipliers: table<number, number>}
+            ---@type {ticks_when_tempo_changed: integer[], delta_tick_multipliers: table<integer, number>}
             tempo_changes = {
-                times_when_tempo_changed = {},  -- An reverced-ordered list of times where the tempo changes. These times are also keys for delta_tick_multipliers.
-                delta_tick_multipliers = {}     -- A list of delta tick multipliers indexed by the time when they became active.
+                ticks_when_tempo_changed = {},  -- An reverced-ordered list of ticks where the tempo changes. These ticks are also keys for delta_tick_multipliers.
+                delta_tick_multipliers = {}     -- A list of delta tick multipliers indexed by the tick when they became active.
             }
         },
 
