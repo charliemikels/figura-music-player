@@ -2,6 +2,17 @@ local root_action_wheel_page = action_wheel:newPage()
 action_wheel:setPage(root_action_wheel_page)
 -- root_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))
 
+-- More or less: the current checklist
+-- - [ ] Fix these errors
+-- - [ ] Ping Networking
+-- - [ ] UI (including config and prefrences)
+-- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
+-- - [ ] Port the ABC player to a new processor
+-- - [ ] Minecraft Note Block instruments
+-- - [ ] Figura Piano instrument
+-- - [ ] Load instruments from other avatars
+-- - [ ] test if I can force the viewer to load an offline avatar by making them render a player head
+
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
