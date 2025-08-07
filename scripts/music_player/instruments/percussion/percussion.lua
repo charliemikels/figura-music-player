@@ -115,10 +115,10 @@ local drumkit_sounds_lookup = {
 	-- 	return sounds["block.note_block.snare"]:pitch(0.8)
 	-- end,
 	[67] = function() -- High Agogo
-		return sounds[ "entity.arrow.hit_player" ]:pitch(1.9)
+		return sounds[ "entity.arrow.hit_player" ]:pitch(1.9):setVolume(0.4)
 	end,
 	[68] = function() -- Low Agogo
-		return sounds[ "entity.arrow.hit_player" ]:pitch(1.7)
+		return sounds[ "entity.arrow.hit_player" ]:pitch(1.7):setVolume(0.4)
 	end,
 	[69] = function() -- Cabasa
 		return sounds[ "entity.silverfish.death" ]:pitch(4)
@@ -192,8 +192,8 @@ local print_instrument_factory = {
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 local new_sound = drumkit_sound_lookup(instruction.note)
                     :setPos(position)
-                    :setVolume((instruction.start_velocity/127))   -- TODO: :setVolume(4 * instruction.modifiers.___.volume)
                     :setSubtitle("Music from "..player:getName())
+                new_sound:setVolume( new_sound:getVolume() * (instruction.start_velocity/127))  -- TODO: :setVolume(… * instruction.modifiers.(now).volume)
 
                 new_sound:play()
             end,
