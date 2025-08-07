@@ -368,12 +368,12 @@ local control_change_and_mode_change_functions = {
     [2] = function() end,    -- Breath control
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
-        state.instruction_builder[track.current_device][channel].channel_state.volume = controller_value
+        state.instruction_builder[track.current_device][channel].channel_state.volume = controller_value -- TODO: unset for default value. See [10] Pan ↓
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "volume")
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
-        state.instruction_builder[track.current_device][channel].channel_state.pan = controller_value
+        state.instruction_builder[track.current_device][channel].channel_state.pan = (controller_value == 64 and nil or controller_value)
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "pan")
     end,
 
@@ -880,9 +880,11 @@ midi_message_functions = {
     ---
     ---"Sensitivity is a function of the transmitter." Usualy this is ±2 semitones. Midi by default doesn't encode the range,
     ---but some use a `RPN` (Registered Parameter Number) to encode this message in the control codes.
-    -- [0xE0] = function(state, track, channel, start_time)
-    --     message.data.pitch_wheel = combine_seven_bit_numbers({ read_next_file_byte(state), read_next_file_byte(state) })
-    -- end,
+    [0xE0] = function(state, track, channel, start_time)
+        local pitch_value = combine_seven_bit_numbers({ read_next_chunk_byte(track), read_next_chunk_byte(track) })
+        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value == 8192 and nil or pitch_value)
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, pitch_value, "pitch_wheel")
+    end,
 
     -- ↑ Has channel ID
     -- ↓ No channel ID. Channel is not used.
