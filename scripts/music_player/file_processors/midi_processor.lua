@@ -183,7 +183,7 @@ local function read_variable_length_quantity(track)
 end
 
 
-local midi_default_tempo = 50000
+local midi_default_tempo = 500000
 ---Calculates a multiplier to convert between the file's delta ticks to a durration in miliseconds
 ---@param division integer      Part of the midi header chunk. Defines delta ticks per quarter note
 ---@param tempo integer         Set by meta event 0x51 (set_tempo). Defines microseconds (not milis) per midi quarter note.
