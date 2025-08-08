@@ -7,7 +7,7 @@ action_wheel:setPage(root_action_wheel_page)
 -- - [ ] UI (including config and prefrences)
 -- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
 -- - [ ] Port the ABC player to a new processor
--- - [ ] Minecraft Note Block instruments
+-- - [x] Minecraft Note Block instruments
 -- - [ ] Figura Piano instrument
 -- - [ ] Load instruments from other avatars
 -- - [ ] test if I can force the viewer to load an offline avatar by making them render a player head
