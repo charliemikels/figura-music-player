@@ -487,6 +487,19 @@ local song_player_api = {
         apply_config(playing_song, config)
 
         return playing_song.controller
+    end,
+
+    ---@type fun(): string[]
+    get_instrument_keys = function()
+        ---@type string[]
+        local keys = {}
+        for key, _ in pairs(known_instruments) do
+            table.insert(keys, key)
+        end
+        table.sort(keys, function(a, b)
+            return string.lower(a) < string.lower(b)
+        end)
+        return keys
     end
 }
 
