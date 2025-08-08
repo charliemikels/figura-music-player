@@ -474,7 +474,7 @@ midi_meta_event_functions = {
     ---
     ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
     -- [0x04] = function(state, track, data, start_time)
-    --     message.data.instrument_name = string.char(table.unpack(message.event_raw_data))
+    --     track.meta_state.custom_program_name = string.char(table.unpack(data))   --?? What's the dif between this and `0x08`?
     -- end,
 
     ---lyric
@@ -507,7 +507,8 @@ midi_meta_event_functions = {
     --
     -- See also:
     [0x08] = function(_, track, data, _)
-        track.meta_state.custom_program_name = string.char(table.unpack(data))
+        -- track.meta_state.custom_program_name = string.char(table.unpack(data))
+        -- print("!", track.meta_state.custom_program_name)
     end,
 
     -- Device (port) name
