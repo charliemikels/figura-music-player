@@ -15,7 +15,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(2)
+local selected_song = music_player_api.library:get_song_by_sorted_index(1)
 -- 1: Balatro - uses significant pitch wheel in the synths
 -- 2: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 5: Specialist (shorter)

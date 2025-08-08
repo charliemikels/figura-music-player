@@ -14,10 +14,37 @@ end
 ---Converts a midi note ID to a multiplier usable in minecraft
 ---@param note_id integer
 ---@return number
-local function midi_note_to_multiplier(note_id)
+local function midi_note_to_multiplier(note_id, offset)
     -- Semitones away from a4, where negative is lower and positive is higher.
-    local semitones_from_a4 = note_id - a4_id
+    local semitones_from_a4 = (note_id - a4_id) + (offset or 0)
     return 2^(semitones_from_a4 / 12)
+end
+
+
+local modifier_functions = {
+    pitch_wheel = function(active_instruction, value, instrument_config)
+        -- max value = 0x3FFF. where 0x2000 is neutral
+
+        -- 0 to 0x3FFF → ±0x2000 → ±1 → ±2
+        local semitone_offset = (value - 8192) / 8192 * instrument_config.pitch_bend_sensitivity
+        -- print("semitone_offset", semitone_offset)
+        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, semitone_offset))
+    end,
+    volume = function(active_instruction, value, instrument_config) end,
+}
+
+---@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, sound: Sound}
+---@param instrument_config table
+local function update_modifiers(active_instruction, instrument_config)
+    local modifiers = active_instruction.instruction.modifiers
+    for index = active_instruction.modifier_index, #modifiers do
+        local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
+        if active_instruction.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
+        if modifier_functions[modifiers[index].type] then
+            modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value, instrument_config)
+        end
+        active_instruction.modifier_index = index + 1
+    end
 end
 
 ---@type InstrumentBuilder
@@ -31,8 +58,11 @@ local print_instrument_factory = {
 
     new_instance = function(params)
 
-        ---@type table{time_started: number, instruction: Instruction, sound: Sound}[]
+        ---@type {time_started: number, instruction: Instruction, modifier_index: integer, sound: Sound}[]
         local active_instructions = {}
+        local instrument_config = {
+            pitch_bend_sensitivity = 2
+        }
 
         ---@type Instrument
         local new_instance = {
@@ -41,18 +71,20 @@ local print_instrument_factory = {
                 local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
                     :setPos(position)
                     :setVolume((instruction.start_velocity/127))
-                    -- :setAttenuation(2)
 					:setLoop(true)
 					:setPitch(midi_note_to_multiplier(instruction.note))
                     :setSubtitle("Music from "..player:getName())
 
-                new_sound:play()
-
-                table.insert(active_instructions, {
+                local active_instruction = {
                     time_started = client.getSystemTime() - time_since_due,
                     instruction = instruction,
+                    modifier_index = 1,
                     sound = new_sound
-                })
+                }
+                update_modifiers(active_instruction, instrument_config)
+
+                active_instruction.sound:play()
+                table.insert(active_instructions, active_instruction)
             end,
             update_sounds = function(position)
                 for active_instruction_key, active_instruction in pairs(active_instructions) do
@@ -63,6 +95,7 @@ local print_instrument_factory = {
                         active_instructions[active_instruction_key] = nil
                     else
                         active_instruction.sound:setPos(position)
+                        update_modifiers(active_instruction, instrument_config)
                     end
                 end
             end,

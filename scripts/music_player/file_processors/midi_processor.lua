@@ -881,8 +881,10 @@ midi_message_functions = {
     ---"Sensitivity is a function of the transmitter." Usualy this is ±2 semitones. Midi by default doesn't encode the range,
     ---but some use a `RPN` (Registered Parameter Number) to encode this message in the control codes.
     [0xE0] = function(state, track, channel, start_time)
-        local pitch_value = combine_seven_bit_numbers({ read_next_chunk_byte(track), read_next_chunk_byte(track) })
-        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value == 8192 and nil or pitch_value)
+        local least_significant_byte = read_next_chunk_byte(track)
+        local most_significant_byte = read_next_chunk_byte(track)
+        local pitch_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
+        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value ~= 8192 and pitch_value or nil)
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, pitch_value, "pitch_wheel")
     end,
 
