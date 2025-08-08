@@ -801,10 +801,10 @@ midi_message_functions = {
     end,
 
     ---Polyphonic Key Pressure (Aftertouch)
-    -- [0xA0] = function(state, track, channel, start_time)
-    --     message.data.note = read_next_file_byte(state)
-    --     message.data.note_after_touch = read_next_file_byte(state)
-    -- end,
+    [0xA0] = function(_, track, _, _)
+        -- I don't really care about Aftertouch. None of my test files use it at least.
+        local _ = read_next_chunk_byte(track)
+    end,
 
     ---Control Change / Channel Mode Messages
     ---
@@ -864,9 +864,10 @@ midi_message_functions = {
     end,
 
     ---Channel Presure (Channel Aftertouch)
-    -- [0xD0] = function(state, track, channel, start_time)
-    --     message.data.channel_after_touch = read_next_file_byte(state)
-    -- end,
+    [0xD0] = function(_, track, _, _)
+        -- I don't really care about Aftertouch. None of my test files use it at least.
+        local _ = read_next_chunk_byte(track)
+    end,
 
     ---Pitch Wheel Change
     ---
