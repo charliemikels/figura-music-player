@@ -506,7 +506,7 @@ midi_meta_event_functions = {
     -- We can use any names defined here instead of relying on the lookup table of program IDs to reccomended Names.
     --
     -- See also:
-    [0x08] = function(_, track, data, _)
+    [0x08] = function(_, _, _, _)
         -- track.meta_state.custom_program_name = string.char(table.unpack(data))
         -- print("!", track.meta_state.custom_program_name)
     end,
@@ -1279,7 +1279,6 @@ local midi_processor_loop_stage_functions = {
             -- Get next message to process
 
             local soonest_start_tick = math.huge
-            local soonest_start_tick_delta
             local soonest_track
             local soonest_track_index
 
@@ -1288,7 +1287,6 @@ local midi_processor_loop_stage_functions = {
                     local tick_of_next_message = track.sum_ticks + track.next_event_tick_delta
                     if tick_of_next_message < soonest_start_tick then
                         soonest_start_tick = tick_of_next_message
-                        soonest_start_tick_delta = track.next_event_tick_delta
                         soonest_track = track
                         soonest_track_index = track_index
                     end
