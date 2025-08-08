@@ -3,7 +3,6 @@ action_wheel:setPage(root_action_wheel_page)
 -- root_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))
 
 -- More or less: the current checklist
--- - [ ] Fix these errors
 -- - [ ] Ping Networking
 -- - [ ] UI (including config and prefrences)
 -- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
@@ -16,11 +15,11 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(111)
+local selected_song = music_player_api.library:get_song_by_sorted_index(2)
 -- 1: Balatro - uses significant pitch wheel in the synths
 -- 2: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 5: Specialist (shorter)
--- 52: Katamari Cherry Blosom Color Season. Long startup delay in the file. todo: 'skip intro silence' feature
+-- 52: Katamari Cherry Blosom Color Season. Very heavy. Good candidate for caching.
 -- 56: Little Big Adventure Twinsens Oddysey - Title: `"End of track" event but there is still data to read` error
 -- 115: keyboard cat
 -- 111: Wii Sports
@@ -46,22 +45,20 @@ future_of_music:register_callback(
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
-                [1] = {name = "MC/Flute"},
-                [2] = {name = "MC/Harp"},
-                [3] = {name = "MC/Harp"},
-                [6] = {name = "MC/Chime"},
-                [9] = {name = "MC/Bass"},
-                [10] = {name = "MC/Bass"},
-                [11] = {name = "MC/Guitar"},
-                [14] = {name = "MC/Banjo"},
+                -- [1] = {name = "MC/Guitar"},
+                -- [2] = {name = "MC/Guitar"},
+                -- [3] = {name = "MC/Harp"},
+                -- [4] = {name = "MC/Guitar"},
+                -- -- [6] = {name = "MC/Harp"},
+                -- [7] = {name = "MC/Guitar"},
+
+
+
             },
             source_entity = player,
             info_display_type = nil
         })
         controller.play()
-
-        -- printTable(sounds["scripts.music_player.instruments.triangle_sine.triangle_sine"]:play())
-        -- printTable(sounds:getCustomSounds())
     end
 )
 

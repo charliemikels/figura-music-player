@@ -55,6 +55,9 @@ local function add_new_device(state, new_device_name)
             ---@type {id: integer, name: string}[]
             seen_instruments = {}
         }
+
+        local blank_instrument = { id = 0, name = (channel_id == 10-1 and "Percussion"  or "Acoustic Grand Piano") }
+        table.insert(state.processed_metadata.channel_data[new_device_name][channel_id].seen_instruments, blank_instrument )
     end
 end
 
