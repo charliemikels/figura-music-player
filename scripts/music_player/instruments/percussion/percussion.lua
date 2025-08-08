@@ -213,7 +213,6 @@ local print_instrument_factory = {
         }
         return new_instance
     end,
-    sample = function() end,
 }
 
 return { print_instrument_factory }

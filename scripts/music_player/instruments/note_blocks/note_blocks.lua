@@ -72,8 +72,7 @@ for _, note_block_sound in ipairs(note_block_sounds) do
                 end
             }
             return new_instance
-        end,
-        sample = function() end,
+        end
     }
     table.insert(compiled_instrument_builders, note_block_instrument_builder)
 end
