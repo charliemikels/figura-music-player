@@ -15,6 +15,11 @@ local fallback_normal_instrument_name = "MC/Harp"
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
 local fallback_percussion_instrument_name = "Percussion"
 
+local do_debug_prints = false
+
+local function print_debug(...) if do_debug_prints then print(...) end end
+local function printTable_debug(...) if do_debug_prints then printTable(...) end end
+
 ---A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.
 ---@alias InstrumentName string
 
@@ -56,37 +61,43 @@ local function get_all_instruments()
             found_instrument_builder_list = require(script)
         end)
         if not success then
-            print("Error: Failed to require the script `"
+            print_debug("Error: Failed to require the script `"
                 ..script
                 .."` found in the `instruments` folder. Full error below:\n\n"
                 ..tostring(value)
             )
-        else
-            if type(found_instrument_builder_list) ~= "table" then
-                print("The `"..script.."` script did not return a list of instruments.")
-            else
-                for _, found_instrument_builder in ipairs(found_instrument_builder_list) do
-                    if      found_instrument_builder.name
-                        and found_instrument_builder.is_available
-                        and found_instrument_builder.new_instance
-                    then
-                        if known_instruments[found_instrument_builder.name] then
-                            print("instrument `"
-                                .. tostring( found_instrument_builder.name)
-                                .. "` is already in known_instruments list"
-                            )
-                        else
-                            print("Found instrument", found_instrument_builder.name)
-                            known_instruments[found_instrument_builder.name] = found_instrument_builder
-                        end
-                    else
-                        print("An instrument was found in the `"
-                            .. tostring(script)
-                            .."` script, but it doesn't look like an instrument."
-                        )
-                    end
-                end
+            break
+        end
+
+        if type(found_instrument_builder_list) ~= "table" then
+            print_debug("The `"..script.."` script did not return a list of instruments.")
+            break
+        end
+
+        for _, found_instrument_builder in ipairs(found_instrument_builder_list) do
+            if not (
+                        found_instrument_builder.name
+                    and found_instrument_builder.is_available
+                    and found_instrument_builder.new_instance
+                )
+            then
+                print_debug("An instrument was found in the `"
+                    .. tostring(script)
+                    .."` script, but it doesn't look like an instrument."
+                )
+                break
             end
+
+            if known_instruments[found_instrument_builder.name] then
+                print_debug("instrument `"
+                    .. tostring( found_instrument_builder.name)
+                    .. "` is already in known_instruments list"
+                )
+                break
+            end
+
+            print_debug("Found new instrument", found_instrument_builder.name)
+            known_instruments[found_instrument_builder.name] = found_instrument_builder
         end
     end
     if not known_instruments[fallback_normal_instrument_name] then
@@ -201,7 +212,7 @@ local function update_song(playing_song)
         if this_instruction.track_index == 0 then
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
         else
-            print(
+            print_debug(
                 tostring(math.floor(playing_song.controller.get_progress() * 100)).."%",
                 "("..tostring(playing_song.next_instruction_index).." / ".. tostring(#playing_song.instructions)..")",
                 this_instruction )
@@ -247,12 +258,12 @@ local function update_song(playing_song)
 
     -- TODO: Check if the song has finished, and all instruments have finished
     if playing_song.song_durration + playing_song.start_time < current_time then
-        print("Song_durr + start_time is now less than current time.")
+        print_debug("Song_durr + start_time is now less than current time.")
         if all_instruments_done then
             playing_song.controller.stop()
             return
         else
-            print("Song should stop, but not all instruments are done.")
+            print_debug("Song should stop, but not all instruments are done.")
         end
     end
 end
@@ -262,7 +273,7 @@ end
 local song_player_api = {
     ---@type fun(song: ProcessedSong, config: SongPlayerConfig): PlayingSongController
     new_player = function (song, config)
-        print("New player for", song.name)
+        print_debug("New player for", song.name)
         local playing_song
 
         local primary_event_checks_without_update = 0
@@ -304,7 +315,7 @@ local song_player_api = {
                 end
             end,
             switch_to_fallback = function()
-                print("switching to fallback event")
+                print_debug("switching to fallback event")
                 using_fallback_event = true
                 playing_song.primary_event:remove(update_this_song)
                 playing_song.fallback_event:register(update_this_song)
@@ -329,14 +340,14 @@ local song_player_api = {
                 end
             end,
             switch_to_primary = function()
-                print("switching to primary event")
+                print_debug("switching to primary event")
                 using_fallback_event = false
                 playing_song.fallback_event:remove(update_this_song)
                 playing_song.primary_event:register(update_this_song)
                 watcher_state_key = "check_primary"
             end,
             begin_emergency_stop = function()
-                print("The primary and fallback events for song "..playing_song.name.." are not responding. Starting emergency stop.")
+                print_debug("The primary and fallback events for song "..playing_song.name.." are not responding. Starting emergency stop.")
                 playing_song.fallback_event:remove(update_this_song)
                 playing_song.primary_event:remove(update_this_song)
                 playing_song.start_time = nil
@@ -445,7 +456,7 @@ local song_player_api = {
 
                 ---@type fun()
                 play = function()
-                    print("Playing \"" .. tostring(song.name) .. "\"")
+                    print_debug("Playing \"" .. tostring(song.name) .. "\"")
                     if playing_song.start_time then
                         -- song is already playing.
                         return
@@ -466,7 +477,7 @@ local song_player_api = {
 
                 ---@type fun()
                 stop = function()
-                    print("Stopping \"".. tostring(song.name) .."\"")
+                    print_debug("Stopping \"".. tostring(song.name) .."\"")
                     -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
                     playing_song.elapsed_time = nil
                     playing_song.start_time = nil

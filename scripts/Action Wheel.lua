@@ -16,7 +16,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(1)
+local selected_song = music_player_api.library:get_song_by_sorted_index(6)
 -- 1: Balatro - uses significant pitch wheel in the synths
 -- 2: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 5: Specialist (shorter)
@@ -45,13 +45,19 @@ future_of_music:register_callback(
         local controller = song_player_api.new_player(processed_song, {
             default_normal_instrument = {name = "MC/Harp"},
             default_percussion_instrument = {name = "Percussion"},
-            -- source_pos = vec(0,0,0),
-            instrument_selections = { [4] = {name = "Triangle Sine"}, [5] = {name = "Triangle Sine"}, [6] = {name = "Triangle Sine"}, [7] = {name = "Triangle Sine"}, [8] = {name = "Triangle Sine"} },
+            instrument_selections = {
+                [2] = {name = "Triangle Sine"},
+                [4] = {name = "Triangle Sine"},
+                [5] = {name = "MC/Guitar"},
+                [6] = {name = "MC/Bass"},
+                [7] = {name = "Triangle Sine"},
+                -- [8] = {name = "Triangle Sine"}
+            },
             source_entity = player,
             info_display_type = nil
         })
         controller.play()
-        --
+
         -- printTable(sounds["scripts.music_player.instruments.triangle_sine.triangle_sine"]:play())
         -- printTable(sounds:getCustomSounds())
     end
