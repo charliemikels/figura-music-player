@@ -50,7 +50,11 @@ local function add_new_device(state, new_device_name)
     state.processed_metadata.channel_data[new_device_name] = {}
     for channel_id = 0, 15 do
         state.instruction_builder[new_device_name][channel_id] = { channel_state = {}, notes = {} }
-        state.processed_metadata.channel_data[new_device_name][channel_id] = {}
+        ---@class MidiDeviceChannelData
+        state.processed_metadata.channel_data[new_device_name][channel_id] = {
+            ---@type {id: integer, name: string}[]
+            seen_instruments = {}
+        }
     end
 end
 
@@ -64,12 +68,16 @@ end
 ---@param state MidiProcessorState
 ---@param device_name MidiDeviceName
 ---@param channel_id MidiChannelId
+---
+--- Program can change in the middle of a song.
+--- Because we want out final output to have 1 instrument per track,
+--- we need to treat every program change as the start of a new track.
+---@param program_id integer
 ---@return integer?
-local function get_track_id(state, device_name, channel_id)
-    if not state.used_track_ids[device_name] then
-        return nil
-    end
-    return state.used_track_ids[device_name][channel_id]
+local function get_track_id(state, device_name, channel_id, program_id)
+    if not state.used_track_ids[device_name] then return nil end
+    if not state.used_track_ids[device_name][channel_id] then return nil end
+    return state.used_track_ids[device_name][channel_id][program_id]
 end
 
 -- A helper function to convert between midi device + channels to music player tracks.
@@ -80,17 +88,21 @@ end
 ---@param device_name MidiDeviceName
 ---@param channel_id MidiChannelId
 ---@return integer
-local function get_or_set_and_get_track_id(state, device_name, channel_id)
+local function get_or_set_and_get_track_id(state, device_name, channel_id, program_id)
     if not state.used_track_ids[device_name] then
         state.used_track_ids[device_name] = {}
     end
 
     if not state.used_track_ids[device_name][channel_id] then
-        state.used_track_ids[device_name][channel_id] = state.next_track_id
+        state.used_track_ids[device_name][channel_id] = {}
+    end
+
+    if not state.used_track_ids[device_name][channel_id][program_id] then
+        state.used_track_ids[device_name][channel_id][program_id] = state.next_track_id
         state.next_track_id = state.next_track_id + 1
     end
 
-    return state.used_track_ids[device_name][channel_id]
+    return state.used_track_ids[device_name][channel_id][program_id]
 end
 
 ---Converts a number into a string with both Dec and Hex values. Primaraly for debug
@@ -538,19 +550,12 @@ midi_meta_event_functions = {
             local channel = track.meta_state.early_program_change_channel_number
             local too_early_channel_metadata = state.processed_metadata.channel_data[new_device_name][channel]
 
-            too_early_channel_metadata.instrument_id = patch_number
-            if track.meta_state.custom_program_name then    -- See also meta event 0x08, Program Name
-                too_early_channel_metadata.instrument_name = track.meta_state.custom_program_name
-            else
-                if channel+1 == 10 then
-                    -- TODO: there might be a percussion Program Change lookup table for specific kits.
-                    -- For now, this catch makes sure we don't say it's a piano or something.
-                    too_early_channel_metadata.instrument_name = "Percussion"
-                else
-                    too_early_channel_metadata.instrument_name = patch_name_lookup[patch_number]
-                end
-            end
-            print_debug("Late Change for new device: channel", channel, "selected instrument", patch_name_lookup[patch_number])
+            table.insert(too_early_channel_metadata.seen_instruments, {
+                id = patch_number,
+                name = track.meta_state.custom_program_name or (channel+1 == 10 and "Percussion") or patch_name_lookup[patch_number]
+            })
+
+            print_debug("Late change for new device: channel", channel, "selected instrument", patch_name_lookup[patch_number])
 
             track.meta_state.early_program_change_patch_number = nil
             track.meta_state.early_program_change_channel_number = nil
@@ -766,12 +771,20 @@ midi_message_functions = {
 
         print_debug("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
+        local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
+
         ---@type Instruction
         local new_note_data = {
             note = note_id,
             start_time = start_time,
             start_velocity = note_velocity,
-            track_index = get_or_set_and_get_track_id(state, track.current_device, channel),
+            track_index = get_or_set_and_get_track_id(
+                state,
+                track.current_device,
+                channel,
+                -- Going in chronological order, we can safely assume the last instrument in the list is the current instrument
+                seen_instruments_list[#seen_instruments_list].id
+            ),
             duration = nil,
             modifiers = {}
         }
@@ -842,29 +855,11 @@ midi_message_functions = {
             track.meta_state.early_program_change_channel_number = channel
         end
 
-        if this_channel_metadata.instrument_id and this_channel_metadata.instrument_id ~= patch_number then
-            -- Instrument_id is already set to something else. This might happen if the instrument changes in the middle of the song.
-            -- In which case, we'll need to start worying about when a channel changes instruments, and perhaps re-organize
-            -- how we store instructions. (Currently Device.Channel → PlayerTracks, but might need to be device.channel.instrument → PlayerTracks)
+        local name = track.meta_state.custom_program_name or (channel+1 == 10 and "Percussion") or patch_name_lookup[patch_number]
 
-            print_debug("old: channel", channel, "selected instrument", this_channel_metadata.instrument_name)
-            print_debug("new: channel", channel, "selected instrument", patch_name_lookup[patch_number])
-            error("TODO: Tried to overwrite channel `"..tostring(channel).."`'s instrument ID.")
-        else
-            this_channel_metadata.instrument_id = patch_number
-            if track.meta_state.custom_program_name then    -- See also meta event 0x08, Program Name
-                this_channel_metadata.instrument_name = track.meta_state.custom_program_name
-            else
-                if channel+1 == 10 then
-                    -- TODO: there might be a percussion Program Change lookup table for specific kits.
-                    -- For now, this catch makes sure we don't say it's a piano or something.
-                    this_channel_metadata.instrument_name = "Percussion"
-                else
-                    this_channel_metadata.instrument_name = patch_name_lookup[patch_number]
-                end
-            end
-            print_debug("channel", channel, "selected instrument", patch_name_lookup[patch_number])
-        end
+        table.insert(this_channel_metadata.seen_instruments, {id = patch_number, name = name})
+
+        print_debug("channel", channel, "selected instrument", patch_name_lookup[patch_number])
     end,
 
     ---Channel Presure (Channel Aftertouch)
@@ -1411,36 +1406,40 @@ local midi_processor_loop_stage_functions = {
         local seen_instruments = {}
         for device_name, device in pairs(state.processed_metadata.channel_data) do
             for channel_id, channel_info in pairs(device) do
-                local track_id = get_track_id(state, device_name, channel_id)
-                -- print_debug(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
-                -- printTable_debug(channel_info)
-                -- Entries with track_id == nil have no notes and we can discard them.
-                --
-                if track_id then
+                for _, instrument in ipairs(channel_info.seen_instruments) do
+                    local track_id = get_track_id(state, device_name, channel_id, instrument.id)
+                    -- print_debug(track_id, device_name, channel_id, channel_info.instrument_id, channel_info.instrument_name)
+                    -- printTable_debug(channel_info)
+                    -- Entries with track_id == nil have no notes and we can discard them.
 
-                    local track_instrument_type_id = (
-                        (channel_info.instrument_name and channel_info.instrument_name == "Percussion")
-                        and 1 or 0
-                    )
+                    if track_id and not player_track_data[track_id] then
 
-                    local track_instrument_name
-                    if not channel_info.instrument_name then
-                        track_instrument_name = "Unspecified"
-                    elseif seen_instruments[channel_info.instrument_name] then
-                        track_instrument_name =
-                            channel_info.instrument_name .. " " .. tostring(seen_instruments[channel_info.instrument_name] + 1)
-                        seen_instruments[channel_info.instrument_name] = seen_instruments[channel_info.instrument_name] +1
-                    else
-                        track_instrument_name = channel_info.instrument_name
-                        seen_instruments[channel_info.instrument_name] = 1
+                        local track_instrument_type_id = (
+                            (instrument.name and instrument.name == "Percussion")
+                            and 1 or 0
+                        )
+
+                        local track_instrument_name
+                        if not instrument.name then
+                            track_instrument_name = "Unspecified"
+                        elseif seen_instruments[instrument.name] then
+                            track_instrument_name =
+                                instrument.name .. " " .. tostring(seen_instruments[instrument.name] + 1)
+                            seen_instruments[instrument.name] = seen_instruments[instrument.name] +1
+                        else
+                            track_instrument_name = instrument.name
+                            seen_instruments[instrument.name] = 1
+                        end
+
+                        ---@type Track
+                        player_track_data[track_id] = {
+                            instrument_type_id = track_instrument_type_id,
+                            recommended_instrument_name = track_instrument_name
+                        }
                     end
-
-                    ---@type Track
-                    player_track_data[track_id] = {
-                        instrument_type_id = track_instrument_type_id,
-                        recommended_instrument_name = track_instrument_name
-                    }
                 end
+
+
             end
         end
         seen_instruments = nil
@@ -1506,7 +1505,7 @@ local function midi_processor(song)
         -- Metadata about assigned instruments per channel and any host-only song-level information
         --- @class MidiProcessorState.ProcessedMetadata
         processed_metadata = {
-            ---@type table<MidiDeviceName, table<MidiChannelId, table>>
+            ---@type table<MidiDeviceName, table<MidiChannelId, MidiDeviceChannelData>>
             channel_data = {},
             ---@type number?
             time_song_end = nil,
@@ -1527,7 +1526,7 @@ local function midi_processor(song)
         --
         -- ID 0 is reserved for meta instructions, like 0x58 Time Signature
         --
-        ---@type table<MidiDeviceName, table<MidiChannelId, integer>>
+        ---@type table<MidiDeviceName, table<MidiChannelId, table<integer, integer>>>
         used_track_ids = {},
 
         -- A tracker to decide the next track ID humber, if one is not found.
