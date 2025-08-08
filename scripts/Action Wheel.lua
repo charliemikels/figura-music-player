@@ -11,6 +11,7 @@ action_wheel:setPage(root_action_wheel_page)
 -- - [ ] Figura Piano instrument
 -- - [ ] Load instruments from other avatars
 -- - [ ] test if I can force the viewer to load an offline avatar by making them render a player head
+-- - [ ] Register callback functions through song controller for song end / meta event received / etc.
 
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
