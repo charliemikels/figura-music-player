@@ -383,12 +383,12 @@ local control_change_and_mode_change_functions = {
     [2] = function() end,    -- Breath control
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
-        state.instruction_builder[track.current_device][channel].channel_state.volume = controller_value -- TODO: unset for default value. See [10] Pan ↓
+        state.instruction_builder[track.current_device][channel].channel_state.volume = (controller_value ~= 100 and controller_value or nil) -- 100 is probably the "most default" setting
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "volume")
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
-        state.instruction_builder[track.current_device][channel].channel_state.pan = (controller_value == 64 and nil or controller_value)
+        state.instruction_builder[track.current_device][channel].channel_state.pan = (controller_value ~= 64 and controller_value or nil)
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "pan")
     end,
 

@@ -30,7 +30,10 @@ local modifier_functions = {
         -- print("semitone_offset", semitone_offset)
         active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, semitone_offset))
     end,
-    volume = function(active_instruction, value, instrument_config) end,
+    volume = function(active_instruction, value, instrument_config)
+        -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
+        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value / 100))
+    end,
 }
 
 ---@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, sound: Sound}
