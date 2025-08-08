@@ -11,7 +11,7 @@
 -- - [ ] Expose controlls to the caller to start/pause/stop/end the song, and get progress.
 
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
-local fallback_normal_instrument_name = "print"
+local fallback_normal_instrument_name = "MC/Harp"
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
 local fallback_percussion_instrument_name = "Percussion"
 
