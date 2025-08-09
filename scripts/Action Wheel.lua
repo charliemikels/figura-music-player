@@ -43,7 +43,8 @@ future_of_music:register_callback(
         printTable(processed_song.tracks)
         print("giving song to player")
         -- printTable(song_player_api.get_instrument_keys())
-        local controller = song_player_api.new_player(processed_song, {
+
+        local song_player_config = {
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
@@ -59,8 +60,17 @@ future_of_music:register_callback(
             },
             source_entity = player,
             info_display_type = nil
-        })
+        }
+
+        local controller = song_player_api.new_player(processed_song, song_player_config)
         -- controller.play()
+
+        local packages = require("scripts/music_player/packages")
+        local packets = packages.song_to_packets(processed_song, song_player_config)
+        for _, packet in ipairs(packets) do
+            packages.add_packet_to_song(packet)
+        end
+
     end
 )
 

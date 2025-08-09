@@ -13,7 +13,7 @@ end)
 
 -- Shared types ---------------------------------------------------------------
 
----@alias Byte number
+---@alias Byte integer
 
 ---@alias DataSourceTypes "files"|"local"|"manual"
 
