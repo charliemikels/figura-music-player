@@ -25,6 +25,7 @@ local modifier_functions = {
     pitch_wheel = function(active_instruction, value, instrument_config)
         -- max value = 0x3FFF. where 0x2000 is neutral.  0 to 0x3FFF → ±0x2000 → ±1 → ±2
         local semitone_offset = (value - 8192) / 8192 * instrument_config.pitch_bend_sensitivity
+        -- print(client:getSystemTime(), value, semitone_offset)
         active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, semitone_offset))
     end,
     volume = function(active_instruction, value, _)
@@ -33,7 +34,7 @@ local modifier_functions = {
     end,
 }
 
----@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, sound: Sound}
+---@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}
 ---@param instrument_config table
 local function update_modifiers(active_instruction, instrument_config)
     local modifiers = active_instruction.instruction.modifiers
@@ -58,26 +59,31 @@ local print_instrument_factory = {
 
     new_instance = function(params)
 
-        ---@type {time_started: number, instruction: Instruction, modifier_index: integer, sound: Sound}[]
+        ---@type {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
         local instrument_config = {
-            pitch_bend_sensitivity = 2
+            pitch_bend_sensitivity = 2,
+            do_detune = true
         }
 
         ---@type Instrument
         local new_instance = {
             play_instruction = function(instruction, position, time_since_due)
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+
+                local detune_amount = (instrument_config.do_detune and ((math.random()-0.5) * 0.1) or 0)
+
                 local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
                     :setPos(position)
                     :setVolume((instruction.start_velocity/127))
 					:setLoop(true)
-					:setPitch(midi_note_to_multiplier(instruction.note))
+					:setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
                     :setSubtitle("Music from "..player:getName())
 
                 local active_instruction = {
                     time_started = client.getSystemTime() - time_since_due,
                     instruction = instruction,
+                    detune_amount = detune_amount,
                     modifier_index = 1,
                     sound = new_sound
                 }
