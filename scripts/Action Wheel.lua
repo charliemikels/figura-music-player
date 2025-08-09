@@ -47,14 +47,19 @@ future_of_music:register_callback(
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
-                -- [1] = {name = "MC/Guitar"},
+                -- [1] = {name = "MC/Banjo"},
                 -- [2] = {name = "MC/Guitar"},
                 -- [3] = {name = "MC/Harp"},
                 -- [5] = {name = "MC/Guitar"},
-                -- [6] = {name = "MC/Harp"},
-                -- [7] = {name = "MC/Harp"},
-                -- [8] = {name = "MC/Flute"},
-                -- [9] = {name = "MC/Flute"},
+                [6] = {name = "MC/Bass"},
+                [7] = {name = "MC/Harp"},
+                [8] = {name = "MC/Guitar"},
+                [11] = {name = "MC/Guitar"},
+                [14] = {name = "MC/Harp"},
+                [15] = {name = "MC/Chime"},
+                [16] = {name = "MC/Flute"},
+                [17] = {name = "MC/Harp"},
+                [18] = {name = "MC/Flute"},
 
 
 
