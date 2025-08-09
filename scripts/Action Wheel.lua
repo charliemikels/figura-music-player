@@ -16,14 +16,15 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(1)
--- 1: Balatro - uses significant pitch wheel in the synths
--- 2: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
--- 5: Specialist (shorter)
--- 52: Katamari Cherry Blosom Color Season. Very heavy. Good candidate for caching.
--- 56: Little Big Adventure Twinsens Oddysey - Title: `"End of track" event but there is still data to read` error
--- 115: keyboard cat
--- 111: Wii Sports
+local selected_song = music_player_api.library:get_song_by_sorted_index(9)
+-- 2: Balatro - uses significant pitch wheel in the synths
+-- 3: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
+-- 6: Specialist (shorter)
+-- 9: SSMB4 - has like 18 tracks
+-- 56: Katamari Cherry Blosom Color Season. Very heavy. Good candidate for caching.
+-- 60: Little Big Adventure Twinsens Oddysey - Title: `"End of track" event but there is still data to read` error
+-- 119: keyboard cat
+-- 115: Wii Sports
 print("selected song: ", selected_song.name)
 local future_of_music = selected_song:start_data_processor()
 future_of_music:register_callback(
@@ -49,9 +50,11 @@ future_of_music:register_callback(
                 -- [1] = {name = "MC/Guitar"},
                 -- [2] = {name = "MC/Guitar"},
                 -- [3] = {name = "MC/Harp"},
-                -- [4] = {name = "MC/Guitar"},
-                -- -- [6] = {name = "MC/Harp"},
-                -- [7] = {name = "MC/Guitar"},
+                -- [5] = {name = "MC/Guitar"},
+                -- [6] = {name = "MC/Harp"},
+                -- [7] = {name = "MC/Harp"},
+                -- [8] = {name = "MC/Flute"},
+                -- [9] = {name = "MC/Flute"},
 
 
 
