@@ -12,6 +12,9 @@ action_wheel:setPage(root_action_wheel_page)
 -- - [ ] Load instruments from other avatars
 -- - [ ] test if I can force the viewer to load an offline avatar by making them render a player head
 -- - [ ] Register callback functions through song controller for song end / meta event received / etc.
+-- - [ ] Figura Drum Kit instrument
+--       https://discord.com/channels/1129805506354085959/1340798228165300224/1340798228165300224
+--       /give @p minecraft:player_head[minecraft:profile={id:[I;1039887675,1961051688,-1756947787,-2031944347],name:"Drum"}]
 
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
