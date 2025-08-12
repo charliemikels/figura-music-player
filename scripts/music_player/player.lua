@@ -137,7 +137,7 @@ get_all_instruments()
 ---@field default_percussion_instrument? InstrumentSelection
 ---@field instrument_selections? table<TrackID, InstrumentSelection>
 ---@field source_pos Vector3?           The location where sound comes from. Setting source_pos will unset source_entity if one was set earlier.
----@field source_entity LivingEntity?   When set, player will update source_pos to match the entitty's position.
+---@field source_entity Entity?   When set, player will update source_pos to match the entitty's position.
 ---@field info_display_type string?      Configures if/how song info should be displayed in the world.
 ---@field primary_update_event_key string?      See `events:getEvents()`. Defaults to "RENDER." Usefull for playing a song with a player_skull instead of the real avatar.
 ---@field fallback_update_event_key string?     See `events:getEvents()`. Defaults to "TICK."
@@ -283,7 +283,7 @@ end
 
 ---@class SongPlayerAPI
 local song_player_api = {
-    ---@type fun(song: ProcessedSong, config: SongPlayerConfig): PlayingSongController
+    ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): PlayingSongController
     new_player = function (song, config)
         print_debug("New player for", song.name)
         local playing_song
@@ -441,7 +441,7 @@ local song_player_api = {
             instructions = song.instructions,
             next_instruction_index = 1,
 
-            ---@type LivingEntity? If this is defined, overwrite source_pos every update()
+            ---@type Entity? If this is defined, overwrite source_pos every update()
             source_entity = nil,
 
             ---@type Vector3

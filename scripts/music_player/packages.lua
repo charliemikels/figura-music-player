@@ -84,6 +84,9 @@ end
 --- Effectively converts 5 → `101` → {1, 0, 1}.
 --- If expected_len > results_list, append false to left side (`101` → `00101`)
 --- Used to assign percussion tracks to incomming songs
+---@param int integer       usualy pulled right from vlq_to_int_from_packet
+---@param length integer    the expected length of this list. (determines how many leading `0`s there will be)
+---@return (0|1)[]
 local function int_to_bit_list(int, length)
     local bits = {}
     for bit_index = length, 1, -1 do
@@ -101,6 +104,9 @@ end
 
 --- Effectively converts 5 → `101` → {true, false, true}.
 --- Same as int_to_bit_list, but returns boolian[] instead of 0|1[]
+---@param int integer       usualy pulled right from vlq_to_int_from_packet
+---@param length integer    the expected length of this list. (determines how many leading `false`s there will be)
+---@return boolean[]
 local function int_to_bool_list(int, length)
     local bit_list = int_to_bit_list(int, length)
     local bool_list = {}
@@ -143,7 +149,7 @@ local packet_ids = {
 ---@return table
 local function build_config_packet(player_config)
 
-
+    local config_packet_body = {}
 
     local source_table = {}
     do
@@ -219,11 +225,11 @@ local function build_config_packet(player_config)
             union_tables(source_table, int_to_vlq( nil ))
         end
     end
+    union_tables(config_packet_body, source_table)
 
 
 
-
-    return {}
+    return config_packet_body
 end
 
 ---comment
@@ -266,7 +272,7 @@ local function song_to_packets(processed_song, player_config)
     union_tables(header_packet_head, transfered_song_id)             -- 2nd element is allways the song transfer ID
 
 
-    local there_is_enough_space_to_combine_the_header_and_config_packets = true
+    local there_is_enough_space_to_combine_the_header_and_config_packets = true -- TODO
     if there_is_enough_space_to_combine_the_header_and_config_packets then
         union_tables(header_packet_body, config_packet_body)
     end
@@ -286,12 +292,76 @@ end
 
 
 
----@type {song: ProcessedSong, config:SongPlayerConfig}[]
+---@type {song: ProcessedSong, player: PlayingSongController}[]
 local collected_incomming_songs = {}
 
 local function receive_config_packet(reader, transfered_song_id)
-    error("There shouldn't be anything left")
+    ---@type SongPlayerConfig
+    local config_data = {}
 
+    do -- source position / entity
+        local bool_list_int = vlq_to_int_from_packet(reader)
+        if bool_list_int == nil then
+            -- The boolean list used to flag info about the source is missing. Source info was not provided.
+        else
+            local bool_list = int_to_bool_list(bool_list_int, 7)
+            local source_is_entity = bool_list[1]
+            if source_is_entity then
+                local flip_uuid_int_1 = bool_list[4]
+                local flip_uuid_int_2 = bool_list[5]
+                local flip_uuid_int_3 = bool_list[6]
+                local flip_uuid_int_4 = bool_list[7]
+
+                local uuid_part_1 = vlq_to_int_from_packet(reader) * (flip_uuid_int_1 and -1 or 1)
+                local uuid_part_2 = vlq_to_int_from_packet(reader) * (flip_uuid_int_2 and -1 or 1)
+                local uuid_part_3 = vlq_to_int_from_packet(reader) * (flip_uuid_int_3 and -1 or 1)
+                local uuid_part_4 = vlq_to_int_from_packet(reader) * (flip_uuid_int_4 and -1 or 1)
+
+                local uuid_string = client.intUUIDToString(uuid_part_1, uuid_part_2, uuid_part_3, uuid_part_4)
+
+                local success, possible_entity = pcall(world.getEntity, uuid_string)
+                if success and possible_entity then
+                    config_data.source_entity = possible_entity
+                else
+                    print("There was an error getting the entity with uuid:", uuid_string)
+                    if not success
+                        then print("world.getEntity returned this error:", possible_entity)
+                        else print("world.getEntity returned nil (Entity not loaded).")
+                    end
+                end
+
+            else
+                local flip_x = bool_list[2]
+                local flip_y = bool_list[3]
+                local flip_z = bool_list[4]
+                local add_half_x = bool_list[5]
+                local add_half_y = bool_list[6]
+                local add_half_z = bool_list[7]
+
+                local abs_floor_x = vlq_to_int_from_packet(reader)
+                local abs_floor_y = vlq_to_int_from_packet(reader)
+                local abs_floor_z = vlq_to_int_from_packet(reader)
+
+                local source_x_pos = (abs_floor_x + (add_half_x and 0.5 or 0)) * (flip_x and -1 or 1)
+                local source_y_pos = (abs_floor_y + (add_half_y and 0.5 or 0)) * (flip_y and -1 or 1)
+                local source_z_pos = (abs_floor_z + (add_half_z and 0.5 or 0)) * (flip_z and -1 or 1)
+
+                config_data.source_pos = vec(source_x_pos, source_y_pos, source_z_pos)
+                print(config_data.source_pos)
+            end
+        end
+    end
+
+
+
+    if not collected_incomming_songs[transfered_song_id].player then
+        ---@type SongPlayerAPI
+        local player_api = require("./player")
+        collected_incomming_songs[transfered_song_id].player =
+            player_api.new_player(collected_incomming_songs[transfered_song_id].song, config_data)
+    else
+        collected_incomming_songs[transfered_song_id].player.set_new_config(config_data)
+    end
 end
 
 ---comment
@@ -322,10 +392,17 @@ local function receive_header_packet(reader, transfered_song_id)
         buffer_start_time = client:getSystemTime()
     }
 
-    collected_incomming_songs[transfered_song_id] = { song = incomming_processed_song, config = {} }
+    collected_incomming_songs[transfered_song_id] = { song = incomming_processed_song, player = nil }
 
     if reader.index <= #reader.bytes then -- There is still data in the reader, the rest is config data.
         receive_config_packet(reader, transfered_song_id)
+    else
+        -- there is no config data, let's initilize a blank player
+
+        ---@type SongPlayerAPI
+        local player_api = require("./player")
+        collected_incomming_songs[transfered_song_id].player =
+            player_api.new_player(collected_incomming_songs[transfered_song_id].song, nil)
     end
 
     return incomming_processed_song

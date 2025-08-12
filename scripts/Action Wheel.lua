@@ -47,6 +47,7 @@ future_of_music:register_callback(
         print("giving song to player")
         -- printTable(song_player_api.get_instrument_keys())
 
+        ---@type SongPlayerConfig
         local song_player_config = {
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
@@ -61,7 +62,8 @@ future_of_music:register_callback(
                 [17] = {name = "MC/Harp"},
                 [18] = {name = "MC/Flute"},
             },
-            source_entity = player,
+            -- source_pos = vec(0, -0.6, -5.40),
+            source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
             info_display_type = nil
         }
 
