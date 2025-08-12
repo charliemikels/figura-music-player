@@ -73,6 +73,9 @@ future_of_music:register_callback(
         for _, packet in ipairs(packets) do
             packages.add_packet_to_song(packet)
         end
+        print("packages.list_transfered_songs()")
+        printTable(packages.list_transfered_songs(),3)
+
 
     end
 )
