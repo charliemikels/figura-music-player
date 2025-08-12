@@ -19,10 +19,17 @@ local function union_tables(table_1, table_2)
     return table_1
 end
 
----Convert an integer into a variable-length-quantity byte list
----@param integer integer
+---Convert an integer (or nil) into a variable-length-quantity byte list
+---@param integer integer?
 ---@return Byte[]
 local function int_to_vlq(integer)
+    if integer == nil then
+        -- 0x80 (10000000) is not a valid first byte in the sequence.
+        -- The first byte will either be `0x00`, or have a `1` somewhere in the data to start the number.
+        -- 0x08 is legal in the middle of the sequence, but never as the initial.
+        -- We can use this exception to represent nils in our packets.
+        return { 0x80 }
+    end
     local bytes = { integer % 128 }
     integer = math.floor(integer / 128)
     while integer > 0 do
@@ -32,11 +39,16 @@ local function int_to_vlq(integer)
     return bytes
 end
 
----Convert a variable-length-quantity into an integer and advances PacketReader's index.
+---Convert a variable-length-quantity into an integer (or a nil) and advances PacketReader's index.
 ---@param packet_reader PacketReader
----@return integer
+---@return integer?
 local function vlq_to_int_from_packet(packet_reader)
     local bytes = packet_reader.bytes
+    if bytes[packet_reader.index] == 0x80 then
+        -- see comment block inside int_to_vlq
+        packet_reader.index = packet_reader.index + 1
+        return nil
+    end
     local result = 0
     local byte
     repeat
@@ -163,7 +175,7 @@ local function build_config_packet(player_config)
             union_tables(source_table, int_to_vlq(math.floor(math.abs(uuid_int_3))))
             union_tables(source_table, int_to_vlq(math.floor(math.abs(uuid_int_4))))
 
-        else
+        elseif player_config.source_pos then
             source_is_entity = false
 
             local abs_floor_x, abs_floor_y, abs_floor_z
@@ -200,6 +212,9 @@ local function build_config_packet(player_config)
             union_tables(source_table, int_to_vlq(abs_floor_x))
             union_tables(source_table, int_to_vlq(abs_floor_y))
             union_tables(source_table, int_to_vlq(abs_floor_z))
+        else
+            -- no source data given at data at all send nil.
+            union_tables(source_table, int_to_vlq( nil ))
         end
     end
 
