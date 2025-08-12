@@ -60,9 +60,10 @@ local function vlq_to_int_from_packet(packet_reader)
 end
 
 ---Converts a string into a table of bytes, where the length is placed just before the string.
----@param str string
+---@param str string?
 ---@return Byte[]
 local function string_to_bytes_with_len(str)
+    if str == nil then return int_to_vlq(nil) end
     local tableized_string = table.pack( string.byte(str, 1, -1) )
     local tableized_length = int_to_vlq(tableized_string.n)
     tableized_string.n = nil
@@ -71,9 +72,10 @@ end
 
 ---Reads a string (including the length at the beginning) out of a PacketReader's bytes
 ---@param reader PacketReader
----@return string
-local function bytes_to_string_with_len_from_reader(reader)
+---@return string?
+local function bytes_with_len_to_string_from_reader(reader)
     local len_string = vlq_to_int_from_packet(reader)
+    if len_string == nil then return nil end
     local str = string.char(table.unpack( reader.bytes, reader.index, reader.index+len_string-1 ))
     reader.index = reader.index + len_string
     return str
@@ -299,7 +301,7 @@ local function receive_header_packet(reader, transfered_song_id)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     collected_incomming_songs[transfered_song_id] = {}
 
-    local name = bytes_to_string_with_len_from_reader(reader)
+    local name = bytes_with_len_to_string_from_reader(reader)
     local durration = vlq_to_int_from_packet(reader)
 
     local num_tracks = vlq_to_int_from_packet(reader)
