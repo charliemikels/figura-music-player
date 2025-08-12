@@ -175,7 +175,7 @@ local function build_config_packet(player_config)
             local add_half_z
 
             flip_x = (player_config.source_pos.x < 0)
-            flip_y = (player_config.source_pos.x < 0)
+            flip_y = (player_config.source_pos.y < 0)
             flip_z = (player_config.source_pos.z < 0)
 
             -- We convert to ints through our packet system, but it would be
