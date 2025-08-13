@@ -98,6 +98,8 @@ local function int_to_bit_list(int, length)
 end
 
 --- Effectively converts {1, 0, 1} → `101` → 5
+---@param bits (1|0)[]
+---@return integer
 local function bit_list_to_number(bits)
     return tonumber(table.concat(bits), 2)
 end
@@ -115,6 +117,8 @@ local function int_to_bool_list(int, length)
 end
 
 --- Effectively converts {true, false, true} → `101` → 5
+---@param bools boolean[]
+---@return integer
 local function bool_list_to_number(bools)
     local bits = {}
     for index, bool in ipairs(bools) do bits[index] = (bool and 1 or 0) end
@@ -122,31 +126,32 @@ local function bool_list_to_number(bools)
 end
 
 
----@alias SongDataPacket Byte[]
----@alias SongHeaderPacket Byte[]
----@alias SongPacket SongDataPacket|SongHeaderPacket
+---@alias SongPacket Byte[]
 
 ---A helper that wraps a list of bytes with an index,
----@param bytes SongDataPacket
+---@param bytes SongPacket
 ---@return PacketReader
 local function new_packet_reader(bytes)
     ---@class PacketReader
     local reader = {
-        bytes = bytes,  ---@type SongDataPacket
+        bytes = bytes,  ---@type SongPacket
         index = 1,      ---@type integer
     }
     return reader
 end
 
+---@enum SongPacketTypeIDs
 local packet_ids = {
     header = 1, -- Includeds initial like name, durration, track_types
     data = 2,   -- Bulk of the packet stream
-    config = 3, -- A packet that might appear to update a song's configuration.
+    config = 3, -- A packet that might appear to update a song's configuration
 }
 
----comment
+--- Builds a config packet out of a SongPlayerConfig table.
+--- 
+--- This can be used at any time to update a remote song's configuration. 
 ---@param player_config SongPlayerConfig
----@return table
+---@return SongPacket
 local function build_config_packet(player_config)
 
     local config_packet_body = {}
@@ -232,10 +237,18 @@ local function build_config_packet(player_config)
     return config_packet_body
 end
 
----comment
+--- Builds a most of a header packet out of a processed song
+---
+--- It is missing buffer time information. That must be
+--- appended to the end of this packet as a VLQ after the
+--- rest of the song has been figured out
+---
+--- You probably want to use `song_to_packets` instead of calling this fn directly.
+---
+---@see song_to_packets
 ---@param processed_song ProcessedSong
----@return table
-local function build_header_packet(processed_song)
+---@return SongPacket
+local function build_header_packet_without_buffer(processed_song)
     local packet = {}
     union_tables(packet, string_to_bytes_with_len(processed_song.name))
 
@@ -252,12 +265,12 @@ local function build_header_packet(processed_song)
     return packet
 end
 
----comment
+---Immediatly converts an entire ProcessedSong and any config data into a list of packets
 ---@param processed_song ProcessedSong
 ---@param player_config SongPlayerConfig
 ---@return SongPacket[]
 local function song_to_packets(processed_song, player_config)
-    local header_packet_body = build_header_packet(processed_song)
+    local header_packet_body = build_header_packet_without_buffer(processed_song)
     local config_packet_body = build_config_packet(player_config)
     local complete_data_packets = {}
 
@@ -291,10 +304,15 @@ end
 
 
 
-
----@type {song: ProcessedSong, player: PlayingSongController}[]
+-- The colection of songs received from the Host (or whatever called add_packet_to_song).
+-- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
+---@type table<integer, {song: ProcessedSong, player: PlayingSongController}>
 local collected_incomming_songs = {}
 
+---Reads a config packet out of a Reader.
+---Returns nothing, but modifies collected_incomming_songs[transfered_song_id]
+---@param reader PacketReader           Where the packet id and transfer song ID have already been read
+---@param transfered_song_id integer    Index into collected_incomming_songs
 local function receive_config_packet(reader, transfered_song_id)
     ---@type SongPlayerConfig
     local config_data = {}
@@ -364,8 +382,9 @@ local function receive_config_packet(reader, transfered_song_id)
     end
 end
 
----comment
----@param reader PacketReader   Assumes the reader has already read the packet type
+---Parces a header packet out of a Reader. Packet type and transfered_song_id have already been received since they start every packet.
+---@param reader PacketReader           Where the packet id and transfer song ID have already been read
+---@param transfered_song_id integer    Index into collected_incomming_songs
 ---@return ProcessedSong        A processed song that likely has no instructions
 local function receive_header_packet(reader, transfered_song_id)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
@@ -408,13 +427,15 @@ local function receive_header_packet(reader, transfered_song_id)
     return incomming_processed_song
 end
 
+-- function lookup table for packet receiver
 ---@type table<string, fun(reader: PacketReader, transfered_song_id: integer)>
 local packet_receiving_functions = {
     [packet_ids.header] = receive_header_packet,
     [packet_ids.config] = receive_config_packet,
+    [packet_ids.data] = function () end,
 }
 
----comment
+---Primary function to receive packets. Distributes packets to the correct receiving functions.
 ---@param packet_data SongPacket
 local function add_packet_to_song(packet_data)
     local reader = new_packet_reader(packet_data)
