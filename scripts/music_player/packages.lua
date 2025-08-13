@@ -125,8 +125,32 @@ local function bool_list_to_number(bools)
     return tonumber(table.concat(bits), 2)
 end
 
-
 ---@alias SongPacket Byte[]
+
+--- When sending raw data through pings, Strings are far more efficient than tables.
+---
+--- The final size will be the length of the SongPacket table + 2 bytes for the string's length info.
+---@alias PackedSongPacket string Strings
+
+---Converts a table of bytes (ints from 0 to 255) into a string
+---@param unpacked_packet SongPacket
+---@return PackedSongPacket
+local function pack_packet(unpacked_packet)
+    local packed_packet = string.char(table.unpack(unpacked_packet))
+    return packed_packet
+end
+
+---Converts a string into a table of bytes
+---@param packed_packet PackedSongPacket
+---@return SongPacket
+local function unpack_packet(packed_packet)
+    local unpacked_packet = table.pack(string.byte(packed_packet, 1, -1))
+    unpacked_packet.n = nil
+    return unpacked_packet
+    -- Shout out to using table.pack to unpack our packets, and table.unpack to pack out packets.
+    -- emperor-palpatine-ironic.gif
+end
+
 
 ---A helper that wraps a list of bytes with an index,
 ---@param bytes SongPacket
@@ -148,8 +172,8 @@ local packet_ids = {
 }
 
 --- Builds a config packet out of a SongPlayerConfig table.
---- 
---- This can be used at any time to update a remote song's configuration. 
+---
+--- This can be used at any time to update a remote song's configuration.
 ---@param player_config SongPlayerConfig
 ---@return SongPacket
 local function build_config_packet(player_config)
@@ -268,7 +292,7 @@ end
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
 ---@param processed_song ProcessedSong
 ---@param player_config SongPlayerConfig
----@return SongPacket[]
+---@return PackedSongPacket[]
 local function song_to_packets(processed_song, player_config)
     local header_packet_body = build_header_packet_without_buffer(processed_song)
     local config_packet_body = build_config_packet(player_config)
@@ -293,8 +317,9 @@ local function song_to_packets(processed_song, player_config)
     -- TODO: append a buffer time to the end of header_packet
     local header_packet_final = union_tables(header_packet_head, header_packet_body)
     printTable(header_packet_final)
+    local packed_header_packet_final = pack_packet(header_packet_final)
 
-    return { header_packet_final }
+    return { packed_header_packet_final }
 end
 
 
@@ -436,8 +461,9 @@ local packet_receiving_functions = {
 }
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.
----@param packet_data SongPacket
-local function add_packet_to_song(packet_data)
+---@param packed_packet_data PackedSongPacket
+local function add_packet_to_song(packed_packet_data)
+    local packet_data = unpack_packet(packed_packet_data)
     local reader = new_packet_reader(packet_data)
     local packet_id = vlq_to_int_from_packet(reader)
     local transfered_song_id = vlq_to_int_from_packet(reader)
