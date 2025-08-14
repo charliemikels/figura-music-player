@@ -1,6 +1,6 @@
 
-local max_packet_length = 800   -- in bytes
-local max_packet_per_sec = 1.2
+local max_packet_length = 800       -- in bytes
+local min_milis_between_packets = 1200   -- How long the ping system needs to wait before sending another packet.
 
 
 
@@ -319,23 +319,130 @@ local function build_header_packet_without_buffer_delay(processed_song)
     return packet
 end
 
+
+local modifier_type_to_number_lookup = {
+    volume = 1,
+    pitch_wheel = 2,
+    pan = 3,
+}
+
+local notes_with_modifier_id_counter = 0
+
+---@alias DataPacketPart Byte[] Can represent an instruction, or a modifier for an earlier instruction
+
+---@param instruction Instruction
+---@return {start_time: number, packet_part: DataPacketPart}[]
+local function song_instruction_to_packet_parts(instruction)
+    ---@type {start_time: number, packet_part: DataPacketPart}[]
+    local return_packet_parts = {}
+
+    local instruction_packet_part = {}
+    table.insert(return_packet_parts, {start_time = instruction.start_time, packet_part = instruction_packet_part})  -- (inserting this table now so that it appears before any modifiers)
+
+    union_tables(instruction_packet_part, int_to_vlq(math.floor(instruction.start_time)))
+    union_tables(instruction_packet_part, int_to_vlq(instruction.track_index))
+    union_tables(instruction_packet_part, int_to_vlq(math.floor(instruction.duration)))
+    union_tables(instruction_packet_part, int_to_vlq(instruction.note))
+    union_tables(instruction_packet_part, int_to_vlq(instruction.start_velocity))
+
+    if not (instruction.modifiers and next(instruction.modifiers)) then
+        union_tables(instruction_packet_part, int_to_vlq(nil))  -- no modifiers.
+    else
+        -- this instruction has modifiers
+        -- Assign a unique note modifier tracker ID
+
+        -- TODO: Modifiers are frequently really high resolution and take up a lof of buffer time in songs like Balatro and Wii Sports. Find a clever way to reduce the resolution.
+        -- Remember that at like 60FPS, the song only updates once per ~16 millis. (At the 20fps/tick event: 50milis).
+        -- We could resample/interpolate sets of modifiers that are more dense than ~20 millis
+        -- TODO: Should this ↑ be done by the midi processor?
+
+        local instruction_modifier_list_id = notes_with_modifier_id_counter
+        notes_with_modifier_id_counter = notes_with_modifier_id_counter + 1
+        union_tables(instruction_packet_part, int_to_vlq(instruction_modifier_list_id))
+
+        -- make new packet parts for each modifier
+        for _, modifier in ipairs(instruction.modifiers) do
+            if not modifier_type_to_number_lookup[modifier.type] then
+                print("Packet builder unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+            else
+                ---@type DataPacketPart
+                local modifier_packet_part = {}
+                union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time)))
+                union_tables(modifier_packet_part, int_to_vlq(nil))
+                    -- nil signals that this is a modifier for an instruction we've (probably) already sent
+                    -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
+                union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
+                union_tables(modifier_packet_part, int_to_vlq(modifier_type_to_number_lookup[modifier.type]))
+                union_tables(modifier_packet_part, int_to_vlq(modifier.value))
+                table.insert(return_packet_parts, {start_time = instruction.start_time, packet_part = modifier_packet_part})
+                print("found modifier: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+            end
+        end
+    end
+    return return_packet_parts
+end
+
+--- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
+---@see song_to_packets
+---@param processed_song ProcessedSong
+---@param transfered_song_id_vlq Byte[]
+---@return SongPacket[] data_packets
+---@return integer buffer_delay_in_milis
+local function build_data_packets(processed_song, transfered_song_id_vlq)
+    ---@type {start_time: number, packet_part: DataPacketPart}[]
+    local all_packet_parts_with_start_time = {}
+    for _, instruction in ipairs(processed_song.instructions) do
+        union_tables(all_packet_parts_with_start_time, song_instruction_to_packet_parts(instruction))
+    end
+    -- The list should already be in order if there are no modifiers, but modifiers will be next to their instructions, and may throw off the absolute order
+    table.sort(all_packet_parts_with_start_time, function (a, b) return a.start_time < b.start_time end)
+
+    ---@type SongPacket[]
+    local data_packets = {}
+    local current_packet_builder = {}
+    union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
+    union_tables(current_packet_builder, transfered_song_id_vlq)
+    local required_buffer_delay_in_milis = 0
+    for i, packet_part_with_start_time in ipairs(all_packet_parts_with_start_time) do
+        if #current_packet_builder + #packet_part_with_start_time.packet_part >= max_packet_length then
+            -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
+            table.insert(data_packets, current_packet_builder)
+
+            current_packet_builder = {}
+            union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
+            union_tables(current_packet_builder, transfered_song_id_vlq)
+
+            if ((#data_packets) * min_milis_between_packets) - required_buffer_delay_in_milis > packet_part_with_start_time.start_time then
+                -- Too much time has passed for us to play this instruction on time.
+                -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
+                required_buffer_delay_in_milis = ((#data_packets) * min_milis_between_packets) - packet_part_with_start_time.start_time
+                print("buffer time changed:", required_buffer_delay_in_milis / 1000)
+            end
+        end
+        union_tables(current_packet_builder, packet_part_with_start_time.packet_part)
+    end
+
+    return data_packets, required_buffer_delay_in_milis + (1 * min_milis_between_packets)
+end
+
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
 ---@param processed_song ProcessedSong
 ---@param player_config SongPlayerConfig
 ---@return PackedSongPacket[]
 local function song_to_packets(processed_song, player_config)
     local header_packet_body = build_header_packet_without_buffer_delay(processed_song)
-    local config_packet_body = build_config_packet(player_config)
-    local complete_data_packets = {}
+
 
     local header_packet_head = {}
     union_tables(header_packet_head, int_to_vlq(packet_ids.header))  -- First element is allways packet ID
 
     ---A unique ID for each song since the avatar loaded.
-    local transfered_song_id = int_to_vlq(songs_turned_into_packets_so_far)
+    local transfered_song_id_vlq = int_to_vlq(songs_turned_into_packets_so_far)
     songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
-    union_tables(header_packet_head, transfered_song_id)             -- 2nd element is allways the song transfer ID
+    union_tables(header_packet_head, transfered_song_id_vlq)             -- 2nd element is allways the song transfer ID
 
+    local config_packet_body = build_config_packet(player_config)
+    local all_data_packets, buffer_delay = build_data_packets(processed_song, transfered_song_id_vlq)
 
     -- TODO: append a buffer time to the end of header_packet
 
