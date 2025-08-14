@@ -42,7 +42,7 @@ end
 ---Convert a variable-length-quantity into an integer (or a nil) and advances PacketReader's index.
 ---@param packet_reader PacketReader
 ---@return integer?
-local function vlq_to_int_from_packet(packet_reader)
+local function vlq_to_int_from_reader(packet_reader)
     local bytes = packet_reader.bytes
     if bytes[packet_reader.index] == 0x80 then
         -- see comment block inside int_to_vlq
@@ -74,7 +74,7 @@ end
 ---@param reader PacketReader
 ---@return string?
 local function bytes_with_len_to_string_from_reader(reader)
-    local len_string = vlq_to_int_from_packet(reader)
+    local len_string = vlq_to_int_from_reader(reader)
     if len_string == nil then return nil end
     local str = string.char(table.unpack( reader.bytes, reader.index, reader.index+len_string-1 ))
     reader.index = reader.index + len_string
@@ -180,8 +180,11 @@ local function build_config_packet(player_config)
 
     local config_packet_body = {}
 
-    local source_table = {}
+    -- Source Entity / Position data
     do
+        -- Do block because this section is long and my code editor can auto nest this
+
+        local source_table = {}
         -- 7 bools. First bool marks if source is an entity.
         -- If entity, next two bools unused, then last 4 bytes mark what parts of the uuid should be flipped.
         -- If not entity, next 3 bools are for flipping the sign, and the last 3 are for adding 0.5 to the end.
@@ -253,10 +256,37 @@ local function build_config_packet(player_config)
             -- no source data given at data at all send nil.
             union_tables(source_table, int_to_vlq( nil ))
         end
+
+        union_tables(config_packet_body, source_table)
     end
-    union_tables(config_packet_body, source_table)
 
+    -- Default instruments
+    union_tables(config_packet_body, string_to_bytes_with_len(
+        player_config.default_normal_instrument
+        and player_config.default_normal_instrument.name
+        or nil
+    ))
+    union_tables(config_packet_body, string_to_bytes_with_len(
+        player_config.default_percussion_instrument
+        and player_config.default_percussion_instrument.name
+        or nil
+    ))
+    -- TODO: serialize instrument params
 
+    local instrument_selections = {}
+    local configured_track_count = 0
+    for track_id, selected_instrument in pairs(player_config.instrument_selections) do
+        configured_track_count = configured_track_count + 1
+        union_tables(instrument_selections, int_to_vlq(track_id))
+        union_tables(instrument_selections, string_to_bytes_with_len(selected_instrument.name))
+        -- TODO: serialize instrument params
+    end
+    union_tables(config_packet_body, int_to_vlq(configured_track_count))
+    union_tables(config_packet_body, instrument_selections)
+
+    -- events
+    union_tables(config_packet_body, string_to_bytes_with_len(player_config.primary_update_event_key))
+    union_tables(config_packet_body, string_to_bytes_with_len(player_config.fallback_update_event_key))
 
     return config_packet_body
 end
@@ -272,7 +302,7 @@ end
 ---@see song_to_packets
 ---@param processed_song ProcessedSong
 ---@return SongPacket
-local function build_header_packet_without_buffer(processed_song)
+local function build_header_packet_without_buffer_delay(processed_song)
     local packet = {}
     union_tables(packet, string_to_bytes_with_len(processed_song.name))
 
@@ -294,11 +324,9 @@ end
 ---@param player_config SongPlayerConfig
 ---@return PackedSongPacket[]
 local function song_to_packets(processed_song, player_config)
-    local header_packet_body = build_header_packet_without_buffer(processed_song)
+    local header_packet_body = build_header_packet_without_buffer_delay(processed_song)
     local config_packet_body = build_config_packet(player_config)
     local complete_data_packets = {}
-
-
 
     local header_packet_head = {}
     union_tables(header_packet_head, int_to_vlq(packet_ids.header))  -- First element is allways packet ID
@@ -309,17 +337,29 @@ local function song_to_packets(processed_song, player_config)
     union_tables(header_packet_head, transfered_song_id)             -- 2nd element is allways the song transfer ID
 
 
-    local there_is_enough_space_to_combine_the_header_and_config_packets = true -- TODO
+    -- TODO: append a buffer time to the end of header_packet
+
+    ---@type SongPacket[]
+    local final_packet_list = {}
+    local there_is_enough_space_to_combine_the_header_and_config_packets =
+        (#header_packet_head + #header_packet_body + #config_packet_body) -- TODO: + BufferTime bytes
+        < max_packet_length
     if there_is_enough_space_to_combine_the_header_and_config_packets then
+        -- we can join the header packet and the initial config packet
         union_tables(header_packet_body, config_packet_body)
+        union_tables(header_packet_head, header_packet_body)
+        table.insert(final_packet_list, header_packet_head)
+    else
+        -- TODO: we need to send the config packet as its own packet
+        error("we need to send the config packet as its own packet")
     end
 
-    -- TODO: append a buffer time to the end of header_packet
-    local header_packet_final = union_tables(header_packet_head, header_packet_body)
-    printTable(header_packet_final)
-    local packed_header_packet_final = pack_packet(header_packet_final)
+    local final_packed_packet_list = {}
+    for _, unpacked_packet in ipairs(final_packet_list) do
+        table.insert(final_packed_packet_list, pack_packet(unpacked_packet))
+    end
 
-    return { packed_header_packet_final }
+    return final_packed_packet_list
 end
 
 
@@ -342,59 +382,76 @@ local function receive_config_packet(reader, transfered_song_id)
     ---@type SongPlayerConfig
     local config_data = {}
 
-    do -- source position / entity
-        local bool_list_int = vlq_to_int_from_packet(reader)
-        if bool_list_int == nil then
-            -- The boolean list used to flag info about the source is missing. Source info was not provided.
-        else
-            local bool_list = int_to_bool_list(bool_list_int, 7)
-            local source_is_entity = bool_list[1]
-            if source_is_entity then
-                local flip_uuid_int_1 = bool_list[4]
-                local flip_uuid_int_2 = bool_list[5]
-                local flip_uuid_int_3 = bool_list[6]
-                local flip_uuid_int_4 = bool_list[7]
+    local source_pos_bool_list = vlq_to_int_from_reader(reader)
+    if source_pos_bool_list == nil then
+        -- The boolean list used to flag info about the source is missing. Source info was not provided.
+    else
+        local bool_list = int_to_bool_list(source_pos_bool_list, 7)
+        local source_is_entity = bool_list[1]
+        if source_is_entity then
+            local flip_uuid_int_1 = bool_list[4]
+            local flip_uuid_int_2 = bool_list[5]
+            local flip_uuid_int_3 = bool_list[6]
+            local flip_uuid_int_4 = bool_list[7]
 
-                local uuid_part_1 = vlq_to_int_from_packet(reader) * (flip_uuid_int_1 and -1 or 1)
-                local uuid_part_2 = vlq_to_int_from_packet(reader) * (flip_uuid_int_2 and -1 or 1)
-                local uuid_part_3 = vlq_to_int_from_packet(reader) * (flip_uuid_int_3 and -1 or 1)
-                local uuid_part_4 = vlq_to_int_from_packet(reader) * (flip_uuid_int_4 and -1 or 1)
+            local uuid_part_1 = vlq_to_int_from_reader(reader) * (flip_uuid_int_1 and -1 or 1)
+            local uuid_part_2 = vlq_to_int_from_reader(reader) * (flip_uuid_int_2 and -1 or 1)
+            local uuid_part_3 = vlq_to_int_from_reader(reader) * (flip_uuid_int_3 and -1 or 1)
+            local uuid_part_4 = vlq_to_int_from_reader(reader) * (flip_uuid_int_4 and -1 or 1)
 
-                local uuid_string = client.intUUIDToString(uuid_part_1, uuid_part_2, uuid_part_3, uuid_part_4)
+            local uuid_string = client.intUUIDToString(uuid_part_1, uuid_part_2, uuid_part_3, uuid_part_4)
 
-                local success, possible_entity = pcall(world.getEntity, uuid_string)
-                if success and possible_entity then
-                    config_data.source_entity = possible_entity
-                else
-                    print("There was an error getting the entity with uuid:", uuid_string)
-                    if not success
-                        then print("world.getEntity returned this error:", possible_entity)
-                        else print("world.getEntity returned nil (Entity not loaded).")
-                    end
-                end
-
+            local success, possible_entity = pcall(world.getEntity, uuid_string)
+            if success and possible_entity then
+                config_data.source_entity = possible_entity
             else
-                local flip_x = bool_list[2]
-                local flip_y = bool_list[3]
-                local flip_z = bool_list[4]
-                local add_half_x = bool_list[5]
-                local add_half_y = bool_list[6]
-                local add_half_z = bool_list[7]
-
-                local abs_floor_x = vlq_to_int_from_packet(reader)
-                local abs_floor_y = vlq_to_int_from_packet(reader)
-                local abs_floor_z = vlq_to_int_from_packet(reader)
-
-                local source_x_pos = (abs_floor_x + (add_half_x and 0.5 or 0)) * (flip_x and -1 or 1)
-                local source_y_pos = (abs_floor_y + (add_half_y and 0.5 or 0)) * (flip_y and -1 or 1)
-                local source_z_pos = (abs_floor_z + (add_half_z and 0.5 or 0)) * (flip_z and -1 or 1)
-
-                config_data.source_pos = vec(source_x_pos, source_y_pos, source_z_pos)
-                print(config_data.source_pos)
+                print("There was an error getting the entity with uuid:", uuid_string)
+                if not success
+                    then print("world.getEntity returned this error:", possible_entity)
+                    else print("world.getEntity returned nil (Entity not loaded).")
+                end
             end
+
+        else
+            local flip_x = bool_list[2]
+            local flip_y = bool_list[3]
+            local flip_z = bool_list[4]
+            local add_half_x = bool_list[5]
+            local add_half_y = bool_list[6]
+            local add_half_z = bool_list[7]
+
+            local abs_floor_x = vlq_to_int_from_reader(reader)
+            local abs_floor_y = vlq_to_int_from_reader(reader)
+            local abs_floor_z = vlq_to_int_from_reader(reader)
+
+            local source_x_pos = (abs_floor_x + (add_half_x and 0.5 or 0)) * (flip_x and -1 or 1)
+            local source_y_pos = (abs_floor_y + (add_half_y and 0.5 or 0)) * (flip_y and -1 or 1)
+            local source_z_pos = (abs_floor_z + (add_half_z and 0.5 or 0)) * (flip_z and -1 or 1)
+
+            config_data.source_pos = vec(source_x_pos, source_y_pos, source_z_pos)
+            print(config_data.source_pos)
         end
     end
 
+    local default_normal_instrument_name = bytes_with_len_to_string_from_reader(reader)
+    local default_percussion_instrument_name = bytes_with_len_to_string_from_reader(reader)
+
+    config_data.default_normal_instrument = ( default_normal_instrument_name and { name = default_normal_instrument_name } or nil )
+    config_data.default_percussion_instrument = ( default_percussion_instrument_name and { name = default_percussion_instrument_name } or nil )
+
+    local num_configed_track_instruments = vlq_to_int_from_reader(reader)
+    if num_configed_track_instruments and num_configed_track_instruments > 0 then
+        config_data.instrument_selections = {}
+        for i = 1, num_configed_track_instruments do
+            local track_number = vlq_to_int_from_reader(reader)
+            local instrument_name = bytes_with_len_to_string_from_reader(reader)
+            config_data.instrument_selections[track_number] = { name = instrument_name }
+            print("config assigned", instrument_name, "to track", track_number)
+        end
+    end
+
+    config_data.primary_update_event_key = bytes_with_len_to_string_from_reader(reader)
+    config_data.fallback_update_event_key = bytes_with_len_to_string_from_reader(reader)
 
 
     if not collected_incomming_songs[transfered_song_id].player then
@@ -416,10 +473,10 @@ local function receive_header_packet(reader, transfered_song_id)
     collected_incomming_songs[transfered_song_id] = {}
 
     local name = bytes_with_len_to_string_from_reader(reader)
-    local durration = vlq_to_int_from_packet(reader)
+    local durration = vlq_to_int_from_reader(reader)
 
-    local num_tracks = vlq_to_int_from_packet(reader)
-    local track_type_id_flags = int_to_bit_list(vlq_to_int_from_packet(reader), num_tracks)
+    local num_tracks = vlq_to_int_from_reader(reader)
+    local track_type_id_flags = int_to_bit_list(vlq_to_int_from_reader(reader), num_tracks)
     ---@type Track[]
     local tracks = {}
     for i, type in ipairs(track_type_id_flags) do
@@ -465,8 +522,8 @@ local packet_receiving_functions = {
 local function add_packet_to_song(packed_packet_data)
     local packet_data = unpack_packet(packed_packet_data)
     local reader = new_packet_reader(packet_data)
-    local packet_id = vlq_to_int_from_packet(reader)
-    local transfered_song_id = vlq_to_int_from_packet(reader)
+    local packet_id = vlq_to_int_from_reader(reader)
+    local transfered_song_id = vlq_to_int_from_reader(reader)
     packet_receiving_functions[packet_id](reader, transfered_song_id)
 end
 
