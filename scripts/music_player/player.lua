@@ -173,8 +173,7 @@ local function apply_config(playing_song, config)
                 known_instruments[instrument_selection_to_use_instead.name]
                 .new_instance(instrument_selection_to_use_instead.params)
             if not previous_instrument.is_finished() then
-                -- table.insert(playing_song.deprecated_instruments, previous_instrument)
-                previous_instrument.stop_all_sounds_immediatly()
+                table.insert(playing_song.deprecated_instruments, previous_instrument)
             end
         end
     end
@@ -254,7 +253,7 @@ local function update_song(playing_song)
     end
 
     -- Check and update deprecated instruments
-    if #playing_song.deprecated_instruments > 0 then
+    if next(playing_song.deprecated_instruments) then
         local finished_deprecated_instrument_keys = {}
         for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
             print(deprecated_instrument_key, deprecated_instrument)
