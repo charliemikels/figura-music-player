@@ -333,6 +333,19 @@ local discovered_unrecognized_modifier_type_lookup = {}
 
 ---@alias DataPacketPart Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
+local function modifier_to_packet_part(modifier, instruction_modifier_list_id)
+    ---@type DataPacketPart
+    local modifier_packet_part = {}
+    union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time)))
+    union_tables(modifier_packet_part, int_to_vlq(nil))
+        -- nil signals that this is a modifier for an instruction we've (probably) already sent
+        -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
+    union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
+    union_tables(modifier_packet_part, int_to_vlq(modifier_type_to_number_lookup[modifier.type]))
+    union_tables(modifier_packet_part, int_to_vlq(modifier.value))
+    return {start_time = modifier.start_time, packet_part = modifier_packet_part}
+end
+
 ---@param instruction Instruction
 ---@return {start_time: number, packet_part: DataPacketPart}[]
 local function song_instruction_to_packet_parts(instruction)
@@ -363,6 +376,10 @@ local function song_instruction_to_packet_parts(instruction)
         notes_with_modifier_id_counter = notes_with_modifier_id_counter + 1
         union_tables(instruction_packet_part, int_to_vlq(instruction_modifier_list_id))
 
+        -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
+        ---@type table<string, {first_start_time: integer, total_added: integer, last_added: NoteModifier?, last_seen: NoteModifier}>
+        local modifier_subset_tracker = {}
+
         -- make new packet parts for each modifier
         for _, modifier in ipairs(instruction.modifiers) do
             if not modifier_type_to_number_lookup[modifier.type] then
@@ -373,17 +390,54 @@ local function song_instruction_to_packet_parts(instruction)
                     discovered_unrecognized_modifier_type_lookup[modifier.type] = discovered_unrecognized_modifier_type_lookup[modifier.type] + 1
                 end
             else
-                ---@type DataPacketPart
-                local modifier_packet_part = {}
-                union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time)))
-                union_tables(modifier_packet_part, int_to_vlq(nil))
-                    -- nil signals that this is a modifier for an instruction we've (probably) already sent
-                    -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
-                union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
-                union_tables(modifier_packet_part, int_to_vlq(modifier_type_to_number_lookup[modifier.type]))
-                union_tables(modifier_packet_part, int_to_vlq(modifier.value))
-                table.insert(return_packet_parts, {start_time = instruction.start_time, packet_part = modifier_packet_part})
-                -- print("found modifier: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+                if not modifier_subset_tracker[modifier.type] then
+                    -- first of this type.
+                    modifier_subset_tracker[modifier.type] = {
+                        first_start_time = modifier.start_time,
+                        total_added = 0,
+                        last_added = nil,
+                        last_seen = modifier
+                    }
+                end
+
+                if      modifier_subset_tracker[modifier.type].last_seen ~= modifier_subset_tracker[modifier.type].last_added
+                    and modifier_subset_tracker[modifier.type].last_seen.start_time + (20*3) < modifier.start_time
+                then
+                    -- The last_seen modifier was not added, but there is too much time between that last modifier and this modifier.
+                    -- The last_seen modifier might have been a "bookend" modifier. We should re-include it just in case.
+
+                    table.insert(return_packet_parts, modifier_to_packet_part(
+                        modifier_subset_tracker[modifier.type].last_seen,
+                        instruction_modifier_list_id
+                    ))
+                    modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
+                    modifier_subset_tracker[modifier.type].last_added = modifier_subset_tracker[modifier.type].last_seen
+                end
+
+
+                if  modifier.start_time >= (
+                        modifier_subset_tracker[modifier.type].first_start_time
+                        + (20 * modifier_subset_tracker[modifier.type].total_added)
+                    )
+                then
+                    -- this modifier is at the right time. Add it.
+
+                    table.insert(return_packet_parts, modifier_to_packet_part(modifier, instruction_modifier_list_id))
+
+                    modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
+                    modifier_subset_tracker[modifier.type].last_added = modifier
+                end
+
+                modifier_subset_tracker[modifier.type].last_seen = modifier
+            end
+        end
+
+        -- Make sure the last modifier of each type.
+        for _, modifier_subset_info in pairs(modifier_subset_tracker) do
+            if not modifier_subset_info.last_seen == modifier_subset_info.last_added then
+                -- the modifier that was last added was not the last seen.
+                -- Add in the last seen modifier so that we the bookends of this modifier list.
+                table.insert(return_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction_modifier_list_id))
             end
         end
     end
