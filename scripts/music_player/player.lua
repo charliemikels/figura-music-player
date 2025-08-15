@@ -256,7 +256,6 @@ local function update_song(playing_song)
     if next(playing_song.deprecated_instruments) then
         local finished_deprecated_instrument_keys = {}
         for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
-            print(deprecated_instrument_key, deprecated_instrument)
             deprecated_instrument.update_sounds(playing_song.source_pos)
             if deprecated_instrument.is_finished() then
                 table.insert(finished_deprecated_instrument_keys, deprecated_instrument_key)
@@ -270,8 +269,6 @@ local function update_song(playing_song)
         -- Honestly the likelyhood of this actualy mattering is extreamly low since the next time update_song() gets
         -- called, any missed instruments will be updated then.
         for _, key_to_remove in ipairs( finished_deprecated_instrument_keys ) do
-            print("removing", playing_song.deprecated_instruments[key_to_remove])
-            print("Was it finished?", playing_song.deprecated_instruments[key_to_remove].is_finished())
             playing_song.deprecated_instruments[key_to_remove] = nil
         end
     end

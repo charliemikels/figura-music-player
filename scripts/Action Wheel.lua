@@ -78,14 +78,25 @@ future_of_music:register_callback(
         local tmp_counter = 0
         events.TICK:register(function()
             tmp_counter = tmp_counter +1
-            if tmp_counter <= 120 then print(tmp_counter); return end
-            packages.update_config_for_transfered_song(
-                1,
-                {
-                    default_normal_instrument = {name = "Muted"}
-                }
-            )
-            events.TICK:remove("TMP_FAKE_DELAY")
+            print(tmp_counter);
+            if tmp_counter == 120 then
+                packages.update_config_for_transfered_song(
+                    1,
+                    {
+                        default_normal_instrument = {name = "MC/Harp"}
+                    }
+                )
+            end
+            if tmp_counter >= 240 then
+                packages.update_config_for_transfered_song(
+                    1,
+                    {
+                        default_normal_instrument = {name = "Triangle Sine"}
+                    }
+                )
+                events.TICK:remove("TMP_FAKE_DELAY")
+            end
+
         end, "TMP_FAKE_DELAY")
 
 
