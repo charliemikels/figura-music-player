@@ -285,6 +285,7 @@ end
 local song_player_api = {
     ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): PlayingSongController
     new_player = function (song, config)
+        if not config then config = {} end
         print_debug("New player for", song.name)
         local playing_song
 

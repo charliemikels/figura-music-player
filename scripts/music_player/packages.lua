@@ -522,22 +522,31 @@ local function song_to_packets(processed_song, player_config)
 
     local config_packet_body = build_config_packet(player_config)
     local all_data_packets, buffer_delay = build_data_packets(processed_song, transfered_song_id_vlq)
+
     union_tables(header_packet_body, int_to_vlq(buffer_delay))
+    local header_packet = {}
+    union_tables(header_packet, header_packet_head)
+    union_tables(header_packet, header_packet_body)
 
 
     ---@type SongPacket[]
     local final_packet_list = {}
-    local there_is_enough_space_to_combine_the_header_and_config_packets =
-        (#header_packet_head + #header_packet_body + #config_packet_body)
-        < max_packet_length
+    local there_is_enough_space_to_combine_the_header_and_config_packets = false
+        -- (#header_packet_head + #header_packet_body + #config_packet_body)
+        -- < max_packet_length
     if there_is_enough_space_to_combine_the_header_and_config_packets then
-        -- we can join the header packet and the initial config packet
-        union_tables(header_packet_body, config_packet_body)
-        union_tables(header_packet_head, header_packet_body)
-        table.insert(final_packet_list, header_packet_head)
+        -- @e can join the header packet and the initial config packet
+        union_tables(header_packet, config_packet_body)
+        table.insert(final_packet_list, header_packet)
     else
-        -- TODO: we need to send the config packet as its own packet
-        error("we need to send the config packet as its own packet")
+        -- We need to send the config packet as its own packet
+        table.insert(final_packet_list, header_packet)
+
+        local config_packet = {}
+        union_tables(config_packet, int_to_vlq(packet_ids.config))
+        union_tables(config_packet, transfered_song_id_vlq)
+        union_tables(config_packet, config_packet_body)
+        table.insert(final_packet_list, config_packet)
     end
 
     for _, data_packet in ipairs(all_data_packets) do
@@ -645,6 +654,8 @@ local function receive_config_packet(reader, transfered_song_id)
 
 
     if not collected_incomming_songs[transfered_song_id].player then
+        -- This config packet must be inside of a header packet. It is our job to create the player.
+
         ---@type SongPlayerAPI
         local player_api = require("./player")
         collected_incomming_songs[transfered_song_id].player =
@@ -708,7 +719,9 @@ local tmp_counter = 0
 local packet_receiving_functions = {
     [packet_ids.header] = receive_header_packet,
     [packet_ids.config] = receive_config_packet,
-    [packet_ids.data] = function () tmp_counter = tmp_counter +1; print("todo:", tmp_counter, "data packets so far") end,
+    [packet_ids.data] = function ()
+    --    tmp_counter = tmp_counter +1; print("todo:", tmp_counter, "data packets so far")
+    end,
 }
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.
