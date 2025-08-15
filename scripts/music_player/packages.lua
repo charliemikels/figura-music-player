@@ -319,7 +319,7 @@ local function build_header_packet_without_buffer_delay(processed_song)
     return packet
 end
 
-
+---@type table<string, integer>
 local modifier_type_to_number_lookup = {
     volume = 1,
     pitch_wheel = 2,
@@ -566,12 +566,70 @@ end
 
 -- == Receiving functions == --
 
-
+---@type table<integer, string>
+local modifier_number_to_type_lookup = {}
+for name, id in pairs(modifier_type_to_number_lookup) do
+    modifier_number_to_type_lookup[id] = name
+end
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
----@type table<integer, {song: ProcessedSong, player: PlayingSongController}>
+---@type table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: PlayingSongController}>
 local collected_incomming_songs = {}
+
+---Reads a data packet out of a Reader.
+---@param reader PacketReader           Where the packet id and transfer song ID have already been read
+---@param transfered_song_id integer    Index into collected_incomming_songs
+local function receive_data_packet(reader, transfered_song_id)
+    local song = collected_incomming_songs[transfered_song_id].song
+    local modifiable_instructions = collected_incomming_songs[transfered_song_id].instructions_with_modifier_ids
+    repeat
+        local start_time = vlq_to_int_from_reader(reader)
+        local track_index = vlq_to_int_from_reader(reader)
+        if track_index then -- Track index is provided. This is a normal instruction
+
+            local duration = vlq_to_int_from_reader(reader)
+            local note = vlq_to_int_from_reader(reader)
+            local start_velocity = vlq_to_int_from_reader(reader)
+
+            ---@type Instruction
+            local instruction = {
+                start_time = start_time,
+                track_index = track_index,
+                duration = duration,
+                note = note,
+                start_velocity = start_velocity,
+                modifiers = {}
+            }
+
+            local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
+            if assigned_instruction_modifier_id then
+                modifiable_instructions[assigned_instruction_modifier_id] = instruction
+            end
+
+            table.insert(song.instructions, instruction)
+
+        else -- Track index is nil, this is a modifier for an instruction we have (probably) already seen.
+
+            local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
+            local modifier_type_id = vlq_to_int_from_reader(reader)
+            local modifier_value = vlq_to_int_from_reader(reader)
+
+            local modifier_type = modifier_number_to_type_lookup[modifier_type_id]
+
+            if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
+                ---@type NoteModifier
+                local modifier = {
+                    start_time = start_time,
+                    type = modifier_type,
+                    value = modifier_value
+                }
+
+                table.insert(modifiable_instructions[assigned_instruction_modifier_id].modifiers, modifier)
+            end
+        end
+    until reader.index > #reader.bytes
+end
 
 ---Reads a config packet out of a Reader.
 ---Returns nothing, but modifies collected_incomming_songs[transfered_song_id]
@@ -696,7 +754,11 @@ local function receive_header_packet(reader, transfered_song_id)
         buffer_start_time = client:getSystemTime()
     }
 
-    collected_incomming_songs[transfered_song_id] = { song = incomming_processed_song, player = nil }
+    collected_incomming_songs[transfered_song_id] = {
+        song = incomming_processed_song,
+        instructions_with_modifier_ids = {},
+        player = nil
+    }
 
     if reader.index <= #reader.bytes then -- There is still data in the reader, the rest is config data.
         receive_config_packet(reader, transfered_song_id)
@@ -712,16 +774,12 @@ local function receive_header_packet(reader, transfered_song_id)
     return incomming_processed_song
 end
 
-local tmp_counter = 0
-
 -- function lookup table for packet receiver
 ---@type table<string, fun(reader: PacketReader, transfered_song_id: integer)>
 local packet_receiving_functions = {
     [packet_ids.header] = receive_header_packet,
     [packet_ids.config] = receive_config_packet,
-    [packet_ids.data] = function ()
-    --    tmp_counter = tmp_counter +1; print("todo:", tmp_counter, "data packets so far")
-    end,
+    [packet_ids.data] = receive_data_packet,
 }
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.

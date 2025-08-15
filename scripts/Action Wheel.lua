@@ -19,7 +19,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(115)
+local selected_song = music_player_api.library:get_song_by_sorted_index(7)
 -- 2: Balatro - uses significant pitch wheel in the synths
 -- 3: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 6: Specialist (shorter)
@@ -52,15 +52,15 @@ future_of_music:register_callback(
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
-                [6] = {name = "MC/Bass"},
-                [7] = {name = "MC/Harp"},
-                [8] = {name = "MC/Guitar"},
-                [11] = {name = "MC/Guitar"},
-                [14] = {name = "MC/Harp"},
-                [15] = {name = "MC/Chime"},
-                [16] = {name = "MC/Flute"},
-                [17] = {name = "MC/Harp"},
-                [18] = {name = "MC/Flute"},
+                -- [6] = {name = "MC/Bass"},
+                -- [7] = {name = "MC/Harp"},
+                -- [8] = {name = "MC/Guitar"},
+                -- [11] = {name = "MC/Guitar"},
+                -- [14] = {name = "MC/Harp"},
+                -- [15] = {name = "MC/Chime"},
+                -- [16] = {name = "MC/Flute"},
+                -- [17] = {name = "MC/Harp"},
+                -- [18] = {name = "MC/Flute"},
             },
             -- source_pos = vec(0, -0.6, -5.40),
             source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
@@ -76,7 +76,9 @@ future_of_music:register_callback(
             packages.add_packet_to_song(packet)
         end
         -- print("packages.list_transfered_songs()")
-        printTable(packages.list_transfered_songs(),3)
+        printTable(packages.list_transfered_songs()[1].song.instructions[1],2)
+        packages.list_transfered_songs()[1].player.play()
+
 
 
     end
