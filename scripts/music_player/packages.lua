@@ -632,7 +632,7 @@ local function receive_config_packet(reader, transfered_song_id)
     local num_configed_track_instruments = vlq_to_int_from_reader(reader)
     if num_configed_track_instruments and num_configed_track_instruments > 0 then
         config_data.instrument_selections = {}
-        for i = 1, num_configed_track_instruments do
+        for _ = 1, num_configed_track_instruments do
             local track_number = vlq_to_int_from_reader(reader)
             local instrument_name = bytes_with_len_to_string_from_reader(reader)
             config_data.instrument_selections[track_number] = { name = instrument_name }
