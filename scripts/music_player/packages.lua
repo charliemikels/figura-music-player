@@ -525,8 +525,6 @@ local function song_to_packets(processed_song, player_config)
     union_tables(header_packet_body, int_to_vlq(buffer_delay))
 
 
-    -- TODO: append a buffer time to the end of header_packet
-
     ---@type SongPacket[]
     local final_packet_list = {}
     local there_is_enough_space_to_combine_the_header_and_config_packets =
