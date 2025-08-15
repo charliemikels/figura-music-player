@@ -326,11 +326,6 @@ local modifier_type_to_number_lookup = {
     -- pan = 3,
 }
 
-local notes_with_modifier_id_counter = 0
-
--- List of note modifiers that we didn't recognize. Used to only print a "didn't recognize" error once per song.
-local discovered_unrecognized_modifier_type_lookup = {}
-
 ---@alias DataPacketPart Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
 --- For use with song_instruction_to_packet_parts()
@@ -353,8 +348,9 @@ local function modifier_to_packet_part(modifier, instruction_modifier_list_id)
 end
 
 ---@param instruction Instruction
+---@param modifiers_tracker table
 ---@return {start_time: number, packet_part: DataPacketPart}[]
-local function song_instruction_to_packet_parts(instruction)
+local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
     ---@type {start_time: number, packet_part: DataPacketPart}[]
     local return_packet_parts = {}
 
@@ -378,8 +374,8 @@ local function song_instruction_to_packet_parts(instruction)
         -- We could resample/interpolate sets of modifiers that are more dense than ~20 millis
         -- TODO: Should this ↑ be done by the midi processor?
 
-        local instruction_modifier_list_id = notes_with_modifier_id_counter
-        notes_with_modifier_id_counter = notes_with_modifier_id_counter + 1
+        local instruction_modifier_list_id = modifiers_tracker.id_counter
+        modifiers_tracker.id_counter = modifiers_tracker.id_counter + 1
         union_tables(instruction_packet_part, int_to_vlq(instruction_modifier_list_id))
 
         -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
@@ -389,11 +385,11 @@ local function song_instruction_to_packet_parts(instruction)
         -- make new packet parts for each modifier
         for _, modifier in ipairs(instruction.modifiers) do
             if not modifier_type_to_number_lookup[modifier.type] then
-                if not discovered_unrecognized_modifier_type_lookup[modifier.type] then
-                    discovered_unrecognized_modifier_type_lookup[modifier.type] = 1
+                if not modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] then
+                    modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = 1
                     print("song_instruction_to_packet_parts: unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
                 else
-                    discovered_unrecognized_modifier_type_lookup[modifier.type] = discovered_unrecognized_modifier_type_lookup[modifier.type] + 1
+                    modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] + 1
                 end
             else
                 if not modifier_subset_tracker[modifier.type] then
@@ -457,13 +453,18 @@ end
 ---@return SongPacket[] data_packets
 ---@return integer buffer_delay_in_milis
 local function build_data_packets(processed_song, transfered_song_id_vlq)
-    -- New song; reset the unrecognized modifiers tracker.
-    discovered_unrecognized_modifier_type_lookup = {}
+
+    --- A counter that lets us generate unique IDs for any note that has a modifier
+
+    local modifiers_tracker = {
+        id_counter = 0, ---@type integer A counter that lets us have a unique ID for every note that has a modifier in this song.
+        total_number_of_unrecognized_modifier_types_by_type = {}  ---@type table<string, integer>
+    }
 
     ---@type {start_time: number, packet_part: DataPacketPart}[]
     local all_packet_parts_with_start_time = {}
     for _, instruction in ipairs(processed_song.instructions) do
-        union_tables(all_packet_parts_with_start_time, song_instruction_to_packet_parts(instruction))
+        union_tables(all_packet_parts_with_start_time, song_instruction_to_packet_parts(instruction, modifiers_tracker))
     end
     -- The list should already be in order if there are no modifiers, but modifiers will be next to their instructions, and may throw off the absolute order
     table.sort(all_packet_parts_with_start_time, function (a, b) return a.start_time < b.start_time end)
@@ -493,9 +494,9 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
         union_tables(current_packet_builder, packet_part_with_start_time.packet_part)
     end
 
-    if next(discovered_unrecognized_modifier_type_lookup) then
+    if next(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) then
         print("build_data_packets found some unrecognized note modifiers")
-        for modifier_name, ammount in pairs(discovered_unrecognized_modifier_type_lookup) do
+        for modifier_name, ammount in pairs(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) do
             print("  found "..tostring(ammount).." instances of the `"..modifier_name.."` modifier")
         end
     end
