@@ -52,15 +52,11 @@ future_of_music:register_callback(
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
-                -- [6] = {name = "MC/Bass"},
-                -- [7] = {name = "MC/Harp"},
-                -- [8] = {name = "MC/Guitar"},
-                -- [11] = {name = "MC/Guitar"},
-                -- [14] = {name = "MC/Harp"},
-                -- [15] = {name = "MC/Chime"},
-                -- [16] = {name = "MC/Flute"},
-                -- [17] = {name = "MC/Harp"},
-                -- [18] = {name = "MC/Flute"},
+                [2] = {name = "MC/Harp"},
+                [3] = {name = "Muted"},
+                [4] = {name = "Muted"},
+                [5] = {name = "Muted"},
+                [6] = {name = "MC/Bass"},
             },
             -- source_pos = vec(0, -0.6, -5.40),
             source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
@@ -68,16 +64,17 @@ future_of_music:register_callback(
         }
 
         local controller = song_player_api.new_player(processed_song, song_player_config)
-        -- controller.play()
+        controller.play()
 
-        local packages = require("scripts/music_player/packages")
-        local packets = packages.song_to_packets(processed_song, song_player_config)
-        for _, packet in ipairs(packets) do
-            packages.add_packet_to_song(packet)
-        end
+        -- local packages = require("scripts/music_player/packages")
+        -- local packets = packages.song_to_packets(processed_song, song_player_config)
+        -- for _, packet in ipairs(packets) do
+        --     packages.add_packet_to_song(packet)
+        -- end
         -- print("packages.list_transfered_songs()")
-        printTable(packages.list_transfered_songs()[1].song.instructions[1],2)
-        packages.list_transfered_songs()[1].player.play()
+        -- printTable(packages.list_transfered_songs()[1].song.instructions[1],2)
+
+        -- packages.list_transfered_songs()[1].player.play()
 
 
 
