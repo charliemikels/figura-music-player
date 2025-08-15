@@ -666,10 +666,21 @@ end
 ---@type table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: PlayingSongController}>
 local collected_incomming_songs = {}
 
+-- list of transfer IDs that we must have missed
+---@type table<integer, boolean>
+local missed_incomming_songs = {}
+
 ---Reads a data packet out of a Reader.
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
 ---@param transfered_song_id integer    Index into collected_incomming_songs
 local function receive_data_packet(reader, transfered_song_id)
+    if not collected_incomming_songs[transfered_song_id] then
+        if not missed_incomming_songs[transfered_song_id] then
+            print("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song.")
+            missed_incomming_songs[transfered_song_id] = true
+        end
+        return
+    end
     local song = collected_incomming_songs[transfered_song_id].song
     local modifiable_instructions = collected_incomming_songs[transfered_song_id].instructions_with_modifier_ids
     local packet_start_time = vlq_to_int_from_reader(reader)
@@ -887,8 +898,9 @@ local function add_packet_to_song(packed_packet_data)
     packet_receiving_functions[packet_id](reader, transfered_song_id)
 end
 
+
 return {
     song_to_packets = song_to_packets,
-    add_packet_to_song = add_packet_to_song,
+    add_packet_to_song = add_packet_to_song,    -- adds a packet to it's targeted song.
     list_transfered_songs = function() return collected_incomming_songs end
 }

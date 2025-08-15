@@ -68,7 +68,7 @@ future_of_music:register_callback(
         -- local controller = song_player_api.new_player(processed_song, song_player_config)
         -- controller.play()
 
-        local packages = require("scripts/music_player/packages")
+        local packages = require("scripts/music_player/networking")
         local packets = packages.song_to_packets(processed_song, song_player_config)
         for _, packet in ipairs(packets) do
             packages.add_packet_to_song(packet)
