@@ -475,7 +475,7 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
     union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
     union_tables(current_packet_builder, transfered_song_id_vlq)
     local required_buffer_delay_in_milis = 0
-    for i, packet_part_with_start_time in ipairs(all_packet_parts_with_start_time) do
+    for _, packet_part_with_start_time in ipairs(all_packet_parts_with_start_time) do
         if #current_packet_builder + #packet_part_with_start_time.packet_part >= max_packet_length then
             -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
             table.insert(data_packets, current_packet_builder)
@@ -522,6 +522,8 @@ local function song_to_packets(processed_song, player_config)
 
     local config_packet_body = build_config_packet(player_config)
     local all_data_packets, buffer_delay = build_data_packets(processed_song, transfered_song_id_vlq)
+    union_tables(header_packet_body, int_to_vlq(buffer_delay))
+
 
     -- TODO: append a buffer time to the end of header_packet
 
@@ -669,13 +671,15 @@ local function receive_header_packet(reader, transfered_song_id)
         tracks[i] = {instrument_type_id = type}
     end
 
+    local buffer_delay = vlq_to_int_from_reader(reader)
+
     ---@type ProcessedSong
     local incomming_processed_song = {
         name = name,
         durration = durration,
         tracks = tracks,
         instructions = {},
-        buffer_delay = 0,
+        buffer_delay = buffer_delay,
         buffer_start_time = client:getSystemTime()
     }
 
