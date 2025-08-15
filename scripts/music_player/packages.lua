@@ -528,7 +528,7 @@ local function song_to_packets(processed_song, player_config)
     ---@type SongPacket[]
     local final_packet_list = {}
     local there_is_enough_space_to_combine_the_header_and_config_packets =
-        (#header_packet_head + #header_packet_body + #config_packet_body) -- TODO: + BufferTime bytes
+        (#header_packet_head + #header_packet_body + #config_packet_body)
         < max_packet_length
     if there_is_enough_space_to_combine_the_header_and_config_packets then
         -- we can join the header packet and the initial config packet
