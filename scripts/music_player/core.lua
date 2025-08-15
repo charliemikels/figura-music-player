@@ -50,6 +50,8 @@ end)
 ---@field name string
 ---@field durration number
 ---@field tracks Track[]
+---@field buffer_start_time number?  The time when the song started buffering
+---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.
 
 ---Tracks ProcessedSong are the step immediatly before PlayingSong.
 ---@class Track

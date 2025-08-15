@@ -442,6 +442,15 @@ local song_player_api = {
             instructions = song.instructions,
             next_instruction_index = 1,
 
+            --- If this song is being built from pings, this is amount of time it takes for the required amount of packets to arrive from the Host
+            ---@type number
+            buffer_delay = (song.buffer_delay or nil),
+
+            --- The client time when the song started buffering. Compare with current time and buffer_delay
+            --- to see if we've received enough packets to play this song in full.
+            ---@type number
+            buffer_start_time = (song.buffer_start_time or nil),
+
             ---@type Entity? If this is defined, overwrite source_pos every update()
             source_entity = nil,
 
@@ -477,7 +486,15 @@ local song_player_api = {
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
-                    playing_song.start_time = client.getSystemTime()
+
+                    local earliest_possible_start_time = (
+                                playing_song.buffer_delay
+                            and playing_song.buffer_start_time
+                            and ( playing_song.buffer_start_time + playing_song.buffer_delay )
+                        or  client:getSystemTime()
+                    )
+
+                    playing_song.start_time = (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
                     playing_song.primary_event:register(update_this_song)
