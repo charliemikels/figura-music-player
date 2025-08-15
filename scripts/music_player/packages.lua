@@ -369,14 +369,10 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
         -- this instruction has modifiers
         -- Assign a unique note modifier tracker ID
 
-        -- TODO: Modifiers are frequently really high resolution and take up a lof of buffer time in songs like Balatro and Wii Sports. Find a clever way to reduce the resolution.
-        -- Remember that at like 60FPS, the song only updates once per ~16 millis. (At the 20fps/tick event: 50milis).
-        -- We could resample/interpolate sets of modifiers that are more dense than ~20 millis
-        -- TODO: Should this ↑ be done by the midi processor?
-
         local instruction_modifier_list_id = modifiers_tracker.id_counter
         modifiers_tracker.id_counter = modifiers_tracker.id_counter + 1
         union_tables(instruction_packet_part, int_to_vlq(instruction_modifier_list_id))
+
 
         -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
         ---@type table<string, {first_start_time: integer, total_added: integer, last_added: NoteModifier?, last_seen: NoteModifier}>
@@ -394,49 +390,57 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
             else
                 if not modifier_subset_tracker[modifier.type] then
                     -- first of this type.
-                    modifier_subset_tracker[modifier.type] = {
-                        first_start_time = modifier.start_time,
-                        total_added = 0,
-                        last_added = nil,
-                        last_seen = modifier
-                    }
-                end
-
-                if      modifier_subset_tracker[modifier.type].last_seen ~= modifier_subset_tracker[modifier.type].last_added
-                    and modifier_subset_tracker[modifier.type].last_seen.start_time + (20*3) < modifier.start_time
-                then
-                    -- The last_seen modifier was not added, but there is too much time between that last modifier and this modifier.
-                    -- The last_seen modifier might have been a "bookend" modifier. We should re-include it just in case.
 
                     table.insert(return_packet_parts, modifier_to_packet_part(
-                        modifier_subset_tracker[modifier.type].last_seen,
+                        modifier,
                         instruction_modifier_list_id
                     ))
-                    modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
-                    modifier_subset_tracker[modifier.type].last_added = modifier_subset_tracker[modifier.type].last_seen
+
+                    modifier_subset_tracker[modifier.type] = {
+                        first_start_time = modifier.start_time,
+                        total_added = 1,
+                        last_added = modifier,
+                        last_seen = modifier
+                    }
+
+                else
+
+                    if      modifier_subset_tracker[modifier.type].last_seen.start_time ~= modifier_subset_tracker[modifier.type].last_added.start_time
+                        and modifier_subset_tracker[modifier.type].last_seen.start_time + (30) < modifier.start_time
+                    then
+                        -- The last_seen modifier was not added, but there is too much time between that last modifier and this modifier.
+                        -- The last_seen modifier might have been a "bookend" modifier. We should re-include it just in case.
+
+                        table.insert(return_packet_parts, modifier_to_packet_part(
+                            modifier_subset_tracker[modifier.type].last_seen,
+                            instruction_modifier_list_id
+                        ))
+                        modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
+                        modifier_subset_tracker[modifier.type].last_added = modifier_subset_tracker[modifier.type].last_seen
+                    end
+
+
+                    if  modifier.start_time >= (
+                            modifier_subset_tracker[modifier.type].first_start_time
+                            + (20 * modifier_subset_tracker[modifier.type].total_added)
+                        )
+                    then
+                        -- this modifier is at the right time. Add it.
+
+                        table.insert(return_packet_parts, modifier_to_packet_part(modifier, instruction_modifier_list_id))
+
+                        modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
+                        modifier_subset_tracker[modifier.type].last_added = modifier
+                    end
+
+                    modifier_subset_tracker[modifier.type].last_seen = modifier
                 end
-
-
-                if  modifier.start_time >= (
-                        modifier_subset_tracker[modifier.type].first_start_time
-                        + (20 * modifier_subset_tracker[modifier.type].total_added)
-                    )
-                then
-                    -- this modifier is at the right time. Add it.
-
-                    table.insert(return_packet_parts, modifier_to_packet_part(modifier, instruction_modifier_list_id))
-
-                    modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
-                    modifier_subset_tracker[modifier.type].last_added = modifier
-                end
-
-                modifier_subset_tracker[modifier.type].last_seen = modifier
             end
         end
 
-        -- Make sure the last modifier of each type.
+        -- Make sure the last modifier of each type was included.
         for _, modifier_subset_info in pairs(modifier_subset_tracker) do
-            if not modifier_subset_info.last_seen == modifier_subset_info.last_added then
+            if modifier_subset_info.last_seen.start_time > modifier_subset_info.last_added.start_time then
                 -- the modifier that was last added was not the last seen.
                 -- Add in the last seen modifier so that we the bookends of this modifier list.
                 table.insert(return_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction_modifier_list_id))

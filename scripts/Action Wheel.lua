@@ -40,6 +40,7 @@ future_of_music:register_callback(
             return
         end
 
+        ---@type ProcessedSong
         local processed_song = completed_future:get_value()
         ---@case processed_song ProcessedSong
         printTable(processed_song)
@@ -64,17 +65,41 @@ future_of_music:register_callback(
         }
 
         local controller = song_player_api.new_player(processed_song, song_player_config)
-        controller.play()
+        -- controller.play()
 
-        -- local packages = require("scripts/music_player/packages")
-        -- local packets = packages.song_to_packets(processed_song, song_player_config)
-        -- for _, packet in ipairs(packets) do
-        --     packages.add_packet_to_song(packet)
-        -- end
-        -- print("packages.list_transfered_songs()")
-        -- printTable(packages.list_transfered_songs()[1].song.instructions[1],2)
+        local packages = require("scripts/music_player/packages")
+        local packets = packages.song_to_packets(processed_song, song_player_config)
+        for _, packet in ipairs(packets) do
+            packages.add_packet_to_song(packet)
+        end
 
-        -- packages.list_transfered_songs()[1].player.play()
+        local transfered_processed_song = packages.list_transfered_songs()[1].song
+
+        local target_instruction
+        for _, instruction in ipairs(processed_song.instructions) do
+            if instruction.modifiers and next(instruction.modifiers) and instruction.modifiers[20] and instruction.modifiers[20].type == "pitch_wheel" then
+                target_instruction = instruction
+                break
+            end
+        end
+        local matching_instruction
+        for _, transfered_instruction in ipairs(transfered_processed_song.instructions) do
+            if      transfered_instruction.note == target_instruction.note
+                and transfered_instruction.start_velocity == target_instruction.start_velocity
+                and transfered_instruction.start_time == math.floor(target_instruction.start_time)
+            then
+                matching_instruction = transfered_instruction
+                break
+            end
+        end
+        if target_instruction then
+            printTable(target_instruction,2)
+            printTable(matching_instruction,2)
+        end
+
+
+
+        packages.list_transfered_songs()[1].player.play()
 
 
 
