@@ -19,7 +19,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(7)
+local selected_song = music_player_api.library:get_song_by_sorted_index(1)
 -- 2: Balatro - uses significant pitch wheel in the synths
 -- 3: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 6: Specialist (shorter)
@@ -53,11 +53,11 @@ future_of_music:register_callback(
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
-                [2] = {name = "MC/Harp"},
-                [3] = {name = "Muted"},
-                [4] = {name = "Muted"},
-                [5] = {name = "Muted"},
-                [6] = {name = "MC/Bass"},
+                -- [2] = {name = "MC/Harp"},
+                -- [3] = {name = "Muted"},
+                -- [4] = {name = "Muted"},
+                -- [5] = {name = "Muted"},
+                -- [6] = {name = "MC/Bass"},
             },
             -- source_pos = vec(0, -0.6, -5.40),
             source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
@@ -72,31 +72,6 @@ future_of_music:register_callback(
         for _, packet in ipairs(packets) do
             packages.add_packet_to_song(packet)
         end
-
-        local transfered_processed_song = packages.list_transfered_songs()[1].song
-
-        local target_instruction
-        for _, instruction in ipairs(processed_song.instructions) do
-            if instruction.modifiers and next(instruction.modifiers) and instruction.modifiers[20] and instruction.modifiers[20].type == "pitch_wheel" then
-                target_instruction = instruction
-                break
-            end
-        end
-        local matching_instruction
-        for _, transfered_instruction in ipairs(transfered_processed_song.instructions) do
-            if      transfered_instruction.note == target_instruction.note
-                and transfered_instruction.start_velocity == target_instruction.start_velocity
-                and transfered_instruction.start_time == math.floor(target_instruction.start_time)
-            then
-                matching_instruction = transfered_instruction
-                break
-            end
-        end
-        if target_instruction then
-            printTable(target_instruction,2)
-            printTable(matching_instruction,2)
-        end
-
 
 
         packages.list_transfered_songs()[1].player.play()
