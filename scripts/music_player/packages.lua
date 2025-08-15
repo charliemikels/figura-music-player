@@ -569,7 +569,7 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
 
     -- we exited the loop. There may be unhandled modifiers, and the current packet builder needs to be added to the data_packets_list
 
-    for index, unhandled_modifier_start_part_pair in pairs(unhandled_modifiers_start_part_pairs) do
+    for _, unhandled_modifier_start_part_pair in pairs(unhandled_modifiers_start_part_pairs) do
         check_and_make_room(unhandled_modifier_start_part_pair, unhandled_modifier_start_part_pair.start_time)
         union_tables(current_packet_builder, unhandled_modifier_start_part_pair.packet_part)
     end
