@@ -348,16 +348,15 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
 end
 
 ---@param instruction Instruction
+---@param packet_start_time number      The start time of the current packet. Used to calculate the delta for this instruction.
 ---@param modifiers_tracker table
 ---@return {instruction_part_and_start: {start_time: number, packet_part: DataPacketPart}, modifier_parts_and_starts: {start_time: number, packet_part: DataPacketPart}[] }
-local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
-    ---@type {start_time: number, packet_part: DataPacketPart}[]
-    local instruction_packet_parts = {}
+local function song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
     local modifier_packet_parts = {}
 
     local instruction_packet_part_and_start = {start_time = instruction.start_time, packet_part = {}}
 
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.start_time)))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.start_time - packet_start_time)))
     union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.track_index))
     union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.duration)))
     union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.note))
@@ -469,38 +468,114 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
 
     ---@type SongPacket[]
     local data_packets = {}
+    local required_buffer_delay_in_milis = 0
+
     local current_packet_builder = {}
+    ---@type {start_time: number, packet_part: DataPacketPart}[]
+    local unhandled_modifiers_start_part_pairs = {}
     union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
     union_tables(current_packet_builder, transfered_song_id_vlq)
-    local required_buffer_delay_in_milis = 0
-    -- local packet_start_time = nil -- default first delta to first instruction's start time.
-    for _, instruction in ipairs(processed_song.instructions) do
-        -- if not packet_start_time then packet_start_time = instruction.start_time end
-        
-        local instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, modifiers_tracker)
-        local instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-        local modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+    local packet_start_time = processed_song.instructions[1].start_time
+    union_tables(current_packet_builder, int_to_vlq(math.floor(packet_start_time)))
 
-        if #current_packet_builder + #instruction_packet_part_with_start_time.packet_part >= max_packet_length then
+    ---comment
+    ---@param proposed_packet_start_part_pair {start_time: number, packet_part: DataPacketPart}
+    ---@param new_start_time number     The start time of the next packet, if one needs to be created.
+    ---@return boolean instruction_packet_should_be_rebuilt
+    local function check_and_make_room(proposed_packet_start_part_pair, new_start_time)
+        local instruction_packet_should_be_rebuilt = false
+        if #current_packet_builder + #proposed_packet_start_part_pair.packet_part >= max_packet_length then
             -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
             table.insert(data_packets, current_packet_builder)
 
+            packet_start_time = nil
+            current_packet_builder = nil
             current_packet_builder = {}
             union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
             union_tables(current_packet_builder, transfered_song_id_vlq)
+            packet_start_time = new_start_time
+            union_tables(current_packet_builder, int_to_vlq(math.floor(new_start_time)))
 
-            if ((#data_packets) * min_milis_between_packets) - required_buffer_delay_in_milis > instruction_packet_part_with_start_time.start_time then
+            if ((#data_packets) * min_milis_between_packets) - required_buffer_delay_in_milis > proposed_packet_start_part_pair.start_time then
                 -- Too much time has passed for us to play this instruction on time.
                 -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
-                required_buffer_delay_in_milis = ((#data_packets) * min_milis_between_packets) - instruction_packet_part_with_start_time.start_time
+                required_buffer_delay_in_milis = ((#data_packets) * min_milis_between_packets) - proposed_packet_start_part_pair.start_time
                 print("buffer time changed:", required_buffer_delay_in_milis / 1000)
             end
+
+            instruction_packet_should_be_rebuilt = true
         end
-        union_tables(current_packet_builder, instruction_packet_part_with_start_time.packet_part)
+        return instruction_packet_should_be_rebuilt
     end
 
+    for _, instruction in ipairs(processed_song.instructions) do
+        local instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
+        local instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
+        local modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+
+        -- insert any modifiers that go before this instruction
+
+        local previously_unhandled_modifiers_indexes_to_remove = {}
+        for index, unhandled_modifier_start_part_pair in pairs(unhandled_modifiers_start_part_pairs) do
+            if unhandled_modifier_start_part_pair.start_time <= instruction.start_time then
+                -- This modifier comes before the current instruction. Add it first
+                table.insert(previously_unhandled_modifiers_indexes_to_remove, index)
+
+                local should_use_the_new_packet_start_time =
+                    check_and_make_room(unhandled_modifier_start_part_pair, instruction.start_time)
+                if should_use_the_new_packet_start_time then
+                    instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
+                    instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
+                    modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+                end
+                union_tables(current_packet_builder, unhandled_modifier_start_part_pair.packet_part)
+
+            else
+                break
+            end
+        end
+
+        for _, index_to_remove in ipairs(previously_unhandled_modifiers_indexes_to_remove) do
+            unhandled_modifiers_start_part_pairs[index_to_remove] = nil
+        end
+
+        -- Actualy add the current instruction
+
+        local should_rebuild = check_and_make_room(instruction_packet_part_with_start_time, instruction.start_time)
+        if should_rebuild then
+            instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
+            instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
+            modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+        end
+        union_tables(current_packet_builder, instruction_packet_part_with_start_time.packet_part)
+
+        -- Add modifiers for current instruction to the unhandled list. They will be handeled in the next loop
+
+        union_tables(unhandled_modifiers_start_part_pairs, modifier_start_part_pairs_from_this_instrucion)
+
+        -- clean up / resort unhandled modifiers table.
+
+        local unhandeld_modifiers_list_requires_resort = (
+            #previously_unhandled_modifiers_indexes_to_remove > 0
+            or #modifier_start_part_pairs_from_this_instrucion > 0
+        )
+        if unhandeld_modifiers_list_requires_resort and #unhandled_modifiers_start_part_pairs > 1 then
+            table.sort(unhandled_modifiers_start_part_pairs, function (a, b)
+                if a and b then return a.start_time < b.start_time end
+                return (a and true or false)
+            end)
+        end
+    end
+
+    -- we exited the loop. There may be unhandled modifiers, and the current packet builder needs to be added to the data_packets_list
+
+    for index, unhandled_modifier_start_part_pair in pairs(unhandled_modifiers_start_part_pairs) do
+        check_and_make_room(unhandled_modifier_start_part_pair, unhandled_modifier_start_part_pair.start_time)
+        union_tables(current_packet_builder, unhandled_modifier_start_part_pair.packet_part)
+    end
     table.insert(data_packets, current_packet_builder)
 
+    -- debug to notice unhandled modifier types
     if next(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) then
         print("build_data_packets found some unrecognized note modifiers")
         for modifier_name, ammount in pairs(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) do
@@ -590,8 +665,9 @@ local collected_incomming_songs = {}
 local function receive_data_packet(reader, transfered_song_id)
     local song = collected_incomming_songs[transfered_song_id].song
     local modifiable_instructions = collected_incomming_songs[transfered_song_id].instructions_with_modifier_ids
+    local packet_start_time = vlq_to_int_from_reader(reader)
     repeat
-        local start_time = vlq_to_int_from_reader(reader)
+        local instruction_start_delta = vlq_to_int_from_reader(reader)
         local track_index = vlq_to_int_from_reader(reader)
         if track_index then -- Track index is provided. This is a normal instruction
 
@@ -601,7 +677,7 @@ local function receive_data_packet(reader, transfered_song_id)
 
             ---@type Instruction
             local instruction = {
-                start_time = start_time,
+                start_time = instruction_start_delta + packet_start_time,
                 track_index = track_index,
                 duration = duration,
                 note = note,
@@ -626,7 +702,7 @@ local function receive_data_packet(reader, transfered_song_id)
 
             if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
 
-                local un_deltaed_start_time = start_time + modifiable_instructions[assigned_instruction_modifier_id].start_time
+                local un_deltaed_start_time = instruction_start_delta + packet_start_time + modifiable_instructions[assigned_instruction_modifier_id].start_time
 
                 ---@type NoteModifier
                 local modifier = {
