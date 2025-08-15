@@ -323,10 +323,13 @@ end
 local modifier_type_to_number_lookup = {
     volume = 1,
     pitch_wheel = 2,
-    pan = 3,
+    -- pan = 3,
 }
 
 local notes_with_modifier_id_counter = 0
+
+-- List of note modifiers that we didn't recognize. Used to only print a "didn't recognize" error once per song.
+local discovered_unrecognized_modifier_type_lookup = {}
 
 ---@alias DataPacketPart Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
@@ -363,7 +366,12 @@ local function song_instruction_to_packet_parts(instruction)
         -- make new packet parts for each modifier
         for _, modifier in ipairs(instruction.modifiers) do
             if not modifier_type_to_number_lookup[modifier.type] then
-                print("Packet builder unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+                if not discovered_unrecognized_modifier_type_lookup[modifier.type] then
+                    discovered_unrecognized_modifier_type_lookup[modifier.type] = 1
+                    print("song_instruction_to_packet_parts: unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+                else
+                    discovered_unrecognized_modifier_type_lookup[modifier.type] = discovered_unrecognized_modifier_type_lookup[modifier.type] + 1
+                end
             else
                 ---@type DataPacketPart
                 local modifier_packet_part = {}
@@ -375,7 +383,7 @@ local function song_instruction_to_packet_parts(instruction)
                 union_tables(modifier_packet_part, int_to_vlq(modifier_type_to_number_lookup[modifier.type]))
                 union_tables(modifier_packet_part, int_to_vlq(modifier.value))
                 table.insert(return_packet_parts, {start_time = instruction.start_time, packet_part = modifier_packet_part})
-                print("found modifier: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+                -- print("found modifier: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
             end
         end
     end
@@ -389,6 +397,9 @@ end
 ---@return SongPacket[] data_packets
 ---@return integer buffer_delay_in_milis
 local function build_data_packets(processed_song, transfered_song_id_vlq)
+    -- New song; reset the unrecognized modifiers tracker.
+    discovered_unrecognized_modifier_type_lookup = {}
+
     ---@type {start_time: number, packet_part: DataPacketPart}[]
     local all_packet_parts_with_start_time = {}
     for _, instruction in ipairs(processed_song.instructions) do
@@ -420,6 +431,13 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
             end
         end
         union_tables(current_packet_builder, packet_part_with_start_time.packet_part)
+    end
+
+    if next(discovered_unrecognized_modifier_type_lookup) then
+        print("build_data_packets found some unrecognized note modifiers")
+        for modifier_name, ammount in pairs(discovered_unrecognized_modifier_type_lookup) do
+            print("  found "..tostring(ammount).." instances of the `"..modifier_name.."` modifier")
+        end
     end
 
     return data_packets, required_buffer_delay_in_milis + (1 * min_milis_between_packets)
