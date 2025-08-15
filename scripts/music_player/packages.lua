@@ -288,6 +288,13 @@ local function build_config_packet(player_config)
     union_tables(config_packet_body, string_to_bytes_with_len(player_config.primary_update_event_key))
     union_tables(config_packet_body, string_to_bytes_with_len(player_config.fallback_update_event_key))
 
+    -- bolian-based-configs
+
+    local boolean_configs = {
+        (player_config.play_immediatly and true or false),
+    }
+    union_tables(config_packet_body, int_to_vlq(bool_list_to_number(boolean_configs)))
+
     return config_packet_body
 end
 
@@ -796,6 +803,8 @@ local function receive_config_packet(reader, transfered_song_id)
     config_data.primary_update_event_key = bytes_with_len_to_string_from_reader(reader)
     config_data.fallback_update_event_key = bytes_with_len_to_string_from_reader(reader)
 
+    local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
+    config_data.play_immediatly = boolean_configs[1]
 
     if not collected_incomming_songs[transfered_song_id].player then
         -- This config packet must be inside of a header packet. It is our job to create the player.

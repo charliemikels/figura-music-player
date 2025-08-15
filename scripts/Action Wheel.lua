@@ -61,10 +61,11 @@ future_of_music:register_callback(
             },
             -- source_pos = vec(0, -0.6, -5.40),
             source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
-            info_display_type = nil
+            info_display_type = nil,
+            play_immediatly = true
         }
 
-        local controller = song_player_api.new_player(processed_song, song_player_config)
+        -- local controller = song_player_api.new_player(processed_song, song_player_config)
         -- controller.play()
 
         local packages = require("scripts/music_player/packages")
@@ -74,13 +75,13 @@ future_of_music:register_callback(
         end
 
         printTable(packages.list_transfered_songs()[1].song)
-        local tmp_counter = 0
-        events.TICK:register(function()
-            tmp_counter = tmp_counter +1
-            if tmp_counter < 40 then return end
-            packages.list_transfered_songs()[1].player.play()
-            events.TICK:remove("TMP_FAKE_DELAY")
-        end, "TMP_FAKE_DELAY")
+        -- local tmp_counter = 0
+        -- events.TICK:register(function()
+        --     tmp_counter = tmp_counter +1
+        --     if tmp_counter < 40 then return end
+        --     packages.list_transfered_songs()[1].player.play()
+        --     events.TICK:remove("TMP_FAKE_DELAY")
+        -- end, "TMP_FAKE_DELAY")
 
 
 
