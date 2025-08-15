@@ -333,6 +333,12 @@ local discovered_unrecognized_modifier_type_lookup = {}
 
 ---@alias DataPacketPart Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
+--- For use with song_instruction_to_packet_parts()
+---
+--- A simple wraper so that I can reuse the "add modifier" code
+---@param modifier NoteModifier                 The modifier to add
+---@param instruction_modifier_list_id integer  The note ID to add this modifier to.
+---@return {start_time: number, packet_part: DataPacketPart}
 local function modifier_to_packet_part(modifier, instruction_modifier_list_id)
     ---@type DataPacketPart
     local modifier_packet_part = {}
