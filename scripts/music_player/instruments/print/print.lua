@@ -42,7 +42,7 @@ local print_instrument_factory = {
             stop_all_sounds_immediatly = function()
                 active_instructions = {}
             end,
-            is_finished = function() if next(active_instructions) == nil then return true else return false end end
+            is_finished = function() return next(active_instructions) == nil end
         }
         return new_instance
     end,
