@@ -75,6 +75,7 @@ future_of_music:register_callback(
 
 
         packages.list_transfered_songs()[1].player.play()
+        printTable(packages.list_transfered_songs()[1].song)
 
 
 

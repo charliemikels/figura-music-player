@@ -349,29 +349,29 @@ end
 
 ---@param instruction Instruction
 ---@param modifiers_tracker table
----@return {start_time: number, packet_part: DataPacketPart}[]
+---@return {instruction_part_and_start: {start_time: number, packet_part: DataPacketPart}, modifier_parts_and_starts: {start_time: number, packet_part: DataPacketPart}[] }
 local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
     ---@type {start_time: number, packet_part: DataPacketPart}[]
-    local return_packet_parts = {}
+    local instruction_packet_parts = {}
+    local modifier_packet_parts = {}
 
-    local instruction_packet_part = {}
-    table.insert(return_packet_parts, {start_time = instruction.start_time, packet_part = instruction_packet_part})  -- (inserting this table now so that it appears before any modifiers)
+    local instruction_packet_part_and_start = {start_time = instruction.start_time, packet_part = {}}
 
-    union_tables(instruction_packet_part, int_to_vlq(math.floor(instruction.start_time)))
-    union_tables(instruction_packet_part, int_to_vlq(instruction.track_index))
-    union_tables(instruction_packet_part, int_to_vlq(math.floor(instruction.duration)))
-    union_tables(instruction_packet_part, int_to_vlq(instruction.note))
-    union_tables(instruction_packet_part, int_to_vlq(instruction.start_velocity))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.start_time)))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.track_index))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.duration)))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.note))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.start_velocity))
 
     if not (instruction.modifiers and next(instruction.modifiers)) then
-        union_tables(instruction_packet_part, int_to_vlq(nil))  -- no modifiers.
+        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(nil))  -- no modifiers.
     else
         -- this instruction has modifiers
         -- Assign a unique note modifier tracker ID
 
         local instruction_modifier_list_id = modifiers_tracker.id_counter
         modifiers_tracker.id_counter = modifiers_tracker.id_counter + 1
-        union_tables(instruction_packet_part, int_to_vlq(instruction_modifier_list_id))
+        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction_modifier_list_id))
 
 
         -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
@@ -391,7 +391,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
                 if not modifier_subset_tracker[modifier.type] then
                     -- first of this type.
 
-                    table.insert(return_packet_parts, modifier_to_packet_part(
+                    table.insert(modifier_packet_parts, modifier_to_packet_part(
                         modifier,
                         instruction.start_time,
                         instruction_modifier_list_id
@@ -412,7 +412,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
                         -- The last_seen modifier was not added, but there is too much time between that last modifier and this modifier.
                         -- The last_seen modifier might have been a "bookend" modifier. We should re-include it just in case.
 
-                        table.insert(return_packet_parts, modifier_to_packet_part(
+                        table.insert(modifier_packet_parts, modifier_to_packet_part(
                             modifier_subset_tracker[modifier.type].last_seen,
                             instruction.start_time,
                             instruction_modifier_list_id
@@ -429,7 +429,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
                     then
                         -- this modifier is at the right time. Add it.
 
-                        table.insert(return_packet_parts, modifier_to_packet_part(modifier, instruction.start_time, instruction_modifier_list_id))
+                        table.insert(modifier_packet_parts, modifier_to_packet_part(modifier, instruction.start_time, instruction_modifier_list_id))
 
                         modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
                         modifier_subset_tracker[modifier.type].last_added = modifier
@@ -445,11 +445,11 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
             if modifier_subset_info.last_seen.start_time > modifier_subset_info.last_added.start_time then
                 -- the modifier that was last added was not the last seen.
                 -- Add in the last seen modifier so that we the bookends of this modifier list.
-                table.insert(return_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction.start_time, instruction_modifier_list_id))
+                table.insert(modifier_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction.start_time, instruction_modifier_list_id))
             end
         end
     end
-    return return_packet_parts
+    return {instruction_part_and_start = instruction_packet_part_and_start, modifier_parts_and_starts = modifier_packet_parts}
 end
 
 --- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
@@ -467,22 +467,21 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
         total_number_of_unrecognized_modifier_types_by_type = {}  ---@type table<string, integer>
     }
 
-    ---@type {start_time: number, packet_part: DataPacketPart}[]
-    local all_packet_parts_with_start_time = {}
-    for _, instruction in ipairs(processed_song.instructions) do
-        union_tables(all_packet_parts_with_start_time, song_instruction_to_packet_parts(instruction, modifiers_tracker))
-    end
-    -- The list should already be in order if there are no modifiers, but modifiers will be next to their instructions, and may throw off the absolute order
-    table.sort(all_packet_parts_with_start_time, function (a, b) return a.start_time < b.start_time end)
-
     ---@type SongPacket[]
     local data_packets = {}
     local current_packet_builder = {}
     union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
     union_tables(current_packet_builder, transfered_song_id_vlq)
     local required_buffer_delay_in_milis = 0
-    for _, packet_part_with_start_time in ipairs(all_packet_parts_with_start_time) do
-        if #current_packet_builder + #packet_part_with_start_time.packet_part >= max_packet_length then
+    -- local packet_start_time = nil -- default first delta to first instruction's start time.
+    for _, instruction in ipairs(processed_song.instructions) do
+        -- if not packet_start_time then packet_start_time = instruction.start_time end
+        
+        local instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, modifiers_tracker)
+        local instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
+        local modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+
+        if #current_packet_builder + #instruction_packet_part_with_start_time.packet_part >= max_packet_length then
             -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
             table.insert(data_packets, current_packet_builder)
 
@@ -490,15 +489,17 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
             union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
             union_tables(current_packet_builder, transfered_song_id_vlq)
 
-            if ((#data_packets) * min_milis_between_packets) - required_buffer_delay_in_milis > packet_part_with_start_time.start_time then
+            if ((#data_packets) * min_milis_between_packets) - required_buffer_delay_in_milis > instruction_packet_part_with_start_time.start_time then
                 -- Too much time has passed for us to play this instruction on time.
                 -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
-                required_buffer_delay_in_milis = ((#data_packets) * min_milis_between_packets) - packet_part_with_start_time.start_time
+                required_buffer_delay_in_milis = ((#data_packets) * min_milis_between_packets) - instruction_packet_part_with_start_time.start_time
                 print("buffer time changed:", required_buffer_delay_in_milis / 1000)
             end
         end
-        union_tables(current_packet_builder, packet_part_with_start_time.packet_part)
+        union_tables(current_packet_builder, instruction_packet_part_with_start_time.packet_part)
     end
+
+    table.insert(data_packets, current_packet_builder)
 
     if next(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) then
         print("build_data_packets found some unrecognized note modifiers")
