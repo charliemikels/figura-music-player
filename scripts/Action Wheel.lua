@@ -75,13 +75,18 @@ future_of_music:register_callback(
         end
 
         printTable(packages.list_transfered_songs()[1].song)
-        -- local tmp_counter = 0
-        -- events.TICK:register(function()
-        --     tmp_counter = tmp_counter +1
-        --     if tmp_counter < 40 then return end
-        --     packages.list_transfered_songs()[1].player.play()
-        --     events.TICK:remove("TMP_FAKE_DELAY")
-        -- end, "TMP_FAKE_DELAY")
+        local tmp_counter = 0
+        events.TICK:register(function()
+            tmp_counter = tmp_counter +1
+            if tmp_counter <= 120 then print(tmp_counter); return end
+            packages.update_config_for_transfered_song(
+                1,
+                {
+                    default_normal_instrument = {name = "Muted"}
+                }
+            )
+            events.TICK:remove("TMP_FAKE_DELAY")
+        end, "TMP_FAKE_DELAY")
 
 
 

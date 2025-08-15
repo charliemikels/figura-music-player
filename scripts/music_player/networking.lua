@@ -176,7 +176,7 @@ local packet_ids = {
 --- This can be used at any time to update a remote song's configuration.
 ---@param player_config SongPlayerConfig
 ---@return SongPacket
-local function build_config_packet(player_config)
+local function build_config_packet_body(player_config)
 
     local config_packet_body = {}
 
@@ -609,7 +609,7 @@ local function song_to_packets(processed_song, player_config)
     songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
     union_tables(header_packet_head, transfered_song_id_vlq)             -- 2nd element is allways the song transfer ID
 
-    local config_packet_body = build_config_packet(player_config)
+    local config_packet_body = build_config_packet_body(player_config)
     local all_data_packets, buffer_delay = build_data_packets(processed_song, transfered_song_id_vlq)
 
     union_tables(header_packet_body, int_to_vlq(buffer_delay))
@@ -898,9 +898,20 @@ local function add_packet_to_song(packed_packet_data)
     packet_receiving_functions[packet_id](reader, transfered_song_id)
 end
 
+---comment
+---@param transfered_song_id integer
+---@param new_config SongPlayerConfig
+local function update_config_for_transfered_song(transfered_song_id, new_config)
+    collected_incomming_songs[transfered_song_id].player.set_new_config(new_config)
+    -- local config_packet = {}
+    -- union_tables(config_packet, int_to_vlq(packet_ids.config))
+    -- union_tables(config_packet, int_to_vlq(transfered_song_id))
+    -- union_tables(config_packet, build_config_packet_body(new_config))
+end
 
 return {
     song_to_packets = song_to_packets,
     add_packet_to_song = add_packet_to_song,    -- adds a packet to it's targeted song.
-    list_transfered_songs = function() return collected_incomming_songs end
+    list_transfered_songs = function() return collected_incomming_songs end,
+    update_config_for_transfered_song = update_config_for_transfered_song
 }

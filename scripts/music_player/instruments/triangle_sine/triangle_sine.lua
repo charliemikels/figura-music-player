@@ -93,7 +93,9 @@ local print_instrument_factory = {
                 table.insert(active_instructions, active_instruction)
             end,
             update_sounds = function(position)
+                print("next:", next(active_instructions))
                 for active_instruction_key, active_instruction in pairs(active_instructions) do
+                    print("updated", (active_instruction.time_started + active_instruction.instruction.duration), client.getSystemTime())
                     if (active_instruction.time_started + active_instruction.instruction.duration) <= client.getSystemTime() then
                         -- Stop this instruction
                         active_instruction.sound:stop()
@@ -120,7 +122,10 @@ local print_instrument_factory = {
                     active_instructions[active_instruction_key] = nil
                 end
             end,
-            is_finished = function() return (next(active_instructions) and true or false) end
+            is_finished = function()
+                if next(active_instructions) == nil then return true else return false end
+                -- return (next(active_instructions) and false or true)
+            end
         }
         return new_instance
     end,
