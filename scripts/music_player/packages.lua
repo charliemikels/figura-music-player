@@ -334,10 +334,10 @@ local modifier_type_to_number_lookup = {
 ---@param modifier NoteModifier                 The modifier to add
 ---@param instruction_modifier_list_id integer  The note ID to add this modifier to.
 ---@return {start_time: number, packet_part: DataPacketPart}
-local function modifier_to_packet_part(modifier, instruction_modifier_list_id)
+local function modifier_to_packet_part(modifier, instruction_start_time, instruction_modifier_list_id)
     ---@type DataPacketPart
     local modifier_packet_part = {}
-    union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time)))
+    union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time - instruction_start_time)))
     union_tables(modifier_packet_part, int_to_vlq(nil))
         -- nil signals that this is a modifier for an instruction we've (probably) already sent
         -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
@@ -393,6 +393,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
 
                     table.insert(return_packet_parts, modifier_to_packet_part(
                         modifier,
+                        instruction.start_time,
                         instruction_modifier_list_id
                     ))
 
@@ -413,6 +414,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
 
                         table.insert(return_packet_parts, modifier_to_packet_part(
                             modifier_subset_tracker[modifier.type].last_seen,
+                            instruction.start_time,
                             instruction_modifier_list_id
                         ))
                         modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
@@ -427,7 +429,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
                     then
                         -- this modifier is at the right time. Add it.
 
-                        table.insert(return_packet_parts, modifier_to_packet_part(modifier, instruction_modifier_list_id))
+                        table.insert(return_packet_parts, modifier_to_packet_part(modifier, instruction.start_time, instruction_modifier_list_id))
 
                         modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
                         modifier_subset_tracker[modifier.type].last_added = modifier
@@ -443,7 +445,7 @@ local function song_instruction_to_packet_parts(instruction, modifiers_tracker)
             if modifier_subset_info.last_seen.start_time > modifier_subset_info.last_added.start_time then
                 -- the modifier that was last added was not the last seen.
                 -- Add in the last seen modifier so that we the bookends of this modifier list.
-                table.insert(return_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction_modifier_list_id))
+                table.insert(return_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction.start_time, instruction_modifier_list_id))
             end
         end
     end
@@ -622,9 +624,12 @@ local function receive_data_packet(reader, transfered_song_id)
             local modifier_type = modifier_number_to_type_lookup[modifier_type_id]
 
             if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
+
+                local un_deltaed_start_time = start_time + modifiable_instructions[assigned_instruction_modifier_id].start_time
+
                 ---@type NoteModifier
                 local modifier = {
-                    start_time = start_time,
+                    start_time = un_deltaed_start_time,
                     type = modifier_type,
                     value = modifier_value
                 }
