@@ -141,7 +141,7 @@ get_all_instruments()
 ---@field info_display_type string?      Configures if/how song info should be displayed in the world.
 ---@field primary_update_event_key string?      See `events:getEvents()`. Defaults to "RENDER." Usefull for playing a song with a player_skull instead of the real avatar.
 ---@field fallback_update_event_key string?     See `events:getEvents()`. Defaults to "TICK."
----@field play_immediatly boolean?       Effectively calls `.play()` immediatly.
+---@field play_immediately boolean?       Effectively calls `.play()` immediatly.
 ---
 -- --- Auto stop is important if the song is comming from the player entity.
 -- --- Without it, whenever the player is unloaded (eg goes through a nether portal), any running music will freeze and
@@ -191,7 +191,7 @@ local function apply_config(playing_song, config)
 
     -- TODO: config.info_display_type whatnot
 
-    if config.play_immediatly then
+    if config.play_immediately then
         if not playing_song.controller.is_playing() then playing_song.controller.play() end
     end
 end
