@@ -450,7 +450,7 @@ end
 ---@see song_to_packets
 ---@param processed_song ProcessedSong
 ---@param transfered_song_id_vlq Byte[]
----@return SongPacket[] data_packets
+---@return SongPacket[] data_packets        Fullf formed packets, ready to be packed and shipped.
 ---@return integer buffer_delay_in_milis
 local function build_data_packets(processed_song, transfered_song_id_vlq)
 
@@ -538,6 +538,10 @@ local function song_to_packets(processed_song, player_config)
     else
         -- TODO: we need to send the config packet as its own packet
         error("we need to send the config packet as its own packet")
+    end
+
+    for _, data_packet in ipairs(all_data_packets) do
+        table.insert(final_packet_list, data_packet)
     end
 
     local final_packed_packet_list = {}
@@ -697,12 +701,14 @@ local function receive_header_packet(reader, transfered_song_id)
     return incomming_processed_song
 end
 
+local tmp_counter = 0
+
 -- function lookup table for packet receiver
 ---@type table<string, fun(reader: PacketReader, transfered_song_id: integer)>
 local packet_receiving_functions = {
     [packet_ids.header] = receive_header_packet,
     [packet_ids.config] = receive_config_packet,
-    [packet_ids.data] = function () end,
+    [packet_ids.data] = function () tmp_counter = tmp_counter +1; print("todo:", tmp_counter, "data packets so far") end,
 }
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.
