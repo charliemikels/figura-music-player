@@ -2,7 +2,7 @@
 
 -- Things player.lua needs to do:
 -- - [x] Receive a ProcessedSong, or a ProcessedSongStream
--- - [x] Start an event loop to watch the current time. Auto-kill the song and loop after durration is met.
+-- - [x] Start an event loop to watch the current time. Auto-kill the song and loop after duration is met.
 -- - [x] Every loop tick, check the list of instructions. If there are any new instructions, dispatch them to the relevent instrument.
 -- - [x] Update each instrument. (They handle things like volume changes and pitch changes when nessesary)
 -- - [x] Monitor the event loop (use another loop). Dynamicaly switch between high resolution (render) and high reliability (tick) when relevent.
@@ -150,7 +150,7 @@ get_all_instruments()
 -- ---@field auto_stop_if_update_events_fail boolean?
 
 ---Applies config to a PlayingSong
----Used during init, and may be used durring playback.
+---Used during init, and may be used during playback.
 ---@param playing_song PlayingSong
 ---@param config SongPlayerConfig
 local function apply_config(playing_song, config)
@@ -274,8 +274,8 @@ local function update_song(playing_song)
     end
 
     -- TODO: Check if the song has finished, and all instruments have finished
-    if playing_song.song_durration + playing_song.start_time < current_time then
-        print_debug("Song_durr + start_time is now less than current time.")
+    if playing_song.song_duration + playing_song.start_time < current_time then
+        print_debug("Song_dur + start_time is now less than current time.")
         if all_instruments_done then
             playing_song.controller.stop()
             return
@@ -440,8 +440,8 @@ local song_player_api = {
                     -- TODO: is a full UUID the right choice for this? could we get away with a simple sequence number, then we could send it ?
 
             ---@type number The total length of the song
-            song_durration = song.durration,
-            start_time = nil,   -- Compare with durration. If start time + durration <= current time, then song has ended
+            song_duration = song.duration,
+            start_time = nil,   -- Compare with duration. If start time + duration <= current time, then song has ended
             elapsed_time = 0,   -- Might allow us to pause a song.
                                 -- When resuming a song, get current time, subtract elapsed, and that should give a new start time.
             instructions = song.instructions,
@@ -507,7 +507,7 @@ local song_player_api = {
 
                 ---@type fun():number
                 get_progress = function()
-                    return (client.getSystemTime() - playing_song.start_time) / playing_song.song_durration
+                    return (client.getSystemTime() - playing_song.start_time) / playing_song.song_duration
                 end,
 
                 ---@type fun()

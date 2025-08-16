@@ -19,7 +19,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(9)
+local selected_song = music_player_api.library:get_song_by_sorted_index(115)
 -- 2: Balatro - uses significant pitch wheel in the synths
 -- 3: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 6: Specialist (shorter)
@@ -68,36 +68,37 @@ future_of_music:register_callback(
         -- local controller = song_player_api.new_player(processed_song, song_player_config)
         -- controller.play()
 
-        local packages = require("scripts/music_player/networking")
-        local packets = packages.song_to_packets(processed_song, song_player_config)
+        local networking = require("scripts/music_player/networking")
+        local packets = networking.song_to_packets(processed_song, song_player_config)
         for _, packet in ipairs(packets) do
-            packages.add_packet_to_song(packet)
+            networking.add_packet_to_song(packet)
         end
 
-        printTable(packages.list_transfered_songs()[1].song)
-        local tmp_counter = 0
-        events.TICK:register(function()
-            tmp_counter = tmp_counter +1
-            print(tmp_counter);
-            if tmp_counter == 120 then
-                packages.update_config_for_transfered_song(
-                    1,
-                    {
-                        default_normal_instrument = {name = "MC/Harp"}
-                    }
-                )
-            end
-            if tmp_counter >= 240 then
-                packages.update_config_for_transfered_song(
-                    1,
-                    {
-                        default_normal_instrument = {name = "Triangle Sine"}
-                    }
-                )
-                events.TICK:remove("TMP_FAKE_DELAY")
-            end
+        printTable(networking.list_transfered_songs()[1].song)
+        printTable(networking.list_transfered_songs()[1].song.tracks)
+        -- local tmp_counter = 0
+        -- events.TICK:register(function()
+        --     tmp_counter = tmp_counter +1
+        --     print(tmp_counter);
+        --     if tmp_counter == 120 then
+        --         packages.update_config_for_transfered_song(
+        --             1,
+        --             {
+        --                 default_normal_instrument = {name = "MC/Harp"}
+        --             }
+        --         )
+        --     end
+        --     if tmp_counter >= 240 then
+        --         packages.update_config_for_transfered_song(
+        --             1,
+        --             {
+        --                 default_normal_instrument = {name = "Triangle Sine"}
+        --             }
+        --         )
+        --         events.TICK:remove("TMP_FAKE_DELAY")
+        --     end
 
-        end, "TMP_FAKE_DELAY")
+        -- end, "TMP_FAKE_DELAY")
 
 
 

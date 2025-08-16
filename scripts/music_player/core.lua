@@ -48,7 +48,7 @@ end)
 ---@class ProcessedSong
 ---@field instructions Instruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
 ---@field name string
----@field durration number
+---@field duration number
 ---@field tracks Track[]
 ---@field buffer_start_time number?  The time when the song started buffering
 ---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.

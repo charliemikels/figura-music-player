@@ -199,7 +199,7 @@ end
 
 
 local midi_default_tempo = 500000
----Calculates a multiplier to convert between the file's delta ticks to a durration in miliseconds
+---Calculates a multiplier to convert between the file's delta ticks to a duration in miliseconds
 ---@param division integer      Part of the midi header chunk. Defines delta ticks per quarter note
 ---@param tempo integer         Set by meta event 0x51 (set_tempo). Defines microseconds (not milis) per midi quarter note.
 ---@return number multiplier
@@ -1118,7 +1118,7 @@ local midi_processor_loop_stage_functions = {
                         ---@type integer
                         data_index = 1,
 
-                        ---Durring the process stage, we need to read track messages in chronological order.
+                        ---During the process stage, we need to read track messages in chronological order.
                         ---Use this to track the absolute time passed for a track to compare with the next message's delta time.
                         ---@type number
                         sum_ticks = 0,
@@ -1452,7 +1452,7 @@ local midi_processor_loop_stage_functions = {
         ---@type ProcessedSong
         local processed_song = {
             name = song.short_name,
-            durration = state.processed_metadata.time_song_end,
+            duration = state.processed_metadata.time_song_end,
             instructions = state.complete_instructions,
             tracks = player_track_data
         }

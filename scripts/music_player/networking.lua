@@ -166,7 +166,7 @@ end
 
 ---@enum SongPacketTypeIDs
 local packet_ids = {
-    header = 1, -- Includeds initial like name, durration, track_types
+    header = 1, -- Includeds initial like name, duration, track_types
     data = 2,   -- Bulk of the packet stream
     config = 3, -- A packet that might appear to update a song's configuration
 }
@@ -314,7 +314,7 @@ local function build_header_packet_without_buffer_delay(processed_song)
     union_tables(packet, string_to_bytes_with_len(processed_song.name))
 
     union_tables(packet, int_to_vlq(
-        math.ceil(processed_song.durration) -- At 144FPS, the player can only update every 5ms ceil to drop sub-milisecond precission.
+        math.ceil(processed_song.duration) -- At 144FPS, the player can only update every 5ms ceil to drop sub-milisecond precission.
     ))
 
     local track_type_bits = {}
@@ -838,7 +838,7 @@ local function receive_header_packet(reader, transfered_song_id)
     collected_incomming_songs[transfered_song_id] = {}
 
     local name = bytes_with_len_to_string_from_reader(reader)
-    local durration = vlq_to_int_from_reader(reader)
+    local duration = vlq_to_int_from_reader(reader)
 
     local num_tracks = vlq_to_int_from_reader(reader)
     local track_type_id_flags = int_to_bit_list(vlq_to_int_from_reader(reader), num_tracks)
@@ -853,7 +853,7 @@ local function receive_header_packet(reader, transfered_song_id)
     ---@type ProcessedSong
     local incomming_processed_song = {
         name = name,
-        durration = durration,
+        duration = duration,
         tracks = tracks,
         instructions = {},
         buffer_delay = buffer_delay,
