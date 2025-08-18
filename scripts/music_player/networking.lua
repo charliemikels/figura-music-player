@@ -1,5 +1,5 @@
 
-local max_packet_length = 800       -- in bytes
+local max_packet_length = 800-2          -- in bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
 local min_milis_between_packets = 1200   -- How long the ping system needs to wait before sending another packet.
 
 
