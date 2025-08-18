@@ -53,11 +53,15 @@ future_of_music:register_callback(
             default_normal_instrument = {name = "Triangle Sine"},
             default_percussion_instrument = {name = "Percussion"},
             instrument_selections = {
-                -- [2] = {name = "MC/Harp"},
-                -- [3] = {name = "Muted"},
-                -- [4] = {name = "Muted"},
+                [1] = {name = "MC/Flute"},
+                [2] = {name = "MC/Harp"},
+                [3] = {name = "MC/Harp"},
+                [6] = {name = "MC/Chime"},
                 -- [5] = {name = "Muted"},
-                -- [6] = {name = "MC/Bass"},
+                [9] = {name = "MC/Bass"},
+                [10] = {name = "MC/Bass"},
+                [11] = {name = "MC/Guitar"},
+                [14] = {name = "MC/Guitar"},
             },
             -- source_pos = vec(0, -0.6, -5.40),
             source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
@@ -70,12 +74,16 @@ future_of_music:register_callback(
 
         local networking = require("scripts/music_player/networking")
         local packets = networking.song_to_packets(processed_song, song_player_config)
-        for _, packet in ipairs(packets) do
-            networking.add_packet_to_song(packet)
-        end
 
-        printTable(networking.list_transfered_songs()[1].song)
-        printTable(networking.list_transfered_songs()[1].song.tracks)
+        networking.ping_packets(packets)
+
+        -- printTable(packets)
+        -- for _, packet in ipairs(packets) do
+        --     networking.add_packet_to_song(packet)
+        -- end
+
+        -- printTable(networking.list_transfered_songs()[1].song)
+        -- printTable(networking.list_transfered_songs()[1].song.tracks)
         -- local tmp_counter = 0
         -- events.TICK:register(function()
         --     tmp_counter = tmp_counter +1
@@ -97,7 +105,6 @@ future_of_music:register_callback(
         --         )
         --         events.TICK:remove("TMP_FAKE_DELAY")
         --     end
-
         -- end, "TMP_FAKE_DELAY")
 
 

@@ -915,9 +915,88 @@ local function update_config_for_transfered_song(transfered_song_id, new_config)
     -- union_tables(config_packet, build_config_packet_body(new_config))
 end
 
+
+
+--- primary ping function. It receives a packet and sends it off for processing
+--- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
+---@param incomming_packet PackedSongPacket
+function pings.TL_FMP_receive_packet(incomming_packet)
+    print("debug: received ping")
+    -- print(incomming_packet)
+    add_packet_to_song(incomming_packet)
+end
+
+local function ping_packet_immediatly(outgoing_packed_packet)
+    pings.TL_FMP_receive_packet(outgoing_packed_packet)
+end
+
+local outgoing_packet_queue_index = 1   ---@type integer        Index into outgoing_packet_queue. Using an index so that we don't have to remove items from the list.
+local outgoing_packet_queue = {}    ---@type PackedSongPacket[]
+
+local ping_loop_last_emit_time = client:getSystemTime()
+local ping_loop_running = false
+
+--- Host-side event loop to emit pings from the ping queue
+local function ping_loop()
+    if ping_loop_last_emit_time + min_milis_between_packets < client:getSystemTime()  then
+        -- we can emit another packet
+
+        print("pinging packet #"..tostring(outgoing_packet_queue_index).."…")
+
+        pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index])
+
+        outgoing_packet_queue_index = outgoing_packet_queue_index + 1
+        ping_loop_last_emit_time = client:getSystemTime()
+
+        -- check if list is empty
+        if outgoing_packet_queue_index > #outgoing_packet_queue then
+            -- List is empty, reset and shutdown ping loop
+
+            print("Ping queue is empty.")
+
+            outgoing_packet_queue = {}  -- easier to just reset the table now then to remove a sent packet and resort the remaning indexes.
+            outgoing_packet_queue_index = 1
+
+            ping_loop_running = false
+            events.WORLD_TICK:remove(ping_loop)
+        end
+    end
+end
+
+local function check_or_start_ping_loop()
+    if ping_loop_running then
+        return
+    else
+        print("Starting ping loop")
+        events.WORLD_TICK:register(ping_loop)
+        ping_loop_running = true
+    end
+end
+
+---comment
+---@param outgoing_packed_packet PackedSongPacket
+local function ping_packet(outgoing_packed_packet)
+    table.insert(outgoing_packet_queue, outgoing_packed_packet)
+    check_or_start_ping_loop()
+end
+
+---comment
+---@param outgoing_packed_packets PackedSongPacket[]
+local function ping_packets(outgoing_packed_packets)
+    for _, packet in ipairs(outgoing_packed_packets) do
+        table.insert(outgoing_packet_queue, packet)
+    end
+    check_or_start_ping_loop()
+end
+
+
+
+
+
 return {
     song_to_packets = song_to_packets,
     add_packet_to_song = add_packet_to_song,    -- adds a packet to it's targeted song.
     list_transfered_songs = function() return collected_incomming_songs end,
-    update_config_for_transfered_song = update_config_for_transfered_song
+    update_config_for_transfered_song = update_config_for_transfered_song,
+    ping_packets = ping_packets,
 }
