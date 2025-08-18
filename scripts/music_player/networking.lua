@@ -612,23 +612,29 @@ local function song_to_packets(processed_song, player_config)
     local config_packet_body = build_config_packet_body(player_config)
     local all_data_packets, buffer_delay = build_data_packets(processed_song, transfered_song_id_vlq)
 
-    union_tables(header_packet_body, int_to_vlq(buffer_delay))
     local header_packet = {}
-    union_tables(header_packet, header_packet_head)
-    union_tables(header_packet, header_packet_body)
-
 
     ---@type SongPacket[]
     local final_packet_list = {}
     local there_is_enough_space_to_combine_the_header_and_config_packets =
-        (#header_packet_head + #header_packet_body + #config_packet_body)
+        (#header_packet_head + #header_packet_body + #int_to_vlq(buffer_delay) + #config_packet_body)
         < max_packet_length
     if there_is_enough_space_to_combine_the_header_and_config_packets then
         -- @e can join the header packet and the initial config packet
+
+        union_tables(header_packet_body, int_to_vlq(buffer_delay))
+
+        union_tables(header_packet, header_packet_head)
+        union_tables(header_packet, header_packet_body)
         union_tables(header_packet, config_packet_body)
         table.insert(final_packet_list, header_packet)
     else
         -- We need to send the config packet as its own packet
+
+        union_tables(header_packet_body, int_to_vlq(buffer_delay + min_milis_between_packets))  -- buffer needs to be one packet longer.
+        union_tables(header_packet, header_packet_head)
+        union_tables(header_packet, header_packet_body)
+
         table.insert(final_packet_list, header_packet)
 
         local config_packet = {}
