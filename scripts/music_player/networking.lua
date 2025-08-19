@@ -1,6 +1,6 @@
 
-local max_packet_length = 800-2          -- in bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
-local min_milis_between_packets = 1200   -- How long the ping system needs to wait before sending another packet.
+local max_packet_length = 800-2             -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
+local target_milis_between_packets = 1200   -- How long the ping system should try to wait before sending another packet. (Tick event adds 50 milis of possible drift to account for.)
 
 
 
@@ -505,10 +505,10 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
             packet_start_time = new_start_time
             union_tables(current_packet_builder, int_to_vlq(math.floor(new_start_time)))
 
-            if ((#data_packets) * min_milis_between_packets) - required_buffer_delay_in_milis > proposed_packet_start_part_pair.start_time then
+            if ((#data_packets) * target_milis_between_packets) - required_buffer_delay_in_milis > proposed_packet_start_part_pair.start_time then
                 -- Too much time has passed for us to play this instruction on time.
                 -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
-                required_buffer_delay_in_milis = ((#data_packets) * min_milis_between_packets) - proposed_packet_start_part_pair.start_time
+                required_buffer_delay_in_milis = ((#data_packets) * target_milis_between_packets) - proposed_packet_start_part_pair.start_time
                 print("buffer time changed:", required_buffer_delay_in_milis / 1000)
             end
 
@@ -592,7 +592,7 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
         end
     end
 
-    return data_packets, required_buffer_delay_in_milis + (1 * min_milis_between_packets)
+    return data_packets, required_buffer_delay_in_milis + (1 * target_milis_between_packets)
 end
 
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
@@ -633,7 +633,7 @@ local function song_to_packets(processed_song, player_config)
     else
         -- We need to send the config packet as its own packet
 
-        union_tables(header_packet_body, int_to_vlq(buffer_delay + min_milis_between_packets))  -- buffer needs to be one packet longer.
+        union_tables(header_packet_body, int_to_vlq(buffer_delay + target_milis_between_packets))  -- buffer needs to be one packet longer.
         union_tables(header_packet, header_packet_head)
         union_tables(header_packet, header_packet_body)
 
@@ -937,12 +937,12 @@ local ping_loop_start_time
 
 --- Host-side event loop to emit pings from the ping queue
 local function ping_loop()
-    if ping_loop_start_time + (min_milis_between_packets * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
+    if ping_loop_start_time + (target_milis_between_packets * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
         -- we can emit another packet
-        -- Note that this condition may be true in situations where the time between 
-        -- two packets is slightly _less_ than min_milis_between_packets. 
-        -- It will still be the average, but enabling us to send a packet slightly 
-        -- early will avoid the "slip" caused from missing the perfect time to emmit a packet. 
+        -- Note that this condition may be true in situations where the time between
+        -- two packets is slightly _less_ than min_milis_between_packets.
+        -- It will still be the average, but enabling us to send a packet slightly
+        -- early will avoid the "slip" caused from missing the perfect time to emmit a packet.
 
         print("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_packet_queue).."…")
 
