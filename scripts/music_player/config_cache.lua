@@ -92,5 +92,9 @@ return {
         load_run_and_unload_our_config(delete_song_config, song_id)
     end,
 
-    -- delete_all_config_data = function(song_id) return load_run_and_unload_our_config(delete_all_config_data, song_id) end,
+    ---Deletes config data for all songs
+    ---@param song_id string
+    delete_all_config_data = function(song_id)
+        load_run_and_unload_our_config(delete_all_config_data, song_id)
+    end,
 }
