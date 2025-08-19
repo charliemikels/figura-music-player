@@ -2,9 +2,10 @@
 local config_path = "TL_music_player_saved_configs"
 
 ---Wrapper function to ensure we allways open and close the config file.
----@param fn any
+---@generic R
+---@param fn fun(...):R
 ---@param ... unknown
----@return any
+---@return R
 local function load_run_and_unload_our_config(fn, ...)
     local original_name = config:getName()
     config:setName(config_path)
@@ -44,11 +45,14 @@ local function force_write_song_config(song_id, song_config)
     config:save(song_id, song_config)
 end
 
+---@param song_id string
+---@return SongPlayerConfig
 local function load_song_config(song_id)
     print("READING", song_id, "from", config:getName())
     return config:load(song_id)
 end
 
+---@param song_id string
 local function delete_song_config(song_id)
     config:save(song_id, nil)
 end
