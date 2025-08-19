@@ -24,15 +24,12 @@ local approved_keys_to_save = {
 ---@param song_id string            A unique identifier for a song.
 ---@param song_config SongPlayerConfig
 local function write_song_config(song_id, song_config)
-    print("SAVING", song_id, song_config)
     -- We only want to save a handfull of keys. Mostly just instrument selection.
     -- The script should take responcibility for actual playback controll
     ---@type SongPlayerConfig
     local coppied_song_config = {}
     for k, v in pairs(song_config) do
-        print("checking key:", k)
         if approved_keys_to_save[k] then
-            print("supported key:", k, v)
             coppied_song_config[k] = v
         end
     end
@@ -48,7 +45,6 @@ end
 ---@param song_id string
 ---@return SongPlayerConfig
 local function load_song_config(song_id)
-    print("READING", song_id, "from", config:getName())
     return config:load(song_id)
 end
 
