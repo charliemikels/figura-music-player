@@ -21,8 +21,8 @@ local function new_action_wheel_ui()
 			previous_action_wheel_page = nil
 		end)
 
-	actions.select_song = action_wheel:newAction():item("minecraft:music_disc_wait")
-	actions.config_song = action_wheel:newAction():texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
+	actions.select_song = action_wheel:newAction():title("Song Selector"):item("minecraft:music_disc_wait")
+	actions.config_song = action_wheel:newAction():title("Song Config"):item("minecraft:command_block")--:texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
 
 
 
