@@ -5,7 +5,7 @@ action_wheel:setPage(root_action_wheel_page)
 -- More or less: the current checklist
 -- - [x] Ping Networking
 -- - [ ] UI
---   - [ ] Store song configs with config API
+--   - [x] Store song configs with config API
 -- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
 -- - [ ] Port the ABC player to a new processor
 -- - [x] Minecraft Note Block instruments
@@ -16,6 +16,15 @@ action_wheel:setPage(root_action_wheel_page)
 -- - [ ] Figura Drum Kit instrument
 --       https://discord.com/channels/1129805506354085959/1340798228165300224/1340798228165300224
 --       /give @p minecraft:player_head[minecraft:profile={id:[I;1039887675,1961051688,-1756947787,-2031944347],name:"Drum"}]
+
+local ui_api = require("scripts/music_player/ui")
+local enter_music_player_action_wheel_ui = ui_api:new_action_wheel_ui()
+root_action_wheel_page:setAction(-1, enter_music_player_action_wheel_ui )
+
+
+
+
+
 
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
