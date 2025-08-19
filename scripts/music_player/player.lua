@@ -296,7 +296,13 @@ local song_player_api = {
 
         local primary_event_checks_without_update = 0
         local fallback_event_checks_without_update = 0
+        local max_failed_primary_tests = 4
+        local max_failed_fallback_tests = 20
+
         local using_fallback_event = false
+
+        local function test_primary_loop() primary_event_checks_without_update = 0 end
+        -- local function test_fallback_loop() fallback_event_checks_without_update = 0 end
 
         -- For use in the update loop.
         local function update_this_song()
@@ -324,7 +330,7 @@ local song_player_api = {
         event_watcher_and_swapper_state_machine = {
             idle = function() end,
             check_primary = function()
-                if primary_event_checks_without_update >= 20 then
+                if primary_event_checks_without_update >= max_failed_primary_tests then
                     -- primary is no longer working. switch to fallback.
                     watcher_state_key = "switch_to_fallback"
                 else
@@ -336,12 +342,13 @@ local song_player_api = {
                 print_debug("switching to fallback event")
                 using_fallback_event = true
                 playing_song.primary_event:remove(update_this_song)
+                playing_song.primary_event:register(test_primary_loop)
                 playing_song.fallback_event:register(update_this_song)
                 watcher_state_key = "check_fallback"
             end,
             check_fallback = function()
                 -- if here, primary was down. Check if fallback works, and then send back to retest primary.
-                if fallback_event_checks_without_update >= 20 then
+                if fallback_event_checks_without_update >= max_failed_fallback_tests then
                     watcher_state_key = "begin_emergency_stop"
                 else
                     -- fallback is running fine. Let's see if primary ha returned
@@ -350,7 +357,7 @@ local song_player_api = {
                 end
             end,
             check_primary_from_fallback = function() -- check to see if it's safe to return to the primary event loop.
-                if primary_event_checks_without_update >= 20 then -- primary is still down. return to fallback check
+                if primary_event_checks_without_update >= max_failed_primary_tests then -- primary is still down. return to fallback check
                     watcher_state_key = "check_fallback"
                 else -- Primary is back online. Let's switch back
                     watcher_state_key = "switch_to_primary"
@@ -361,6 +368,7 @@ local song_player_api = {
                 print_debug("switching to primary event")
                 using_fallback_event = false
                 playing_song.fallback_event:remove(update_this_song)
+                playing_song.primary_event:remove(test_primary_loop)
                 playing_song.primary_event:register(update_this_song)
                 watcher_state_key = "check_primary"
             end,
