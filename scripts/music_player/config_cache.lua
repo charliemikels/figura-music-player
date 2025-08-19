@@ -4,6 +4,7 @@ local config_path = "TL_music_player_saved_configs"
 ---Wrapper function to ensure we allways open and close the config file.
 ---@param fn any
 ---@param ... unknown
+---@return any
 local function load_run_and_unload_our_config(fn, ...)
     local original_name = config:getName()
     config:setName(config_path)
@@ -12,14 +13,13 @@ local function load_run_and_unload_our_config(fn, ...)
     return return_data
 end
 
-
+-- For use with write_song_config
 local approved_keys_to_save = {
     default_normal_instrument = true,
     default_percussion_instrument = true,
     instrument_selections = true
 }
 
----comment
 ---@param song_id string            A unique identifier for a song.
 ---@param song_config SongPlayerConfig
 local function write_song_config(song_id, song_config)
@@ -36,6 +36,12 @@ local function write_song_config(song_id, song_config)
         end
     end
     config:save(song_id, coppied_song_config)
+end
+
+---@param song_id string            A unique identifier for a song.
+---@param song_config SongPlayerConfig
+local function force_write_song_config(song_id, song_config)
+    config:save(song_id, song_config)
 end
 
 local function load_song_config(song_id)
@@ -55,8 +61,36 @@ local function delete_all_config_data()
 end
 
 return {
-    write_song_config  =  function(song_id, song_config)  return load_run_and_unload_our_config(write_song_config, song_id, song_config)  end,
-    load_song_config   =  function(song_id)               return load_run_and_unload_our_config(load_song_config, song_id)                end,
-    delete_song_config =  function(song_id)               return load_run_and_unload_our_config(delete_song_config, song_id)              end,
+    --- Caches a song_config. Not all config items are saved.
+    ---
+    --- See approved_keys_to_save
+    ---@param song_id string
+    ---@param song_config SongPlayerConfig
+    write_song_config = function(song_id, song_config)
+        load_run_and_unload_our_config(write_song_config, song_id, song_config)
+    end,
+
+    --- Caches an entire song_config. All items, including entity data, play_immediatly, etc are stored
+    ---
+    --- see also write_song_config() for a typicaly more usefull config storage function.
+    ---@param song_id string
+    ---@param song_config SongPlayerConfig
+    force_write_song_config = function(song_id, song_config)
+        load_run_and_unload_our_config(force_write_song_config, song_id, song_config)
+    end,
+
+    ---Loads the cached config data for a song ID
+    ---@param song_id string
+    ---@return SongPlayerConfig
+    load_song_config = function(song_id)
+        return load_run_and_unload_our_config(load_song_config, song_id)
+    end,
+
+    ---Deletes config data for the song_id
+    ---@param song_id string
+    delete_song_config = function(song_id)
+        load_run_and_unload_our_config(delete_song_config, song_id)
+    end,
+
     -- delete_all_config_data = function(song_id) return load_run_and_unload_our_config(delete_all_config_data, song_id) end,
 }
