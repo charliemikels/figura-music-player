@@ -3,9 +3,9 @@ action_wheel:setPage(root_action_wheel_page)
 -- root_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))
 
 -- More or less: the current checklist
--- - [-] Ping Networking
---   - [ ] Buffer_time calc is sometimes wrong (See Specialist. Buffers correctly for the set buffer time, but still outruns the song. By ~8 packets)
--- - [ ] UI (including config and prefrences)
+-- - [x] Ping Networking
+-- - [ ] UI
+--   - [ ] Store song configs with config API
 -- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
 -- - [ ] Port the ABC player to a new processor
 -- - [x] Minecraft Note Block instruments
@@ -20,7 +20,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(7)
+local selected_song = music_player_api.library:get_song_by_sorted_index(115)
 -- 2: Balatro - uses significant pitch wheel in the synths
 -- 3: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 6: Specialist (shorter)
@@ -51,32 +51,43 @@ future_of_music:register_callback(
 
         ---@type SongPlayerConfig
         local song_player_config = {
-            default_normal_instrument = {name = "Triangle Sine"},
-            default_percussion_instrument = {name = "Percussion"},
-            instrument_selections = {
-                -- [1] = {name = "MC/Flute"},
-                -- [2] = {name = "MC/Harp"},
-                -- [3] = {name = "MC/Harp"},
-                -- [6] = {name = "MC/Chime"},
-                -- -- [5] = {name = "Muted"},
-                -- [9] = {name = "MC/Bass"},
-                -- [10] = {name = "MC/Bass"},
-                -- [11] = {name = "MC/Guitar"},
-                -- [14] = {name = "MC/Guitar"},
-            },
+            -- default_normal_instrument = {name = "Triangle Sine"},
+            -- default_percussion_instrument = {name = "Percussion"},
+            -- instrument_selections = {
+            --     [1] = {name = "MC/Flute"},
+            --     [2] = {name = "MC/Harp"},
+            --     [3] = {name = "MC/Harp"},
+            --     [6] = {name = "MC/Chime"},
+            --     -- [5] = {name = "Muted"},
+            --     [9] = {name = "MC/Bass"},
+            --     [10] = {name = "MC/Bass"},
+            --     [11] = {name = "MC/Guitar"},
+            --     [14] = {name = "MC/Guitar"},
+            -- },
             -- source_pos = vec(0, -0.6, -5.40),
             source_entity = player,     -- Consider: storing the entity's UUID instead. When we send the UUID through packets, the entity might not be loaded for the viewer, and so this eventualy resolves to 'nil'
             info_display_type = nil,
             play_immediately = true
         }
 
-        -- local controller = song_player_api.new_player(processed_song, song_player_config)
-        -- controller.play()
+        local config_management = require("scripts/music_player/config_cache")
+        -- config_management.write_song_config(selected_song.id, song_player_config)
+        print(selected_song.id)
+        local cached_config = config_management.load_song_config(selected_song.id)
+        printTable(cached_config)
+        for k, v in pairs(cached_config) do
+            if not song_player_config[k] then song_player_config[k] = v end
+        end
 
-        local networking = require("scripts/music_player/networking")
-        local packets = networking.song_to_packets(processed_song, song_player_config)
 
-        networking.ping_packets(packets)
+        local controller = song_player_api.new_player(processed_song, song_player_config)
+        controller.play()
+
+        -- local networking = require("scripts/music_player/networking")
+        -- local packets = networking.song_to_packets(processed_song, song_player_config)
+        -- networking.ping_packets(packets)
+
+
 
         -- printTable(packets)
         -- for _, packet in ipairs(packets) do
