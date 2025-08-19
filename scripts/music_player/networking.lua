@@ -485,7 +485,9 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
     local packet_start_time = processed_song.instructions[1].start_time
     union_tables(current_packet_builder, int_to_vlq(math.floor(packet_start_time)))
 
-    ---comment
+    --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
+    ---
+    --- Also runs the bulk of the buffer time calculations
     ---@param proposed_packet_start_part_pair {start_time: number, packet_part: DataPacketPart}
     ---@param new_start_time number     The start time of the next packet, if one needs to be created.
     ---@return boolean instruction_packet_should_be_rebuilt
@@ -896,7 +898,7 @@ local packet_receiving_functions = {
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.
 ---@param packed_packet_data PackedSongPacket
-local function add_packet_to_song(packed_packet_data)
+local function local_receive_packet(packed_packet_data)
     local packet_data = unpack_packet(packed_packet_data)
     local reader = new_packet_reader(packet_data)
     local packet_id = vlq_to_int_from_reader(reader)
@@ -921,9 +923,7 @@ end
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
 ---@param incomming_packet PackedSongPacket
 function pings.TL_FMP_receive_packet(incomming_packet)
-    print("debug: received ping")
-    -- print(incomming_packet)
-    add_packet_to_song(incomming_packet)
+    local_receive_packet(incomming_packet)
 end
 
 local function ping_packet_immediatly(outgoing_packed_packet)
@@ -941,7 +941,7 @@ local function ping_loop()
     if ping_loop_last_emit_time + min_milis_between_packets < client:getSystemTime()  then
         -- we can emit another packet
 
-        print("pinging packet #"..tostring(outgoing_packet_queue_index).."…")
+        -- print("pinging packet #"..tostring(outgoing_packet_queue_index).."…")
 
         pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index])
 
@@ -963,6 +963,7 @@ local function ping_loop()
     end
 end
 
+--- Reusable start-the-ping-loop function. Does not start the loop if it's already running
 local function check_or_start_ping_loop()
     if ping_loop_running then
         return
@@ -973,14 +974,17 @@ local function check_or_start_ping_loop()
     end
 end
 
----comment
+---Adds a single packet to the packet queue.
+---
+--- Probably unnessesary. most of the time that we want to ping something,
+--- we either want to ping it ASAP, or we're pinging bulk data.
 ---@param outgoing_packed_packet PackedSongPacket
 local function ping_packet(outgoing_packed_packet)
     table.insert(outgoing_packet_queue, outgoing_packed_packet)
     check_or_start_ping_loop()
 end
 
----comment
+---Add several packets to the packet queue
 ---@param outgoing_packed_packets PackedSongPacket[]
 local function ping_packets(outgoing_packed_packets)
     for _, packet in ipairs(outgoing_packed_packets) do
@@ -995,7 +999,7 @@ end
 
 return {
     song_to_packets = song_to_packets,
-    add_packet_to_song = add_packet_to_song,    -- adds a packet to it's targeted song.
+    local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     list_transfered_songs = function() return collected_incomming_songs end,
     update_config_for_transfered_song = update_config_for_transfered_song,
     ping_packets = ping_packets,

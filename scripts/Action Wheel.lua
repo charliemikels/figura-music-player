@@ -3,7 +3,8 @@ action_wheel:setPage(root_action_wheel_page)
 -- root_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))
 
 -- More or less: the current checklist
--- - [ ] Ping Networking
+-- - [-] Ping Networking
+--   - [ ] Buffer_time calc is sometimes wrong (See Specialist. Buffers correctly for the set buffer time, but still outruns the song. By ~8 packets)
 -- - [ ] UI (including config and prefrences)
 -- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
 -- - [ ] Port the ABC player to a new processor
@@ -19,7 +20,7 @@ action_wheel:setPage(root_action_wheel_page)
 local midi_player_core_api = require("scripts/music_player/core")
 local song_player_api = require("scripts/music_player/player")
 local music_player_api = midi_player_core_api:build_default_experiance()
-local selected_song = music_player_api.library:get_song_by_sorted_index(7)
+local selected_song = music_player_api.library:get_song_by_sorted_index(9)
 -- 2: Balatro - uses significant pitch wheel in the synths
 -- 3: FEZ/Compass.mid - Uses 2 Midi devices (`0` and `1`) and has unused channels.
 -- 6: Specialist (shorter)
@@ -79,7 +80,7 @@ future_of_music:register_callback(
 
         -- printTable(packets)
         -- for _, packet in ipairs(packets) do
-        --     networking.add_packet_to_song(packet)
+        --     networking.local_receive_packet(packet)
         -- end
 
         -- printTable(networking.list_transfered_songs()[1].song)
