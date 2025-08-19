@@ -933,20 +933,22 @@ end
 local outgoing_packet_queue_index = 1   ---@type integer        Index into outgoing_packet_queue. Using an index so that we don't have to remove items from the list.
 local outgoing_packet_queue = {}    ---@type PackedSongPacket[]
 
-local ping_loop_last_emit_time = client:getSystemTime()
-local ping_loop_running = false
+local ping_loop_start_time
 
 --- Host-side event loop to emit pings from the ping queue
 local function ping_loop()
-    if ping_loop_last_emit_time + min_milis_between_packets < client:getSystemTime()  then
+    if ping_loop_start_time + (min_milis_between_packets * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
         -- we can emit another packet
+        -- Note that this condition may be true in situations where the time between 
+        -- two packets is slightly _less_ than min_milis_between_packets. 
+        -- It will still be the average, but enabling us to send a packet slightly 
+        -- early will avoid the "slip" caused from missing the perfect time to emmit a packet. 
 
-        -- print("pinging packet #"..tostring(outgoing_packet_queue_index).."…")
+        print("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_packet_queue).."…")
 
         pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index])
 
         outgoing_packet_queue_index = outgoing_packet_queue_index + 1
-        ping_loop_last_emit_time = client:getSystemTime()
 
         -- check if list is empty
         if outgoing_packet_queue_index > #outgoing_packet_queue then
@@ -956,8 +958,7 @@ local function ping_loop()
 
             outgoing_packet_queue = {}  -- easier to just reset the table now then to remove a sent packet and resort the remaning indexes.
             outgoing_packet_queue_index = 1
-
-            ping_loop_running = false
+            ping_loop_start_time = nil
             events.WORLD_TICK:remove(ping_loop)
         end
     end
@@ -965,12 +966,12 @@ end
 
 --- Reusable start-the-ping-loop function. Does not start the loop if it's already running
 local function check_or_start_ping_loop()
-    if ping_loop_running then
+    if ping_loop_start_time then
         return
     else
         print("Starting ping loop")
         events.WORLD_TICK:register(ping_loop)
-        ping_loop_running = true
+        ping_loop_start_time = client:getSystemTime()
     end
 end
 
