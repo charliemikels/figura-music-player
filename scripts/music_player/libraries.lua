@@ -82,6 +82,9 @@ local library_functions = {
 ---@field build_library fun(self:LibrariesApi): Library
 ---@field build_default_library fun(self:LibrariesApi): Library
 local libraries_api = {
+
+    ---@param self LibrariesApi
+    ---@return Library
     build_library = function(self)
         ---@class Library
         ---@field songs table<string, Song> Canonical song list.
@@ -99,6 +102,8 @@ local libraries_api = {
         return library
     end,
 
+    ---@param self LibrariesApi
+    ---@return Library
     build_default_library = function(self)
         local library = self:build_library()
         library:add_source_directory("TL_Songbook")
