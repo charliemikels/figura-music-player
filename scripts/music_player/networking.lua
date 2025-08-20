@@ -4,7 +4,7 @@ local target_milis_between_packets = 1200   -- How long the ping system should t
 
 
 
-local songs_turned_into_packets_so_far = 1  -- used to get the ID of the current song.
+local songs_turned_into_packets_so_far = 0  -- used to build a unique ID number for each transfered song
 
 
 ---A hacky way to combine two int-indexed tables
@@ -599,6 +599,7 @@ end
 ---@param processed_song ProcessedSong
 ---@param player_config SongPlayerConfig
 ---@return PackedSongPacket[]
+---@return integer transfered_song_id       Unique ID to address these packets (and player_data) on both the host and any clients.
 local function song_to_packets(processed_song, player_config)
     local header_packet_body = build_header_packet_without_buffer_delay(processed_song)
 
@@ -606,9 +607,11 @@ local function song_to_packets(processed_song, player_config)
     local header_packet_head = {}
     union_tables(header_packet_head, int_to_vlq(packet_ids.header))  -- First element is allways packet ID
 
-    ---A unique ID for each song since the avatar loaded.
-    local transfered_song_id_vlq = int_to_vlq(songs_turned_into_packets_so_far)
+
     songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
+    ---A unique ID for each song since the avatar loaded.
+    local transfered_song_id = songs_turned_into_packets_so_far
+    local transfered_song_id_vlq = int_to_vlq(transfered_song_id)
     union_tables(header_packet_head, transfered_song_id_vlq)             -- 2nd element is allways the song transfer ID
 
     local config_packet_body = build_config_packet_body(player_config)
@@ -655,7 +658,7 @@ local function song_to_packets(processed_song, player_config)
         table.insert(final_packed_packet_list, pack_packet(unpacked_packet))
     end
 
-    return final_packed_packet_list
+    return final_packed_packet_list, transfered_song_id
 end
 
 
