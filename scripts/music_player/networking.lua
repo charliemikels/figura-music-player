@@ -275,7 +275,7 @@ local function build_config_packet_body(player_config)
 
     local instrument_selections = {}
     local configured_track_count = 0
-    for track_id, selected_instrument in pairs(player_config.instrument_selections) do
+    for track_id, selected_instrument in pairs(player_config.instrument_selections or {}) do
         configured_track_count = configured_track_count + 1
         union_tables(instrument_selections, int_to_vlq(track_id))
         union_tables(instrument_selections, string_to_bytes_with_len(selected_instrument.name))
@@ -997,14 +997,23 @@ local function ping_packets(outgoing_packed_packets)
     check_or_start_ping_loop()
 end
 
+---@return number
+local function outgoing_packet_queue_progress()
+    if #outgoing_packet_queue == 0 then return 1 end
+    return outgoing_packet_queue_index / #outgoing_packet_queue
+end
 
-
-
-
+---@class SongNetworkingApi
+---@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):PackedSongPacket[], integer
+---@field local_receive_packet  fun(packed_packet_data:PackedSongPacket)
+---@field list_transfered_songs fun():table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: PlayingSongController}>
+---@field ping_packets          fun(outgoing_packed_packets:PackedSongPacket[])
+---@field outgoing_packet_queue_progress    fun():number
 return {
     song_to_packets = song_to_packets,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     list_transfered_songs = function() return collected_incomming_songs end,
-    update_config_for_transfered_song = update_config_for_transfered_song,
+    -- update_config_for_transfered_song = update_config_for_transfered_song,
     ping_packets = ping_packets,
+    outgoing_packet_queue_progress = outgoing_packet_queue_progress
 }

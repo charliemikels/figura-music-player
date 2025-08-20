@@ -45,7 +45,8 @@ end
 ---@param song_id string
 ---@return SongPlayerConfig
 local function load_song_config(song_id)
-    return config:load(song_id)
+    local loaded_config = config:load(song_id)
+    return (config:load(song_id) or {})
 end
 
 ---@param song_id string
@@ -60,12 +61,16 @@ local function delete_all_config_data()
     end
 end
 
+---@class ConfigCacheAPI
+---@field write_song_config fun(song_id:string, song_config:SongPlayerConfig)
+---@field force_write_song_config fun(song_id:string, song_config:SongPlayerConfig)
+---@field load_song_config fun(song_id:string):SongPlayerConfig
+---@field delete_song_config fun(song_id:string)
+---@field delete_all_config_data fun()
 return {
     --- Caches a song_config. Not all config items are saved.
     ---
     --- See approved_keys_to_save
-    ---@param song_id string
-    ---@param song_config SongPlayerConfig
     write_song_config = function(song_id, song_config)
         load_run_and_unload_our_config(write_song_config, song_id, song_config)
     end,
@@ -73,15 +78,11 @@ return {
     --- Caches an entire song_config. All items, including entity data, play_immediatly, etc are stored
     ---
     --- see also write_song_config() for a typicaly more usefull config storage function.
-    ---@param song_id string
-    ---@param song_config SongPlayerConfig
     force_write_song_config = function(song_id, song_config)
         load_run_and_unload_our_config(force_write_song_config, song_id, song_config)
     end,
 
     ---Loads the cached config data for a song ID
-    ---@param song_id string
-    ---@return SongPlayerConfig
     load_song_config = function(song_id)
         return load_run_and_unload_our_config(load_song_config, song_id)
     end,
@@ -93,8 +94,7 @@ return {
     end,
 
     ---Deletes config data for all songs
-    ---@param song_id string
-    delete_all_config_data = function(song_id)
-        load_run_and_unload_our_config(delete_all_config_data, song_id)
+    delete_all_config_data = function()
+        load_run_and_unload_our_config(delete_all_config_data)
     end,
 }

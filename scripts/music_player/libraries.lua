@@ -76,6 +76,10 @@ local library_functions = {
         if not self.song_keys_are_sorted then sort_library(self) end
         return self.sorted_songs[index]
     end,
+    get_library_length = function(self)
+        if not self.song_keys_are_sorted then sort_library(self) end
+        return #self.sorted_songs
+    end
 }
 
 ---@class LibrariesApi
@@ -92,12 +96,14 @@ local libraries_api = {
         ---@field add_source_directory fun(self:Library, path:string)
         ---@field get_song_by_id fun(self:Library, id:string):Song
         ---@field get_song_by_sorted_index fun(self:Library, index:integer):Song
+        ---@field get_library_length fun(self:Library):integer
         local library = {
             songs = {},
             sorted_songs = {},
             add_source_directory = library_functions.add_source_directory,
             get_song_by_id = library_functions.get_song_by_id,
-            get_song_by_sorted_index = library_functions.get_song_by_sorted_index
+            get_song_by_sorted_index = library_functions.get_song_by_sorted_index,
+            get_library_length = library_functions.get_library_length
         }
         return library
     end,

@@ -15,6 +15,11 @@ local fallback_normal_instrument_name = "MC/Harp"
 ---@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
 local fallback_percussion_instrument_name = "Percussion"
 
+---@type InstrumentName
+local default_normal_instrument_name = "Triangle Sine"
+---@type InstrumentName
+local default_percussion_instrument_name = "Percussion"
+
 local do_debug_prints = false
 
 local function print_debug(...) if do_debug_prints then print(...) end end
@@ -290,7 +295,7 @@ end
 local song_player_api = {
     ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): PlayingSongController
     new_player = function (song, config)
-        if not config then config = {} end
+        if not config or (not next(config)) then config = {} end
         print_debug("New player for", song.name)
         local playing_song
 
@@ -431,8 +436,8 @@ local song_player_api = {
                 ---@type Instrument
                 selected_instrument = known_instruments[
                         (   track_data.instrument_type_id == 1
-                            and fallback_percussion_instrument_name
-                            or  fallback_normal_instrument_name
+                            and (known_instruments[default_percussion_instrument_name] and default_percussion_instrument_name or fallback_percussion_instrument_name)
+                            or  (known_instruments[default_normal_instrument_name] and default_normal_instrument_name or fallback_normal_instrument_name)
                         )
                     ].new_instance({})
             }
