@@ -1062,5 +1062,5 @@ return {
     stop_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop)) end,
     remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
-    get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id].player end
+    get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id] and collected_incomming_songs[transfered_song_id].player or nil end
 }

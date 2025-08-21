@@ -40,6 +40,8 @@ local function new_action_wheel_ui()
 
     local num_songs_to_display_in_selector = 16
 
+    local playing_song_transfer_id = nil
+    local playing_song_library_id = nil
 
     ---Returns a string sutable for actions.select_song:title(update_song_selector_title())
     ---@return string
@@ -62,11 +64,48 @@ local function new_action_wheel_ui()
     		start_index = math.max(end_index - num_songs_to_display_in_selector ,1)
     	end
 
-        local return_string = "Song List:\n"
+        local return_string = ""
+
+        if playing_song_transfer_id then
+            return_string = return_string .. "Currently playing: \"" .. song_library:get_song_by_id(playing_song_library_id).name .."\""
+            local song_player = networking_api.get_player_for_transfered_song(playing_song_transfer_id)
+            if  song_player and song_player.get_progress() then
+                return_string = return_string
+                    .. " ("
+                    .. tostring(math.floor(
+                        song_player.get_progress() * 100
+                    ))
+                    .."%)"
+            end
+            return_string = return_string .. " " .. get_spinner() .. "\n"
+        end
+
+        return_string = return_string .. "Song List:\n"
+
         for index = start_index, end_index do
             local this_row = ""
             local this_row_song = song_library:get_song_by_sorted_index(index)
+
+            -- Selector
             this_row = this_row .. (index == selected_song_index and "→" or "  ")
+
+            -- Status
+            if this_row_song.id == playing_song_library_id then
+                -- song is playing
+                this_row = this_row .. "♬"
+            elseif processed_songs_and_players[this_row_song.id] then
+                if processed_songs_and_players[this_row_song.id].error then
+                    this_row = this_row .. "⚠️"
+                elseif not processed_songs_and_players[this_row_song.id].packets then
+                    -- Song is in the midle of being processed.
+                    -- (We know because no packets have been built yet, but an entry in this table was created)
+                    this_row = this_row .. "⏳"
+                else
+                    this_row = this_row .. "✓ "
+                end
+            else
+                this_row = this_row .. "  "
+            end
             this_row = this_row .. this_row_song.name
 
             return_string = return_string .. "\n" .. this_row
@@ -76,21 +115,23 @@ local function new_action_wheel_ui()
         return return_string
     end
 
+    -- monitors the status of the playing song and updates some components accordingly (mostly just progress bars and spinners).
+    local function playing_watcher()
+        if     not playing_song_transfer_id
+            or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
+            or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+        then
+            actions.select_song:title(update_song_selector_title())
+            playing_song_transfer_id = nil
+            playing_song_library_id = nil
+            events.TICK:remove(playing_watcher)
+        end
 
-    -- local text_update_jobs = 0
-    -- local function text_update_loop()
-    --     if text_update_jobs == 0 then events.TICK:remove(text_update_loop) end
-    --     if not action_wheel:isEnabled() then return end
+        if not action_wheel:isEnabled() then return end
 
-    --     update_song_selector_title()
-    -- end
+        actions.select_song:title(update_song_selector_title())
+    end
 
-    -- local function new_text_update_job()
-
-    -- end
-
-
-    local playing_song_transfer_id = nil
 
 
     actions.enter_songbook = action_wheel:newAction()
@@ -139,20 +180,25 @@ local function new_action_wheel_ui()
 
                     processed_songs_and_players[target_song.id].packets = packets
                     processed_songs_and_players[target_song.id].transfer_song_id = transfer_id
+                    actions.select_song:title(update_song_selector_title())
 				end)
 			elseif processed_songs_and_players[target_song.id].packets then
 			    -- song is ready to send, but we should only play one song at a time using this UI.
 			    if not playing_song_transfer_id or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing() then
 					playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
+					playing_song_library_id = target_song.id
                     networking_api.ping_packets(processed_songs_and_players[target_song.id].packets)
+                    events.TICK:register(playing_watcher)
                 else
                     networking_api.cancel_all_pings()
                     networking_api.stop_transfered_song(playing_song_transfer_id)
                     playing_song_transfer_id = nil
+                    playing_song_library_id = nil
+                    events.TICK:remove(playing_watcher)
 				end
 			end
 
-			update_song_selector_title()
+			actions.select_song:title(update_song_selector_title())
 		end)
 
 

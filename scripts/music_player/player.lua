@@ -521,6 +521,7 @@ local song_player_api = {
 
                 ---@type fun():number
                 get_progress = function()
+                    if not playing_song.start_time then return nil end
                     return (client.getSystemTime() - playing_song.start_time) / playing_song.song_duration
                 end,
 
