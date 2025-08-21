@@ -142,17 +142,13 @@ local function new_action_wheel_ui()
 				end)
 			elseif processed_songs_and_players[target_song.id].packets then
 			    -- song is ready to send, but we should only play one song at a time using this UI.
-			    if not playing_song_transfer_id then
-					-- playing_song_transfer_id is not set. no song playing. Play this one.
+			    if not playing_song_transfer_id or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing() then
 					playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
                     networking_api.ping_packets(processed_songs_and_players[target_song.id].packets)
-                elseif playing_song_transfer_id == processed_songs_and_players[target_song.id].transfer_song_id then
+                else
                     networking_api.cancel_all_pings()
                     networking_api.stop_transfered_song(playing_song_transfer_id)
                     playing_song_transfer_id = nil
-                else
-                    print("--TODO: A song was already started.")
-                    -- TODO: consider a dedicated "start/stop" button below the song picker.
 				end
 			end
 

@@ -1046,22 +1046,21 @@ end
 ---@class SongNetworkingApi
 ---@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):PackedSongPacket[], integer
 ---@field local_receive_packet  fun(packed_packet_data:PackedSongPacket)
----@field list_transfered_songs fun():table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: PlayingSongController}>
 ---@field ping_packets          fun(outgoing_packed_packets:PackedSongPacket[])
 ---@field outgoing_packet_queue_progress    fun():number
 ---@field play_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to play the selected song.
 ---@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song.
 ---@field remove_transfered_song  fun(transfered_song_id:integer)       Sends a controll packet to delete the selected song. This simply removes the song from the transfered_songs list. A player playing this song may still hold onto it.
 ---@field cancel_all_pings fun()        Deletes all pings in the queued pings list and stops the update loop.
-
+---@field get_player_for_transfered_song fun(transfered_song_id:integer):PlayingSongController  Treat this as read-only. Edits to this player will only be seen by the host.
 return {
     song_to_packets = song_to_packets,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
-    list_transfered_songs = function() return collected_incomming_songs end,
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
     play_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.start)) end,
     stop_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop)) end,
     remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
+    get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id].player end
 }
