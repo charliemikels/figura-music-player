@@ -2,6 +2,10 @@
 local max_packet_length = 800-2             -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
 local target_milis_between_packets = 1200   -- How long the ping system should try to wait before sending another packet. (Tick event adds 50 milis of possible drift to account for.)
 
+local do_debug_prints = false
+local function print_debug(...) if do_debug_prints then print(...) end end
+local function printTable_debug(...) if do_debug_prints then printTable(...) end end
+local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
 
 local songs_turned_into_packets_so_far = 0  -- used to build a unique ID number for each transfered song
@@ -390,7 +394,7 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
             if not modifier_type_to_number_lookup[modifier.type] then
                 if not modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] then
                     modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = 1
-                    print("song_instruction_to_packet_parts: unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+                    print_debug("song_instruction_to_packet_parts: unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
                 else
                     modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] + 1
                 end
@@ -510,7 +514,7 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
                 -- Too much time has passed for us to play this instruction on time.
                 -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
                 required_buffer_delay_in_milis = ((#data_packets) * target_milis_between_packets) - proposed_packet_start_part_pair.start_time
-                print("buffer time changed:", required_buffer_delay_in_milis / 1000)
+                print_debug("buffer time changed:", required_buffer_delay_in_milis / 1000)
             end
 
             instruction_packet_should_be_rebuilt = true
@@ -587,9 +591,9 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
 
     -- debug to notice unhandled modifier types
     if next(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) then
-        print("build_data_packets found some unrecognized note modifiers")
+        print_debug("build_data_packets found some unrecognized note modifiers")
         for modifier_name, ammount in pairs(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) do
-            print("  found "..tostring(ammount).." instances of the `"..modifier_name.."` modifier")
+            print_debug("  found "..tostring(ammount).." instances of the `"..modifier_name.."` modifier")
         end
     end
 
@@ -707,7 +711,7 @@ end
 local function receive_data_packet(reader, transfered_song_id)
     if not collected_incomming_songs[transfered_song_id] then
         if not missed_incomming_songs[transfered_song_id] then
-            print("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song.")
+            print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost data packets for this song will be ignored.")
             missed_incomming_songs[transfered_song_id] = true
         end
         return
@@ -797,10 +801,10 @@ local function receive_config_packet(reader, transfered_song_id)
             if success and possible_entity then
                 config_data.source_entity = possible_entity
             else
-                print("There was an error getting the entity with uuid:", uuid_string)
+                print_debug("There was an error getting the entity with uuid:", uuid_string)
                 if not success
-                    then print("world.getEntity returned this error:", possible_entity)
-                    else print("world.getEntity returned nil (Entity not loaded).")
+                    then print_debug("world.getEntity returned this error:", possible_entity)
+                    else print_debug("world.getEntity returned nil (Entity not loaded).")
                 end
             end
 
@@ -821,7 +825,7 @@ local function receive_config_packet(reader, transfered_song_id)
             local source_z_pos = (abs_floor_z + (add_half_z and 0.5 or 0)) * (flip_z and -1 or 1)
 
             config_data.source_pos = vec(source_x_pos, source_y_pos, source_z_pos)
-            print(config_data.source_pos)
+            -- print_debug(config_data.source_pos)
         end
     end
 
@@ -838,7 +842,7 @@ local function receive_config_packet(reader, transfered_song_id)
             local track_number = vlq_to_int_from_reader(reader)
             local instrument_name = bytes_with_len_to_string_from_reader(reader)
             config_data.instrument_selections[track_number] = { name = instrument_name }
-            print("config assigned", instrument_name, "to track", track_number)
+            print_debug("config assigned", instrument_name, "to track", track_number)
         end
     end
 
@@ -938,7 +942,7 @@ local function receive_control_packet(reader, transfered_song_id)
     if control_packet_handelers[control_code] then
         control_packet_handelers[control_code](transfered_song_id)
     else
-        print("unrecognized controll code `"..tostring(control_code).."` for transfered song #"..tostring(transfered_song_id))
+        print_debug("unrecognized controll code `"..tostring(control_code).."` for transfered song #"..tostring(transfered_song_id))
     end
 end
 
@@ -985,6 +989,7 @@ local function stop_and_cleanup_packet_ping_loop()
     outgoing_packet_queue_index = 1
     ping_loop_start_time = nil
     events.WORLD_TICK:remove(ping_loop_identifier)
+    print_host("All pings sent.")
 end
 
 --- Host-side event loop to emit pings from the ping queue
@@ -996,7 +1001,7 @@ local function ping_loop()
         -- It will still be the average, but enabling us to send a packet slightly
         -- early will avoid the "slip" caused from missing the perfect time to emmit a packet.
 
-        print("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_packet_queue).."…")
+        print_debug("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_packet_queue).."…")
 
         pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index])
 
@@ -1012,7 +1017,7 @@ local function check_or_start_ping_loop()
     if ping_loop_start_time then
         return
     else
-        print("Starting ping loop")
+        print_debug("Starting ping loop")
         events.WORLD_TICK:register(ping_loop, ping_loop_identifier)
         ping_loop_start_time = client:getSystemTime()
     end
