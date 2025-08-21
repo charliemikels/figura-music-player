@@ -24,6 +24,7 @@ local do_debug_prints = false
 
 local function print_debug(...) if do_debug_prints then print(...) end end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
+local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
 
 ---@class Instruction
@@ -496,7 +497,7 @@ local song_player_api = {
 
                 ---@type fun()
                 play = function()
-                    print_debug("Playing \"" .. tostring(song.name) .. "\"")
+                    print_host("Playing \"" .. tostring(song.name) .. "\"")
                     if playing_song.start_time then
                         -- song is already playing.
                         return
@@ -525,8 +526,7 @@ local song_player_api = {
 
                 ---@type fun()
                 stop = function()
-                    print_debug("Stopping \"".. tostring(song.name) .."\"")
-                    print("Stopping \"".. tostring(song.name) .."\"")
+                    print_host("Stopping \"".. tostring(song.name) .."\"")
                     -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
                     playing_song.elapsed_time = nil
                     playing_song.start_time = nil
