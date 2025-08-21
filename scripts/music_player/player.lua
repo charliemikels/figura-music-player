@@ -526,6 +526,7 @@ local song_player_api = {
                 ---@type fun()
                 stop = function()
                     print_debug("Stopping \"".. tostring(song.name) .."\"")
+                    print("Stopping \"".. tostring(song.name) .."\"")
                     -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
                     playing_song.elapsed_time = nil
                     playing_song.start_time = nil
@@ -536,6 +537,14 @@ local song_player_api = {
                     watcher_state_key = "idle"
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
+
+                    for _, track in pairs(playing_song.track_config) do
+                        track.selected_instrument.stop_all_sounds_immediatly()
+                    end
+                    for key, deprecated_instruments in pairs(playing_song.deprecated_instruments) do
+                        deprecated_instruments.stop_all_sounds_immediatly()
+                        playing_song.deprecated_instruments[key] = nil
+                    end
                 end,
                 ---@type fun(new_config: SongPlayerConfig)
                 set_new_config = function(new_config)

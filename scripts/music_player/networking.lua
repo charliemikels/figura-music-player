@@ -166,6 +166,7 @@ end
 
 ---@enum SongPacketTypeIDs
 local packet_ids = {
+    control = 0,   -- A very tiny packet to send a few simple control codes.
     header = 1, -- Includeds initial like name, duration, track_types
     data = 2,   -- Bulk of the packet stream
     config = 3, -- A packet that might appear to update a song's configuration
@@ -661,16 +662,13 @@ local function song_to_packets(processed_song, player_config)
     return final_packed_packet_list, transfered_song_id
 end
 
+---@enum ControlPacketCode
+local control_packet_codes = {
+    stop = 0,       -- Stop a song by it's transfered ID
+    start = 1,      -- Play a song by it's transfered ID
+    remove = 2,     -- Delete a song from the transfered song list
+}
 
-
-
--- == Receiving functions == --
-
----@type table<integer, string>
-local modifier_number_to_type_lookup = {}
-for name, id in pairs(modifier_type_to_number_lookup) do
-    modifier_number_to_type_lookup[id] = name
-end
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
@@ -680,6 +678,28 @@ local collected_incomming_songs = {}
 -- list of transfer IDs that we must have missed
 ---@type table<integer, boolean>
 local missed_incomming_songs = {}
+
+---@param transfered_song_id integer
+---@param control_code ControlPacketCode
+---@return PackedSongPacket
+local function make_control_packet(transfered_song_id, control_code)
+    local control_packet = {}
+    union_tables(control_packet, int_to_vlq(packet_ids.control))
+    union_tables(control_packet, int_to_vlq(transfered_song_id))
+    union_tables(control_packet, int_to_vlq(control_code))
+    return pack_packet(control_packet)
+end
+
+
+
+
+
+
+---@type table<integer, string>
+local modifier_number_to_type_lookup = {}
+for name, id in pairs(modifier_type_to_number_lookup) do
+    modifier_number_to_type_lookup[id] = name
+end
 
 ---Reads a data packet out of a Reader.
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
@@ -891,12 +911,44 @@ local function receive_header_packet(reader, transfered_song_id)
     return incomming_processed_song
 end
 
+---@type table<ControlPacketCode, fun(transfered_song_id:integer)>
+local control_packet_handelers = {
+    [control_packet_codes.start] = function(transfered_song_id)
+        if collected_incomming_songs[transfered_song_id] then
+            collected_incomming_songs[transfered_song_id].player:play()
+        end
+    end,
+    [control_packet_codes.stop] = function(transfered_song_id)
+        if collected_incomming_songs[transfered_song_id] then
+            collected_incomming_songs[transfered_song_id].player:stop()
+        end
+    end,
+    [control_packet_codes.remove] = function(transfered_song_id)
+        if collected_incomming_songs[transfered_song_id] then
+            collected_incomming_songs[transfered_song_id] = nil
+        end
+    end,
+}
+
+
+---@param reader PacketReader           Where the packet id and transfer song ID have already been read
+---@param transfered_song_id integer    Index into collected_incomming_songs
+local function receive_control_packet(reader, transfered_song_id)
+    local control_code = vlq_to_int_from_reader(reader)
+    if control_packet_handelers[control_code] then
+        control_packet_handelers[control_code](transfered_song_id)
+    else
+        print("unrecognized controll code `"..tostring(control_code).."` for transfered song #"..tostring(transfered_song_id))
+    end
+end
+
 -- function lookup table for packet receiver
----@type table<string, fun(reader: PacketReader, transfered_song_id: integer)>
+---@type table<SongPacketTypeIDs, fun(reader: PacketReader, transfered_song_id: integer)>
 local packet_receiving_functions = {
+    [packet_ids.control] = receive_control_packet,
     [packet_ids.header] = receive_header_packet,
-    [packet_ids.config] = receive_config_packet,
     [packet_ids.data] = receive_data_packet,
+    [packet_ids.config] = receive_config_packet,
 }
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.
@@ -938,12 +990,21 @@ local outgoing_packet_queue = {}    ---@type PackedSongPacket[]
 
 local ping_loop_start_time
 
+local ping_loop_identifier = "TL_FMP_song_data_ping_loop"
+
+local function stop_and_cleanup_packet_ping_loop()
+    outgoing_packet_queue = {}  -- easier to just reset the table now then to remove a sent packet and resort the remaning indexes.
+    outgoing_packet_queue_index = 1
+    ping_loop_start_time = nil
+    events.WORLD_TICK:remove(ping_loop_identifier)
+end
+
 --- Host-side event loop to emit pings from the ping queue
 local function ping_loop()
     if ping_loop_start_time + (target_milis_between_packets * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
         -- we can emit another packet
         -- Note that this condition may be true in situations where the time between
-        -- two packets is slightly _less_ than min_milis_between_packets.
+        -- two packets is slightly _less_ than target_milis_between_packets.
         -- It will still be the average, but enabling us to send a packet slightly
         -- early will avoid the "slip" caused from missing the perfect time to emmit a packet.
 
@@ -954,16 +1015,7 @@ local function ping_loop()
         outgoing_packet_queue_index = outgoing_packet_queue_index + 1
 
         -- check if list is empty
-        if outgoing_packet_queue_index > #outgoing_packet_queue then
-            -- List is empty, reset and shutdown ping loop
-
-            print("Ping queue is empty.")
-
-            outgoing_packet_queue = {}  -- easier to just reset the table now then to remove a sent packet and resort the remaning indexes.
-            outgoing_packet_queue_index = 1
-            ping_loop_start_time = nil
-            events.WORLD_TICK:remove(ping_loop)
-        end
+        if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
     end
 end
 
@@ -973,7 +1025,7 @@ local function check_or_start_ping_loop()
         return
     else
         print("Starting ping loop")
-        events.WORLD_TICK:register(ping_loop)
+        events.WORLD_TICK:register(ping_loop, ping_loop_identifier)
         ping_loop_start_time = client:getSystemTime()
     end
 end
@@ -1009,11 +1061,20 @@ end
 ---@field list_transfered_songs fun():table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: PlayingSongController}>
 ---@field ping_packets          fun(outgoing_packed_packets:PackedSongPacket[])
 ---@field outgoing_packet_queue_progress    fun():number
+---@field play_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to play the selected song.
+---@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song.
+---@field remove_transfered_song  fun(transfered_song_id:integer)       Sends a controll packet to delete the selected song. This simply removes the song from the transfered_songs list. A player playing this song may still hold onto it.
+---@field cancel_all_pings fun()        Deletes all pings in the queued pings list and stops the update loop.
+
 return {
     song_to_packets = song_to_packets,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     list_transfered_songs = function() return collected_incomming_songs end,
     -- update_config_for_transfered_song = update_config_for_transfered_song,
     ping_packets = ping_packets,
-    outgoing_packet_queue_progress = outgoing_packet_queue_progress
+    outgoing_packet_queue_progress = outgoing_packet_queue_progress,
+    play_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.start)) end,
+    stop_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop)) end,
+    remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
+    cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
 }
