@@ -961,18 +961,6 @@ local function local_receive_packet(packed_packet_data)
     packet_receiving_functions[packet_id](reader, transfered_song_id)
 end
 
----comment
----@param transfered_song_id integer
----@param new_config SongPlayerConfig
-local function update_config_for_transfered_song(transfered_song_id, new_config)
-    collected_incomming_songs[transfered_song_id].player.set_new_config(new_config)
-    -- local config_packet = {}
-    -- union_tables(config_packet, int_to_vlq(packet_ids.config))
-    -- union_tables(config_packet, int_to_vlq(transfered_song_id))
-    -- union_tables(config_packet, build_config_packet_body(new_config))
-end
-
-
 
 --- primary ping function. It receives a packet and sends it off for processing
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
@@ -1070,7 +1058,6 @@ return {
     song_to_packets = song_to_packets,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     list_transfered_songs = function() return collected_incomming_songs end,
-    -- update_config_for_transfered_song = update_config_for_transfered_song,
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
     play_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.start)) end,
