@@ -4,6 +4,10 @@ local song_library_api = require("./libraries")     ---@type LibrariesApi
 local config_cahe_api = require("./config_cache")   ---@type ConfigCacheAPI
 local networking_api = require("./networking")      ---@type SongNetworkingApi
 
+local do_debug_prints = false
+local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
+
+
 local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
 local function get_spinner()
 	local spinner_State =
@@ -30,7 +34,7 @@ local function new_action_wheel_ui()
     ---@type table<string, Action>
     local actions = {}
 
-    ---@type table<string, {processor_future: TL_Future?, packets: string[]?, transfer_song_id: integer?}>
+    ---@type table<string, {processor_future: TL_Future?, error: string?, packets: string[]?, transfer_song_id: integer?}>
     local processed_songs_and_players = {}
 
     local song_library = host:isHost() and song_library_api:build_default_library() or song_library_api:build_library() -- Default lib uses files API. Avoid if not host.
@@ -95,7 +99,7 @@ local function new_action_wheel_ui()
                 this_row = this_row .. "♬"
             elseif processed_songs_and_players[this_row_song.id] then
                 if processed_songs_and_players[this_row_song.id].error then
-                    this_row = this_row .. "⚠️"
+                    this_row = this_row .. "🚫"
                 elseif not processed_songs_and_players[this_row_song.id].packets then
                     -- Song is in the midle of being processed.
                     -- (We know because no packets have been built yet, but an entry in this table was created)
@@ -153,7 +157,7 @@ local function new_action_wheel_ui()
 	actions.select_song = action_wheel:newAction()
 	    :item("minecraft:music_disc_wait")
 	    :title(update_song_selector_title())
-	    :onScroll(function (scroll_direction, self)
+	    :onScroll(function (scroll_direction, _)
 			local natural_scroll = false
 			local scroll_amount = keybinds:getKeybinds()["Scroll song list faster"]:isPressed() and 20 or 1
 			selected_song_index = selected_song_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
@@ -162,13 +166,21 @@ local function new_action_wheel_ui()
 			if selected_song_index < 1 then selected_song_index = #song_library.sorted_songs end
 			actions.select_song:title(update_song_selector_title())
 		end)
-		:onLeftClick(function(self)
+		:onLeftClick(function(_)
 		    local target_song = song_library:get_song_by_sorted_index(selected_song_index)
 			if not processed_songs_and_players[target_song.id] then processed_songs_and_players[target_song.id] = {} end
-		    if not processed_songs_and_players[target_song.id].processor_future then
+			if processed_songs_and_players[target_song.id].error then
+			    print_host(processed_songs_and_players[target_song.id].error)
+		    elseif not processed_songs_and_players[target_song.id].processor_future then
 				processed_songs_and_players[target_song.id].processor_future = target_song:start_data_processor()
 				processed_songs_and_players[target_song.id].processor_future:register_callback(function(finished_future)
-                    if finished_future:has_error() then error("we need to handle this error"); return end
+                    if finished_future:has_error() then
+                        processed_songs_and_players[target_song.id].error = finished_future:get_error()
+                        print_host("Filed to process song `"..tostring(target_song.id) .."`.")
+                        print_host(processed_songs_and_players[target_song.id].error)
+                        actions.select_song:title(update_song_selector_title())
+                        return
+                    end
                     local processed_song = finished_future:get_value()
 
                     ---@type SongPlayerConfig
