@@ -293,7 +293,7 @@ local function build_config_packet_body(player_config)
     union_tables(config_packet_body, string_to_bytes_with_len(player_config.primary_update_event_key))
     union_tables(config_packet_body, string_to_bytes_with_len(player_config.fallback_update_event_key))
 
-    -- bolian-based-configs
+    -- boolean-based-configs
 
     local boolean_configs = {
         (player_config.play_immediately and true or false),
