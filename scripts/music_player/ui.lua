@@ -40,12 +40,12 @@ local function new_action_wheel_ui()
     local song_library = host:isHost() and song_library_api:build_default_library() or song_library_api:build_library() -- Default lib uses files API. Avoid if not host.
     printTable(song_library.songs)
 
-    local selected_song_index = 1
-
     local num_songs_to_display_in_selector = 16
 
-    local playing_song_transfer_id = nil
-    local playing_song_library_id = nil
+
+    local selected_song_index = 1           -- Matches a song in song_library. Library is sorted in alphabetical order.
+    local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
+    local playing_song_transfer_id = nil    -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
 
     ---Returns a string sutable for actions.select_song:title(update_song_selector_title())
     ---@return string
@@ -214,13 +214,72 @@ local function new_action_wheel_ui()
 		end)
 
 
-	actions.config_song = action_wheel:newAction():title("Song Config"):item("minecraft:command_block")--:texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
+
+	-- Config page
+	-- This page needs to let us select what instrument playes which track.
+	-- Eventualy, it will also need to let us configure each instrument.
+	local song_config_action_wheel_page = action_wheel:newPage()
+
+	---@class aw_ui_song_config_page_state
+	local config_page_state = {
+
+	}
+
+
+	actions.config_page_confirm = action_wheel
+	    :newAction()
+		:title("Confirm and save changes")
+	    :item("minecraft:written_book")
+		:onLeftClick(function (_)
+		    action_wheel:setPage(music_player_action_wheel_page)
+	    end)
+
+	actions.config_page_cancel = action_wheel
+	    :newAction()
+		:title("Cancel and discard changes")
+	    :item("minecraft:tnt")
+		:onLeftClick(function (_)
+		    action_wheel:setPage(music_player_action_wheel_page)
+	    end)
+
+	actions.enter_config_page = action_wheel:newAction()
+	    :title("Song Config")
+		-- :item("minecraft:command_block")
+		:item("minecraft:bedrock")--:texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
+		:onLeftClick(function(_)
+			local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+			if not processed_songs_and_players[target_song.id] or not next(processed_songs_and_players[target_song.id]) then
+		        print_host("Unable to configure unprocessed songs. Processed songs have a check (✓) in the song list.")
+				return
+			end
+			if processed_songs_and_players[target_song.id].error then
+				print_host("This song had an error durring processing and cannot be configured.")
+				return
+			end
+			-- networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+			if target_song.id == playing_song_library_id then
+                print_host("Cannot configure a playing song. Please stop the song and try again.")
+    			return
+			end
+
+			-- TODO: Consider making song config stuff a right-click action in the song selector.
+
+
+
+			-- local song_tracks = target_song.processed_data.tracks[1].recommended_instrument_name
+			--
+
+			action_wheel:setPage(song_config_action_wheel_page)
+		end)
 
 
 
 	music_player_action_wheel_page:setAction(1,actions.exit_songbook)
-	music_player_action_wheel_page:setAction(2,actions.config_song)
+	music_player_action_wheel_page:setAction(2,actions.enter_config_page)
 	music_player_action_wheel_page:setAction(-1,actions.select_song)
+
+	song_config_action_wheel_page:setAction(1,actions.config_page_confirm)
+	song_config_action_wheel_page:setAction(2,actions.config_page_cancel)
 
     return actions.enter_songbook
 end
