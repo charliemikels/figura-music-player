@@ -1,3 +1,26 @@
+# Version 5
+
+Version 5 is still in development, and I'm not going to update the entire readme untill it's somewhat finalized. In the meantime, here's some expected new features:
+
+- Rewritten from scratch
+- Native MIDI file support
+- fewer instructions
+- A script can play multiple songs at once.
+- Songs can have multiple configurable instruments.
+- Volume and Pitch effects
+- An API for use in other scripts
+- (ABC support is not guaranteed.)
+
+Here's a quick audio and preformance comparison between v4 and v5 beta as of 2025-10-21. (remember to unmute the video audio.)
+
+https://github.com/user-attachments/assets/5ab2c4f7-c5f4-4fcd-a8e2-96794c51d958
+
+------
+
+The following is the readme for v4
+
+----------
+
 # Tanner Limes' Music Player for Figura
 
 [Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
