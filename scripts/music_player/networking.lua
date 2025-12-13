@@ -1064,6 +1064,7 @@ end
 ---@field remove_transfered_song  fun(transfered_song_id:integer)       Sends a controll packet to delete the selected song. This simply removes the song from the transfered_songs list. A player playing this song may still hold onto it.
 ---@field cancel_all_pings fun()        Deletes all pings in the queued pings list and stops the update loop.
 ---@field get_player_for_transfered_song fun(transfered_song_id:integer):PlayingSongController  Treat this as read-only. Edits to this player will only be seen by the host.
+---@field get_target_milis_between_packets fun():integer                Returns `target_milis_between_packets`, so that we can make time-estemations from packet rate.
 return {
     song_to_packets = song_to_packets,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
@@ -1073,5 +1074,6 @@ return {
     stop_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop)) end,
     remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
-    get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id] and collected_incomming_songs[transfered_song_id].player or nil end
+    get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id] and collected_incomming_songs[transfered_song_id].player or nil end,
+    get_target_milis_between_packets = function() return target_milis_between_packets end,
 }
