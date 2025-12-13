@@ -47,8 +47,7 @@ local function new_action_wheel_ui()
     local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
     local playing_song_transfer_id = nil    -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
 
-    ---Returns a string sutable for actions.select_song:title(update_song_selector_title())
-    ---@return string
+    ---Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
         if not host:isHost() then return "Song list" end
         if not next(song_library.songs) then
@@ -68,23 +67,23 @@ local function new_action_wheel_ui()
     		start_index = math.max(end_index - num_songs_to_display_in_selector ,1)
     	end
 
-        local return_string = ""
+        local selector_title_string = ""
 
         if playing_song_transfer_id then
-            return_string = return_string .. "Currently playing: \"" .. song_library:get_song_by_id(playing_song_library_id).name .."\""
+            selector_title_string = selector_title_string .. "Currently playing: \"" .. song_library:get_song_by_id(playing_song_library_id).name .."\""
             local song_player = networking_api.get_player_for_transfered_song(playing_song_transfer_id)
             if  song_player and song_player.get_progress() then
-                return_string = return_string
+                selector_title_string = selector_title_string
                     .. " ("
                     .. tostring(math.floor(
                         song_player.get_progress() * 100
                     ))
                     .."%)"
             end
-            return_string = return_string .. " " .. get_spinner() .. "\n"
+            selector_title_string = selector_title_string .. " " .. get_spinner() .. "\n"
         end
 
-        return_string = return_string .. "Song List:\n"
+        selector_title_string = selector_title_string .. "Song List:\n"
 
         for index = start_index, end_index do
             local this_row = ""
@@ -112,11 +111,18 @@ local function new_action_wheel_ui()
             end
             this_row = this_row .. this_row_song.name
 
-            return_string = return_string .. "\n" .. this_row
+            selector_title_string = selector_title_string .. "\n" .. this_row
         end
-        return_string = return_string .. "\n\n" .. "INFO ABOUT THIS SONG HERE"
+        selector_title_string = selector_title_string .. "\n\n" .. "INFO ABOUT THIS SONG HERE"
 
-        return return_string
+        actions.select_song:title(selector_title_string)
+    end
+
+    --- Update all UI text on the main page.
+    local function update_main_page_ui_text()
+        if not host:isHost() then return end
+
+        update_song_selector_title()
     end
 
     -- monitors the status of the playing song and updates some components accordingly (mostly just progress bars and spinners).
@@ -125,7 +131,7 @@ local function new_action_wheel_ui()
             or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
             or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
         then
-            actions.select_song:title(update_song_selector_title())
+            update_main_page_ui_text()
             playing_song_transfer_id = nil
             playing_song_library_id = nil
             events.TICK:remove(playing_watcher)
@@ -133,7 +139,7 @@ local function new_action_wheel_ui()
 
         if not action_wheel:isEnabled() then return end
 
-        actions.select_song:title(update_song_selector_title())
+        update_main_page_ui_text()
     end
 
 
@@ -156,15 +162,17 @@ local function new_action_wheel_ui()
 
 	actions.select_song = action_wheel:newAction()
 	    :item("minecraft:music_disc_wait")
-	    :title(update_song_selector_title())
+	    :title("Song selector") -- Set with update_main_page_ui_text()
 	    :onScroll(function (scroll_direction, _)
 			local natural_scroll = false
 			local scroll_amount = keybinds:getKeybinds()["Scroll song list faster"]:isPressed() and 20 or 1
 			selected_song_index = selected_song_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
 
+			-- Scroll wrap
 			if selected_song_index > #song_library.sorted_songs then selected_song_index = 1 end
 			if selected_song_index < 1 then selected_song_index = #song_library.sorted_songs end
-			actions.select_song:title(update_song_selector_title())
+
+			update_main_page_ui_text()
 		end)
 		:onLeftClick(function(_)
 		    local target_song = song_library:get_song_by_sorted_index(selected_song_index)
@@ -178,12 +186,11 @@ local function new_action_wheel_ui()
                         processed_songs_and_players[target_song.id].error = finished_future:get_error()
                         print_host("Filed to process song `"..tostring(target_song.id) .."`.")
                         print_host(processed_songs_and_players[target_song.id].error)
-                        actions.select_song:title(update_song_selector_title())
+                        update_main_page_ui_text()
                         return
                     end
                     local processed_song = finished_future:get_value()
 
-                    ---@type SongPlayerConfig
                     local song_player_config = config_cahe_api.load_song_config(target_song.id)
                     song_player_config.source_entity = player
                     song_player_config.play_immediately = true
@@ -192,7 +199,7 @@ local function new_action_wheel_ui()
 
                     processed_songs_and_players[target_song.id].packets = packets
                     processed_songs_and_players[target_song.id].transfer_song_id = transfer_id
-                    actions.select_song:title(update_song_selector_title())
+                    update_main_page_ui_text()
 				end)
 			elseif processed_songs_and_players[target_song.id].packets then
 			    -- song is ready to send, but we should only play one song at a time using this UI.
@@ -210,8 +217,9 @@ local function new_action_wheel_ui()
 				end
 			end
 
-			actions.select_song:title(update_song_selector_title())
+			update_main_page_ui_text()
 		end)
+	update_song_selector_title()
 
 
 
