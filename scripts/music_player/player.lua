@@ -525,6 +525,18 @@ local song_player_api = {
                     return (client.getSystemTime() - playing_song.start_time) / playing_song.song_duration
                 end,
 
+                ---@type fun():number
+                get_start_time = function()
+                    if not playing_song.start_time then return nil end
+                    return playing_song.start_time
+                end,
+
+                ---@type fun():number
+                get_duration = function()
+                    if not playing_song.song_duration then return nil end
+                    return playing_song.song_duration
+                end,
+
                 ---@type fun()
                 stop = function()
                     print_host("Stopping \"".. tostring(song.name) .."\"")
@@ -547,6 +559,7 @@ local song_player_api = {
                         playing_song.deprecated_instruments[key] = nil
                     end
                 end,
+
                 ---@type fun(new_config: SongPlayerConfig)
                 set_new_config = function(new_config)
                     apply_config(playing_song, new_config)
