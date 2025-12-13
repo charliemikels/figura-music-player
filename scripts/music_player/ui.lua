@@ -166,11 +166,28 @@ local function new_action_wheel_ui()
         update_song_selector_title()
     end
 
-    -- monitors the status of the playing song and updates some components accordingly (mostly just progress bars and spinners).
+
+    --- For songs with multiple head/config packets, `playing_watcher` might deside they've finished playing before they've
+    --- had the chance to start. EG: Header packet is received, but config packet (which ultimately trigers the `play` command)
+    --- has not been sent yet.
+    ---
+    --- This keeps track of when the player was started, and when we should consider a song to have stopped.
+    local time_when_playing_watcher_grace_ends = 0
+    -- TODO: One The whole playing_watcher is here to check when the song is done,
+    -- but maybe we could have let the song tell us when it is done. (some sort of
+    -- callback on either song or transfer system.) This would avoid issues like
+    -- here where we want to know if a song failed to start, or ended normaly.
+    --
+    -- We'll still need the watcher anyways to keep the UI updated when a song is playing.
+
+    -- monitors the status of the playing song.
+    -- Keeps UI updated while action wheel is open and song is playing.
+    -- When the song ends, also clears out playing_song_transfer_id and playing_song_library_id
     local function playing_watcher()
-        if     not playing_song_transfer_id
-            or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
-            or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+        if  (      not playing_song_transfer_id
+                or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
+                or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+            ) and time_when_playing_watcher_grace_ends < client:getSystemTime()
         then
             playing_song_transfer_id = nil
             playing_song_library_id = nil
@@ -249,7 +266,15 @@ local function new_action_wheel_ui()
 					playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
 					playing_song_library_id = target_song.id
                     networking_api.ping_packets(processed_songs_and_players[target_song.id].packets)
-                    events.TICK:register(playing_watcher)
+
+                    -- Ensure we wait for at least 3 packets' worth of time
+                    -- before we allow playing_watcher to assume the song has ended.
+                    time_when_playing_watcher_grace_ends =
+                        client:getSystemTime()
+                        + 3 -- ALT: wait for up to half of packets: `+ math.max(3, math.ceil(processed_songs_and_players[target_song.id].packets/2))`
+                        * networking_api.get_target_milis_between_packets()
+
+                    events.TICK:register(playing_watcher)   -- TODO: Make this run on the _next_ tick??? it might be running before ping_packets starts it's loop.
                 else
                     networking_api.cancel_all_pings()
                     networking_api.stop_transfered_song(playing_song_transfer_id)

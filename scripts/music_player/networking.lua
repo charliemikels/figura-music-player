@@ -876,6 +876,8 @@ end
 ---@return ProcessedSong        A processed song that likely has no instructions
 local function receive_header_packet(reader, transfered_song_id)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
+    -- The host should never send a 2nd song with the same ID, but it might happen if the host has reloaded their script.
+    -- Purging this data means we loose controll over it, but the host must have already lost control, so it's kinda OK actualy.
     collected_incomming_songs[transfered_song_id] = {}
 
     local name = bytes_with_len_to_string_from_reader(reader)
