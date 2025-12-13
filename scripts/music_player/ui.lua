@@ -172,10 +172,11 @@ local function new_action_wheel_ui()
             or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
             or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
         then
-            update_main_page_ui()
             playing_song_transfer_id = nil
             playing_song_library_id = nil
             events.TICK:remove(playing_watcher)
+
+            update_main_page_ui()
         end
 
         if not action_wheel:isEnabled() then return end
