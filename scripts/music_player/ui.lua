@@ -47,7 +47,7 @@ local function new_action_wheel_ui()
     local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
     local playing_song_transfer_id = nil    -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
 
-    ---Updates the title text in `actions.select_song` (This is the main "song list" render.)
+    --- Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
         if not host:isHost() then return "Song list" end
         if not next(song_library.songs) then
@@ -73,6 +73,7 @@ local function new_action_wheel_ui()
             selector_title_string = selector_title_string .. "Currently playing: \"" .. song_library:get_song_by_id(playing_song_library_id).name .."\""
             local song_player = networking_api.get_player_for_transfered_song(playing_song_transfer_id)
             if  song_player and song_player.get_progress() then
+                -- TODO: Update song_player to return run_time, buffer_time, time_started etc.
                 selector_title_string = selector_title_string
                     .. " ("
                     .. tostring(math.floor(
@@ -113,15 +114,55 @@ local function new_action_wheel_ui()
 
             selector_title_string = selector_title_string .. "\n" .. this_row
         end
-        selector_title_string = selector_title_string .. "\n\n" .. "INFO ABOUT THIS SONG HERE"
+        selector_title_string = selector_title_string .. "\n\n" .. "INFO ABOUT THIS SONG HERE"  -- TODO: ←
 
         actions.select_song:title(selector_title_string)
     end
 
+    ---Returns if it's safe to enter the
+    ---@return boolean is_safe
+    ---@return string err -- If safe to enter is false, then err will include the reason why.
+    local function can_enter_config_page()
+        local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+		if not processed_songs_and_players[target_song.id] or not next(processed_songs_and_players[target_song.id]) then
+			return false, "Unable to configure unprocessed songs. Processed songs have a check (✓) in the song list."
+		end
+		if processed_songs_and_players[target_song.id].error then
+			return false, "This song had an error durring processing and cannot be configured."
+		end
+		-- networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+		if target_song.id == playing_song_library_id then
+ 			return false, "Cannot configure a playing song. Please stop the song and try again."
+		end
+
+		return true, ""
+    end
+
+    --- Updates the icon and title text in `actions.enter_config_page`
+    local function update_enter_config_page_ui()
+        local song_at_selected_index = song_library:get_song_by_sorted_index(selected_song_index)
+
+        local res, err = can_enter_config_page()
+        if res then
+            actions.enter_config_page:setItem("minecraft:command_block")
+            if song_at_selected_index and song_at_selected_index.name then
+                actions.enter_config_page:setTitle("Configure song `"..song_at_selected_index.name.."`")
+            else
+                error("Somehow we found a song that could be configured, but song_at_selected_index in nil")
+            end
+        else
+            actions.enter_config_page:setItem("minecraft:bedrock")
+            actions.enter_config_page:setTitle("Config Disabled".. (err and ("\n"..err) or ""))
+
+        end
+
+    end
+
     --- Update all UI text on the main page.
-    local function update_main_page_ui_text()
+    local function update_main_page_ui()
         if not host:isHost() then return end
 
+        update_enter_config_page_ui()
         update_song_selector_title()
     end
 
@@ -131,7 +172,7 @@ local function new_action_wheel_ui()
             or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
             or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
         then
-            update_main_page_ui_text()
+            update_main_page_ui()
             playing_song_transfer_id = nil
             playing_song_library_id = nil
             events.TICK:remove(playing_watcher)
@@ -139,7 +180,7 @@ local function new_action_wheel_ui()
 
         if not action_wheel:isEnabled() then return end
 
-        update_main_page_ui_text()
+        update_main_page_ui()
     end
 
 
@@ -172,7 +213,7 @@ local function new_action_wheel_ui()
 			if selected_song_index > #song_library.sorted_songs then selected_song_index = 1 end
 			if selected_song_index < 1 then selected_song_index = #song_library.sorted_songs end
 
-			update_main_page_ui_text()
+			update_main_page_ui()
 		end)
 		:onLeftClick(function(_)
 		    local target_song = song_library:get_song_by_sorted_index(selected_song_index)
@@ -186,7 +227,7 @@ local function new_action_wheel_ui()
                         processed_songs_and_players[target_song.id].error = finished_future:get_error()
                         print_host("Filed to process song `"..tostring(target_song.id) .."`.")
                         print_host(processed_songs_and_players[target_song.id].error)
-                        update_main_page_ui_text()
+                        update_main_page_ui()
                         return
                     end
                     local processed_song = finished_future:get_value()
@@ -199,7 +240,7 @@ local function new_action_wheel_ui()
 
                     processed_songs_and_players[target_song.id].packets = packets
                     processed_songs_and_players[target_song.id].transfer_song_id = transfer_id
-                    update_main_page_ui_text()
+                    update_main_page_ui()
 				end)
 			elseif processed_songs_and_players[target_song.id].packets then
 			    -- song is ready to send, but we should only play one song at a time using this UI.
@@ -217,7 +258,7 @@ local function new_action_wheel_ui()
 				end
 			end
 
-			update_main_page_ui_text()
+			update_main_page_ui()
 		end)
 	update_song_selector_title()
 
@@ -255,19 +296,12 @@ local function new_action_wheel_ui()
 		-- :item("minecraft:command_block")
 		:item("minecraft:bedrock")--:texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
 		:onLeftClick(function(_)
-			local target_song = song_library:get_song_by_sorted_index(selected_song_index)
-			if not processed_songs_and_players[target_song.id] or not next(processed_songs_and_players[target_song.id]) then
-		        print_host("Unable to configure unprocessed songs. Processed songs have a check (✓) in the song list.")
-				return
-			end
-			if processed_songs_and_players[target_song.id].error then
-				print_host("This song had an error durring processing and cannot be configured.")
-				return
-			end
-			-- networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
-			if target_song.id == playing_song_library_id then
-                print_host("Cannot configure a playing song. Please stop the song and try again.")
-    			return
+
+			-- local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+			local it_is_safe_to_enter, err = can_enter_config_page()
+			if not it_is_safe_to_enter then
+                print_host(err)
+                return
 			end
 
 			-- TODO: Consider making song config stuff a right-click action in the song selector.
@@ -279,6 +313,7 @@ local function new_action_wheel_ui()
 
 			action_wheel:setPage(song_config_action_wheel_page)
 		end)
+	update_enter_config_page_ui()
 
 
 
