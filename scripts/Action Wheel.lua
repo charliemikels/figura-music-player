@@ -18,11 +18,13 @@ action_wheel:setPage(root_action_wheel_page)
 --       /give @p minecraft:player_head[minecraft:profile={id:[I;1039887675,1961051688,-1756947787,-2031944347],name:"Drum"}]
 
 local ui_api = require("scripts/music_player/ui")
--- local default_library = require("scripts/music_player/libraries"):build_default_library()
-local enter_music_player_action_wheel_ui = ui_api.new_action_wheel_ui(nil, "My Awesome music")
+local default_library = require("scripts/music_player/libraries"):build_default_library()
+local enter_music_player_action_wheel_ui = ui_api.new_action_wheel_ui(default_library)
 root_action_wheel_page:setAction(-1, enter_music_player_action_wheel_ui )
 
-
+local second_default_library = require("scripts/music_player/libraries"):build_default_library()
+local second_enter_music_player_action_wheel_ui = ui_api.new_action_wheel_ui(second_default_library, "second songbook")
+root_action_wheel_page:setAction(-1, second_enter_music_player_action_wheel_ui )
 
 
 

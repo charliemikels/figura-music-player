@@ -296,19 +296,33 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 				end)
 			elseif processed_songs_and_players[target_song.id].packets then
 			    -- song is ready to send, but we should only play one song at a time using this UI.
-			    if not playing_song_transfer_id or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing() then
-					playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
-					playing_song_library_id = target_song.id
-                    networking_api.ping_packets(processed_songs_and_players[target_song.id].packets)
+                if  not playing_song_transfer_id
+                    or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+                then
+                    if networking_api.outgoing_packet_queue_progress() < 1 then
+                        -- If, for whatever reason, the avatar is useing the networking API elsewhere and the packet queue is full, refuse to start the song.
+                        -- This is a sort of bandaid fix as the current logic will correctly enqueue the song and the networking library does eventualy play it,
+                        -- but the UI looses track of the enqueued song before it plays.
+                        --
+                        -- However, any user that is attempting to play two songs at once over the network probably knowss what they're doing.
+                        --
+                        -- TODO: Fix the UI looseing track of songs that are in the packet queue, but not playing yet.
+                        -- TODO: Networking: create a "cancel_all_pings _by_transfer_id" or something so that we can cancel a song without shutting down the entire network.
+                        print("The packet queue is already bussy. Are there multiple music players useing the network?")
+                    else
+                        playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
+    					playing_song_library_id = target_song.id
+                        networking_api.ping_packets(processed_songs_and_players[target_song.id].packets)
 
-                    -- Ensure we wait for at least 3 packets' worth of time
-                    -- before we allow playing_watcher to assume the song has ended.
-                    time_when_playing_watcher_grace_ends =
-                        client:getSystemTime()
-                        + 3 -- ALT: wait for up to half of packets: `+ math.max(3, math.ceil(processed_songs_and_players[target_song.id].packets/2))`
-                        * networking_api.get_target_milis_between_packets()
+                        -- Ensure we wait for at least 3 packets' worth of time
+                        -- before we allow playing_watcher to assume the song has ended.
+                        time_when_playing_watcher_grace_ends =
+                            client:getSystemTime()
+                            + 3 -- ALT: wait for up to half of packets: `+ math.max(3, math.ceil(processed_songs_and_players[target_song.id].packets/2))`
+                            * networking_api.get_target_milis_between_packets()
 
-                    events.TICK:register(playing_watcher)   -- TODO: Make this run on the _next_ tick??? it might be running before ping_packets starts it's loop.
+                        events.TICK:register(playing_watcher)   -- TODO: Make this run on the _next_ tick??? it might be running before ping_packets starts it's loop.
+                    end
                 else
                     networking_api.cancel_all_pings()
                     networking_api.stop_transfered_song(playing_song_transfer_id)
