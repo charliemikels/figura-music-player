@@ -143,6 +143,9 @@ local function new_action_wheel_ui()
     ---@return string err -- If safe to enter is false, then err will include the reason why.
     local function can_enter_config_page()
         local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+        if not target_song then
+            return false, "No selected song"
+        end
 		if not processed_songs_and_players[target_song.id] or not next(processed_songs_and_players[target_song.id]) then
 			return false, "Unable to configure unprocessed songs. Processed songs have a check (✓) in the song list."
 		end

@@ -94,8 +94,8 @@ local libraries_api = {
         ---@field songs table<string, Song> Canonical song list.
         ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
         ---@field add_source_directory fun(self:Library, path:string)
-        ---@field get_song_by_id fun(self:Library, id:string):Song
-        ---@field get_song_by_sorted_index fun(self:Library, index:integer):Song
+        ---@field get_song_by_id fun(self:Library, id:string):Song?
+        ---@field get_song_by_sorted_index fun(self:Library, index:integer):Song?
         ---@field get_library_length fun(self:Library):integer
         local library = {
             songs = {},
