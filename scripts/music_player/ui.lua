@@ -96,7 +96,8 @@ local function new_action_wheel_ui()
                         ))
                         .."%"
                 end
-
+            else
+                selector_title_string = selector_title_string .. "\nStarting..."
             end
             selector_title_string = selector_title_string .. " " .. get_spinner() .. "\n"
             selector_title_string = selector_title_string .. "\n"
