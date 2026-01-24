@@ -21,16 +21,17 @@ local function get_spinner()
 end
 
 ---Creates an actionwheel
----@param self Library? Self is a lie, and is simply coppied to `song_library` if `song_library` is nil. Allows for `.` and `:` style calls.
 ---@param song_library Library? The Library used for this UI. Defaults to `song_library_api:build_default_library()`.
 ---@return Action enter_songbook_action The action used to enter the songbook. Place this action into your actionwheel.
-local function new_action_wheel_ui(self, song_library)
+local function new_action_wheel_ui(song_library)
 
-    -- The user is likely to call this function. Let's be forgiveing and allow for both `:` and `.` method styles.
-    if not song_library then
-        song_library = (self and self.songs) and self
-        or  (host:isHost() and song_library_api:build_default_library() or song_library_api:build_library())
+    ---@diagnostic disable-next-line: undefined-field
+    if song_library and song_library.new_action_wheel_ui then
+        -- If here, then song_library is actualy `self`
+        error("Please use `.` instead of `:` when calling `new_action_wheel_ui()`")
     end
+
+    if not song_library then song_library = host:isHost() and song_library_api:build_default_library() or song_library_api:build_library() end
 
     if not keybinds:getKeybinds()["Scroll song list faster"] then
         keybinds:newKeybind(
