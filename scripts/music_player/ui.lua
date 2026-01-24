@@ -72,16 +72,34 @@ local function new_action_wheel_ui()
         if playing_song_transfer_id then
             selector_title_string = selector_title_string .. "Currently playing: \"" .. song_library:get_song_by_id(playing_song_library_id).name .."\""
             local song_player = networking_api.get_player_for_transfered_song(playing_song_transfer_id)
-            if  song_player and song_player.get_progress() then
-                -- TODO: Update song_player to return run_time, buffer_time, time_started etc.
-                selector_title_string = selector_title_string
-                    .. " ("
-                    .. tostring(math.floor(
-                        song_player.get_progress() * 100
-                    ))
-                    .."%)"
+            if song_player and song_player.get_progress() then
+                selector_title_string = selector_title_string .. "\n"
+
+                if song_player.get_progress() < 0 then
+                    -- Song is buffering and has not started
+                    selector_title_string = selector_title_string
+                        .. "Buffering: Ready in "
+                        .. tostring(math.floor(
+                            1+ (song_player.get_start_time() - client.getSystemTime()) / 1000
+                        ))
+                        .. "s"
+                else
+                    selector_title_string = selector_title_string
+                        -- .. "("
+                        .. tostring(math.floor(
+                            (song_player.get_start_time() + song_player.get_duration() - client.getSystemTime()) / 1000
+                        ))
+                        .."s | "
+
+                        .. tostring(math.floor(
+                            song_player.get_progress() * 100
+                        ))
+                        .."%"
+                end
+
             end
             selector_title_string = selector_title_string .. " " .. get_spinner() .. "\n"
+            selector_title_string = selector_title_string .. "\n"
         end
 
         selector_title_string = selector_title_string .. "Song List:\n"
