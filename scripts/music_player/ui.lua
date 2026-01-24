@@ -20,7 +20,18 @@ local function get_spinner()
 	return spinner_states[spinner_State]
 end
 
-local function new_action_wheel_ui()
+---Creates an actionwheel
+---@param self Library? Self is a lie, and is simply coppied to `song_library` if `song_library` is nil. Allows for `.` and `:` style calls.
+---@param song_library Library? The Library used for this UI. Defaults to `song_library_api:build_default_library()`.
+---@return Action enter_songbook_action The action used to enter the songbook. Place this action into your actionwheel.
+local function new_action_wheel_ui(self, song_library)
+
+    -- The user is likely to call this function. Let's be forgiveing and allow for both `:` and `.` method styles.
+    if not song_library then
+        song_library = (self and self.songs) and self
+        or  (host:isHost() and song_library_api:build_default_library() or song_library_api:build_library())
+    end
+
     if not keybinds:getKeybinds()["Scroll song list faster"] then
         keybinds:newKeybind(
     		"Scroll song list faster",
@@ -28,20 +39,19 @@ local function new_action_wheel_ui()
     	)
     end
 
+    -- Allows for exiting the songbook back to the Avatar's original action wheel page.
     local previous_action_wheel_page = nil
+
     local music_player_action_wheel_page = action_wheel:newPage()
 
+    ---Stores the actions belonging to this action_wheel_ui
     ---@type table<string, Action>
     local actions = {}
 
     ---@type table<string, {processor_future: TL_Future?, error: string?, packets: string[]?, transfer_song_id: integer?}>
     local processed_songs_and_players = {}
 
-    local song_library = host:isHost() and song_library_api:build_default_library() or song_library_api:build_library() -- Default lib uses files API. Avoid if not host.
-    printTable(song_library.songs)
-
     local num_songs_to_display_in_selector = 16
-
 
     local selected_song_index = 1           -- Matches a song in song_library. Library is sorted in alphabetical order.
     local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
