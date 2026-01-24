@@ -22,8 +22,9 @@ end
 
 ---Creates an actionwheel
 ---@param song_library Library? The Library used for this UI. Defaults to `song_library_api:build_default_library()`.
+---@param enter_songbook_title string? The title of the enter songbook action. Defaults to `"Songbook"`
 ---@return Action enter_songbook_action The action used to enter the songbook. Place this action into your actionwheel.
-local function new_action_wheel_ui(song_library)
+local function new_action_wheel_ui(song_library, enter_songbook_title)
 
     ---@diagnostic disable-next-line: undefined-field
     if song_library and song_library.new_action_wheel_ui then
@@ -237,7 +238,7 @@ local function new_action_wheel_ui(song_library)
 
 
     actions.enter_songbook = action_wheel:newAction()
-        :title("Songbook")
+        :title(enter_songbook_title or "Songbook")
 		:item("minecraft:jukebox")
 		:onLeftClick(function()
 			previous_action_wheel_page = action_wheel:getCurrentPage()
