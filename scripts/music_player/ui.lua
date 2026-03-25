@@ -338,7 +338,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
 	-- Config page
 	-- This page needs to let us select what instrument playes which track.
-	-- Eventualy, it will also need to let us configure each instrument.
 	local song_config_action_wheel_page = action_wheel:newPage()
 
 	---@class aw_ui_song_config_page_state
