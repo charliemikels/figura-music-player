@@ -1009,7 +1009,6 @@ local function stop_and_cleanup_packet_ping_loop()
     outgoing_packet_queue_index = 1
     ping_loop_start_time = nil
     events.WORLD_TICK:remove(ping_loop_identifier)
-    print_host("All pings sent.")
 end
 
 --- Searches upcoming packets in outgoing_packet_queue and skips/removes any that match transfered_song_id_to_cancel
@@ -1093,7 +1092,7 @@ local function ping_loop()
         outgoing_packet_queue_index = outgoing_packet_queue_index + 1
 
         -- check if list is empty
-        if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
+        if outgoing_packet_queue_index > #outgoing_packet_queue then print_host("All pings sent."); stop_and_cleanup_packet_ping_loop() end
     end
 end
 
