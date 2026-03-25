@@ -973,6 +973,16 @@ local function local_receive_packet(packed_packet_data)
     packet_receiving_functions[packet_id](reader, transfered_song_id)
 end
 
+---For use with outgoing_packet_queue and others to get the transfer ID out of a packet, without needing to trust whoever is giveing us the packets.
+---@param packed_packet_data PackedSongPacket
+---@return integer transfered_song_id
+local function get_transfer_id_from_packed_packet_data(packed_packet_data)
+    local packet_data = unpack_packet(packed_packet_data)
+    local reader = new_packet_reader(packet_data)
+    local packet_id = vlq_to_int_from_reader(reader)
+    local transfered_song_id = vlq_to_int_from_reader(reader)
+    return transfered_song_id
+end
 
 --- primary ping function. It receives a packet and sends it off for processing
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
@@ -986,18 +996,55 @@ local function ping_packet_immediatly(outgoing_packed_packet)
 end
 
 local outgoing_packet_queue_index = 1   ---@type integer        Index into outgoing_packet_queue. Using an index so that we don't have to remove items from the list.
-local outgoing_packet_queue = {}    ---@type PackedSongPacket[]
+local outgoing_packet_queue = {}        ---@type {transfered_song_id: integer, packet: PackedSongPacket}[]
 
 local ping_loop_start_time
 
 local ping_loop_identifier = "TL_FMP_song_data_ping_loop"
 
 local function stop_and_cleanup_packet_ping_loop()
-    outgoing_packet_queue = {}  -- easier to just reset the table now then to remove a sent packet and resort the remaning indexes.
+    outgoing_packet_queue = {}
     outgoing_packet_queue_index = 1
     ping_loop_start_time = nil
     events.WORLD_TICK:remove(ping_loop_identifier)
     print_host("All pings sent.")
+end
+
+--- A partial outgoing_packet_queue cleanup that removes a song by transfer_id
+--- Item removal logic based on https://stackoverflow.com/a/53038524
+---@param transfered_song_id_to_cancel integer
+local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id_to_cancel)
+    -- TODO: As of right now, this is sorta untested. Calling appears to work as intended
+    local keep_destination_index = 1;
+    local n = #outgoing_packet_queue
+
+    print("Running partial cleanup")
+    print(n)
+
+    for search_index = 1, n do
+        local packet_already_sent = search_index < outgoing_packet_queue_index  -- since we're looping through the list, let's also discard sent packets.
+        local packet_transfer_song_id_matches = outgoing_packet_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
+        local should_delete_packet = packet_already_sent or packet_transfer_song_id_matches
+
+        print(search_index, packet_already_sent, packet_transfer_song_id_matches, should_delete_packet)
+
+        if not should_delete_packet then
+            if (search_index ~= keep_destination_index) then
+                -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
+                outgoing_packet_queue[keep_destination_index] = outgoing_packet_queue[search_index];
+                outgoing_packet_queue[search_index] = nil;
+            end
+            -- Increment position of where we'll place the next kept value.
+            -- Before anything is removed from the table, keep_destination_index and search_index are in sync.
+            keep_destination_index = keep_destination_index + 1;
+        else
+            outgoing_packet_queue[search_index] = nil;
+            -- Do not update keep_destination_index, this allows us to make a hole in the table.
+        end
+    end
+
+    outgoing_packet_queue_index = 1
+    if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
 end
 
 --- Host-side event loop to emit pings from the ping queue
@@ -1011,7 +1058,7 @@ local function ping_loop()
 
         print_debug("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_packet_queue).."…")
 
-        pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index])
+        pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index].packet)
 
         outgoing_packet_queue_index = outgoing_packet_queue_index + 1
 
@@ -1037,7 +1084,7 @@ end
 --- we either want to ping it ASAP, or we're pinging bulk data.
 ---@param outgoing_packed_packet PackedSongPacket
 local function ping_packet(outgoing_packed_packet)
-    table.insert(outgoing_packet_queue, outgoing_packed_packet)
+    table.insert(outgoing_packet_queue, {transfered_song_id = get_transfer_id_from_packed_packet_data(outgoing_packed_packet), packet = outgoing_packed_packet})
     check_or_start_ping_loop()
 end
 
@@ -1045,7 +1092,7 @@ end
 ---@param outgoing_packed_packets PackedSongPacket[]
 local function ping_packets(outgoing_packed_packets)
     for _, packet in ipairs(outgoing_packed_packets) do
-        table.insert(outgoing_packet_queue, packet)
+        table.insert(outgoing_packet_queue, {transfered_song_id = get_transfer_id_from_packed_packet_data(packet), packet = packet})
     end
     check_or_start_ping_loop()
 end
@@ -1062,7 +1109,7 @@ end
 ---@field ping_packets          fun(outgoing_packed_packets:PackedSongPacket[])
 ---@field outgoing_packet_queue_progress    fun():number
 ---@field play_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to play the selected song.
----@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song.
+---@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song, and removes any remaining queued packets for the song.
 ---@field remove_transfered_song  fun(transfered_song_id:integer)       Sends a controll packet to delete the selected song. This simply removes the song from the transfered_songs list. A player playing this song may still hold onto it.
 ---@field cancel_all_pings fun()        Deletes all pings in the queued pings list and stops the update loop.
 ---@field get_player_for_transfered_song fun(transfered_song_id:integer):PlayingSongController  Treat this as read-only. Edits to this player will only be seen by the host.
@@ -1072,8 +1119,13 @@ return {
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
-    play_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.start)) end,
-    stop_transfered_song   = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop)) end,
+    play_transfered_song = function(transfered_song_id)
+        ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.start))
+    end,
+    stop_transfered_song = function(transfered_song_id)
+        ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop))
+        remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id) -- Does not cancel the above packet, since ping_packet_immediatly bypasses the packet queue
+    end,
     remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
     get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id] and collected_incomming_songs[transfered_song_id].player or nil end,

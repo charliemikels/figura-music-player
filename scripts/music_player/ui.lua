@@ -307,7 +307,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         -- However, any user that is attempting to play two songs at once over the network probably knowss what they're doing.
                         --
                         -- TODO: Fix the UI looseing track of songs that are in the packet queue, but not playing yet.
-                        -- TODO: Networking: create a "cancel_all_pings _by_transfer_id" or something so that we can cancel a song without shutting down the entire network.
                         print("The packet queue is already bussy. Are there multiple music players useing the network?")
                     else
                         playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
@@ -324,7 +323,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         events.TICK:register(playing_watcher)   -- TODO: Make this run on the _next_ tick??? it might be running before ping_packets starts it's loop.
                     end
                 else
-                    networking_api.cancel_all_pings()
                     networking_api.stop_transfered_song(playing_song_transfer_id)
                     playing_song_transfer_id = nil
                     playing_song_library_id = nil
