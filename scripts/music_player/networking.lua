@@ -1019,7 +1019,7 @@ end
 ---@see stop_and_cleanup_packet_ping_loop
 ---@param transfered_song_id_to_cancel integer
 local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id_to_cancel)
-    local start_of_hole_index = outgoing_packet_queue_index
+    local size_of_hole = 0
 
     for search_index =
         outgoing_packet_queue_index, -- we can ignore packets that we've already sent.
@@ -1027,22 +1027,18 @@ local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song
     do
         local should_delete_packet = outgoing_packet_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
         if not should_delete_packet then
-            if (search_index ~= start_of_hole_index) then
+            if (size_of_hole > 0) then
                 -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
-                outgoing_packet_queue[start_of_hole_index] = outgoing_packet_queue[search_index]
+                outgoing_packet_queue[search_index - size_of_hole] = outgoing_packet_queue[search_index]
                 outgoing_packet_queue[search_index] = nil
             end
-            -- Increment position of where we'll place the next kept value.
-            -- Before anything is removed from the table, keep_destination_index and search_index are in sync.
-            start_of_hole_index = start_of_hole_index + 1
         else
             if outgoing_packet_queue_index == search_index then
                 -- In this situation, we can just skip the packet instead of modifying the table
                 outgoing_packet_queue_index = outgoing_packet_queue_index + 1
-                start_of_hole_index = start_of_hole_index + 1
             else
                 outgoing_packet_queue[search_index] = nil
-                -- Do not update start_of_hole, this grows the hole.
+                size_of_hole = size_of_hole + 1
             end
         end
     end
