@@ -1010,7 +1010,7 @@ local function stop_and_cleanup_packet_ping_loop()
     print_host("All pings sent.")
 end
 
---- A partial outgoing_packet_queue cleanup that removes a song by transfer_id
+--- Searches upcoming packets in outgoing_packet_queue and skips/removes any that match transfered_song_id_to_cancel
 ---
 --- Only really useful if there are multiple songs in the queue, which should never happen if the HOST is only useing ui.lua.
 --- But if the host is doing something clever with multiple players, or multiple UIs, this fn is nessesary.
@@ -1019,30 +1019,38 @@ end
 ---@see stop_and_cleanup_packet_ping_loop
 ---@param transfered_song_id_to_cancel integer
 local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id_to_cancel)
-    local keep_destination_index = 1;
-    local n = #outgoing_packet_queue
+    local start_of_hole_index = outgoing_packet_queue_index
 
-    for search_index = 1, n do
-        local packet_was_already_sent = search_index < outgoing_packet_queue_index  -- since we're looping through the list, let's also discard sent packets.
-        local packet_transfer_song_id_matches = outgoing_packet_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
-        local should_delete_packet = packet_was_already_sent or packet_transfer_song_id_matches
-
+    for search_index =
+        outgoing_packet_queue_index, -- we can ignore packets that we've already sent.
+        #outgoing_packet_queue
+    do
+        local should_delete_packet = outgoing_packet_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
         if not should_delete_packet then
-            if (search_index ~= keep_destination_index) then
+            if (search_index ~= start_of_hole_index) then
                 -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
-                outgoing_packet_queue[keep_destination_index] = outgoing_packet_queue[search_index];
-                outgoing_packet_queue[search_index] = nil;
+                outgoing_packet_queue[start_of_hole_index] = outgoing_packet_queue[search_index]
+                outgoing_packet_queue[search_index] = nil
             end
             -- Increment position of where we'll place the next kept value.
             -- Before anything is removed from the table, keep_destination_index and search_index are in sync.
-            keep_destination_index = keep_destination_index + 1;
+            start_of_hole_index = start_of_hole_index + 1
         else
-            outgoing_packet_queue[search_index] = nil;
-            -- Do not update keep_destination_index, this allows us to make a hole in the table.
+            if outgoing_packet_queue_index == search_index then
+                -- In this situation, we can just skip the packet instead of modifying the table
+                outgoing_packet_queue_index = outgoing_packet_queue_index + 1
+                start_of_hole_index = start_of_hole_index + 1
+            else
+                outgoing_packet_queue[search_index] = nil
+                -- Do not update start_of_hole, this grows the hole.
+            end
         end
     end
 
-    outgoing_packet_queue_index = 1
+    -- Any nils we created should have propigated to the end of the queue by now.
+    -- But since lua considers the length to the index of the last non-nil value,
+    -- it effectively means the list has shrunk, so #outgoing_packet_queue sould
+    -- accuratly represent the new size.
     if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
 end
 
