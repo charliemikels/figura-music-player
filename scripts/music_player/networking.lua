@@ -1011,22 +1011,21 @@ local function stop_and_cleanup_packet_ping_loop()
 end
 
 --- A partial outgoing_packet_queue cleanup that removes a song by transfer_id
+---
+--- Only really useful if there are multiple songs in the queue, which should never happen if the HOST is only useing ui.lua.
+--- But if the host is doing something clever with multiple players, or multiple UIs, this fn is nessesary.
+---
 --- Item removal logic based on https://stackoverflow.com/a/53038524
+---@see stop_and_cleanup_packet_ping_loop
 ---@param transfered_song_id_to_cancel integer
 local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id_to_cancel)
-    -- TODO: As of right now, this is sorta untested. Calling appears to work as intended
     local keep_destination_index = 1;
     local n = #outgoing_packet_queue
 
-    print("Running partial cleanup")
-    print(n)
-
     for search_index = 1, n do
-        local packet_already_sent = search_index < outgoing_packet_queue_index  -- since we're looping through the list, let's also discard sent packets.
+        local packet_was_already_sent = search_index < outgoing_packet_queue_index  -- since we're looping through the list, let's also discard sent packets.
         local packet_transfer_song_id_matches = outgoing_packet_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
-        local should_delete_packet = packet_already_sent or packet_transfer_song_id_matches
-
-        print(search_index, packet_already_sent, packet_transfer_song_id_matches, should_delete_packet)
+        local should_delete_packet = packet_was_already_sent or packet_transfer_song_id_matches
 
         if not should_delete_packet then
             if (search_index ~= keep_destination_index) then
