@@ -1588,6 +1588,7 @@ local function midi_processor(song)
                 if value.finished_song then
                     future_controller:set_done_with_value(value.finished_song)
                     state.is_done = true
+                    song.processed_data = value.finished_song
                     events.WORLD_RENDER:remove(processor_loop)
                 end
             end
