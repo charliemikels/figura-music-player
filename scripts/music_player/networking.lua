@@ -995,8 +995,10 @@ local function ping_packet_immediatly(outgoing_packed_packet)
     pings.TL_FMP_receive_packet(outgoing_packed_packet)
 end
 
+---@alias PacketQueue {transfered_song_id: integer, packet: PackedSongPacket}[]
+
 local outgoing_packet_queue_index = 1   ---@type integer        Index into outgoing_packet_queue. Using an index so that we don't have to remove items from the list.
-local outgoing_packet_queue = {}        ---@type {transfered_song_id: integer, packet: PackedSongPacket}[]
+local outgoing_packet_queue = {}        ---@type PacketQueue
 
 local ping_loop_start_time
 
@@ -1047,6 +1049,31 @@ local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song
     -- But since lua considers the length to the index of the last non-nil value,
     -- it effectively means the list has shrunk, so #outgoing_packet_queue sould
     -- accuratly represent the new size.
+    if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
+end
+
+--- outgoing_packet_queue needs to stay in order, so it's simpler to keep an index
+--- (outgoing_packet_queue_index) rather than to actualy remove packets from the list.
+--- But this does mean that outgoing_packet_queue will constantly grow since no items
+--- are removed.
+---
+--- Typicaly this isn't really a problem, because the queue gets reset  whenever we
+--- reach the end, but if some power user is constantly dumping stuff into the network,
+--- we might not reach it.
+---
+--- It's at least nice to have this function around
+local function remove_already_sent_packets_from_outgoing_packet_queue()
+    if outgoing_packet_queue_index == 1 then
+        -- outgoing_packet_queue has no sent packets
+        return
+    end
+
+    -- table.move() isn't available in Lua 5.2, but combineing pack and unpack should get us close enough
+    local new_outgoing_packet_queue = table.pack(table.unpack(outgoing_packet_queue, outgoing_packet_queue_index))
+    new_outgoing_packet_queue.n = nil   -- table.pack adds an `n` field that we don't want.
+    outgoing_packet_queue = new_outgoing_packet_queue   ---@type PacketQueue
+
+    outgoing_packet_queue_index = 1
     if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
 end
 
