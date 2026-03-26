@@ -3,6 +3,7 @@
 local song_library_api = require("./libraries")     ---@type LibrariesApi
 local config_cahe_api = require("./config_cache")   ---@type ConfigCacheAPI
 local networking_api = require("./networking")      ---@type SongNetworkingApi
+local song_player_api = require("./player")         ---@type SongPlayerAPI
 
 local do_debug_prints = false
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
@@ -150,9 +151,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         actions.select_song:title(selector_title_string)
     end
 
-    ---Returns if it's safe to enter the
+    ---Returns if it's safe to enter the config page
     ---@return boolean is_safe
-    ---@return string err -- If safe to enter is false, then err will include the reason why.
+    ---@return string err -- If is_safe is false, then err will include the reason why.
     local function can_enter_config_page()
         local target_song = song_library:get_song_by_sorted_index(selected_song_index)
         if not target_song then
@@ -340,26 +341,131 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 	-- This page needs to let us select what instrument playes which track.
 	local song_config_action_wheel_page = action_wheel:newPage()
 
-	---@class aw_ui_song_config_page_state
-	local config_page_state = {
+	---@class ConfigPageState
+	---@field targeted_song Song
+	---@field targeted_song_config SongPlayerConfig
+	---@field selected_track_index integer
+	---@field selected_instrument_index integer
+	local config_page_state = {}
 
-	}
+	local function update_config_instrument_picker_ui() end
 
+	local function update_config_track_picker_ui()
+	    local track_picker_title = "Editing \"".. config_page_state.targeted_song.short_name .."\""
+		track_picker_title = track_picker_title .. "\n" .. "Scroll to select a track"
+		track_picker_title = track_picker_title .. "\n"
 
-	actions.config_page_confirm = action_wheel
-	    :newAction()
+		local number_of_tracks = #config_page_state.targeted_song.processed_data.tracks
+		local tracks_to_display = num_songs_to_display_in_selector / 2
+
+		-- get index range
+        local start_index = config_page_state.selected_track_index - math.floor(tracks_to_display / 2)
+    	local end_index = start_index + tracks_to_display
+
+        -- Don't overscroll if near the start or end of the list
+    	if start_index < 1 then
+    		start_index = 1
+    		end_index = math.min(number_of_tracks, tracks_to_display +1)
+    	elseif end_index > number_of_tracks then
+    		end_index = number_of_tracks
+    		start_index = math.max(end_index - tracks_to_display, 1)
+    	end
+
+		for k = start_index, end_index do
+		    local current_track = config_page_state.targeted_song.processed_data.tracks[k]
+
+		    track_picker_title = track_picker_title
+				.. "\n"
+				.. (config_page_state.selected_track_index == k and "→" or "  ")
+				.. " " .. string.format("%02d", k)
+				.. " "
+				.. "\"" .. current_track.recommended_instrument_name .. "\""
+				.. "\n    ⮡ "
+				.. (
+				    config_page_state.targeted_song_config.instrument_selections
+					and config_page_state.targeted_song_config.instrument_selections[k]
+					and config_page_state.targeted_song_config.instrument_selections[k].name
+					or current_track.instrument_type_id == 1 and "default percussion" or "default"
+				)
+		end
+
+		track_picker_title = track_picker_title .. "\n\n" .. "(Showing track number, track name, and selected instrument)"
+
+		actions.config_page_select_track:setTitle(track_picker_title)
+	end
+
+	actions.config_page_confirm = action_wheel:newAction()
 		:title("Confirm and save changes")
 	    :item("minecraft:written_book")
 		:onLeftClick(function (_)
 		    action_wheel:setPage(music_player_action_wheel_page)
+
+			local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+			-- see actions.select_song … :left_click() for an example of rebuilding a song. Overwrite the entry at processed_songs_and_players[target_song.id]
+
+			local processed_song = target_song.processed_data or processed_songs_and_players[target_song.id].processor_future:get_value() ---@type ProcessedSong
+			printTable(processed_song.tracks)
+
+            -- local song_player_config = config_cahe_api.load_song_config(target_song.id)
+            -- song_player_config.source_entity = player
+            -- song_player_config.play_immediately = true
+
+            -- local packets, transfer_id = networking_api.song_to_packets(processed_song, song_player_config)
+
+            -- processed_songs_and_players[target_song.id].packets = packets
+            -- processed_songs_and_players[target_song.id].transfer_song_id = transfer_id
+
 	    end)
 
-	actions.config_page_cancel = action_wheel
-	    :newAction()
+	actions.config_page_cancel = action_wheel:newAction()
 		:title("Cancel and discard changes")
 	    :item("minecraft:tnt")
 		:onLeftClick(function (_)
 		    action_wheel:setPage(music_player_action_wheel_page)
+	    end)
+
+	actions.config_page_select_track = action_wheel:newAction()
+		:title("Select Track")
+	    :item("minecraft:rail")
+		:onScroll(function (scroll_direction, _)
+			local natural_scroll = false
+			local scroll_amount = keybinds:getKeybinds()["Scroll song list faster"]:isPressed() and 20 or 1
+			config_page_state.selected_track_index = config_page_state.selected_track_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
+
+			local total_track_count = #config_page_state.targeted_song.processed_data.tracks
+
+			-- Scroll wrap
+			if config_page_state.selected_track_index > total_track_count then config_page_state.selected_track_index = 1 end
+			if config_page_state.selected_track_index < 1 then config_page_state.selected_track_index = total_track_count end
+
+			update_config_track_picker_ui()
+			update_config_instrument_picker_ui()
+		end)
+		:onLeftClick(function (_)
+			-- TODO: on selection, update actions.select_track_instrument's title
+			-- TODO: Display track number, track name / reccomended instrument, and selected instrument.
+	    end)
+
+	actions.config_page_select_track_instrument = action_wheel:newAction()
+		:title("Select Instrument")
+	    :item("minecraft:note_block")
+		:onScroll(function (scroll_direction, _)
+			local natural_scroll = false
+			local scroll_amount = keybinds:getKeybinds()["Scroll song list faster"]:isPressed() and 20 or 1
+
+			config_page_state.selected_instrument_index = config_page_state.selected_instrument_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
+
+			local total_instrument_count = #song_player_api.get_instrument_keys()
+
+			if config_page_state.selected_instrument_index > total_instrument_count then config_page_state.selected_instrument_index = 1 end
+			if config_page_state.selected_instrument_index < 1 then config_page_state.selected_instrument_index = total_instrument_count end
+
+			update_config_track_picker_ui()
+			update_config_instrument_picker_ui()
+		end)
+		:onLeftClick(function (_)
+			-- TODO: Way to test instrument (right click?)
+			-- TODO: Display track you are editing
 	    end)
 
 	actions.enter_config_page = action_wheel:newAction()
@@ -375,13 +481,32 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 return
 			end
 
-			-- TODO: Consider making song config stuff a right-click action in the song selector.
+			local targeted_song = song_library:get_song_by_sorted_index(selected_song_index)
+			config_page_state = {
+			    targeted_song = targeted_song,
+			    targeted_song_config = config_cahe_api.load_song_config(targeted_song.id),
+				selected_track_index = 1,
+				selected_instrument_index = 1,
+			}
+
+			update_config_track_picker_ui()
+			update_config_instrument_picker_ui()
+
+
+
+
+
+			-- see actions.select_song … :left_click()
+			local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+			local _ = target_song.processed_data.tracks[1].recommended_instrument_name
+
+			local _ = processed_songs_and_players[target_song.id]
 
 
 
 			-- local song_tracks = target_song.processed_data.tracks[1].recommended_instrument_name
-			--
 
+			update_enter_config_page_ui()
 			action_wheel:setPage(song_config_action_wheel_page)
 		end)
 	update_enter_config_page_ui()
@@ -394,6 +519,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
 	song_config_action_wheel_page:setAction(1,actions.config_page_confirm)
 	song_config_action_wheel_page:setAction(2,actions.config_page_cancel)
+	song_config_action_wheel_page:setAction(3,actions.config_page_select_track)
+	song_config_action_wheel_page:setAction(4,actions.config_page_select_track_instrument)
 
     return actions.enter_songbook
 end
