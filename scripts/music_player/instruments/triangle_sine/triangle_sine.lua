@@ -5,10 +5,10 @@ local a4_id = 69 -- nice. Midi note numbers are 1 semitone away from the next no
 
 local triangle_sine_sound_key = nil
 for _, full_sound_id in pairs(sounds:getCustomSounds()) do
-	if string.find(full_sound_id, "triangle_sine.triangle_sine") then
-	    triangle_sine_sound_key = full_sound_id;
-		break
-	end
+    if string.find(full_sound_id, "triangle_sine.triangle_sine") then
+        triangle_sine_sound_key = full_sound_id;
+        break
+    end
 end
 
 ---Converts a midi note ID to a multiplier usable in minecraft
@@ -76,8 +76,8 @@ local print_instrument_factory = {
                 local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
                     :setPos(position)
                     :setVolume((instruction.start_velocity/127))
-					:setLoop(true)
-					:setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
+                    :setLoop(true)
+                    :setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
                     :setSubtitle("Music from "..player:getName())
 
                 local active_instruction = {

@@ -65,12 +65,12 @@ The file structure should look like this:
 <details>
 <summary>If you don't know where the root Figura folder is, you can get to it through Minecraft</summary>
 <ol>
-	<li>Open Minecraft.</li>
-	<li>Open the Figura menu.</li>
-	<li>Click the folder icon in the upper left.<br>This should open your file browser.</li>
-	<li>Navigate up one folder.<br>You should see your <code>avatar</code> folder here.</li>
-	<li>Open or create the <code>data</code> folder.</li>
-	<li>Your destination is on the left.</li>
+    <li>Open Minecraft.</li>
+    <li>Open the Figura menu.</li>
+    <li>Click the folder icon in the upper left.<br>This should open your file browser.</li>
+    <li>Navigate up one folder.<br>You should see your <code>avatar</code> folder here.</li>
+    <li>Open or create the <code>data</code> folder.</li>
+    <li>Your destination is on the left.</li>
 </ol>
 </details>
 
@@ -172,4 +172,4 @@ Tanner_Limes is my Minecraft username. Hi Discord people!
 
 ### Why do some songs make me wait a very long time before they play?
 
-There are two main cases where this can happen. Very large songs take a long time to parce into instructions. This usualy makes minecraft freeze and has a chance to make your client "time out" in singleplayer. Very fast songs can out-pace the ping-limit, so they need time to buffer first. 
+There are two main cases where this can happen. Very large songs take a long time to parce into instructions. This usualy makes minecraft freeze and has a chance to make your client "time out" in singleplayer. Very fast songs can out-pace the ping-limit, so they need time to buffer first.
