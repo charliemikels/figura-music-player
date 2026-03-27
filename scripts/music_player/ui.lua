@@ -15,9 +15,9 @@ local function get_spinner()
         math.floor(
             (client.getSystemTime()/1000)    -- Time in Seconds
             *1.5    -- Speedup
-            %1        -- Clamp to 0-1
-            *4        -- Scale to 0-3
-        )+1            -- Scale to 1-4
+            %1      -- Clamp to 0-1
+            *4      -- Scale to 0-3
+        )+1         -- Slide to 1-4
     return spinner_states[spinner_State]
 end
 
