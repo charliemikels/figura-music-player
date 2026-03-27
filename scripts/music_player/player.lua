@@ -95,7 +95,7 @@ local function get_all_instruments()
         for _, found_instrument_builder in ipairs(found_instrument_builder_list) do
             if not (
                         found_instrument_builder.name
-                    and found_instrument_builder.is_available
+                    and (found_instrument_builder.is_available ~= nil)
                     and found_instrument_builder.new_instance
                 )
             then
