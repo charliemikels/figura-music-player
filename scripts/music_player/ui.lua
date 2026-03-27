@@ -346,9 +346,56 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     ---@field targeted_song_config SongPlayerConfig
     ---@field selected_track_index integer
     ---@field selected_instrument_index integer
+    ---@field instrument_keys (string|"Default")[]  -- "Default" is a reserved instrument name, and is a stand-in for `nil` (no selected instrument)
     local config_page_state = {}
 
-    local function update_config_instrument_picker_ui() end
+    local default_instrument_name = "Default"
+    local function update_config_instrument_picker_ui()
+        local instrument_picker_title = "Editing \"" .. config_page_state.targeted_song.short_name
+            .. "\", track " .. string.format("%02d", config_page_state.selected_track_index)
+            .. "\n" .. "Track Name: \"" .. config_page_state.targeted_song.processed_data.tracks[config_page_state.selected_track_index].recommended_instrument_name .. "\""
+            .. "\n" .. "Select an instrument with left click"
+
+        local number_of_instruments = #config_page_state.instrument_keys
+        local num_instruments_to_display = num_songs_to_display_in_selector
+
+        -- get index range
+        local start_index = config_page_state.selected_instrument_index - math.floor(num_instruments_to_display / 2)
+        local end_index = start_index + num_instruments_to_display
+
+        -- Don't overscroll if near the start or end of the list
+        if start_index < 1 then
+            start_index = 1
+            end_index = math.min(number_of_instruments, num_instruments_to_display +1)
+        elseif end_index > number_of_instruments then
+            end_index = number_of_instruments
+            start_index = math.max(end_index - num_instruments_to_display, 1)
+        end
+
+        local currently_chosen_instrument_on_selected_track = (
+            config_page_state.targeted_song_config.instrument_selections
+            and config_page_state.targeted_song_config.instrument_selections[config_page_state.selected_track_index]
+            and config_page_state.targeted_song_config.instrument_selections[config_page_state.selected_track_index].name
+            or  default_instrument_name
+                -- TODO: I remember wanting to rework instrument fallbacks. Each instrument probably should be in charge of their own, so that if an instrument comes back, it can recover.
+        )
+
+        local bell_emoji = "🔔"  -- my code editor at the moment can't display this. Might need to debug my fonts or something.
+
+        instrument_picker_title = instrument_picker_title .. "\n"
+        for k = start_index, end_index do
+            local current_instrument_key = config_page_state.instrument_keys[k] or default_instrument_name
+
+            instrument_picker_title = instrument_picker_title
+                .. "\n"
+                .. (config_page_state.selected_instrument_index == k and "→" or "  ")
+                .. (current_instrument_key == currently_chosen_instrument_on_selected_track and bell_emoji or "  ")
+                .. " " .. current_instrument_key
+        end
+        -- instrument_picker_title = instrument_picker_title .. "\n"
+
+        actions.config_page_select_track_instrument:setTitle(instrument_picker_title)
+    end
 
     local function update_config_track_picker_ui()
         local track_picker_title = "Editing \"".. config_page_state.targeted_song.short_name .."\""
@@ -385,7 +432,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                     config_page_state.targeted_song_config.instrument_selections
                     and config_page_state.targeted_song_config.instrument_selections[k]
                     and config_page_state.targeted_song_config.instrument_selections[k].name
-                    or current_track.instrument_type_id == 1 and "default percussion" or "default"
+                    or current_track.instrument_type_id == 1 and "Default (Percussion)" or "Default"
                 )
         end
 
@@ -441,10 +488,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             update_config_track_picker_ui()
             update_config_instrument_picker_ui()
         end)
-        :onLeftClick(function (_)
-            -- TODO: on selection, update actions.select_track_instrument's title
-            -- TODO: Display track number, track name / reccomended instrument, and selected instrument.
-        end)
+        -- :onLeftClick(function (_)   end)
 
     actions.config_page_select_track_instrument = action_wheel:newAction()
         :title("Select Instrument")
@@ -455,7 +499,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
             config_page_state.selected_instrument_index = config_page_state.selected_instrument_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
 
-            local total_instrument_count = #song_player_api.get_instrument_keys()
+            local total_instrument_count = #config_page_state.instrument_keys
 
             if config_page_state.selected_instrument_index > total_instrument_count then config_page_state.selected_instrument_index = 1 end
             if config_page_state.selected_instrument_index < 1 then config_page_state.selected_instrument_index = total_instrument_count end
@@ -464,14 +508,29 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             update_config_instrument_picker_ui()
         end)
         :onLeftClick(function (_)
-            -- TODO: Way to test instrument (right click?)
-            -- TODO: Display track you are editing
+
+            local new_name = config_page_state.instrument_keys[config_page_state.selected_instrument_index]
+
+            ---@type InstrumentSelection
+            local new_selection = nil
+
+            if new_name ~= default_instrument_name then
+                new_selection = { name = new_name }
+            end
+
+            if not config_page_state.targeted_song_config.instrument_selections then config_page_state.targeted_song_config.instrument_selections = {} end
+            config_page_state.targeted_song_config.instrument_selections[config_page_state.selected_track_index] = new_selection
+
+            update_config_track_picker_ui()
+            update_config_instrument_picker_ui()
+        end)
+        :onRightClick(function (_)
+            -- TODO: A way to test instrument (right click?)
         end)
 
     actions.enter_config_page = action_wheel:newAction()
         :title("Song Config")
-        -- :item("minecraft:command_block")
-        :item("minecraft:bedrock")--:texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
+        :item("minecraft:bedrock") -- :item("minecraft:command_block") --:texture(textures:fromVanilla("Search", "textures/gui/sprites/icon/search.png"))
         :onLeftClick(function(_)
 
             -- local target_song = song_library:get_song_by_sorted_index(selected_song_index)
@@ -487,7 +546,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 targeted_song_config = config_cahe_api.load_song_config(targeted_song.id),
                 selected_track_index = 1,
                 selected_instrument_index = 1,
+                instrument_keys = song_player_api.get_instrument_keys() -- reload instruments every time we enter the configurator.
             }
+            table.insert(config_page_state.instrument_keys, 1, default_instrument_name) -- throw in a fake "default" instrument at the top of the list.
 
             update_config_track_picker_ui()
             update_config_instrument_picker_ui()

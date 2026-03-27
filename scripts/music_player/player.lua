@@ -64,6 +64,12 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 --- Returns true when the instrument has fully handeled all instructions given through play_instruction()
 ---@field is_finished fun():boolean
 
+--- Lookup table of reserved instrument names.
+---@type table<InstrumentName, true>
+local reserved_instrument_names = {
+    ["default"] = true,
+    ["default percussion"] = true
+}
 
 ---@type table<InstrumentName, InstrumentBuilder>
 local known_instruments = {}
@@ -107,9 +113,17 @@ local function get_all_instruments()
             end
 
             if known_instruments[found_instrument_builder.name] then
-                print_debug("instrument `"
-                    .. tostring( found_instrument_builder.name)
+                print_debug("Instrument `"
+                    .. tostring(found_instrument_builder.name)
                     .. "` is already in known_instruments list"
+                )
+                break
+            end
+
+            if reserved_instrument_names[string.lower(found_instrument_builder.name)] then
+                print_debug("Instrument `"
+                    .. tostring(found_instrument_builder.name)
+                    .. "` is useing a reserved name instrument name"
                 )
                 break
             end
