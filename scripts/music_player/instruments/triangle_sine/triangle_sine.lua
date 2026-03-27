@@ -53,8 +53,9 @@ local print_instrument_factory = {
     name = "Triangle Sine",         -- Also used when making unique identifiers
     is_available = function() return triangle_sine_sound_key and avatar:canUseCustomSounds() end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
     features = {            -- Displayed to users so that they know what features this instrument supports.
-        percussion = false,
-        sustain = true          -- Notes can "ring" for any amount of time. (Unlike music block notes)
+        -- percussion = false,
+        sustain = true,     -- Notes can "ring" for any amount of time. (Unlike music block notes)
+        pitch_bend = true
     },
 
     new_instance = function(params)
