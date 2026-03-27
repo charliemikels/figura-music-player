@@ -393,9 +393,31 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
         local bell_emoji = "🔔"  -- my code editor at the moment can't display this. Might need to debug my fonts or something.
 
+        local feature_icon_lookup = {
+            percussion  = "🥁", -- Drum kit
+            pitch_bend  = "🛝", -- slide         "↝",
+            sustain     = "🗘"   --"🏎"   -- Race car
+        }
+
         instrument_picker_title = instrument_picker_title .. "\n"
         for k = start_index, end_index do
             local current_instrument_key = config_page_state.instrument_keys[k] or default_instrument_name
+
+            local current_instrument_features = (current_instrument_key == default_instrument_name and {} or song_player_api.get_instrument_features(current_instrument_key))
+            local current_instrument_features_sorted = {}   ---@type string[]
+            for key, available in pairs(current_instrument_features) do
+                if available then
+                    table.insert(current_instrument_features_sorted, key)
+                end
+            end
+            table.sort(current_instrument_features_sorted, function(a, b)
+                return string.lower(a) < string.lower(b)
+            end)
+
+            local features_icon_string = ""
+            for _, sorted_key in pairs(current_instrument_features_sorted) do
+                features_icon_string = features_icon_string .. " " .. (feature_icon_lookup[sorted_key] or sorted_key)
+            end
 
             instrument_picker_title = instrument_picker_title
                 .. "\n"
@@ -405,8 +427,10 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 .. (
                     (current_instrument_key == default_instrument_name or (song_player_api.is_instrument_available(current_instrument_key)) )
                     and current_instrument_key
-                    or ("'}, { 'text'='" .. current_instrument_key .. "', 'color'='dark_gray'}, { 'text'='")
+                    or ("'}, { 'text'='" .. current_instrument_key .. "', 'color'='dark_gray'}, {'text'='")
                 )
+                .. "'}, { 'text'='" .. features_icon_string .. "', 'color'='dark_gray'}, {'text'='"
+
         end
         -- instrument_picker_title = instrument_picker_title .. "\n"
         --
