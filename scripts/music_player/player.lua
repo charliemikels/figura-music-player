@@ -585,6 +585,7 @@ local song_player_api = {
         return playing_song.controller
     end,
 
+    --- Returns a list of instrument keys sorted alphabeticaly.
     ---@type fun(): string[]
     get_instrument_keys = function()
         ---@type string[]
@@ -596,7 +597,21 @@ local song_player_api = {
             return string.lower(a) < string.lower(b)
         end)
         return keys
-    end
+    end,
+
+    ---@type fun(instrument_key: string): boolean
+    is_instrument_available = function(instrument_key)
+        return known_instruments[instrument_key].is_available()
+    end,
+
+    ---@type fun(instrument_key: string): table<string, boolean>
+    get_instrument_features = function(instrument_key)
+        local features = {} -- protects the real features table from edits.
+        for k, v in pairs(known_instruments[instrument_key].features) do
+            features[k] = v
+        end
+        return features
+    end,
 }
 
 return song_player_api
