@@ -1,11 +1,11 @@
 
 -- Ping limits:
--- Fewer than 32 pings in one second
--- Fewer than 1024 bytes per second
+-- Fewer than 32 pings in one second (~32 milis between packets min)
+-- Fewer than 1024 bytes per second (~1 byte/mili)
 
-local max_packet_length = 100-2            -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
-local target_milis_between_packets = 200   -- How long the ping system should try to wait before sending another packet. (Tick event adds 50 milis of possible drift to account for.)
--- ~5 packets/second, 100 bytes per packet, ~500 bytes per second. Roughly half of avatar's total ping quota.
+local max_packet_length = 75-2            -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
+local target_milis_between_packets = 150   -- How long the ping system should try to wait before sending another packet. (Tick event adds 50 milis of possible drift to account for.)
+-- ~6.6 packets/second, 75 bytes per packet, ~500 bytes per second. Roughly half of avatar's total ping quota.
 
 
 local do_debug_prints = false
@@ -965,7 +965,7 @@ local packet_receiving_functions = {
 
 ---Primary function to receive packets. Distributes packets to the correct receiving functions.
 ---@param packed_packet_data PackedSongPacket
-local function local_receive_packet(packed_packet_data)
+local function local_receive_packet(packed_packet_data)     -- TODO: we are getting arround a instruction limit by makeing pings smaller and quicker. But what if we just made local_receive_packet async?
     local packet_data = unpack_packet(packed_packet_data)
     local reader = new_packet_reader(packet_data)
     local packet_id = vlq_to_int_from_reader(reader)
