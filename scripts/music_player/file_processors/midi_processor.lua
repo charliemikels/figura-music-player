@@ -1576,8 +1576,8 @@ local function midi_processor(song)
             local success, value = pcall(midi_processor_loop_stage_functions[state.stage], song, state)
             if not success then
                 ---@cast value string
-                future_controller:set_done_with_error(value)
                 state.is_done = true
+                future_controller:set_done_with_error(value)
                 events.WORLD_RENDER:remove(processor_loop)
             elseif value then
                 ---@cast value MidiProcessorFunctionReturn
@@ -1586,10 +1586,10 @@ local function midi_processor(song)
                     print_debug("Progress:", value.progress)
                 end
                 if value.finished_song then
-                    future_controller:set_done_with_value(value.finished_song)
                     state.is_done = true
                     song.processed_data = value.finished_song
                     events.WORLD_RENDER:remove(processor_loop)
+                    future_controller:set_done_with_value(value.finished_song)
                 end
             end
         end
