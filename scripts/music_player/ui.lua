@@ -27,6 +27,7 @@ end
 ---@return Action enter_songbook_action The action used to enter the songbook. Place this action into your actionwheel.
 local function new_action_wheel_ui(song_library, enter_songbook_title)
 
+    -- This function is likely to be called by an end user, double check if they're useing a `.` or `:` to call this function.
     ---@diagnostic disable-next-line: undefined-field
     if song_library and song_library.new_action_wheel_ui then
         -- If here, then song_library is actualy `self`
@@ -571,6 +572,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 end
 
 
-return {
+local music_player_ui_api = {
     new_action_wheel_ui = new_action_wheel_ui
 }
+
+return music_player_ui_api
