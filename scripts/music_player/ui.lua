@@ -256,6 +256,21 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             previous_action_wheel_page = nil
         end)
 
+    ---@param song Song Assumes song is fully processed and ready to go
+    local function apply_song_configs_and_save_to_processed_list(song)
+        local processed_song = song.processed_data
+
+        local song_player_config = config_cahe_api.load_song_config(song.id)
+        song_player_config.source_entity = player
+        song_player_config.play_immediately = true
+
+        local packets, transfer_id = networking_api.song_to_packets(processed_song, song_player_config)
+
+        processed_songs_and_players[song.id].packets = packets
+        processed_songs_and_players[song.id].transfer_song_id = transfer_id
+
+    end
+
     actions.select_song = action_wheel:newAction()
         :item("minecraft:music_disc_wait")
         :title("Song selector") -- Set with update_main_page_ui_text()
@@ -285,16 +300,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         update_main_page_ui()
                         return
                     end
-                    local processed_song = finished_future:get_value()
 
-                    local song_player_config = config_cahe_api.load_song_config(target_song.id)
-                    song_player_config.source_entity = player
-                    song_player_config.play_immediately = true
-
-                    local packets, transfer_id = networking_api.song_to_packets(processed_song, song_player_config)
-
-                    processed_songs_and_players[target_song.id].packets = packets
-                    processed_songs_and_players[target_song.id].transfer_song_id = transfer_id
+                    apply_song_configs_and_save_to_processed_list(target_song)
                     update_main_page_ui()
                 end)
             elseif processed_songs_and_players[target_song.id].packets then
@@ -447,29 +454,19 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         :title("Confirm and save changes")
         :item("minecraft:written_book")
         :onLeftClick(function (_)
+            config_cahe_api.write_song_config(config_page_state.targeted_song.id, config_page_state.targeted_song_config)
+            apply_song_configs_and_save_to_processed_list(config_page_state.targeted_song)
             action_wheel:setPage(music_player_action_wheel_page)
-
-            local target_song = song_library:get_song_by_sorted_index(selected_song_index)
-            -- see actions.select_song … :left_click() for an example of rebuilding a song. Overwrite the entry at processed_songs_and_players[target_song.id]
-
-            local processed_song = target_song.processed_data or processed_songs_and_players[target_song.id].processor_future:get_value() ---@type ProcessedSong
-            printTable(processed_song.tracks)
-
-            -- local song_player_config = config_cahe_api.load_song_config(target_song.id)
-            -- song_player_config.source_entity = player
-            -- song_player_config.play_immediately = true
-
-            -- local packets, transfer_id = networking_api.song_to_packets(processed_song, song_player_config)
-
-            -- processed_songs_and_players[target_song.id].packets = packets
-            -- processed_songs_and_players[target_song.id].transfer_song_id = transfer_id
-
+            config_page_state = nil
         end)
 
     actions.config_page_cancel = action_wheel:newAction()
         :title("Cancel and discard changes")
         :item("minecraft:tnt")
         :onLeftClick(function (_)
+            -- We can just exit the config page since actions.enter_config_page will reset the config page state anyways.
+            -- But just in case:
+            config_page_state = nil
             action_wheel:setPage(music_player_action_wheel_page)
         end)
 
@@ -490,7 +487,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             update_config_track_picker_ui()
             update_config_instrument_picker_ui()
         end)
-        -- :onLeftClick(function (_)   end)
 
     actions.config_page_select_track_instrument = action_wheel:newAction()
         :title("Select Instrument")
@@ -506,10 +502,10 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             if config_page_state.selected_instrument_index > total_instrument_count then config_page_state.selected_instrument_index = 1 end
             if config_page_state.selected_instrument_index < 1 then config_page_state.selected_instrument_index = total_instrument_count end
 
-            update_config_track_picker_ui()
+            -- update_config_track_picker_ui()
             update_config_instrument_picker_ui()
         end)
-        :onLeftClick(function (_)
+        :onLeftClick(function (_)   -- Apply the selection to config_page_state.targeted_song_config
 
             local new_name = config_page_state.instrument_keys[config_page_state.selected_instrument_index]
 
@@ -517,6 +513,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             local new_selection = nil
 
             if new_name ~= default_instrument_name then
+                -- default_instrument_name is a reserved instrument name representing no set instrument.
                 new_selection = { name = new_name }
             end
 
@@ -555,25 +552,10 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             update_config_track_picker_ui()
             update_config_instrument_picker_ui()
 
-
-
-
-
-            -- see actions.select_song … :left_click()
-            local target_song = song_library:get_song_by_sorted_index(selected_song_index)
-            local _ = target_song.processed_data.tracks[1].recommended_instrument_name
-
-            local _ = processed_songs_and_players[target_song.id]
-
-
-
-            -- local song_tracks = target_song.processed_data.tracks[1].recommended_instrument_name
-
             update_enter_config_page_ui()
             action_wheel:setPage(song_config_action_wheel_page)
         end)
     update_enter_config_page_ui()
-
 
 
     music_player_action_wheel_page:setAction(1,actions.exit_songbook)
