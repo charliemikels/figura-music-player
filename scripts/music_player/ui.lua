@@ -361,7 +361,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
     local default_instrument_name = "Default"
     local function update_config_instrument_picker_ui()
-        local instrument_picker_title = "Editing \"" .. config_page_state.targeted_song.short_name
+        local instrument_picker_title = "[ { 'text': '"
+            .."Editing \"" .. config_page_state.targeted_song.short_name
             .. "\", track " .. string.format("%02d", config_page_state.selected_track_index)
             .. "\n" .. "Track Name: \"" .. config_page_state.targeted_song.processed_data.tracks[config_page_state.selected_track_index].recommended_instrument_name .. "\""
             .. "\n" .. "Select an instrument with left click"
@@ -400,9 +401,16 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 .. "\n"
                 .. (config_page_state.selected_instrument_index == k and "→" or "  ")
                 .. (current_instrument_key == currently_chosen_instrument_on_selected_track and bell_emoji or "  ")
-                .. " " .. current_instrument_key
+                .. " "
+                .. (
+                    (current_instrument_key == default_instrument_name or (song_player_api.is_instrument_available(current_instrument_key)) )
+                    and current_instrument_key
+                    or ("'}, { 'text'='" .. current_instrument_key .. "', 'color'='dark_gray'}, { 'text'='")
+                )
         end
         -- instrument_picker_title = instrument_picker_title .. "\n"
+        --
+        instrument_picker_title = instrument_picker_title .. "' } ]"
 
         actions.config_page_select_track_instrument:setTitle(instrument_picker_title)
     end
