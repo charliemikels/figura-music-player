@@ -165,11 +165,13 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         if processed_songs_and_players[target_song.id].error then
             return false, "This song had an error durring processing and cannot be configured."
         end
+        if not processed_songs_and_players[target_song.id].processor_future:is_done() then
+            return false, "This song is still being processed and cannot be configured yet."
+        end
         -- networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
         if target_song.id == playing_song_library_id then
             return false, "Cannot configure a playing song. Please stop the song and try again."
         end
-
         return true, ""
     end
 
