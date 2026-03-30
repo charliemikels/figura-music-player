@@ -963,14 +963,56 @@ local packet_receiving_functions = {
     [packet_ids.config] = receive_config_packet,
 }
 
----Primary function to receive packets. Distributes packets to the correct receiving functions.
----@param packed_packet_data PackedSongPacket
-local function local_receive_packet(packed_packet_data)     -- TODO: we are getting arround a instruction limit by makeing pings smaller and quicker. But what if we just made local_receive_packet async?
+
+local local_receive_packet_loop_is_running = false
+local incoming_packed_packets = {}  ---@type PackedSongPacket[]
+
+--- Primary function to receive packets. Distributes packets to the correct receiving functions.
+---
+--- There seems to be a rare chance that two pings may be bundled and processed in the same tick.
+--- By running in a tick event, we ensure that, on the off chance we receive two pings on the same tick, that we process them on diffrent ticks.
+---@see local_receive_packet
+local function local_receive_packet_loop()
+    local packed_packet_data = table.remove(incoming_packed_packets, 1)   -- table.remove is usualy inneficient when popping from the front. But we shouldn't have more than like 2 packets in here at a time, so should be fine.
+
     local packet_data = unpack_packet(packed_packet_data)
     local reader = new_packet_reader(packet_data)
     local packet_id = vlq_to_int_from_reader(reader)
     local transfered_song_id = vlq_to_int_from_reader(reader)
     packet_receiving_functions[packet_id](reader, transfered_song_id)
+
+    if #incoming_packed_packets == 0 then
+        events.TICK:remove(local_receive_packet_loop)
+        local_receive_packet_loop_is_running = false
+    end
+end
+
+--- Receives a packet and passes it to the TICK event loop.
+---
+--- Pings appear to have their own instruction limits sepperate from TICK or RENDER or whatever, but this limit isn't displayed anywhere.
+--- Furehtermore, if we send pings too quickly, it seems that pings may get bundled and processed on the same tick, meaning the instruction
+--- cost of pings can occasionaly double without warning.
+---
+--- Dispatch to our own TICK loop, so that we can control when we process these pings, and prevent doubleing up.
+---
+--- @see avatar:getCurrentInstructions
+---
+--- That said, if my assumption is correct, then the ping "event" gives us free instructions to work with. It may be worth while
+--- to find a new way to process pings so that we don't share TICK instructions with the rest of the avatar.
+---
+---@see local_receive_packet_loop
+---
+---@param packed_packet_data PackedSongPacket
+local function local_receive_packet(packed_packet_data)
+    table.insert(incoming_packed_packets, packed_packet_data)
+    if not local_receive_packet_loop_is_running then
+        local_receive_packet_loop_is_running = true
+        events.TICK:register(local_receive_packet_loop)
+
+    -- else
+    --     print("we must have sent a double ping.")
+
+    end
 end
 
 ---For use with outgoing_packet_queue and others to get the transfer ID out of a packet, without needing to trust whoever is giveing us the packets.
