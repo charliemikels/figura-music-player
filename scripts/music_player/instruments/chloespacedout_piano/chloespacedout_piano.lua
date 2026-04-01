@@ -64,14 +64,23 @@ local figura_midi_cloud_uuids = {
 ---
 --- This function also takes care of initilizeing new channels and tracks. But will also stop notes if we reuse a pitch on a track.
 ---
---- sysTime should be called with the note's start time. see client.getSystemTime()
+--- `pitch` and `velocity` are midi values, so 0-128 or something.
 ---
---- pos may be nil, in which the piano will default to the instance's position.
----@field play fun(self:ChloeFiguraMidiCloudMidiNote, instance:table, pitch:number, velocity, channelID, trackID, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNote
+--- `sysTime` should be called with the note's start time. see `client.getSystemTime()`
+---
+--- `pos` may be nil, in which the note will default to the instance's position.
+---@field play fun(self:ChloeFiguraMidiCloudMidiNote, instance:table, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNote
 ---
 ---@field sustain fun(self:ChloeFiguraMidiCloudMidiNote) -- Removes the "main noise" and only plays the sustain loop.
----@field release fun(self:ChloeFiguraMidiCloudMidiNote, sysTime:integer)  -- call with client.getSystemTime(). Can be mixed with instruction.duration to pre-set a stop point
----@field stop fun(self:ChloeFiguraMidiCloudMidiNote)
+---
+--- Notes will decay on their own, but `release`
+---
+--- `sysTime` is the time the note was released, but it can be set to a future time. Call with `client.getSystemTime()` and add `instruction.duration` to it.
+---@field release fun(self:ChloeFiguraMidiCloudMidiNote, sysTime:integer)
+---@field stop fun(self:ChloeFiguraMidiCloudMidiNote) -- stops the note immediatly.
+---@field releaseTime integer   -- The time the note was released. Because we set this time immediatly after creating the note, we should expect this to allways be something
+---@field duration number       -- The amount of extra time it takes for this not to decay after being released.
+---@field sound Sound
 
 ---@class ChloeFiguraMidiCloudSoundfontAPI
 
@@ -125,13 +134,14 @@ end
 
 
 ---@param target_pos Vector3
+---@param max_distance integer?  -- How far away we're allowed to search for a piano (prevents trying to initilize a piano that's near the viewer, but not near the host.)
 ---@return UUID?
 ---@return ChloePianoID?
-local function get_nearest_piano_uuid_and_id(target_pos)
+local function get_nearest_piano_uuid_and_id(target_pos, max_distance)
     local all_known_pianos = get_all_known_pianos()
     if not next(all_known_pianos, nil) then return nil, nil end
 
-    local nearest_distance_squared = math.huge      -- don't care about the exact distance, just the comparison. We can ignore the square root.
+    local nearest_distance_squared = (max_distance*max_distance) or math.huge      -- we don't really care about the exact distance, just the comparison. We can ignore the square root.
     local nearest_piano_id          ---@type ChloePianoID
     local nearest_piano_lib_uuid    ---@type UUID
 
@@ -155,57 +165,55 @@ local function get_nearest_piano_uuid_and_id(target_pos)
     return nearest_piano_lib_uuid, nearest_piano_id
 end
 
----@type table<UUID, table<ChloePianoID, table<integer, Instruction>>>
-local all_playing_piano_instructions = {} -- I'm pretty sure the default piano API does not allow us to "double up" key presses, so we need to keep track of each piano's key presses so we don't step on our toes too much.
+local function instrument_is_available(target_pos)
+    -- TODO: should we limit this to a radius arround the host
+    -- TODO: check if piano is a drum kit before reccomending.
+    -- TODO: check permissions of the piano avatar and the midi cloud
 
+    local there_is_at_least_one_known_piano = (next(get_all_known_pianos(), nil) and true or false)
+    return there_is_at_least_one_known_piano
+end
 
 ---@type InstrumentBuilder
 local piano_builder = {
     name = "ChloeSpacedOut Piano",
-    is_available = function()
-
-        --#region piano_test
-        local nearest_lib_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(player:getPos())
-        local nearest_piano_lib = world.avatarVars()[nearest_lib_uuid]  ---@type ChloePianoLib
-        local nearest_piano = nearest_piano_lib.getPiano(nearest_piano_id)
-        local nearest_piano_midi_note_api = nearest_piano.instance.midi.note
-
-        -- Bypasses the piano library and lets us use the piano's midi backend.
-        nearest_piano_midi_note_api:play(
-            nearest_piano.instance,
-            60,
-            80,
-            1,
-            1,
-            client:getSystemTime()
-        ):release(client:getSystemTime()+750)
-        --#endregion piano_test
-
-
-
-        -- TODO: check permissions of the piano avatar and the midi cloud
-
-
-
-        return (next(get_all_known_pianos(), nil) and true or false)
-    end,
+    is_available = instrument_is_available,
     features = {
         sustain = true
     },
     new_instance = function(params)
 
-        local fallback_instrument_builders = require("../triangle_sine/triangle_sine")  ---@type InstrumentBuilder[]
+        local fallback_instrument_builders   = require("../triangle_sine/triangle_sine")    ---@type InstrumentBuilder[]
         local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
-        local fallback_instrument_instance = fallback_instrument_builder.new_instance({})
+        local fallback_instrument_instance   = fallback_instrument_builder.new_instance({})
 
+        local instance_piano_id             ---@type ChloePianoID?
+        local instance_piano_lib            ---@type ChloePianoLib?
+        local instance_piano_lib_uuid       ---@type UUID?
+        local instance_piano_pos            ---@type Vector3?
+        local instance_piano                ---@type ChloePiano
+        local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
-        -- TODO: Pass a starting point into new_instance, so that we can find the nearest known piano.
-        --       OR: just allways asume the host player is playing
+        ---@param lib_uuid UUID
+        ---@param piano_id string
+        local function set_instance_piano_info(lib_uuid, piano_id)
+            if not (lib_uuid and piano_id) then
+                instance_piano_id = nil
+                instance_piano_lib = nil
+                instance_piano_lib_uuid = nil
+                instance_piano_pos = nil
+                instance_piano = nil
+                instance_piano_midi_note_api = nil
+                return
+            end
+            instance_piano_id = piano_id
+            instance_piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
+            instance_piano_lib_uuid = lib_uuid
+            instance_piano_pos = piano_id_to_vec(piano_id)
+            instance_piano = instance_piano_lib.getPiano(piano_id)
+            instance_piano_midi_note_api = instance_piano.instance.midi.note
+        end
 
-        local instance_piano_id
-        local instance_piano_lib
-        local instance_piano_lib_uuid
-        local instance_piano_pos
         -- Assume the host player entity is playing the song. Let's figure out which piano they want to use.
         if player:isLoaded() then
             do  -- Try to get the piano the Host is looking at.
@@ -214,103 +222,112 @@ local piano_builder = {
                 local targeted_block_pos_string = tostring(targeted_block_pos)
                 for lib_uuid, pianos_by_id in pairs(get_all_known_pianos()) do
                     if pianos_by_id[targeted_block_pos_string] then
-                        instance_piano_id = targeted_block_pos_string
-                        instance_piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-                        instance_piano_lib_uuid = lib_uuid
-                        instance_piano_pos = targeted_block_pos
+                        set_instance_piano_info(lib_uuid, targeted_block_pos_string)
+                        break
                     end
                 end
             end
 
             if not instance_piano_id then   -- just get the nearest piano
-                local nearest_uuid, nearest_piano = get_nearest_piano_uuid_and_id(player:getPos())
-                if nearest_piano then
-                    instance_piano_id = nearest_piano
-                    instance_piano_lib = world.avatarVars()[nearest_uuid]  ---@type ChloePianoLib
-                    instance_piano_lib_uuid = nearest_uuid
-                    instance_piano_pos = piano_id_to_vec(nearest_piano)
+                local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(player:getPos(), 32)
+                if nearest_piano_id then
+                    set_instance_piano_info(nearest_uuid, nearest_piano_id)
                 end
             end
         end
+        -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
 
+        ---@type {chloe_midi_note:ChloeFiguraMidiCloudMidiNote, instruction:Instruction}[]
+        local known_piano_notes = {}
+
+        -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
+        local function stop_one_sound_immediatly()
+            local note_to_stop = table.remove(known_piano_notes)
+            if note_to_stop then note_to_stop.chloe_midi_note:stop() end
+            fallback_instrument_instance.stop_one_sound_immediatly()
+        end
 
         ---@type Instrument
         local piano_instrument = {
             play_instruction = function (instruction, position, time_since_due)
-                -- TODO: what happens if we try to play the same note twice on the same piano?
-                --       We need to make sure if we have two piano instrument instances, that we don't mess with the original piano.
-                --       Or, that we don't step on our own toes.
+                -- print("playing piano instruction. note "..tostring(instruction.note)..", track: "..tostring(instruction.track_index))
+                if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
+                    set_instance_piano_info(nil, nil)
+                elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
+                    local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(position, 32)
+                    if nearest_piano_id then
+                        set_instance_piano_info(nearest_uuid, nearest_piano_id)
+                    end
+                end
 
+                if not instance_piano_id then   -- piano is still invalid. use the fallback instrument.
+                    fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                else
+                    -- play piano note as usual
 
+                    local new_note = instance_piano_midi_note_api:play(
+                        instance_piano.instance,
+                        instruction.note,
+                        instruction.start_velocity * 0.5,   -- piano is a little loud by default reletive to my other instruments.
 
+                        instruction.track_index,--1,           -- Channel ID 1 is shared with the piano itself.
+                        1,-- instruction.track_index,
+                            -- TODO: There's an issue where tracks are initilized with channel ID instead of their track ID.
+                            --       My system doesn't care if I send to channel or track, but I'd like to reuse the Piano's built in channel if possible.
+                            --       plus haveing both lets be better disambiguate between pianos and instances of my instrument wrapper.
+                            --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
+                        (client.getSystemTime() - time_since_due)
+                    )
+                    new_note:release((client.getSystemTime() - time_since_due) + instruction.duration)
 
+                    table.insert(known_piano_notes, {chloe_midi_note = new_note, instruction = instruction})
 
+                    -- TODO: Trick piano into moveing it's keys.
 
-                -- if      all_playing_piano_instructions[instance_piano_lib_uuid]
-                --     and all_playing_piano_instructions[instance_piano_lib_uuid][instance_piano_id]
-                --     and all_playing_piano_instructions[instance_piano_lib_uuid][instance_piano_id][instruction.note]
-                -- then    -- This piano is already playing the note in this instruction.
-                --     local previous_instruction = all_playing_piano_instructions[instance_piano_lib_uuid][instance_piano_id][instruction.note]    ---@type Instruction
-
-                --     -- local previous_instruction_velocity = previous_instruction.start_velocity
-                --     -- if previous_instruction_velocity > instruction.start_velocity then
-                --     --     -- Use previous's velocity, so that we don't loose energy.
-                --     --     instance_piano_lib.getPiano(instance_piano_id)
-                --     --     instance_piano_lib.releaseMidiNote(
-                --     --         instance_piano_id,
-                --     --         instruction.note
-                --     --     )
-                --     --     instance_piano_lib.playMidiNote(
-                --     --         instance_piano_id,
-                --     --         instruction.note,
-                --     --         previous_instruction_velocity/127,
-                --     --         "MANUAL_RELEASE"
-                --     --     )
-                --     -- else
-                --     --     instance_piano_lib.releaseMidiNote(
-                --     --         instance_piano_id,
-                --     --         instruction.note
-                --     --     )
-                --     --     instance_piano_lib.playMidiNote(
-                --     --         instance_piano_id,
-                --     --         instruction.note,
-                --     --         instruction.start_velocity/127,
-                --     --         "MANUAL_RELEASE"
-                --     --     )
-                --     -- end
-
-
-                --     -- local previous_instruction_end_time = previous_instruction.start_time + previous_instruction.duration
-                --     -- local current_instruction_end_time = instruction.start_time + instruction.duration
-                --     -- if previous_instruction_end_time < current_instruction_end_time then
-                --     --     -- replace previous instruction with my own note.
-
-                --     --     all_playing_piano_instructions[instance_piano_lib_uuid][instance_piano_id][instruction.note] = instruction
-
-                --     --     -- TODO: triangle_sine has a simplified "active instructions" idea. Do we need to replace the previous instruction? can we keep both arround?
-                --     -- end
-
-                --     -- -- We are already useing this key for something.
-                -- end
-
-
-
-
-                -- TODO: Test if piano is still valid
-                -- TODO: If invalid, sent instruction to fallback instrument.
-                -- TODO: If valid, send instruction to piano.
+                end
             end,
+
             update_sounds = function (position)
+                -- Figura Midi Cloud takes care of stopping the notes for us. But we still need to clean up our trackers.
 
-            end,
-            stop_one_sound_immediatly = function ()
+                local size_of_hole = 0
+                for search_index = 1, #known_piano_notes do
+                    local should_delete_note =
+                        known_piano_notes[search_index].chloe_midi_note.releaseTime + known_piano_notes[search_index].chloe_midi_note.duration
+                        < client:getSystemTime()
 
+                    if not should_delete_note then
+                        if (size_of_hole > 0) then
+                            -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
+                            known_piano_notes[search_index - size_of_hole] = known_piano_notes[search_index]
+                            known_piano_notes[search_index] = nil
+                        end
+                    else
+                        known_piano_notes[search_index] = nil
+                        size_of_hole = size_of_hole + 1
+                    end
+                end
+
+                -- clean up fallback instrument too
+                fallback_instrument_instance.update_sounds(position)
             end,
+
+            stop_one_sound_immediatly = stop_one_sound_immediatly,
+
             stop_all_sounds_immediatly = function ()
+                repeat
+                    stop_one_sound_immediatly()
+                until not known_piano_notes or #known_piano_notes <= 0
+                known_piano_notes = {}
 
+                fallback_instrument_instance.stop_all_sounds_immediatly()
             end,
+
             is_finished = function ()
-                return next(all_playing_piano_instructions, nil) == nil
+                local fallback_is_done = fallback_instrument_instance.is_finished()
+                local piano_is_done = next(known_piano_notes, nil) == nil
+
+                return fallback_is_done and piano_is_done
             end
         }
         return piano_instrument
