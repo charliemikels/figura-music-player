@@ -49,7 +49,7 @@ local function update_modifiers(active_instruction, instrument_config)
 end
 
 ---@type InstrumentBuilder
-local print_instrument_factory = {
+local instrument_builder = {
     name = "Triangle Sine",         -- Also used when making unique identifiers
     is_available = function() return triangle_sine_sound_key and avatar:canUseCustomSounds() end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
     features = {            -- Displayed to users so that they know what features this instrument supports.
@@ -127,4 +127,4 @@ local print_instrument_factory = {
     end,
 }
 
-return { print_instrument_factory }
+return { instrument_builder }
