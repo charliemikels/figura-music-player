@@ -1010,7 +1010,7 @@ local function local_receive_packet(packed_packet_data)
         events.TICK:register(local_receive_packet_loop)
 
     -- else
-    --     print("we must have sent a double ping.")
+    --     print("We already have a ping to process this tick")
 
     end
 end
