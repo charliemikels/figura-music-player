@@ -26,11 +26,6 @@ local figura_midi_cloud_uuids = {
     "c0cfded1-a213-47d5-8054-94437f4fb906"
 }
 
-
-
--- TODO: figura-piano-2.0 has some midi cloud backend. Should we refrence it directly?
---       See https://github.com/ChloeSpacedOut/figura-midi-player/blob/main/ChloesMidiPlayerCloud/externalAPI.lua
-
 -- --------------------------------------------------------
 
 
