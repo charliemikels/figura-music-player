@@ -194,13 +194,9 @@ local piano_builder = {
     },
     new_instance = function(params)
 
-        local fallback_instrument_builders = require("../note_blocks/note_blocks")  ---@type InstrumentBuilder[]
-        local fallback_instrument_instance = fallback_instrument_builders[1].new_instance({})
-        for _, prefered_fallback_instrument_builder in pairs(fallback_instrument_builders) do
-            if prefered_fallback_instrument_builder.name == "MC/Harp" then
-                fallback_instrument_instance = prefered_fallback_instrument_builder.new_instance({})
-            end
-        end
+        local fallback_instrument_builders = require("../triangle_sine/triangle_sine")  ---@type InstrumentBuilder[]
+        local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
+        local fallback_instrument_instance = fallback_instrument_builder.new_instance({})
 
 
         -- TODO: Pass a starting point into new_instance, so that we can find the nearest known piano.
