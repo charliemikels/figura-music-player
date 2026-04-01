@@ -77,7 +77,7 @@ local known_instruments = {}
 --- A function to fetch all instruments from the `./instruments` folder.
 --- Can be re-ran at any time to update the list.
 ---
---- TODO: Scan other avatars for any that are advertizing instruments.
+--- TODO: ~~Scan other avatars for any that are advertizing instruments.~~ This should be it's own instrument?
 local function get_all_instruments()
     for _, script in ipairs(listFiles("./instruments", true)) do
         local found_instrument_builder_list
