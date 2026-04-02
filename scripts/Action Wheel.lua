@@ -1,6 +1,39 @@
+
 local root_action_wheel_page = action_wheel:newPage()
 action_wheel:setPage(root_action_wheel_page)
 -- root_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))
+
+if host:isHost() then
+    local default_library = require("scripts/music_player/libraries"):build_default_library()
+    local song = default_library:get_song_by_sorted_index(14)
+    local song_processor_future = song:start_data_processor()
+    song_processor_future:register_callback(function (future)
+        -- local future_value = future:get_value_or_throw_error()
+
+        print("Instruction test")
+        local starting_ammount = avatar:getCurrentInstructions()
+        print("starting_ammount:", starting_ammount)
+        local exported_json = toJson(song.processed_data)
+        local post_tojson = avatar:getCurrentInstructions()
+        print("instructions after toJson", post_tojson - starting_ammount)
+        local baptized_song_processed_data = parseJson(exported_json)
+        local post_parsejson = avatar:getCurrentInstructions()
+        print("instructions after parseJson", post_parsejson - post_tojson)
+        print("")
+        print("song.processed_data:")
+        printTable(song.processed_data)
+        print("baptized_song_processed_data:")
+        printTable(baptized_song_processed_data)
+
+        -- OK: going to and from json is actualy extreamly cheep instruction-wise. Space-wise it's pretty rough.
+
+        local file_name = "baptized_song__"..song.name..".json"
+        print(file_name)
+
+        file:writeString(file_name:gsub("/", "_"), exported_json)
+    end)
+end
+
 
 -- More or less: the current checklist
 -- - [x] Ping Networking
