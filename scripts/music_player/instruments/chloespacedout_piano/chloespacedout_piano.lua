@@ -102,6 +102,11 @@ local figura_midi_cloud_uuids = {
 
 --#endregion
 
+--- Returns a list of pianos indexed by piano_lib_uuid, then piano_ID.
+---
+--- filters out drums, pianos that play drum sounds, and libraries where piano_lib.getPianos() is empty.
+---
+--- Coincidentaly, it also checks if piano and MidiCloud are at max settings, since the piano libs kinda do that for us.
 ---@return table<UUID, table<ChloePianoID, ChloePiano>>
 local function get_all_known_pianos()
 
@@ -112,7 +117,19 @@ local function get_all_known_pianos()
         local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
 
         if piano_lib and piano_lib.getPianos then
-            all_known_pianos[lib_uuid] = piano_lib.getPianos()
+            local known_pianos_in_this_lib = piano_lib.getPianos()
+            if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then
+                for piano_id, piano in pairs(known_pianos_in_this_lib) do
+                    if      piano
+                        and piano.model ~= 4 and piano_lib.getInstrumentOverride(piano_id) ~= 128
+                            -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
+                            -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
+                    then
+                        if not all_known_pianos[lib_uuid] then all_known_pianos[lib_uuid] = {} end
+                        all_known_pianos[lib_uuid][piano_id] = piano
+                    end
+                end
+            end
         end
     end
 
@@ -164,17 +181,7 @@ end
 
 ---@return boolean
 local function instrument_is_available()
-    -- TODO: are there loaded piano avatars?
-    --       see also: https://figura-wiki.pages.dev/globals/Player/Entity#isLoaded
-    --                 https://figura-wiki.pages.dev/globals/Player/Entity#hasAvatar
-    -- TODO: is this piano's FiguraMidiCloud loaded?   (Is there a way to get this from piano avatar?)
-    --       It seems we can tell if a piano lib is available by loading the avatarvars and seeing if it's populated with the functions we expect.
-    --       If the list is empty, then the midi cloud was not set to max. (Does not reset if permissions are lowered later.)
-    --       /figura run printTable(world.avatarVars()["943218fd-5bbc-4015-bf7f-9da4f37bac59"])
-    -- TODO: Are the permissions of both set to max?
-    -- TODO: should we limit this to a radius arround the host
-    -- TODO: check if piano is a drum kit before reccomending. (piano model ~= 4, lib:getInstrumentOverride() ~= (128??? last one is percussion.))
-    -- TODO: check permissions of the piano avatar and the midi cloud
+    -- TODO: should we limit this to a radius arround the host?
 
     local there_is_at_least_one_known_piano = (next(get_all_known_pianos(), nil) and true or false)
     return there_is_at_least_one_known_piano
