@@ -235,13 +235,13 @@ local piano_builder = {
         end
         -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
 
-        ---@type {chloe_midi_note:ChloeFiguraMidiCloudMidiNote, instruction:Instruction}[]
-        local known_piano_notes = {}
+        
+        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
 
         -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
         local function stop_one_sound_immediatly()
             local note_to_stop = table.remove(known_piano_notes)
-            if note_to_stop then note_to_stop.chloe_midi_note:stop() end
+            if note_to_stop then note_to_stop:stop() end
             fallback_instrument_instance.stop_one_sound_immediatly()
         end
 
@@ -278,7 +278,7 @@ local piano_builder = {
                     )
                     new_note:release((client.getSystemTime() - time_since_due) + instruction.duration)
 
-                    table.insert(known_piano_notes, {chloe_midi_note = new_note, instruction = instruction})
+                    table.insert(known_piano_notes, new_note)
 
                     -- TODO: Trick piano into moveing it's keys.
 
@@ -291,7 +291,7 @@ local piano_builder = {
                 local size_of_hole = 0
                 for search_index = 1, #known_piano_notes do
                     local should_delete_note =
-                        known_piano_notes[search_index].chloe_midi_note.releaseTime + known_piano_notes[search_index].chloe_midi_note.duration
+                        known_piano_notes[search_index].releaseTime + known_piano_notes[search_index].duration
                         < client:getSystemTime()
 
                     if not should_delete_note then
