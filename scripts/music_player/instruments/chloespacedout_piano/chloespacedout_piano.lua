@@ -26,6 +26,8 @@ local figura_midi_cloud_uuids = {
     "c0cfded1-a213-47d5-8054-94437f4fb906"
 }
 
+local max_search_radius_from_host = 32      ---@type number     -- distance in blocks for Near piano calculations
+
 -- --------------------------------------------------------
 
 
@@ -135,6 +137,7 @@ end
 local function get_nearest_piano_uuid_and_id(target_pos, max_distance)
     local all_known_pianos = get_all_known_pianos()
     if not next(all_known_pianos, nil) then return nil, nil end
+    if not max_distance then max_distance = max_search_radius_from_host end
 
     local nearest_distance_squared = (max_distance*max_distance) or math.huge      -- we don't really care about the exact distance, just the comparison. We can ignore the square root.
     local nearest_piano_id          ---@type ChloePianoID
@@ -224,7 +227,7 @@ local piano_builder = {
             end
 
             if not instance_piano_id then   -- just get the nearest piano
-                local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(player:getPos(), 32)
+                local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(player:getPos())
                 if nearest_piano_id then
                     set_instance_piano_info(nearest_uuid, nearest_piano_id)
                 end
@@ -249,7 +252,7 @@ local piano_builder = {
                 if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_piano_info(nil, nil)
                 elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
-                    local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(position, 32)
+                    local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(position)
                     if nearest_piano_id then
                         set_instance_piano_info(nearest_uuid, nearest_piano_id)
                     end
