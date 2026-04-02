@@ -7,30 +7,70 @@ if host:isHost() then
     local default_library = require("scripts/music_player/libraries"):build_default_library()
     local song = default_library:get_song_by_sorted_index(14)
     local song_processor_future = song:start_data_processor()
-    song_processor_future:register_callback(function (future)
-        -- local future_value = future:get_value_or_throw_error()
+    song_processor_future:register_callback(function (_)
+        -- print("Instruction test")
+        -- local starting_ammount = avatar:getCurrentInstructions()
+        -- print("starting_ammount:", starting_ammount)
+        -- local exported_json = toJson(song.processed_data)
+        -- local post_tojson = avatar:getCurrentInstructions()
+        -- print("instructions after toJson", post_tojson - starting_ammount)  -- OK: going to and from json is actualy extreamly cheep instruction-wise. Space-wise it's pretty rough.
 
-        print("Instruction test")
-        local starting_ammount = avatar:getCurrentInstructions()
-        print("starting_ammount:", starting_ammount)
-        local exported_json = toJson(song.processed_data)
-        local post_tojson = avatar:getCurrentInstructions()
-        print("instructions after toJson", post_tojson - starting_ammount)
-        local baptized_song_processed_data = parseJson(exported_json)
-        local post_parsejson = avatar:getCurrentInstructions()
-        print("instructions after parseJson", post_parsejson - post_tojson)
-        print("")
-        print("song.processed_data:")
-        printTable(song.processed_data)
-        print("baptized_song_processed_data:")
-        printTable(baptized_song_processed_data)
+        local networking_api = require("scripts/music_player/networking")
+        local config_api = require("scripts/music_player/config_cache")
+        local song_config = config_api.load_song_config(song.id)
+        local packets = networking_api.song_to_packets(song.processed_data, song_config)
 
-        -- OK: going to and from json is actualy extreamly cheep instruction-wise. Space-wise it's pretty rough.
+        -- convert packets into one big long string, and wrap it in lua long quotes and a return statement so that we can load it later.
 
-        local file_name = "baptized_song__"..song.name..".json"
-        print(file_name)
+        local packets_raw_file_name = "TL_song_exports/"..song.name..".raw_packets.lua"
+        local packets_raw_base_path = packets_raw_file_name:gsub("/[^/]*$", "/")
+        file:mkdirs(packets_raw_base_path)
 
-        file:writeString(file_name:gsub("/", "_"), exported_json)
+
+        local write_stream = file:openWriteStream(packets_raw_file_name)
+
+        local body_string_parts = {}
+        for packet_index, packet in ipairs(packets) do
+            local new_string = "packet"..tostring(packet_index)..":"..packet
+            table.insert(body_string_parts, new_string)
+        end
+
+        local file_body_string = table.concat(body_string_parts, "")
+
+        local function escape_match_magic_characters(str)
+            return (str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"))
+        end
+
+        local required_long_quote_level = 0
+        local opening_long_quote
+        local closeing_long_quote
+        local string_includes_these_long_quotes
+        repeat
+            required_long_quote_level = required_long_quote_level + 1
+            opening_long_quote = "["..string.rep("=", required_long_quote_level).."["
+            closeing_long_quote = "]"..string.rep("=", required_long_quote_level).."]"
+            string_includes_these_long_quotes =
+                    string.match(file_body_string, escape_match_magic_characters(closeing_long_quote))
+                or  string.match(file_body_string, escape_match_magic_characters(opening_long_quote))
+        until not string_includes_these_long_quotes
+
+        local final_string =
+            "return "..opening_long_quote
+            ..file_body_string
+            ..closeing_long_quote
+
+
+
+        local bytes = table.pack(string.byte(final_string, 1, #final_string))
+        bytes.n = nil
+        for _, byte in ipairs(bytes) do
+            write_stream:write(byte)
+        end
+
+        write_stream:close()
+
+
+
     end)
 end
 
