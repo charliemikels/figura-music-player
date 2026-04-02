@@ -362,7 +362,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     local default_instrument_name = "Default"
     local function update_config_instrument_picker_ui()
         local instrument_picker_title = "[ { 'text': '"
-            .."Editing \"" .. config_page_state.targeted_song.short_name
+            .."Editing \"" .. config_page_state.targeted_song.short_name:gsub("'", "\\'")
             .. "\", track " .. string.format("%02d", config_page_state.selected_track_index)
             .. "\n" .. "Track Name: \"" .. config_page_state.targeted_song.processed_data.tracks[config_page_state.selected_track_index].recommended_instrument_name .. "\""
             .. "\n" .. "Select an instrument with left click"
