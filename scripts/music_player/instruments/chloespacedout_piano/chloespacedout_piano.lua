@@ -202,8 +202,6 @@ local piano_builder = {
 
         local instance_piano_id             ---@type ChloePianoID?
         local instance_piano_lib            ---@type ChloePianoLib?
-        -- local instance_piano_lib_uuid       ---@type UUID?
-        -- local instance_piano_pos            ---@type Vector3?
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
@@ -213,16 +211,12 @@ local piano_builder = {
             if not (lib_uuid and piano_id) then
                 instance_piano_id = nil
                 instance_piano_lib = nil
-                -- instance_piano_lib_uuid = nil
-                -- instance_piano_pos = nil
                 instance_piano = nil
                 instance_piano_midi_note_api = nil
                 return
             end
             instance_piano_id = piano_id
             instance_piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-            -- instance_piano_lib_uuid = lib_uuid
-            -- instance_piano_pos = piano_id_to_vec(piano_id)
             instance_piano = instance_piano_lib.getPiano(piano_id)
             instance_piano_midi_note_api = instance_piano.instance.midi.note
         end
