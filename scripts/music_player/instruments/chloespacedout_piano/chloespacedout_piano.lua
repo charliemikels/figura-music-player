@@ -277,8 +277,8 @@ local piano_builder = {
                         instruction.track_index,--1,           -- Channel ID 1 is shared with the piano itself.
                         1,-- instruction.track_index,
                             -- TODO: There's an issue where tracks are initilized with channel ID instead of their track ID.
-                            --       My system doesn't care if I send to channel or track, but I'd like to reuse the Piano's built in channel if possible.
-                            --       plus haveing both lets be better disambiguate between pianos and instances of my instrument wrapper.
+                            --       My system doesn't care if I send to channel or track, but piano has special rules for channels (piano itself uses channel 1)
+                            --       and it's kinda silly to use instruction.track_index as channels.
                             --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
                         (client.getSystemTime() - time_since_due)
                     )
