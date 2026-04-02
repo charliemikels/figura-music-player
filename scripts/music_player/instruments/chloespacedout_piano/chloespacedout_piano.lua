@@ -194,7 +194,7 @@ local piano_builder = {
     features = {
         sustain = true
     },
-    new_instance = function(params)
+    new_instance = function( _ )
 
         local fallback_instrument_builders   = require("../triangle_sine/triangle_sine")    ---@type InstrumentBuilder[]
         local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
