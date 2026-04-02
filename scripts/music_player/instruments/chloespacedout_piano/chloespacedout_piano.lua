@@ -165,9 +165,11 @@ end
 ---@return boolean
 local function instrument_is_available()
     -- TODO: are there loaded piano avatars?
+    --       see also: https://figura-wiki.pages.dev/globals/Player/Entity#isLoaded
+    --                 https://figura-wiki.pages.dev/globals/Player/Entity#hasAvatar
     -- TODO: is this piano's FiguraMidiCloud loaded?   (Is there a way to get this from piano avatar?)
     --       It seems we can tell if a piano lib is available by loading the avatarvars and seeing if it's populated with the functions we expect.
-    --       If the list is empty, then the midi cloud was not set to max.
+    --       If the list is empty, then the midi cloud was not set to max. (Does not reset if permissions are lowered later.)
     --       /figura run printTable(world.avatarVars()["943218fd-5bbc-4015-bf7f-9da4f37bac59"])
     -- TODO: Are the permissions of both set to max?
     -- TODO: should we limit this to a radius arround the host
