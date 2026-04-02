@@ -29,37 +29,38 @@ if host:isHost() then
 
         local write_stream = file:openWriteStream(packets_raw_file_name)
 
-        local body_string_parts = {}
-        for packet_index, packet in ipairs(packets) do
-            local new_string = "packet"..tostring(packet_index)..":"..packet
-            table.insert(body_string_parts, new_string)
-        end
+        local table_with_long_quotes = {
+            [[This is a string ]],
+            [===[This is also a string ]===]
+        }
 
-        local file_body_string = table.concat(body_string_parts, "")
+        local file_string_table = {}
+        table.insert(file_string_table, "return {\n")
 
         local function escape_match_magic_characters(str)
             return (str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"))
         end
 
-        local required_long_quote_level = 0
-        local opening_long_quote
-        local closeing_long_quote
-        local string_includes_these_long_quotes
-        repeat
-            required_long_quote_level = required_long_quote_level + 1
-            opening_long_quote = "["..string.rep("=", required_long_quote_level).."["
-            closeing_long_quote = "]"..string.rep("=", required_long_quote_level).."]"
-            string_includes_these_long_quotes =
-                    string.match(file_body_string, escape_match_magic_characters(closeing_long_quote))
-                or  string.match(file_body_string, escape_match_magic_characters(opening_long_quote))
-        until not string_includes_these_long_quotes
 
-        local final_string =
-            "return "..opening_long_quote
-            ..file_body_string
-            ..closeing_long_quote
+        for _, packet in ipairs(packets) do
+            local required_long_quote_level = 0
+            local opening_long_quote
+            local closeing_long_quote
+            local string_includes_these_long_quotes
+            repeat
+                required_long_quote_level = required_long_quote_level + 1
+                opening_long_quote = "["..string.rep("=", required_long_quote_level).."["
+                closeing_long_quote = "]"..string.rep("=", required_long_quote_level).."]"
+                string_includes_these_long_quotes =
+                        string.match(packet, escape_match_magic_characters(closeing_long_quote))
+                    or  string.match(packet, escape_match_magic_characters(opening_long_quote))
+            until not string_includes_these_long_quotes
+            table.insert(file_string_table, opening_long_quote..packet..closeing_long_quote..",\n")
+        end
 
+        table.insert(file_string_table, "}")
 
+        local final_string = table.concat(file_string_table, "")
 
         local bytes = table.pack(string.byte(final_string, 1, #final_string))
         bytes.n = nil
