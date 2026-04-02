@@ -18,7 +18,8 @@ local piano_lib_uuids = {
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
 
     -- Dear end user: If you or a loved one has equipped the piano 2.0 avatar, you
-    -- can add your UUID to this list, and it should appear as an available Chloe Piano
+    -- can add your UUID to this list, and it should appear as an available Chloe Piano.
+    -- You can find your UUID by running `player:getUUID()`
 }
 
 ---@type UUID[]         -- Backends for the possible piano avatars.
@@ -26,8 +27,9 @@ local figura_midi_cloud_uuids = {
     "c0cfded1-a213-47d5-8054-94437f4fb906"
 }
 
--- --------------------------------------------------------
 
+
+--#region   ChloePiano and ChloeFiguraMidi type definitions
 
 ---@class ChloeFiguraMidiCloudInstance
 ---@field ID string
@@ -98,7 +100,7 @@ local figura_midi_cloud_uuids = {
 ---@field instance ChloeFiguraMidiCloudInstance
 ---@field midi table
 
-
+--#endregion
 
 ---@return table<UUID, table<ChloePianoID, ChloePiano>>
 local function get_all_known_pianos()
@@ -162,8 +164,14 @@ end
 
 ---@return boolean
 local function instrument_is_available()
+    -- TODO: are there loaded piano avatars?
+    -- TODO: is this piano's FiguraMidiCloud loaded?   (Is there a way to get this from piano avatar?)
+    --       It seems we can tell if a piano lib is available by loading the avatarvars and seeing if it's populated with the functions we expect.
+    --       If the list is empty, then the midi cloud was not set to max.
+    --       /figura run printTable(world.avatarVars()["943218fd-5bbc-4015-bf7f-9da4f37bac59"])
+    -- TODO: Are the permissions of both set to max?
     -- TODO: should we limit this to a radius arround the host
-    -- TODO: check if piano is a drum kit before reccomending.
+    -- TODO: check if piano is a drum kit before reccomending. (piano model ~= 4, lib:getInstrumentOverride() ~= (128??? last one is percussion.))
     -- TODO: check permissions of the piano avatar and the midi cloud
 
     local there_is_at_least_one_known_piano = (next(get_all_known_pianos(), nil) and true or false)
