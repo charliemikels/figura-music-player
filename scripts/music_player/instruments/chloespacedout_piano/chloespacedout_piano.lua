@@ -22,10 +22,10 @@ local piano_lib_uuids = {
     -- You can find your UUID by running `player:getUUID()`
 }
 
----@type UUID[]         -- Backends for the possible piano avatars.
-local figura_midi_cloud_uuids = {
-    "c0cfded1-a213-47d5-8054-94437f4fb906"
-}
+-- ---@type UUID[]         -- Backends for the possible piano avatars.
+-- local figura_midi_cloud_uuids = {
+--     "c0cfded1-a213-47d5-8054-94437f4fb906"
+-- }
 
 
 
