@@ -70,7 +70,7 @@ local piano_lib_uuids = {
 ---
 ---@field sustain fun(self:ChloeFiguraMidiCloudMidiNote) -- Removes the "main noise" and only plays the sustain loop.
 ---
---- Notes will decay on their own, but `release`
+--- Stops a note with a small decay.
 ---
 --- `sysTime` is the time the note was released, but it can be set to a future time. Call with `client.getSystemTime()` and add `instruction.duration` to it.
 ---@field release fun(self:ChloeFiguraMidiCloudMidiNote, sysTime:integer)
