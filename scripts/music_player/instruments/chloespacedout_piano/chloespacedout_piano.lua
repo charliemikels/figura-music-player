@@ -26,8 +26,6 @@ local figura_midi_cloud_uuids = {
     "c0cfded1-a213-47d5-8054-94437f4fb906"
 }
 
-local max_search_radius_from_host = 32      ---@type number     -- distance in blocks for Near piano calculations
-
 -- --------------------------------------------------------
 
 
@@ -129,16 +127,16 @@ local function piano_id_to_vec(piano_id)
 end
 
 
+local max_search_radius_from_host = 32      ---@type number     -- distance in blocks for Near piano calculations
+
 ---@param target_pos Vector3
----@param max_distance integer?  -- How far away we're allowed to search for a piano (prevents trying to initilize a piano that's near the viewer, but not near the host.)
 ---@return UUID?
 ---@return ChloePianoID?
-local function get_nearest_piano_uuid_and_id(target_pos, max_distance)
+local function get_nearest_piano_uuid_and_id(target_pos)
     local all_known_pianos = get_all_known_pianos()
     if not next(all_known_pianos, nil) then return nil, nil end
-    if not max_distance then max_distance = max_search_radius_from_host end
 
-    local nearest_distance_squared = (max_distance*max_distance) or math.huge      -- we don't really care about the exact distance, just the comparison. We can ignore the square root.
+    local nearest_distance_squared = (max_search_radius_from_host * max_search_radius_from_host)    -- pre-squared to use the cheaper :lengthSquared() for comparisons.
     local nearest_piano_id          ---@type ChloePianoID
     local nearest_piano_lib_uuid    ---@type UUID
 
