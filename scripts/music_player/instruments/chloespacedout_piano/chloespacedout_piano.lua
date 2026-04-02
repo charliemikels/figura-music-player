@@ -112,7 +112,6 @@ local function get_all_known_pianos()
         local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
 
         if piano_lib and piano_lib.getPianos then
-            -- printTable(piano_lib.getPiano(next(piano_lib.getPianos(), nil)))
             all_known_pianos[lib_uuid] = piano_lib.getPianos()
         end
     end
@@ -120,7 +119,7 @@ local function get_all_known_pianos()
     return all_known_pianos
 end
 
----comment
+
 ---@param piano_id ChloePianoID
 ---@return Vector3
 local function piano_id_to_vec(piano_id)
@@ -163,7 +162,8 @@ local function get_nearest_piano_uuid_and_id(target_pos, max_distance)
     return nearest_piano_lib_uuid, nearest_piano_id
 end
 
-local function instrument_is_available(target_pos)
+---@return boolean
+local function instrument_is_available()
     -- TODO: should we limit this to a radius arround the host
     -- TODO: check if piano is a drum kit before reccomending.
     -- TODO: check permissions of the piano avatar and the midi cloud
@@ -235,7 +235,7 @@ local piano_builder = {
         end
         -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
 
-        
+
         local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
 
         -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
@@ -248,7 +248,6 @@ local piano_builder = {
         ---@type Instrument
         local piano_instrument = {
             play_instruction = function (instruction, position, time_since_due)
-                -- print("playing piano instruction. note "..tostring(instruction.note)..", track: "..tostring(instruction.track_index))
                 if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_piano_info(nil, nil)
                 elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
@@ -260,9 +259,7 @@ local piano_builder = {
 
                 if not instance_piano_id then   -- piano is still invalid. use the fallback instrument.
                     fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
-                else
-                    -- play piano note as usual
-
+                else -- play piano note as usual
                     local new_note = instance_piano_midi_note_api:play(
                         instance_piano.instance,
                         instruction.note,
@@ -286,23 +283,26 @@ local piano_builder = {
             end,
 
             update_sounds = function (position)
-                -- Figura Midi Cloud takes care of stopping the notes for us. But we still need to clean up our trackers.
+                -- Figura Midi Cloud takes care of stopping the notes for us. But we still need to clean up our own trackers.
+
+                -- Item removal logic based on https://stackoverflow.com/a/53038524
+                -- See also networking.lua → remove_packets_from_outgoing_queue_by_transfer_id()
 
                 local size_of_hole = 0
                 for search_index = 1, #known_piano_notes do
-                    local should_delete_note =
-                        known_piano_notes[search_index].releaseTime + known_piano_notes[search_index].duration
-                        < client:getSystemTime()
 
-                    if not should_delete_note then
+                    local current_time_is_after_total_note_duration_and_so_we_should_remove_this_note =
+                        known_piano_notes[search_index].releaseTime + known_piano_notes[search_index].duration < client:getSystemTime()
+
+                    if current_time_is_after_total_note_duration_and_so_we_should_remove_this_note then
+                        known_piano_notes[search_index] = nil
+                        size_of_hole = size_of_hole + 1
+                    else
                         if (size_of_hole > 0) then
                             -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
                             known_piano_notes[search_index - size_of_hole] = known_piano_notes[search_index]
                             known_piano_notes[search_index] = nil
                         end
-                    else
-                        known_piano_notes[search_index] = nil
-                        size_of_hole = size_of_hole + 1
                     end
                 end
 
