@@ -9,7 +9,7 @@ action_wheel:setPage(root_action_wheel_page)
 -- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
 -- - [ ] Port the ABC player to a new processor
 -- - [x] Minecraft Note Block instruments
--- - [ ] Figura Piano instrument
+-- - [x] Figura Piano instrument
 -- - [ ] Load instruments from other avatars
 -- - [ ] test if I can force the viewer to load an offline avatar by making them render a player head
 --   - See also: Chloe Piano 2.0 → https://github.com/ChloeSpacedOut/figura-midi-player/blob/3c2888209ac75b1c0ec57c7ea4ca0b49aee291bb/ChloesMidiPlayerClientExample/midiPlayerClient.lua#L85-L90
