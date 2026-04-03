@@ -29,18 +29,16 @@ if host:isHost() then
 
         local write_stream = file:openWriteStream(packets_raw_file_name)
 
-        local table_with_long_quotes = {
-            [[This is a string ]],
-            [===[This is also a string ]===]
-        }
-
         local file_string_table = {}
-        table.insert(file_string_table, "return {\n")
+        table.insert(file_string_table, "-- "..song.name.."\n")
+        table.insert(file_string_table, "-- "..tostring(#song.processed_data.instructions).. " instructions".."\n")
+        table.insert(file_string_table, "-- "..tostring(#packets).. " packets".."\n")
+        table.insert(file_string_table, "\n")
+        table.insert(file_string_table, "local processed_song_data = {\n")  -- return ".. '"'.. song.name ..'"'
 
         local function escape_match_magic_characters(str)
             return (str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"))
         end
-
 
         for _, packet in ipairs(packets) do
             local required_long_quote_level = 0
@@ -58,7 +56,8 @@ if host:isHost() then
             table.insert(file_string_table, opening_long_quote..packet..closeing_long_quote..",\n")
         end
 
-        table.insert(file_string_table, "}")
+        table.insert(file_string_table, "}\n\n")
+        table.insert(file_string_table, "return {data = processed_song_data, name = \"".. song.name .."\"}")
 
         local final_string = table.concat(file_string_table, "")
 
@@ -69,6 +68,9 @@ if host:isHost() then
         end
 
         write_stream:close()
+
+        local baptized_info = require("./music_player/starbound-atlas.mid.raw_packets")
+        printTable(baptized_info)
 
 
 
