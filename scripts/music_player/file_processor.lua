@@ -10,21 +10,33 @@
 ---@field song_list_from_paths fun( self:FileProcessor, full_and_short_path_pair:FullAndShortPathPair[] ):Song[]
 ---@field process_song fun(song:Song)
 
+local function escape_patern_matching_magic_characters(string_to_escape)
+    return string_to_escape:gsub("([^%w])", "%%%1")
+end
+
 ---A cannonical list of `FileProcessor`s
 ---@type FileProcessor[]
 local file_processors = {}
 
-for _, script in pairs(listFiles("./file_processors", true)) do
-    local require_success, require_return = pcall(function() return require(script) end)
-    if not require_success then
-        print("Error: Failed to require file processor `"..script.."` found in the `file_processors` folder. Full error below:\n\n"..tostring(require_return))
-    else
-        ---@cast require_return FileProcessor
-        if require_return and type(require_return) == "table" and require_return.process_song and require_return.song_list_from_paths then
-            table.insert(file_processors, require_return)
+local file_processor_directory_name = "file_processors"
+local file_processor_directory_path = "./" .. file_processor_directory_name
+for _, script in pairs(listFiles(file_processor_directory_path, true)) do
+    -- Ignore sub directories. Only top level scripts in file_processor_directory_path will be required
+    if script:find( escape_patern_matching_magic_characters(file_processor_directory_name).."%.[^%.]*$" )
+    then
+        local require_success, require_return = pcall(function() return require(script) end)
+        if not require_success then
+            print("Error: Failed to require file processor `"..script.."` found in the `"..file_processor_directory_path.."` folder. Full error below:\n\n"..tostring(require_return))
         else
-            print(tostring(script).." is not a file processor and is being skipped")
+            ---@cast require_return FileProcessor
+            if require_return and type(require_return) == "table" and require_return.process_song and require_return.song_list_from_paths then
+                table.insert(file_processors, require_return)
+            else
+                print(tostring(script).." is not a file processor and is being skipped")
+            end
         end
+    else
+        print("Ignored script `"..script.."` since it is a sub directory")
     end
 end
 
