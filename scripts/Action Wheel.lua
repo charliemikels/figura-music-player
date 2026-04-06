@@ -92,7 +92,7 @@ if host:isHost() then
         table.insert(file_string_table, "}\n\n")
 
         -- return processed_song_data with some metadata
-        table.insert(file_string_table, "return {data = processed_song_data, name = \"".. safely_wrap_string_in_quotes(song.name) .."\"}")
+        table.insert(file_string_table, "return {data = processed_song_data, name = ".. safely_wrap_string_in_quotes(song.name) .."}")
 
         local final_string = table.concat(file_string_table, "")
 
