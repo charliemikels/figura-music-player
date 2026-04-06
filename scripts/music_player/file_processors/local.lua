@@ -9,4 +9,4 @@ local local_file_processor = {
     end,
 }
 
-return nil --local_file_processor
+return local_file_processor

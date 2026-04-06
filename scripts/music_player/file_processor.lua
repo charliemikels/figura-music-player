@@ -50,11 +50,14 @@ end
 ---@class FileProcessorApi
 local file_processor_api = {
     song_list_from_paths = function(full_and_short_path_pair)
-        local song_sets = {}
+        local merged_song_list = {}
         for _, processor in ipairs(file_processors) do
-            table.insert(song_sets, processor:song_list_from_paths(full_and_short_path_pair))
+            local song_list = processor:song_list_from_paths(full_and_short_path_pair)
+            for _, song in pairs(song_list) do
+                table.insert(merged_song_list, song)
+            end
         end
-        return table.unpack(song_sets)
+        return merged_song_list
     end,
 }
 
