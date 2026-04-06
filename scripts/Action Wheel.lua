@@ -5,7 +5,7 @@ action_wheel:setPage(root_action_wheel_page)
 
 if host:isHost() then
     local default_library = require("scripts/music_player/libraries"):build_default_library()
-    local song = default_library:get_song_by_sorted_index(10)
+    local song = default_library:get_song_by_sorted_index(14)      -- 10: rush e full. 14: Starbound Atlas
     local song_processor_future = song:start_data_processor()
     song_processor_future:register_callback(function (_)
         -- print("Instruction test")
@@ -45,42 +45,47 @@ if host:isHost() then
             return (str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1"))   -- Escapes all magic characters. It's a little overkill, but it'll do.
         end
 
-        -- Packets are already strings. But `'` and `"` could appear as characters in the packet stream.
-        -- We need to check for collisions and use the correct quote style when writing to a file.
+        local function safely_wrap_string_in_quotes(unquoted_string)
+            -- In order to write a string into a file in a way that lua can
+            -- `require()` it back into a string, we need to quote it.
+            -- Typicaly `"` and `'` would be good enough, but they can allow
+            -- for escape sequences, and as single characters they are pretty
+            -- frequent occurances anyways.
+            --
+            -- Instead, we can use long brackets. These ignore escape sequences
+            -- but still have a few exceptions:
+            --
+            -- - If a string begins with a new line, that newline it is ignored.    -- TODO: I think we can work accound this
+            -- - Sequences of new lines and carriage return are converted to a single new line.
+            --
+            -- (https://www.lua.org/manual/5.2/manual.html#:~:text=long%20brackets)
+
+            local required_long_quote_level = -1    -- first loop will bump this to `0` for us
+            local opening_long_quote
+            local closeing_long_quote
+            local string_includes_these_long_quotes
+            repeat
+                required_long_quote_level = required_long_quote_level + 1
+                opening_long_quote = "["..string.rep("=", required_long_quote_level).."["
+                closeing_long_quote = "]"..string.rep("=", required_long_quote_level).."]"
+                string_includes_these_long_quotes =
+                        string.match(unquoted_string, escape_match_magic_characters(closeing_long_quote))
+                    or  string.match(unquoted_string, escape_match_magic_characters(opening_long_quote))
+            until not string_includes_these_long_quotes
+
+            return opening_long_quote..unquoted_string..closeing_long_quote
+        end
+
+        -- Quote packets and add to table.
         for _, packet in ipairs(packets) do
-            local wrapped_packet = ""
-            if not string.match(packet, escape_match_magic_characters([["]])) then
-                wrapped_packet = [["]]..packet..[["]]
-                table.insert(file_string_table, [["]]..packet..[["]]..",\n")
-            elseif not string.match(packet, escape_match_magic_characters([[']])) then
-                wrapped_packet = [[']]..packet..[[']]
-            else
-                -- Both `"` and `'` appear in the packet. We need to use a `[[long quote]]`
-                -- Again we need to test for collisions in case we need to use `[[…]]`, `[=[…]=]` or whatever.
-                local required_long_quote_level = -1    -- first loop will bump this to `0` for us
-                local opening_long_quote
-                local closeing_long_quote
-                local string_includes_these_long_quotes
-                repeat
-                    required_long_quote_level = required_long_quote_level + 1
-                    opening_long_quote = "["..string.rep("=", required_long_quote_level).."["
-                    closeing_long_quote = "]"..string.rep("=", required_long_quote_level).."]"
-                    string_includes_these_long_quotes =
-                            string.match(packet, escape_match_magic_characters(closeing_long_quote))
-                        or  string.match(packet, escape_match_magic_characters(opening_long_quote))
-                until not string_includes_these_long_quotes
-
-                wrapped_packet = opening_long_quote..packet..closeing_long_quote
-            end
-
-            table.insert(file_string_table, wrapped_packet ..",\n")
+            table.insert(file_string_table, safely_wrap_string_in_quotes(packet) ..",\n")
         end
 
         -- close processed_song_data table
         table.insert(file_string_table, "}\n\n")
 
         -- return processed_song_data with some metadata
-        table.insert(file_string_table, "return {data = processed_song_data, name = \"".. song.name .."\"}")    -- TODO: check if song name has magic quote characters.
+        table.insert(file_string_table, "return {data = processed_song_data, name = \"".. safely_wrap_string_in_quotes(song.name) .."\"}")
 
         local final_string = table.concat(file_string_table, "")
 
