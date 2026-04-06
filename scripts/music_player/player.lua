@@ -439,7 +439,7 @@ local song_player_api = {
 
         -- For playback, we don't need to store the names of the reccomended instruments.
 
-        ---type table<number, PlayingSongTrackConfig>
+        ---@type table<number, PlayingSongTrackConfig>
         local track_configs = {}
         for track_index, track_data in ipairs(song.tracks) do
 
