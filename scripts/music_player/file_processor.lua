@@ -14,12 +14,17 @@
 ---@type FileProcessor[]
 local file_processors = {}
 
-for _, script in ipairs(listFiles("./file_processors", true)) do
-    local success, value = pcall(function()
-        table.insert(file_processors, require(script))
-    end)
-    if not success then
-        print("Error: Failed to require file processor `"..script.."` found in the `file_processors` folder. Full error below:\n\n"..tostring(value))
+for _, script in pairs(listFiles("./file_processors", true)) do
+    local require_success, require_return = pcall(function() return require(script) end)
+    if not require_success then
+        print("Error: Failed to require file processor `"..script.."` found in the `file_processors` folder. Full error below:\n\n"..tostring(require_return))
+    else
+        ---@cast require_return FileProcessor
+        if require_return and type(require_return) == "table" and require_return.process_song and require_return.song_list_from_paths then
+            table.insert(file_processors, require_return)
+        else
+            print(tostring(script).." is not a file processor and is being skipped")
+        end
     end
 end
 
