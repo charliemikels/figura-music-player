@@ -1613,7 +1613,7 @@ end
 ---@type FileProcessor
 local midi_processor_api = {
 
-    song_list_from_paths = function(self, display_and_full_paths)
+    song_list_from_paths = function(self, display_and_full_paths, _)
         -- All the midi files we care about are self contained. Each file is a single song.
         -- This is different from ABC files, where song tracks are sometimes split between files.
         -- But for midi, we just need to see if the file is a midi file, and wrap it in a song table.

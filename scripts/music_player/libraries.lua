@@ -60,12 +60,12 @@ end
 
 ---Assorted functions for the library table.
 ---@type table
-local library_functions = {
+local library_functions = {     -- TODO: refactor. these don't need to be stored in a table. Just make them functions.
     add_source_directory = function(self, new_source_path)
         self.song_keys_are_sorted = false
         local display_and_full_paths = list_files_in_path_recursively(new_source_path)
         local file_processor_api = require("./file_processor")
-        for _, song in ipairs(file_processor_api.song_list_from_paths(display_and_full_paths)) do
+        for _, song in ipairs(file_processor_api.song_list_from_paths(display_and_full_paths, self.id)) do
             self.songs[song.id] = song
         end
     end,
@@ -82,6 +82,7 @@ local library_functions = {
     end
 }
 
+local library_id_counter = 0
 ---@class LibrariesApi
 ---@field build_library fun(self:LibrariesApi): Library
 ---@field build_default_library fun(self:LibrariesApi): Library
@@ -90,7 +91,9 @@ local libraries_api = {
     ---@param self LibrariesApi
     ---@return Library
     build_library = function(self)
+        library_id_counter = library_id_counter +1
         ---@class Library
+        ---@field id integer                A little something so that File processors know if they've seen this library before.
         ---@field songs table<string, Song> Canonical song list.
         ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
         ---@field add_source_directory fun(self:Library, path:string)
@@ -98,6 +101,7 @@ local libraries_api = {
         ---@field get_song_by_sorted_index fun(self:Library, index:integer):Song?
         ---@field get_library_length fun(self:Library):integer
         local library = {
+            id = library_id_counter,
             songs = {},
             sorted_songs = {},
             add_source_directory = library_functions.add_source_directory,
