@@ -18,25 +18,18 @@ end
 ---@type FileProcessor[]
 local file_processors = {}
 
-local file_processor_directory_name = "file_processors"
-local file_processor_directory_path = "./" .. file_processor_directory_name
-for _, script in pairs(listFiles(file_processor_directory_path, true)) do
-    -- Ignore sub directories. Only top level scripts in file_processor_directory_path will be required
-    if script:find( escape_patern_matching_magic_characters(file_processor_directory_name).."%.[^%.]*$" )
-    then
-        local require_success, require_return = pcall(function() return require(script) end)
-        if not require_success then
-            print("Error: Failed to require file processor `"..script.."` found in the `"..file_processor_directory_path.."` folder. Full error below:\n\n"..tostring(require_return))
-        else
-            ---@cast require_return FileProcessor
-            if require_return and type(require_return) == "table" and require_return.process_song and require_return.song_list_from_paths then
-                table.insert(file_processors, require_return)
-            else
-                print(tostring(script).." is not a file processor and is being skipped")
-            end
-        end
+local file_processor_directory_path = "./file_processors"
+for _, script in pairs(listFiles(file_processor_directory_path, false)) do
+    local require_success, require_return = pcall(function() return require(script) end)
+    if not require_success then
+        print("Error: Failed to require file processor `"..script.."` found in the `"..file_processor_directory_path.."` folder. Full error below:\n\n"..tostring(require_return))
     else
-        print("Ignored script `"..script.."` since it is a sub directory")
+        ---@cast require_return FileProcessor
+        if require_return and type(require_return) == "table" and require_return.process_song and require_return.song_list_from_paths then
+            table.insert(file_processors, require_return)
+        else
+            print(tostring(script).." is not a file processor and is being skipped")
+        end
     end
 end
 
