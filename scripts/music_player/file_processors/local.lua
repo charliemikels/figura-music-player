@@ -7,28 +7,41 @@ end
 ---@field name string
 
 local song_script_returns = {}
+local local_songs = {}      ---@type Song[]
 
 local local_songs_directory_path = "./local_songs"
 for _, script in pairs(listFiles(local_songs_directory_path, true)) do
+
     local require_success, require_return = pcall(function() return require(script) end)
     if not require_success then
         print("Error: Failed to require local song script `"..script.."`. This script will be skipped. Full error below:\n\n"..tostring(require_return))
     else
         ---@cast require_return LocalSongScript
-        if require_return and type(require_return) == "table" and require_return.data and require_return.name then
-            print("Found local song:", require_return.name)
-            table.insert(song_script_returns, require_return)
-        else
+        if not (require_return and type(require_return) == "table" and require_return.data and require_return.name) then
             print(tostring(script).." exists, but does not look like a local song")
+        else
+            print("Found local song:", require_return.name)
+
+            ---@type Song
+            local detected_song = {
+                id = "",
+                name = require_return.name,
+                short_name = require_return.name,
+                start_data_processor = function()
+                    local data = require_return.data
+                    -- TODO: expose more of the network API 
+                    return nil
+                end,
+                processed_data = nil,
+                source = nil,   -- TODO: we need to figure out a way to talk about data source. We've got a funky alias to it now that wraps the file API and stuff, but only the that song's data processor actualy cares about what's in source, so we don't need wacky types arround it?
+
+                -- exists_on_viewer = true
+            }
+            table.insert(local_songs, detected_song)
+            table.insert(song_script_returns, require_return)
         end
     end
 end
-
-local local_songs = {}      ---@type Song[]
-for _, script in pairs(song_script_returns) do
-    -- TODO: song_script_return.data to songs. Should we start the processor here, or on demand with pings? (On demand would be like a 3rd way to dispatch songs. (ping to process))
-end
-
 
 
 
@@ -55,5 +68,8 @@ local local_file_processor = {
         return {}
     end,
 }
+
+-- TODO: add some sort of "save song" command. that lets a user easily create a local song out of a fileAPI song. 
+
 
 return local_file_processor
