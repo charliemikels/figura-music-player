@@ -10,10 +10,6 @@
 ---@field song_list_from_paths fun( self:FileProcessor, full_and_short_path_pair:FullAndShortPathPair[], library_id:integer):Song[]
 ---@field process_song fun(song:Song)
 
-local function escape_patern_matching_magic_characters(string_to_escape)
-    return string_to_escape:gsub("([^%w])", "%%%1")
-end
-
 ---A cannonical list of `FileProcessor`s
 ---@type FileProcessor[]
 local file_processors = {}
