@@ -472,10 +472,11 @@ end
 --- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
 ---@see song_to_packets
 ---@param processed_song ProcessedSong
----@param transfered_song_id_vlq Byte[]
----@return SongPacket[] data_packets        Fullf formed packets, ready to be packed and shipped.
+---@param transfered_song_id_vlq Byte[]?    -- If nil, then transferSong ID will not be added to to the packet
+---@return SongPacket[] data_packets        Fully formed packets, ready to be packed and shipped.
 ---@return integer buffer_delay_in_milis
 local function build_data_packets(processed_song, transfered_song_id_vlq)
+    if not transfered_song_id_vlq then transfered_song_id_vlq = {} end
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
 
@@ -609,9 +610,10 @@ end
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
 ---@param processed_song ProcessedSong
 ---@param player_config SongPlayerConfig
+---@param for_local_use boolean?
 ---@return PackedSongPacket[]
 ---@return integer transfered_song_id       Unique ID to address these packets (and player_data) on both the host and any clients.
-local function song_to_packets(processed_song, player_config)
+local function song_to_packets(processed_song, player_config, for_local_use)
     local header_packet_body = build_header_packet_without_buffer_delay(processed_song)
 
 
@@ -1175,8 +1177,8 @@ local function outgoing_packet_queue_progress()
 end
 
 ---@class SongNetworkingApi
----@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):PackedSongPacket[], integer
----@field local_receive_packet  fun(packed_packet_data:PackedSongPacket)
+---@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig, for_local_use:boolean?):PackedSongPacket[], integer
+---@field local_receive_packet  fun(packed_packet_data:PackedSongPacket, for_local_use:boolean?)
 ---@field ping_packets          fun(outgoing_packed_packets:PackedSongPacket[])
 ---@field outgoing_packet_queue_progress    fun():number
 ---@field play_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to play the selected song.
