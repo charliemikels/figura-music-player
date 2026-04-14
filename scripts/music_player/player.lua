@@ -179,7 +179,7 @@ get_all_instruments()
 
 ---Applies config to a PlayingSong
 ---Used during init, and may be used during playback.
----@param playing_song PlayingSong
+---@param playing_song SongPlayer
 ---@param config SongPlayerConfig
 local function apply_config(playing_song, config)
     if not config then return end
@@ -229,7 +229,7 @@ end
 
 ---Called by an event loop.
 ---Dispatches new instructions to instruments based on current system time, and updates all instruments (including deprecated).
----@param playing_song PlayingSong
+---@param playing_song SongPlayer
 local function update_song(playing_song)
     local current_time = client.getSystemTime()
 
@@ -316,11 +316,14 @@ end
 
 ---@class SongPlayerAPI
 local song_player_api = {
-    ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): PlayingSongController
+    --- Create a new SongPlayer and return its SongPlayerController.
+    ---
+    --- Song players are created per-song and per-config. If you want to change details about either of these, you should create a new player
+    ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): SongPlayerController
     new_player = function (song, config)
         if not config or (not next(config)) then config = {} end
         print_debug("New player for", song.name)
-        local playing_song
+        local song_player
 
         local primary_event_checks_without_update = 0
         local fallback_event_checks_without_update = 0
@@ -339,7 +342,7 @@ local song_player_api = {
             else
                 primary_event_checks_without_update = 0
             end
-            update_song(playing_song)
+            update_song(song_player)
         end
 
         local watcher_state_key = "idle"
@@ -369,9 +372,9 @@ local song_player_api = {
             switch_to_fallback = function()
                 print_debug("switching to fallback event")
                 using_fallback_event = true
-                playing_song.primary_event:remove(update_this_song)
-                playing_song.primary_event:register(test_primary_loop)
-                playing_song.fallback_event:register(update_this_song)
+                song_player.primary_event:remove(update_this_song)
+                song_player.primary_event:register(test_primary_loop)
+                song_player.fallback_event:register(update_this_song)
                 watcher_state_key = "check_fallback"
             end,
             check_fallback = function()
@@ -395,23 +398,23 @@ local song_player_api = {
             switch_to_primary = function()
                 print_debug("switching to primary event")
                 using_fallback_event = false
-                playing_song.fallback_event:remove(update_this_song)
-                playing_song.primary_event:remove(test_primary_loop)
-                playing_song.primary_event:register(update_this_song)
+                song_player.fallback_event:remove(update_this_song)
+                song_player.primary_event:remove(test_primary_loop)
+                song_player.primary_event:register(update_this_song)
                 watcher_state_key = "check_primary"
             end,
             begin_emergency_stop = function()
-                print_debug("The primary and fallback events for song "..playing_song.name.." are not responding. Starting emergency stop.")
-                playing_song.fallback_event:remove(update_this_song)
-                playing_song.primary_event:remove(update_this_song)
-                playing_song.start_time = nil
-                playing_song.elapsed_time = nil
+                print_debug("The primary and fallback events for song "..song_player.name.." are not responding. Starting emergency stop.")
+                song_player.fallback_event:remove(update_this_song)
+                song_player.primary_event:remove(update_this_song)
+                song_player.start_time = nil
+                song_player.elapsed_time = nil
                 using_fallback_event = false
                 watcher_state_key = "emergency_stop_active_instruments"
             end,
             emergency_stop_active_instruments = function()
                 -- run through all tracks, kill running notes one at a time untill all are done.
-                local key, track = next(playing_song.track_config, emergency_stop_instrument_key_for_next)
+                local key, track = next(song_player.track_config, emergency_stop_instrument_key_for_next)
                 if key then
                     if track.selected_instrument.is_finished() then
                         -- advance the "next()" loop for next time.
@@ -427,7 +430,7 @@ local song_player_api = {
             end,
             emergency_stop_deprecated_instruments = function()
                 -- run through deprecated_instruments, kill running notes one at a time untill all are done.
-                local key, instrument = next(playing_song.deprecated_instruments, emergency_stop_instrument_key_for_next)
+                local key, instrument = next(song_player.deprecated_instruments, emergency_stop_instrument_key_for_next)
                 if key then
                     if instrument.is_finished() then
                         -- advance the "next()" loop for next time.
@@ -447,11 +450,11 @@ local song_player_api = {
 
         -- For playback, we don't need to store the names of the reccomended instruments.
 
-        ---@type table<number, PlayingSongTrackConfig>
+        ---@type table<number, SongPlayerTrackConfig>
         local track_configs = {}
         for track_index, track_data in ipairs(song.tracks) do
 
-            ---@class PlayingSongTrackConfig
+            ---@class SongPlayerTrackConfig
             local track_config = {
                 ---@type 0|1 The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
                 reccomended_instrument_type = track_data.instrument_type_id,
@@ -467,9 +470,10 @@ local song_player_api = {
             track_configs[track_index] = track_config
         end
 
-
-        ---@class PlayingSong
-        playing_song = {
+        --- SongPlayer is for internal use. It manages the data and state of a song while it's playing.
+        --- Check out SongPlayerController for API-ready functions to manage the song.
+        ---@class SongPlayer
+        song_player = {
             ---@type string The name of the song
             name = song.name,
             song_uuid = client.intUUIDToString(client.generateUUID()),  -- In case we need to create a key or something to address this song.
@@ -509,18 +513,18 @@ local song_player_api = {
             ---@type Instrument[]
             deprecated_instruments = {},
 
-            ---@type PlayingSongTrackConfig[]
+            ---@type SongPlayerTrackConfig[]
             track_config = track_configs, -- PlayingSongTrackConfig
 
-            ---@class PlayingSongController
+            ---@class SongPlayerController
             controller = {
                 ---@type fun():boolean
-                is_playing = function() return (playing_song.start_time and true or false) end,
+                is_playing = function() return (song_player.start_time and true or false) end,
 
                 ---@type fun()
                 play = function()
                     print_host("Playing \"" .. tostring(song.name) .. "\"")
-                    if playing_song.start_time then
+                    if song_player.start_time then
                         -- song is already playing.
                         return
                     end
@@ -529,68 +533,68 @@ local song_player_api = {
                     fallback_event_checks_without_update = 0
 
                     local earliest_possible_start_time = (
-                                playing_song.buffer_delay
-                            and playing_song.buffer_start_time
-                            and ( playing_song.buffer_start_time + playing_song.buffer_delay )
+                                song_player.buffer_delay
+                            and song_player.buffer_start_time
+                            and ( song_player.buffer_start_time + song_player.buffer_delay )
                         or  client:getSystemTime()
                     )
 
-                    playing_song.start_time = (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
+                    song_player.start_time = (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
-                    playing_song.primary_event:register(update_this_song)
+                    song_player.primary_event:register(update_this_song)
                 end,
 
                 ---@type fun():number
                 get_progress = function()
-                    if not playing_song.start_time then return nil end
-                    return (client.getSystemTime() - playing_song.start_time) / playing_song.song_duration
+                    if not song_player.start_time then return nil end
+                    return (client.getSystemTime() - song_player.start_time) / song_player.song_duration
                 end,
 
                 ---@type fun():number
                 get_start_time = function()
-                    if not playing_song.start_time then return nil end
-                    return playing_song.start_time
+                    if not song_player.start_time then return nil end
+                    return song_player.start_time
                 end,
 
                 ---@type fun():number
                 get_duration = function()
-                    if not playing_song.song_duration then return nil end
-                    return playing_song.song_duration
+                    if not song_player.song_duration then return nil end
+                    return song_player.song_duration
                 end,
 
                 ---@type fun()
                 stop = function()
                     print_host("Stopping \"".. tostring(song.name) .."\"")
                     -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
-                    playing_song.elapsed_time = nil
-                    playing_song.start_time = nil
+                    song_player.elapsed_time = nil
+                    song_player.start_time = nil
 
-                    playing_song.primary_event:remove(update_this_song)
-                    playing_song.fallback_event:remove(update_this_song)
+                    song_player.primary_event:remove(update_this_song)
+                    song_player.fallback_event:remove(update_this_song)
                     events.WORLD_TICK:remove(event_watcher_and_swapper)
                     watcher_state_key = "idle"
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
-                    for _, track in pairs(playing_song.track_config) do
+                    for _, track in pairs(song_player.track_config) do
                         track.selected_instrument.stop_all_sounds_immediatly()
                     end
-                    for key, deprecated_instruments in pairs(playing_song.deprecated_instruments) do
+                    for key, deprecated_instruments in pairs(song_player.deprecated_instruments) do
                         deprecated_instruments.stop_all_sounds_immediatly()
-                        playing_song.deprecated_instruments[key] = nil
+                        song_player.deprecated_instruments[key] = nil
                     end
                 end,
 
                 ---@type fun(new_config: SongPlayerConfig)
                 set_new_config = function(new_config)
-                    apply_config(playing_song, new_config)
+                    apply_config(song_player, new_config)
                 end
             }
         }
-        apply_config(playing_song, config)
+        apply_config(song_player, config)
 
-        return playing_song.controller
+        return song_player.controller
     end,
 
     --- Returns a list of instrument keys sorted alphabeticaly.

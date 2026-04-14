@@ -684,7 +684,7 @@ local control_packet_codes = {
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
----@type table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: PlayingSongController}>
+---@type table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: SongPlayerController}>
 local collected_incomming_songs = {}
 
 -- list of transfer IDs that we must have missed
@@ -1185,7 +1185,7 @@ end
 ---@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song, and removes any remaining queued packets for the song.
 ---@field remove_transfered_song  fun(transfered_song_id:integer)       Sends a controll packet to delete the selected song. This simply removes the song from the transfered_songs list. A player playing this song may still hold onto it.
 ---@field cancel_all_pings fun()        Deletes all pings in the queued pings list and stops the update loop.
----@field get_player_for_transfered_song fun(transfered_song_id:integer):PlayingSongController  Treat this as read-only. Edits to this player will only be seen by the host.
+---@field get_player_for_transfered_song fun(transfered_song_id:integer):SongPlayerController  Treat this as read-only. Edits to this player will only be seen by the host.
 ---@field get_target_milis_between_packets fun():integer                Returns `target_milis_between_packets`, so that we can make time-estemations from packet rate.
 return {
     song_to_packets = song_to_packets,
