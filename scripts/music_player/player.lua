@@ -179,13 +179,13 @@ get_all_instruments()
 
 ---Applies config to a PlayingSong
 ---Used during init, and may be used during playback.
----@param playing_song SongPlayer
+---@param song_player SongPlayer
 ---@param config SongPlayerConfig
-local function apply_config(playing_song, config)
+local function apply_config(song_player, config)
     if not config then return end
 
     -- Update tracks instruments to match selected instruments.
-    for track_index, track_config in ipairs(playing_song.track_config) do
+    for track_index, track_config in ipairs(song_player.track_config) do
         local instrument_selection_to_use_instead = nil
         if config.instrument_selections and config.instrument_selections[track_index] then
             instrument_selection_to_use_instead = config.instrument_selections[track_index]
@@ -201,26 +201,26 @@ local function apply_config(playing_song, config)
                 known_instruments[instrument_selection_to_use_instead.name]
                 .new_instance(instrument_selection_to_use_instead.params)
             if not previous_instrument.is_finished() then
-                table.insert(playing_song.deprecated_instruments, previous_instrument)
+                table.insert(song_player.deprecated_instruments, previous_instrument)
             end
         end
     end
 
     if config.source_pos then
-        playing_song.source_pos = config.source_pos
-        playing_song.source_entity = nil
+        song_player.source_pos = config.source_pos
+        song_player.source_entity = nil
     end
     if config.source_entity then
-        playing_song.source_entity = config.source_entity
+        song_player.source_entity = config.source_entity
         if config.source_entity.getPos and config.source_entity:getPos() then
-            playing_song.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight() ,0)
+            song_player.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight() ,0)
         end
     end
 
     -- TODO: config.info_display_type whatnot
 
     if config.play_immediately then
-        if not playing_song.controller.is_playing() then playing_song.controller.play() end
+        if not song_player.controller.is_playing() then song_player.controller.play() end
     end
 end
 
@@ -229,26 +229,26 @@ end
 
 ---Called by an event loop.
 ---Dispatches new instructions to instruments based on current system time, and updates all instruments (including deprecated).
----@param playing_song SongPlayer
-local function update_song(playing_song)
+---@param song_player SongPlayer
+local function update_song(song_player)
     local current_time = client.getSystemTime()
 
     -- Get sound position.
 
-    if playing_song.source_entity then
-        playing_song.source_pos =
-            playing_song.source_entity:getPos(client:getFrameTime())
-            + vec(0, (playing_song.source_entity:getBoundingBox().y * 0.5), 0)
+    if song_player.source_entity then
+        song_player.source_pos =
+            song_player.source_entity:getPos(client:getFrameTime())
+            + vec(0, (song_player.source_entity:getBoundingBox().y * 0.5), 0)
     end
 
-    -- During playing_song setup, we already assign a fallback instrument.
+    -- During song_player setup, we already assign a fallback instrument.
     -- This should ensure that all instruments are initilized to something.
 
-    while playing_song.next_instruction_index <= #playing_song.instructions do
-        local this_instruction = playing_song.instructions[playing_song.next_instruction_index]
+    while song_player.next_instruction_index <= #song_player.instructions do
+        local this_instruction = song_player.instructions[song_player.next_instruction_index]
         -- The amount of time between the current time, and the time this instruction should have been played.
         -- positive == the instruction is late. 0 == it's right on time. negative == it doesn't need to play yet. ignore if negative.
-        local time_since_due = (current_time - playing_song.start_time) - this_instruction.start_time
+        local time_since_due = (current_time - song_player.start_time) - this_instruction.start_time
         if time_since_due < 0 then
             -- instruction is not late, we'll take care of it later.
             -- (If all notes are slightly late, then none of the notes are slightly late.)
@@ -258,22 +258,22 @@ local function update_song(playing_song)
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
         else
             print_debug(
-                tostring(math.floor(playing_song.controller.get_progress() * 100)).."%",
-                "("..tostring(playing_song.next_instruction_index).." / ".. tostring(#playing_song.instructions)..")",
+                tostring(math.floor(song_player.controller.get_progress() * 100)).."%",
+                "("..tostring(song_player.next_instruction_index).." / ".. tostring(#song_player.instructions)..")",
                 this_instruction )
-            playing_song
+            song_player
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, playing_song.source_pos, time_since_due)
+                .play_instruction(this_instruction, song_player.source_pos, time_since_due)
         end
-        playing_song.next_instruction_index = playing_song.next_instruction_index + 1
+        song_player.next_instruction_index = song_player.next_instruction_index + 1
     end
 
     -- All new instructions dispatched. Updating instruments.
 
     local all_instruments_done = true
-    for _, track_config in ipairs(playing_song.track_config) do
-        track_config.selected_instrument.update_sounds(playing_song.source_pos)
+    for _, track_config in ipairs(song_player.track_config) do
+        track_config.selected_instrument.update_sounds(song_player.source_pos)
         if all_instruments_done then
             all_instruments_done = track_config.selected_instrument.is_finished()
             -- will either continue being true, or this instrument is not done.
@@ -281,10 +281,10 @@ local function update_song(playing_song)
     end
 
     -- Check and update deprecated instruments
-    if next(playing_song.deprecated_instruments) then
+    if next(song_player.deprecated_instruments) then
         local finished_deprecated_instrument_keys = {}
-        for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
-            deprecated_instrument.update_sounds(playing_song.source_pos)
+        for deprecated_instrument_key, deprecated_instrument in pairs(song_player.deprecated_instruments) do
+            deprecated_instrument.update_sounds(song_player.source_pos)
             if deprecated_instrument.is_finished() then
                 table.insert(finished_deprecated_instrument_keys, deprecated_instrument_key)
             else
@@ -297,15 +297,15 @@ local function update_song(playing_song)
         -- Honestly the likelyhood of this actualy mattering is extreamly low since the next time update_song() gets
         -- called, any missed instruments will be updated then.
         for _, key_to_remove in ipairs( finished_deprecated_instrument_keys ) do
-            playing_song.deprecated_instruments[key_to_remove] = nil
+            song_player.deprecated_instruments[key_to_remove] = nil
         end
     end
 
     -- TODO: Check if the song has finished, and all instruments have finished
-    if playing_song.song_duration + playing_song.start_time < current_time then
+    if song_player.song_duration + song_player.start_time < current_time then
         print_debug("Song_dur + start_time is now less than current time.")
         if all_instruments_done then
-            playing_song.controller.stop()
+            song_player.controller.stop()
             return
         else
             print_debug("Song should stop, but not all instruments are done.")
@@ -566,7 +566,7 @@ local song_player_api = {
                 ---@type fun()
                 stop = function()
                     print_host("Stopping \"".. tostring(song.name) .."\"")
-                    -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
+                    -- song_player.elapsed_time = client.getSystemTime() - song_player.start_time
                     song_player.elapsed_time = nil
                     song_player.start_time = nil
 
