@@ -213,7 +213,7 @@ local function apply_config(song_player, config)
     if config.source_entity then
         song_player.source_entity = config.source_entity
         if config.source_entity.getPos and config.source_entity:getPos() then
-            song_player.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight() ,0)
+            song_player.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight(), 0)
         end
     end
 
@@ -318,7 +318,7 @@ end
 local song_player_api = {
     --- Create a new SongPlayer and return its SongPlayerController.
     ---
-    --- Song players are created per-song and per-config. If you want to change details about either of these, you should create a new player
+    --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responcible for one song. 
     ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): SongPlayerController
     new_player = function (song, config)
         if not config or (not next(config)) then config = {} end
@@ -456,11 +456,17 @@ local song_player_api = {
 
             ---@class SongPlayerTrackConfig
             local track_config = {
-                ---@type 0|1 The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
+
+                --- The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
+                ---
+                --- Whenever we implement dynamicly loading instruments (where the client and host might not have the same instruments)
+                --- this lets us know what instrument we should use instead.
+                ---@type 0|1
                 reccomended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
                 selected_instrument = known_instruments[
+                    -- This selects a reasonable default instrument. We'll overwride this soon when we apply the real song config.
                         (   track_data.instrument_type_id == 1
                             and (known_instruments[default_percussion_instrument_name] and default_percussion_instrument_name or fallback_percussion_instrument_name)
                             or  (known_instruments[default_normal_instrument_name] and default_normal_instrument_name or fallback_normal_instrument_name)
@@ -482,7 +488,7 @@ local song_player_api = {
             ---@type number The total length of the song
             song_duration = song.duration,
             start_time = nil,   -- Compare with duration. If start time + duration <= current time, then song has ended
-            elapsed_time = 0,   -- Might allow us to pause a song.
+            elapsed_time = 0,   -- TODO: Might allow us to pause a song.
                                 -- When resuming a song, get current time, subtract elapsed, and that should give a new start time.
             instructions = song.instructions,
             next_instruction_index = 1,
@@ -524,10 +530,7 @@ local song_player_api = {
                 ---@type fun()
                 play = function()
                     print_host("Playing \"" .. tostring(song.name) .. "\"")
-                    if song_player.start_time then
-                        -- song is already playing.
-                        return
-                    end
+                    if song_player.controller.is_playing() then return end
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
