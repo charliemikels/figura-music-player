@@ -1176,6 +1176,34 @@ local function outgoing_packet_queue_progress()
     return outgoing_packet_queue_index / #outgoing_packet_queue
 end
 
+--- A SongPlayer wrapper that plays the a song on all clients (viewers and host).
+---
+--- Use this instead of manualy working with the networking / packet building process.
+---
+--- Host Only. May turn a song into packets (expensive) and call ping functions.
+---@param song ProcessedSong
+---@param config SongPlayerConfig
+---@return SongPlayerController
+local function new_network_song_player(song, config)
+    -- TODO: Build a normal player for use on the host.
+    -- TODO: Check song type. if it's a host-only song, build packets for it.
+    -- TODO: Figure out how we want to represent local songs with a newtwork relationship.
+    -- TODO: Informing clients who is playing music is a useful safety feature. The display board should be part of the player.
+    --       (SongPlayer knows if the song is playing, its progress, its position/entity… It seems perfect.)
+
+
+    -- This wraper needs to
+    -- - [ ] convert processed data into packets.
+
+
+    local song_player_api = require("./player")      ---@type SongPlayerAPI
+
+    ---@class NetworkedSongPlayer
+    net_player = {}
+
+    return net_player.controller
+end
+
 ---@class SongNetworkingApi
 ---@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig, for_local_use:boolean?):PackedSongPacket[], integer
 ---@field local_receive_packet  fun(packed_packet_data:PackedSongPacket, for_local_use:boolean?)

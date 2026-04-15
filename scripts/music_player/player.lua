@@ -318,7 +318,7 @@ end
 local song_player_api = {
     --- Create a new SongPlayer and return its SongPlayerController.
     ---
-    --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responcible for one song. 
+    --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responcible for one song.
     ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): SongPlayerController
     new_player = function (song, config)
         if not config or (not next(config)) then config = {} end
@@ -626,25 +626,6 @@ local song_player_api = {
             features[k] = v
         end
         return features
-    end,
-
-
-    --- A SongPlayer wrapper that tries to play the song on all clients (viewers and host).
-    ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): SongPlayerController
-    new_net_player = function(song, config)
-        -- TODO: Build a normal player for use on the host.
-        -- TODO: Check song type. if it's a host-only song, build packets for it.
-        -- TODO: Figure out how we want to represent local songs with a newtwork relationship.
-        -- TODO: Informing clients who is playing music is a useful safety feature. The display board should be part of the player.
-        --       (SongPlayer knows if the song is playing, its progress, its position/entity… It seems perfect.)
-
-
-        local networking_api = require("./networking")      ---@type SongNetworkingApi
-
-        ---@class NetworkedSongPlayer
-        net_player = {}
-
-        return net_player.controller
     end,
 }
 
