@@ -10,8 +10,15 @@
 -- 	print("=== Dev init: ".. client.getSystemTime() .." ===")
 -- end)
 
-if true then
-    -- DEBUG to shut down the entire file while I mess with the midi_player version.
+if true then    -- DEBUG: Disables this script while we work on v5.
+
+    -- V5 is a pretty huge rewrite, and eventualy I'll want to add ABC support,
+    -- so I want this ABC version to stick around for a little while longer.
+    -- But while it's still here, I need to make sure we don't accidentaly
+    -- run anything in the script, so let's break out early, and disable
+    -- LSP diagnostics while we're at it.
+
+    ---@diagnostic disable
     return
 end
 
