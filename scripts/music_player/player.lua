@@ -177,8 +177,6 @@ get_all_instruments()
 -- --- Only set this to `false` for controlled environments.
 -- ---@field auto_stop_if_update_events_fail boolean?
 
-
-
 local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
 local function get_spinner()
     local spinner_State =
@@ -191,11 +189,43 @@ local function get_spinner()
     return spinner_states[spinner_State]
 end
 
+local progress_bar_character = "▊"  -- the same width as a space in Minecraft's font
+if client.compareVersions("1.20", client.getVersion() ) > 0 then
+	progress_bar_character = "▍"	-- 1.20 updated a lot of Minecraft's fonts. Use this character instead if we are on a pre-1.20 version of Minecraft
+end
+
+---Returns a progress bar with a spinner
+---@param width integer     -- width in number of characters
+---@param progress number   -- will be clamped to a number between 0 and 1
+---@return string
+local function progress_bar(width, progress)
+	progress = math.max( 0, math.min( progress, 1 ) )
+	local num_bars = math.floor((width+1) * progress)
+	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
+	return progress_bar_string
+end
+
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
 ---@param playing_song PlayingSong
 local function update_info_display_text(playing_song)
+    local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
+
+    if squared_distance > 16*16 then
+        playing_song.info_display_text_task:setVisible(false)
+        return
+    end
+    playing_song.info_display_text_task:setVisible(true)
+
     local info_text = "Playing \"".. playing_song.name .."\"\n"
-        .. get_spinner()
+
+    if playing_song.controller.is_buffering() then
+        info_text = info_text
+            .. "Buffering. " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_buffer_time() / 1000)) ) .. "s " ..get_spinner()
+    else
+        info_text = info_text
+            .. progress_bar(20, playing_song.controller.get_progress())
+            .. "\n" .. tostring(math.floor(1 + (playing_song.controller.get_remaining_time() / 1000)) ) .. "s"
+    end
 
     playing_song.info_display_text_task:setText(info_text)
 end
@@ -602,6 +632,8 @@ local song_player_api = {
                     playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
                     playing_song.info_display_text_task:setText("Playing \"".. playing_song.name .."\"")
                     playing_song.info_display_text_task:setScale(0.33)
+                    playing_song.info_display_text_task:setWidth(200)
+                    playing_song.info_display_text_task:setSeeThrough(true)
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
