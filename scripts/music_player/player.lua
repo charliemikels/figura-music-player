@@ -177,6 +177,31 @@ get_all_instruments()
 -- --- Only set this to `false` for controlled environments.
 -- ---@field auto_stop_if_update_events_fail boolean?
 
+
+
+local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
+local function get_spinner()
+    local spinner_State =
+        math.floor(
+            (client.getSystemTime()/1000)    -- Time in Seconds
+            *1.5    -- Speedup
+            %1      -- Clamp to 0-1
+            *4      -- Scale to 0-3
+        )+1         -- Slide to 1-4
+    return spinner_states[spinner_State]
+end
+
+--- Runs with the song update loop to keep text up to date (and sometimes update some positions)
+---@param playing_song PlayingSong
+local function update_info_display_text(playing_song)
+    local info_text = "Playing \"".. playing_song.name .."\"\n"
+        .. get_spinner()
+
+    playing_song.info_display_text_task:setText(info_text)
+end
+
+
+
 ---Applies config to a PlayingSong
 ---Used during init, and may be used during playback.
 ---@param playing_song PlayingSong
@@ -206,6 +231,8 @@ local function apply_config(playing_song, config)
         end
     end
 
+    -- Update sound source position
+
     if config.source_pos then
         playing_song.source_pos = config.source_pos
         playing_song.source_entity = nil
@@ -217,7 +244,34 @@ local function apply_config(playing_song, config)
         end
     end
 
-    -- TODO: config.info_display_type whatnot
+    -- Update info display offsets to match sound positions
+    if playing_song.source_entity then
+        if playing_song.source_entity:getUUID() == player:getUUID() then
+            -- source entity is the host. We can use our avatar's atatchment points.
+
+            playing_song.info_display_root_part_parent_type = "Model"
+            playing_song.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
+            playing_song.info_display_text_pos_offset = vectors.vec3(-1 * player:getBoundingBox().x, 0.25, 0)
+
+        else
+            -- entity is not the player, fallback to world positioning
+
+            playing_song.info_display_root_part_parent_type = "World"
+            playing_song.info_display_root_pos_offset = playing_song.source_pos     -- update_song should keep this case up to date
+            playing_song.info_display_text_pos_offset = vectors.vec3(-1 * playing_song.source_entity:getBoundingBox().x, 0.25, 0)
+        end
+    else
+        playing_song.info_display_root_part_parent_type = "World"
+        playing_song.info_display_root_pos_offset = playing_song.source_pos
+        playing_song.info_display_text_pos_offset = vectors.vec3(-0.75, 0.25, 0)
+    end
+
+    if playing_song.controller.is_playing() then
+        -- The info screens have been created and need to be updated.
+        playing_song.info_display_root_part:setParentType(playing_song.info_display_root_part_parent_type)
+        playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset * 16)
+        playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
+    end
 
     if config.play_immediately then
         if not playing_song.controller.is_playing() then playing_song.controller.play() end
@@ -239,7 +293,15 @@ local function update_song(playing_song)
         playing_song.source_pos =
             playing_song.source_entity:getPos(client:getFrameTime())
             + vec(0, (playing_song.source_entity:getBoundingBox().y * 0.5), 0)
+
+        if playing_song.info_display_root_part_parent_type == "World" then
+            -- we're useing entity positioning, but our display is useing world space. Update it's positioning to match.
+            playing_song.info_display_root_pos_offset = playing_song.source_pos
+            playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset)
+        end
     end
+
+    update_info_display_text(playing_song)
 
     -- During playing_song setup, we already assign a fallback instrument.
     -- This should ensure that all instruments are initilized to something.
@@ -301,7 +363,6 @@ local function update_song(playing_song)
         end
     end
 
-    -- TODO: Check if the song has finished, and all instruments have finished
     if playing_song.song_duration + playing_song.start_time < current_time then
         print_debug("Song_dur + start_time is now less than current time.")
         if all_instruments_done then
@@ -477,8 +538,8 @@ local song_player_api = {
 
             ---@type number The total length of the song
             song_duration = song.duration,
-            start_time = nil,   -- Compare with duration. If start time + duration <= current time, then song has ended
-            elapsed_time = 0,   -- Might allow us to pause a song.
+            start_time = nil,   ---@type number? Compare with duration. If start time + duration <= current time, then song has ended
+            elapsed_time = 0,   ---@type number? Might allow us to pause a song.
                                 -- When resuming a song, get current time, subtract elapsed, and that should give a new start time.
             instructions = song.instructions,
             next_instruction_index = 1,
@@ -492,11 +553,16 @@ local song_player_api = {
             ---@type number
             buffer_start_time = (song.buffer_start_time or nil),
 
-            ---@type Entity? If this is defined, overwrite source_pos every update()
-            source_entity = nil,
+            source_entity = nil,    ---@type Entity? If this is defined, overwrite source_pos every update()
+            source_pos = vec(0,0,0),    ---@type Vector3
 
-            ---@type Vector3
-            source_pos = vec(0,0,0),
+            info_display_root_part = nil,               ---@type ModelPart?     A world-space positioning
+            info_display_billboard_part = nil,          ---@type ModelPart?     should not be manualy positioned. Only for rotation
+            info_display_text_task = nil,               ---@type TextTask?      A faux screenspace positioning (since it's a child of the billboard part)
+
+            info_display_root_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
+            info_display_text_pos_offset = vec(0,0,0),    ---@type Vector3        -- in block space. Divide by 16 to get model space.
+            info_display_root_part_parent_type = "World",    ---@type ModelPart.parentType
 
             ---@type Event
             primary_event = events:getEvents()[(config.primary_update_event_key or "RENDER")],
@@ -524,6 +590,18 @@ local song_player_api = {
                         -- song is already playing.
                         return
                     end
+
+                    playing_song.info_display_root_part = models:newPart("song_info_text_root_"..tostring(playing_song.song_uuid))
+
+                    playing_song.info_display_root_part:setParentType(playing_song.info_display_root_part_parent_type)
+                    playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset * 16)
+
+                    playing_song.info_display_billboard_part = playing_song.info_display_root_part:newPart("song_info_text_billboard_"..tostring(playing_song.song_uuid), "Camera")
+
+                    playing_song.info_display_text_task = playing_song.info_display_billboard_part:newText("song_info_text_task_"..tostring(playing_song.song_uuid))
+                    playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
+                    playing_song.info_display_text_task:setText("Playing \"".. playing_song.name .."\"")
+                    playing_song.info_display_text_task:setScale(0.33)
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
@@ -580,6 +658,16 @@ local song_player_api = {
                         deprecated_instruments.stop_all_sounds_immediatly()
                         playing_song.deprecated_instruments[key] = nil
                     end
+
+                    playing_song.info_display_billboard_part:removeTask(playing_song.info_display_text_task:getName())
+                    playing_song.info_display_billboard_part:remove()
+                    playing_song.info_display_root_part:remove()
+
+                    playing_song.info_display_text_task = nil
+                    playing_song.info_display_billboard_part = nil
+                    playing_song.info_display_root_part = nil
+
+                    models:removeTask()
                 end,
 
                 ---@type fun(new_config: SongPlayerConfig)
@@ -621,5 +709,8 @@ local song_player_api = {
         return features
     end,
 }
+
+
+
 
 return song_player_api
