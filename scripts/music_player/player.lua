@@ -619,22 +619,49 @@ local song_player_api = {
                     playing_song.primary_event:register(update_this_song)
                 end,
 
+                ---@type fun():boolean
+                is_buffering = function()
+                    return (playing_song.buffer_delay
+                        and playing_song.buffer_start_time
+                        and (playing_song.buffer_start_time + playing_song.buffer_delay > client:getSystemTime())
+                    )
+                end,
+
                 ---@type fun():number
+                get_remaining_buffer_time = function()
+                    if not playing_song.buffer_delay or playing_song.buffer_delay == 0 then return 0 end
+                    if not playing_song.buffer_start_time then return math.huge end
+                    return playing_song.buffer_delay - (client:getSystemTime() - playing_song.buffer_start_time)
+                end,
+
+                ---@type fun():number?
+                get_buffer_progress = function()
+                    if not playing_song.buffer_delay or playing_song.buffer_start_time then return nil end
+                    return math.min(1, (client.getSystemTime() - playing_song.buffer_start_time) / playing_song.buffer_delay)
+                end,
+
+                ---@type fun():number?
                 get_progress = function()
                     if not playing_song.start_time then return nil end
                     return (client.getSystemTime() - playing_song.start_time) / playing_song.song_duration
                 end,
 
-                ---@type fun():number
+                ---@type fun():number?
                 get_start_time = function()
                     if not playing_song.start_time then return nil end
                     return playing_song.start_time
                 end,
 
-                ---@type fun():number
+                ---@type fun():number?
                 get_duration = function()
                     if not playing_song.song_duration then return nil end
                     return playing_song.song_duration
+                end,
+
+                ---@type fun():number?
+                get_remaining_time = function()
+                    if not playing_song.start_time then return nil end
+                    return playing_song.song_duration - (client:getSystemTime() - playing_song.start_time)
                 end,
 
                 ---@type fun()
