@@ -217,7 +217,7 @@ local function update_info_display_text(playing_song)
     playing_song.info_display_text_task:setVisible(true)
 
     local info_text = ""
-    if playing_song.source_entity and playing_song.source_entity:getUUID() == player:getUUID() then
+    if playing_song.source_entity and player:isLoaded() and playing_song.source_entity:getUUID() == player:getUUID() then
         -- host is the playing entity. It is unambiguous who is playing the music.
         info_text = info_text .. "Playing "
     else
@@ -286,7 +286,7 @@ local function apply_config(playing_song, config)
 
     -- Update info display offsets to match sound positions
     if playing_song.source_entity then
-        if playing_song.source_entity:getUUID() == player:getUUID() then
+        if player:isLoaded() and playing_song.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
             -- source entity is the host. We can use our avatar's atatchment points.
 
             playing_song.info_display_root_part_parent_type = "Model"
