@@ -216,7 +216,17 @@ local function update_info_display_text(playing_song)
     end
     playing_song.info_display_text_task:setVisible(true)
 
-    local info_text = "Playing \"".. playing_song.name .."\"\n"
+    local info_text = ""
+    if playing_song.source_entity and playing_song.source_entity:getUUID() == player:getUUID() then
+        -- host is the playing entity. It is unambiguous who is playing the music.
+        info_text = info_text .. "Playing "
+    else
+        -- host is not the playing entity, or the source position is somewhere in the world.
+        info_text = info_text .. player:getName() .. " is playing\n"
+    end
+
+    info_text = info_text .. "\"".. playing_song.name .."\"\n"
+
 
     if playing_song.controller.is_buffering() then
         info_text = info_text
