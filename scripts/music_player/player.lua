@@ -208,7 +208,7 @@ end
 ---@param playing_song PlayingSong
 ---@return boolean
 local function client_is_looking_at_song_player(playing_song)
-    if host:isHost() then return true end
+    if host:isHost() then return true end   -- means that, for the host, the display is visible at all times (within the distance range), but no funky behaviors in 3rd person or paperdolls.
     local source_pos_in_screen_space = vectors.worldToScreenSpace(playing_song.source_pos)
     if source_pos_in_screen_space.z > 1 and source_pos_in_screen_space.xy:length() < 0.2 then return true end
     return false
