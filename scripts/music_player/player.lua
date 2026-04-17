@@ -210,7 +210,7 @@ end
 local function update_info_display_text(playing_song)
     local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
 
-    if squared_distance > 16*16 then
+    if squared_distance > 32 then
         playing_song.info_display_root_part:setVisible(false)
         return
     end
