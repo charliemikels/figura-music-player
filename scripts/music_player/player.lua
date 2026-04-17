@@ -205,16 +205,31 @@ local function progress_bar(width, progress)
 	return progress_bar_string
 end
 
+local max_text_display_squared_distance = 32
+local full_opacity_display_squared_distance = 16
+
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
 ---@param playing_song PlayingSong
 local function update_info_display_text(playing_song)
     local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
 
-    if squared_distance > 16*16 then
+    if squared_distance > max_text_display_squared_distance then
+        playing_song.info_display_text_task:setOpacity(0)
+        playing_song.info_display_mute_instructions_text_task:setOpacity(0)
         playing_song.info_display_root_part:setVisible(false)
         return
     end
     playing_song.info_display_root_part:setVisible(true)
+
+    if squared_distance < full_opacity_display_squared_distance then
+        playing_song.info_display_text_task:setOpacity(1)
+        playing_song.info_display_mute_instructions_text_task:setOpacity(0.5)
+    else
+        local opacity_factor = math.clamp(math.map(squared_distance, full_opacity_display_squared_distance, max_text_display_squared_distance, 1, 0), 0, 1)
+        print(opacity_factor)
+        playing_song.info_display_text_task:setOpacity(opacity_factor)
+        playing_song.info_display_mute_instructions_text_task:setOpacity(opacity_factor*0.5)
+    end
 
 
     local info_text ---@type string?
