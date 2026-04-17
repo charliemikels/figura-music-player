@@ -251,9 +251,10 @@ local piano_builder = {
             instance_info_display_text_task = instance_info_display_camera:newText(
                 "piano_info_text_task_"..tostring(instance_piano_id)
             )
-            instance_info_display_text_task:setText("Piano controlled by\n"..(nameplate.ENTITY:getText() or avatar:getEntityName()) )
-            instance_info_display_text_task:setScale(0.33)
-            instance_info_display_text_task:setPos(0,2.5,0)
+            instance_info_display_text_task:setText("Annoyed? △, Perms, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ↑, Avatar Sounds Volume" )
+            instance_info_display_text_task:setScale(0.2)
+            instance_info_display_text_task:setOpacity(0.5)
+            instance_info_display_text_task:setPos(0,1.5,0)
             instance_info_display_text_task:setAlignment("CENTER")
 
             time_to_clear_watcher_event:register(info_display_timer_watcher)
