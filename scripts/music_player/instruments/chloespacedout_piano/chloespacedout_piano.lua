@@ -205,33 +205,40 @@ local piano_builder = {
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
-        local instance_info_display_root                ---@type ModelPart?
+        local instance_info_display_root                ---@type ModelPart? -- doubles as our "is the display active" check.
         local instance_info_display_camera              ---@type ModelPart?
         local instance_info_display_text_task           ---@type TextTask?
         local time_to_clear_info_display = client:getSystemTime()  ---@type number     -- The time when it's safe to remove the info text
         local clear_time_padding = 2 * 1000
+        local time_to_clear_watcher_event = events.WORLD_TICK
+        -- ↑ WORLD_TICK is a little spicy (low perms only allow for 64 instructions). But it ensures we're always able
+        -- to shut down the display. As of this commit, the song watcher logic (typicaly) sits at about 12 World Tick
+        -- instructions. Adding this time_to_clear_watcher brings it up to like 38ish when doing the cleanup process.
+        -- TODO: double check edge cases, like when the host gets unloaded/goes through a portal (goes down the song watcher state machine.).
+
+        local info_display_timer_watcher
 
         local function stop_display_text()
             if not instance_info_display_root then
                 return -- display text is already stopped. (we keep all these in sync)
             end
-            instance_info_display_text_task:setText("")
-            instance_info_display_text_task:remove()
-            instance_info_display_camera:remove()
-            instance_info_display_root:remove()
+            instance_info_display_root:remove() -- cleans up the child parts too.
+            instance_info_display_root = nil    -- does not set the other parts to nil, but they'll be reset anyways when we play a new note.
 
-            instance_info_display_text_task = nil
-            instance_info_display_camera = nil
-            instance_info_display_root = nil
+            time_to_clear_watcher_event:remove(info_display_timer_watcher)
+        end
 
-            time_to_clear_info_display = client:getSystemTime()
+        function info_display_timer_watcher()
+            if time_to_clear_info_display < client:getSystemTime() then
+                stop_display_text()
+            end
         end
 
         local function start_display_text()
             instance_info_display_root = models:newPart(
-                "piano_info_text_root__"..tostring(
-                    instance_piano_id).."__"..client.intUUIDToString(client.generateUUID()
-                ),
+                "piano_info_text_root__"
+                    ..tostring(instance_piano_id).."__"..
+                    client.intUUIDToString(client.generateUUID()),
                 "World"
             )
             instance_info_display_root:setPos((piano_id_to_vec(instance_piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
@@ -249,6 +256,7 @@ local piano_builder = {
             instance_info_display_text_task:setPos(0,2.5,0)
             instance_info_display_text_task:setAlignment("CENTER")
 
+            time_to_clear_watcher_event:register(info_display_timer_watcher)
         end
 
 
@@ -304,7 +312,6 @@ local piano_builder = {
         local function stop_one_sound_immediatly()
             local note_to_stop = table.remove(known_piano_notes)
             if note_to_stop then note_to_stop:stop() end
-            if #known_piano_notes < 1 then stop_display_text() end
             fallback_instrument_instance.stop_one_sound_immediatly()
         end
 
@@ -345,7 +352,7 @@ local piano_builder = {
                     -- Visual updates
 
                     time_to_clear_info_display = math.max(time_to_clear_info_display, (note_release_time + clear_time_padding))
-                    if not instance_info_display_text_task then
+                    if not instance_info_display_root then
                         start_display_text()
                     end
 
@@ -399,14 +406,8 @@ local piano_builder = {
             is_finished = function ()
                 local fallback_is_done = fallback_instrument_instance.is_finished()
                 local piano_is_done = next(known_piano_notes, nil) == nil
-                local info_display_should_close = time_to_clear_info_display < client:getSystemTime()
 
-                -- we're leverageing the outer instrument updater loop to ensure the text display will eventualy close.
-                -- This unfortunantly means the song won't "end" untill the display is gone.
-                -- TODO: should we instead turn this into a tiny tick event?
-                if info_display_should_close and instance_info_display_root then stop_display_text() end
-
-                return fallback_is_done and piano_is_done and info_display_should_close
+                return fallback_is_done and piano_is_done
             end
         }
         return piano_instrument
