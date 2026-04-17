@@ -205,12 +205,20 @@ local function progress_bar(width, progress)
 	return progress_bar_string
 end
 
+---@param playing_song PlayingSong
+---@return boolean
+local function client_is_looking_at_song_player(playing_song)
+    local source_pos_in_screen_space = vectors.worldToScreenSpace(playing_song.source_pos)
+    if source_pos_in_screen_space.z > 1 and source_pos_in_screen_space.xy:length() < 0.2 then return true end
+    return false
+end
+
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
 ---@param playing_song PlayingSong
 local function update_info_display_text(playing_song)
     local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
 
-    if squared_distance > 32 then
+    if squared_distance > 32 or not client_is_looking_at_song_player(playing_song) then
         playing_song.info_display_root_part:setVisible(false)
         return
     end
