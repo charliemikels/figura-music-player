@@ -205,6 +205,53 @@ local piano_builder = {
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
+        local instance_info_display_root                ---@type ModelPart?
+        local instance_info_display_camera              ---@type ModelPart?
+        local instance_info_display_text_task           ---@type TextTask?
+        local time_to_clear_info_display = client:getSystemTime()  ---@type number     -- The time when it's safe to remove the info text
+        local clear_time_padding = 2 * 1000
+
+        local function stop_display_text()
+            if not instance_info_display_root then
+                return -- display text is already stopped. (we keep all these in sync)
+            end
+            instance_info_display_text_task:setText("")
+            instance_info_display_text_task:remove()
+            instance_info_display_camera:remove()
+            instance_info_display_root:remove()
+
+            instance_info_display_text_task = nil
+            instance_info_display_camera = nil
+            instance_info_display_root = nil
+
+            time_to_clear_info_display = client:getSystemTime()
+        end
+
+        local function start_display_text()
+            instance_info_display_root = models:newPart(
+                "piano_info_text_root__"..tostring(
+                    instance_piano_id).."__"..client.intUUIDToString(client.generateUUID()
+                ),
+                "World"
+            )
+            instance_info_display_root:setPos((piano_id_to_vec(instance_piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
+
+            instance_info_display_camera = instance_info_display_root:newPart(
+                "piano_info_text_billboard_"..tostring(instance_piano_id),
+                "Camera"
+            )
+
+            instance_info_display_text_task = instance_info_display_camera:newText(
+                "piano_info_text_task_"..tostring(instance_piano_id)
+            )
+            instance_info_display_text_task:setText("Piano controlled by\n"..(nameplate.ENTITY:getText() or avatar:getEntityName()) )
+            instance_info_display_text_task:setScale(0.33)
+            instance_info_display_text_task:setPos(0,2.5,0)
+            instance_info_display_text_task:setAlignment("CENTER")
+
+        end
+
+
         ---@param lib_uuid UUID
         ---@param piano_id string
         local function set_instance_piano_info(lib_uuid, piano_id)
@@ -219,6 +266,12 @@ local piano_builder = {
             instance_piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
             instance_piano = instance_piano_lib.getPiano(piano_id)
             instance_piano_midi_note_api = instance_piano.instance.midi.note
+
+            -- Check if display text is running. Restart it if nessesary.
+            if instance_info_display_root then
+                stop_display_text()
+                if piano_id then start_display_text() end
+            end
         end
 
         -- Assume the host player entity is playing the song. Let's figure out which piano they want to use.
@@ -251,6 +304,7 @@ local piano_builder = {
         local function stop_one_sound_immediatly()
             local note_to_stop = table.remove(known_piano_notes)
             if note_to_stop then note_to_stop:stop() end
+            if #known_piano_notes < 1 then stop_display_text() end
             fallback_instrument_instance.stop_one_sound_immediatly()
         end
 
@@ -282,9 +336,18 @@ local piano_builder = {
                             --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
                         (client.getSystemTime() - time_since_due)
                     )
-                    new_note:release((client.getSystemTime() - time_since_due) + instruction.duration)
+                    local note_release_time = (client.getSystemTime() - time_since_due) + instruction.duration
+                    new_note:release(note_release_time)
 
                     table.insert(known_piano_notes, new_note)
+
+
+                    -- Visual updates
+
+                    time_to_clear_info_display = math.max(time_to_clear_info_display, (note_release_time + clear_time_padding))
+                    if not instance_info_display_text_task then
+                        start_display_text()
+                    end
 
                     -- TODO: Trick piano into moveing it's keys.
 
@@ -315,6 +378,8 @@ local piano_builder = {
                     end
                 end
 
+                if instance_info_display_root and time_to_clear_info_display < client:getSystemTime() then stop_display_text() end
+
                 -- clean up fallback instrument too
                 fallback_instrument_instance.update_sounds(position)
             end,
@@ -326,6 +391,7 @@ local piano_builder = {
                     stop_one_sound_immediatly()
                 until not known_piano_notes or #known_piano_notes <= 0
                 known_piano_notes = {}
+                stop_display_text()
 
                 fallback_instrument_instance.stop_all_sounds_immediatly()
             end,
@@ -333,8 +399,14 @@ local piano_builder = {
             is_finished = function ()
                 local fallback_is_done = fallback_instrument_instance.is_finished()
                 local piano_is_done = next(known_piano_notes, nil) == nil
+                local info_display_should_close = time_to_clear_info_display < client:getSystemTime()
 
-                return fallback_is_done and piano_is_done
+                -- we're leverageing the outer instrument updater loop to ensure the text display will eventualy close.
+                -- This unfortunantly means the song won't "end" untill the display is gone.
+                -- TODO: should we instead turn this into a tiny tick event?
+                if info_display_should_close and instance_info_display_root then stop_display_text() end
+
+                return fallback_is_done and piano_is_done and info_display_should_close
             end
         }
         return piano_instrument
