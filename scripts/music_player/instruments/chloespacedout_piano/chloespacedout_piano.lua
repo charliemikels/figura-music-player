@@ -203,9 +203,7 @@ local function display_text_timeouts_watcher()
             -- the previous key was also nil. This means the list is empty. Clean up.
             all_piano_info_display_roots:remove()
             events.world_tick:remove(display_text_timeouts_watcher)
-        else
-            -- this is just the end of the list.
-            previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- this will be nil, meaning next() will try to get the first item on the next loop
+            return
         end
     else -- key and value are good
         if this_timeout_value.time < client:getSystemTime() then
@@ -213,9 +211,9 @@ local function display_text_timeouts_watcher()
             this_timeout_value.part:remove()
             piano_time_to_info_text_timeout[this_piano_id] = nil
         end
-
-        previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- step down the list for next loop
     end
+
+    previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- Step down the list. If nil, we check the start of list next loop.
 end
 
 local function start_display_text_timeouts_watcher()
