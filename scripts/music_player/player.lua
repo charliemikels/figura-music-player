@@ -216,25 +216,16 @@ local function update_info_display_text(playing_song)
     end
     playing_song.info_display_text_task:setVisible(true)
 
-    local info_text = ""
-    if playing_song.source_entity and player:isLoaded() and playing_song.source_entity:getUUID() == player:getUUID() then
-        -- host is the playing entity. It is unambiguous who is playing the music.
-        info_text = info_text .. "Playing "
-    else
-        -- host is not the playing entity, or the source position is somewhere in the world.
-        info_text = info_text .. player:getName() .. " is playing\n"
-    end
 
-    info_text = info_text .. "\"".. playing_song.name .."\"\n"
-
+    local info_text ---@type string?
 
     if playing_song.controller.is_buffering() then
-        info_text = info_text
-            .. "Buffering. " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_buffer_time() / 1000)) ) .. "s " ..get_spinner()
+        info_text = playing_song.info_display_base_string
+            .. "Buffering… " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_buffer_time() / 1000)) ) .. "s " .. get_spinner()
     else
-        info_text = info_text
+        info_text = playing_song.info_display_base_string
             .. progress_bar(20, playing_song.controller.get_progress())
-            .. "\n" .. tostring(math.floor(1 + (playing_song.controller.get_remaining_time() / 1000)) ) .. "s"
+            .. " " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_time() / 1000)) ) .. "s"
     end
 
     playing_song.info_display_text_task:setText(info_text)
@@ -284,6 +275,8 @@ local function apply_config(playing_song, config)
         end
     end
 
+    playing_song.info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \n\""..playing_song.name.."\"\n"
+
     -- Update info display offsets to match sound positions
     if playing_song.source_entity then
         if player:isLoaded() and playing_song.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
@@ -293,6 +286,7 @@ local function apply_config(playing_song, config)
             playing_song.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
             playing_song.info_display_text_pos_offset = vectors.vec3(-1 * player:getBoundingBox().x, 0.25, 0)
 
+            playing_song.info_display_base_string = ("Playing \""..playing_song.name.."\"\n")   -- Shorter name if the host is right there.
         else
             -- entity is not the player, fallback to world positioning
 
@@ -601,8 +595,9 @@ local song_player_api = {
             info_display_text_task = nil,               ---@type TextTask?      A faux screenspace positioning (since it's a child of the billboard part)
 
             info_display_root_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
-            info_display_text_pos_offset = vec(0,0,0),    ---@type Vector3        -- in block space. Divide by 16 to get model space.
-            info_display_root_part_parent_type = "World",    ---@type ModelPart.parentType
+            info_display_text_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
+            info_display_root_part_parent_type = "World",   ---@type ModelPart.parentType
+            info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \""..song.name.."\"\n",    ---@type string   -- A base name to reduce the amount of things we need to update when rendering the info text
 
             ---@type Event
             primary_event = events:getEvents()[(config.primary_update_event_key or "RENDER")],
@@ -640,7 +635,7 @@ local song_player_api = {
 
                     playing_song.info_display_text_task = playing_song.info_display_billboard_part:newText("song_info_text_task_"..tostring(playing_song.song_uuid))
                     playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
-                    playing_song.info_display_text_task:setText("Playing \"".. playing_song.name .."\"")
+                    playing_song.info_display_text_task:setText(playing_song.info_display_base_string)
                     playing_song.info_display_text_task:setScale(0.33)
                     playing_song.info_display_text_task:setWidth(200)
                     playing_song.info_display_text_task:setSeeThrough(true)
