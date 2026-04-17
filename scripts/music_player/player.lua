@@ -211,10 +211,10 @@ local function update_info_display_text(playing_song)
     local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
 
     if squared_distance > 16*16 then
-        playing_song.info_display_text_task:setVisible(false)
+        playing_song.info_display_root_part:setVisible(false)
         return
     end
-    playing_song.info_display_text_task:setVisible(true)
+    playing_song.info_display_root_part:setVisible(true)
 
 
     local info_text ---@type string?
@@ -593,6 +593,7 @@ local song_player_api = {
             info_display_root_part = nil,               ---@type ModelPart?     A world-space positioning
             info_display_billboard_part = nil,          ---@type ModelPart?     should not be manualy positioned. Only for rotation
             info_display_text_task = nil,               ---@type TextTask?      A faux screenspace positioning (since it's a child of the billboard part)
+            info_display_mute_instructions_text_task = nil,     ---@type TextTask?
 
             info_display_root_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
             info_display_text_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
@@ -637,8 +638,15 @@ local song_player_api = {
                     playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
                     playing_song.info_display_text_task:setText(playing_song.info_display_base_string)
                     playing_song.info_display_text_task:setScale(0.33)
+                    playing_song.info_display_text_task:setOpacity(0.8)
                     playing_song.info_display_text_task:setWidth(200)
                     playing_song.info_display_text_task:setSeeThrough(true)
+
+                    playing_song.info_display_mute_instructions_text_task = playing_song.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(playing_song.song_uuid))
+                    playing_song.info_display_mute_instructions_text_task:setPos((playing_song.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
+                    playing_song.info_display_mute_instructions_text_task:setScale(0.2)
+                    playing_song.info_display_mute_instructions_text_task:setOpacity(0.5)
+                    playing_song.info_display_mute_instructions_text_task:setText("Annoyed? △, Perms, ↑, Avatar Sounds Volume") -- ", :mute:"
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
@@ -723,11 +731,13 @@ local song_player_api = {
                         playing_song.deprecated_instruments[key] = nil
                     end
 
-                    playing_song.info_display_billboard_part:removeTask(playing_song.info_display_text_task:getName())
+                    playing_song.info_display_text_task:remove()
+                    playing_song.info_display_mute_instructions_text_task:remove()
                     playing_song.info_display_billboard_part:remove()
                     playing_song.info_display_root_part:remove()
 
                     playing_song.info_display_text_task = nil
+                    playing_song.info_display_mute_instructions_text_task = nil
                     playing_song.info_display_billboard_part = nil
                     playing_song.info_display_root_part = nil
 
