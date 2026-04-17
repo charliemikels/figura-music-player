@@ -333,7 +333,9 @@ local piano_builder = {
                     local new_note = instance_piano_midi_note_api:play(
                         instance_piano.instance,
                         instruction.note,
-                        instruction.start_velocity * 0.5,   -- piano is a little loud by default reletive to my other instruments.
+                        instruction.start_velocity
+                            * 0.5                           -- Piano is a little loud by default reletive to the other instruments.
+                            * (avatar:getVolume() / 100),   -- Respect if viewer has muted the host.
 
                         instruction.track_index,--1,           -- Channel ID 1 is shared with the piano itself.
                         1,-- instruction.track_index,
