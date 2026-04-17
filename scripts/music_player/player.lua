@@ -646,7 +646,7 @@ local song_player_api = {
                     playing_song.info_display_mute_instructions_text_task:setPos((playing_song.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
                     playing_song.info_display_mute_instructions_text_task:setScale(0.2)
                     playing_song.info_display_mute_instructions_text_task:setOpacity(0.5)
-                    playing_song.info_display_mute_instructions_text_task:setText("Annoyed? △, Perms, ↑, Avatar Sounds Volume") -- ", :mute:"
+                    playing_song.info_display_mute_instructions_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
