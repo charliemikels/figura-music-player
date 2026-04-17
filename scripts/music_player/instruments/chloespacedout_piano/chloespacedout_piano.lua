@@ -194,8 +194,6 @@ local all_piano_info_display_roots = nil ---@type ModelPart?
 local piano_time_to_info_text_timeout = {}
 local info_text_clear_time_padding = 2*1000
 
--- local function remove_display_text(piano_id) end
-
 local previous_key_for_piano_time_to_info_text_timeout = nil
 local function display_text_timeouts_watcher()
     local this_piano_id, this_timeout_value = next(piano_time_to_info_text_timeout, previous_key_for_piano_time_to_info_text_timeout)
