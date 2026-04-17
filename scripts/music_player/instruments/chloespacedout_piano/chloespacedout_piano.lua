@@ -187,6 +187,69 @@ local function instrument_is_available()
     return there_is_at_least_one_known_piano
 end
 
+
+local all_piano_info_display_roots = nil ---@type ModelPart?
+
+---@type table<ChloePianoID, {time:number, part:ModelPart}>
+local piano_time_to_info_text_timeout = {}
+local info_text_clear_time_padding = 2*1000
+
+-- local function remove_display_text(piano_id) end
+
+local previous_key_for_piano_time_to_info_text_timeout = nil
+local function display_text_timeouts_watcher()
+    local this_piano_id, this_timeout_value = next(piano_time_to_info_text_timeout, previous_key_for_piano_time_to_info_text_timeout)
+    if not this_piano_id then
+        -- key is nil. We might just be at the end of the list.
+        if not previous_key_for_piano_time_to_info_text_timeout then
+            -- the previous key was also nil. This means the list is empty. Clean up.
+            all_piano_info_display_roots:remove()
+            events.world_tick:remove(display_text_timeouts_watcher)
+        else
+            -- this is just the end of the list.
+            previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- this will be nil, meaning next() will try to get the first item on the next loop
+        end
+    else -- key and value are good
+        if this_timeout_value.time < client:getSystemTime() then
+            -- This value has expired and we may remove it.
+            this_timeout_value.part:remove()
+            piano_time_to_info_text_timeout[this_piano_id] = nil
+        end
+
+        previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- step down the list for next loop
+    end
+end
+
+local function start_display_text_timeouts_watcher()
+    all_piano_info_display_roots = models:newPart("piano_info_display_super_parrent", "World")
+    events.world_tick:register(display_text_timeouts_watcher)
+end
+
+local function add_or_update_display_text(piano_id, new_timeout_time)
+    if piano_time_to_info_text_timeout[piano_id] then   -- We know about this piano already. Let's just update the time.
+        piano_time_to_info_text_timeout[piano_id].time = math.max(piano_time_to_info_text_timeout[piano_id].time, new_timeout_time)
+        return
+    end
+
+    if not next(piano_time_to_info_text_timeout) then   -- this is the first piano and the watcher is not running
+        start_display_text_timeouts_watcher()   -- initilizes some things for us
+    end
+
+    local this_piano_root = all_piano_info_display_roots:newPart(piano_id, "World")
+    this_piano_root:setPos((piano_id_to_vec(piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
+
+    local this_piano_camera = this_piano_root:newPart(piano_id.."_billboard", "Camera")
+
+    local this_piano_text_task = this_piano_camera:newText( tostring(piano_id).."_info_text")
+    this_piano_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume" )
+    this_piano_text_task:setScale(0.2)
+    this_piano_text_task:setOpacity(0.75)
+    this_piano_text_task:setAlignment("CENTER")
+
+    piano_time_to_info_text_timeout[piano_id] = {time = new_timeout_time, part = this_piano_root}
+end
+
+
 ---@type InstrumentBuilder
 local piano_builder = {
     name = "ChloeSpacedOut Piano",
@@ -205,65 +268,12 @@ local piano_builder = {
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
-        local instance_info_display_root                ---@type ModelPart? -- doubles as our "is the display active" check.
-        local instance_info_display_camera              ---@type ModelPart?
-        local instance_info_display_text_task           ---@type TextTask?
-        local time_to_clear_info_display = client:getSystemTime()  ---@type number     -- The time when it's safe to remove the info text
-        local clear_time_padding = 2 * 1000
-        local time_to_clear_watcher_event = events.WORLD_TICK
-        -- ↑ WORLD_TICK is a little spicy (low perms only allow for 64 instructions). But it ensures we're always able
-        -- to shut down the display. As of this commit, the song watcher logic (typicaly) sits at about 12 World Tick
-        -- instructions. Adding this time_to_clear_watcher brings it up to like 38ish when doing the cleanup process.
-        -- TODO: double check edge cases, like when the host gets unloaded/goes through a portal (goes down the song watcher state machine.).
-
-        local info_display_timer_watcher
-
-        local function stop_display_text()
-            if not instance_info_display_root then
-                return -- display text is already stopped. (we keep all these in sync)
-            end
-            instance_info_display_root:remove() -- cleans up the child parts too.
-            instance_info_display_root = nil    -- does not set the other parts to nil, but they'll be reset anyways when we play a new note.
-
-            time_to_clear_watcher_event:remove(info_display_timer_watcher)
-        end
-
-        function info_display_timer_watcher()
-            if time_to_clear_info_display < client:getSystemTime() then
-                stop_display_text()
-            end
-        end
-
-        local function start_display_text()
-            instance_info_display_root = models:newPart(
-                "piano_info_text_root__"
-                    ..tostring(instance_piano_id).."__"..
-                    client.intUUIDToString(client.generateUUID()),
-                "World"
-            )
-            instance_info_display_root:setPos((piano_id_to_vec(instance_piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
-
-            instance_info_display_camera = instance_info_display_root:newPart(
-                "piano_info_text_billboard_"..tostring(instance_piano_id),
-                "Camera"
-            )
-
-            instance_info_display_text_task = instance_info_display_camera:newText(
-                "piano_info_text_task_"..tostring(instance_piano_id)
-            )
-            instance_info_display_text_task:setText("Annoyed? △, Perms, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ↑, Avatar Sounds Volume" )
-            instance_info_display_text_task:setScale(0.2)
-            instance_info_display_text_task:setOpacity(0.5)
-            instance_info_display_text_task:setPos(0,1.5,0)
-            instance_info_display_text_task:setAlignment("CENTER")
-
-            time_to_clear_watcher_event:register(info_display_timer_watcher)
-        end
-
+        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
 
         ---@param lib_uuid UUID
         ---@param piano_id string
         local function set_instance_piano_info(lib_uuid, piano_id)
+            local previous_piano_id = instance_piano_id
             if not (lib_uuid and piano_id) then
                 instance_piano_id = nil
                 instance_piano_lib = nil
@@ -276,10 +286,8 @@ local piano_builder = {
             instance_piano = instance_piano_lib.getPiano(piano_id)
             instance_piano_midi_note_api = instance_piano.instance.midi.note
 
-            -- Check if display text is running. Restart it if nessesary.
-            if instance_info_display_root then
-                stop_display_text()
-                if piano_id then start_display_text() end
+            if #known_piano_notes > 0 then
+                add_or_update_display_text(piano_id, piano_time_to_info_text_timeout[previous_piano_id])
             end
         end
 
@@ -306,8 +314,6 @@ local piano_builder = {
         end
         -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
 
-
-        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
 
         -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
         local function stop_one_sound_immediatly()
@@ -354,10 +360,7 @@ local piano_builder = {
 
                     -- Visual updates
 
-                    time_to_clear_info_display = math.max(time_to_clear_info_display, (note_release_time + clear_time_padding))
-                    if not instance_info_display_root then
-                        start_display_text()
-                    end
+                    add_or_update_display_text(instance_piano_id, (note_release_time + info_text_clear_time_padding))
 
                     -- TODO: Trick piano into moveing it's keys.
 
@@ -388,8 +391,6 @@ local piano_builder = {
                     end
                 end
 
-                if instance_info_display_root and time_to_clear_info_display < client:getSystemTime() then stop_display_text() end
-
                 -- clean up fallback instrument too
                 fallback_instrument_instance.update_sounds(position)
             end,
@@ -401,7 +402,6 @@ local piano_builder = {
                     stop_one_sound_immediatly()
                 until not known_piano_notes or #known_piano_notes <= 0
                 known_piano_notes = {}
-                stop_display_text()
 
                 fallback_instrument_instance.stop_all_sounds_immediatly()
             end,
