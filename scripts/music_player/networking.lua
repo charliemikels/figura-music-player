@@ -93,7 +93,7 @@ end
 
 --- Effectively converts 5 → `101` → {1, 0, 1}.
 --- If expected_len > results_list, append false to left side (`101` → `00101`)
---- Used to assign percussion tracks to incomming songs
+--- Used to assign percussion tracks to incoming songs
 ---@param int integer       usualy pulled right from vlq_to_int_from_packet
 ---@param length integer    the expected length of this list. (determines how many leading `0`s there will be)
 ---@return (0|1)[]
@@ -685,11 +685,11 @@ local control_packet_codes = {
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
 ---@type table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: SongPlayerController}>
-local collected_incomming_songs = {}
+local collected_incoming_songs = {}
 
 -- list of transfer IDs that we must have missed
 ---@type table<integer, boolean>
-local missed_incomming_songs = {}
+local missed_incoming_songs = {}
 
 ---@param transfered_song_id integer
 ---@param control_code ControlPacketCode
@@ -715,17 +715,17 @@ end
 
 ---Reads a data packet out of a Reader.
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incomming_songs
+---@param transfered_song_id integer    Index into collected_incoming_songs
 local function receive_data_packet(reader, transfered_song_id)
-    if not collected_incomming_songs[transfered_song_id] then
-        if not missed_incomming_songs[transfered_song_id] then
+    if not collected_incoming_songs[transfered_song_id] then
+        if not missed_incoming_songs[transfered_song_id] then
             print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost data packets for this song will be ignored.")
-            missed_incomming_songs[transfered_song_id] = true
+            missed_incoming_songs[transfered_song_id] = true
         end
         return
     end
-    local song = collected_incomming_songs[transfered_song_id].song
-    local modifiable_instructions = collected_incomming_songs[transfered_song_id].instructions_with_modifier_ids
+    local song = collected_incoming_songs[transfered_song_id].song
+    local modifiable_instructions = collected_incoming_songs[transfered_song_id].instructions_with_modifier_ids
     local packet_start_time = vlq_to_int_from_reader(reader)
     repeat
         local instruction_start_delta = vlq_to_int_from_reader(reader)
@@ -779,9 +779,9 @@ local function receive_data_packet(reader, transfered_song_id)
 end
 
 ---Reads a config packet out of a Reader.
----Returns nothing, but modifies collected_incomming_songs[transfered_song_id]
+---Returns nothing, but modifies collected_incoming_songs[transfered_song_id]
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incomming_songs
+---@param transfered_song_id integer    Index into collected_incoming_songs
 local function receive_config_packet(reader, transfered_song_id)
     ---@type SongPlayerConfig
     local config_data = {}
@@ -860,27 +860,27 @@ local function receive_config_packet(reader, transfered_song_id)
     local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
     config_data.play_immediately = boolean_configs[1]
 
-    if not collected_incomming_songs[transfered_song_id].player then
+    if not collected_incoming_songs[transfered_song_id].player then
         -- This config packet must be inside of a header packet. It is our job to create the player.
 
         ---@type SongPlayerAPI
         local player_api = require("./player")
-        collected_incomming_songs[transfered_song_id].player =
-            player_api.new_player(collected_incomming_songs[transfered_song_id].song, config_data)
+        collected_incoming_songs[transfered_song_id].player =
+            player_api.new_player(collected_incoming_songs[transfered_song_id].song, config_data)
     else
-        collected_incomming_songs[transfered_song_id].player.set_new_config(config_data)
+        collected_incoming_songs[transfered_song_id].player.set_new_config(config_data)
     end
 end
 
 ---Parces a header packet out of a Reader. Packet type and transfered_song_id have already been received since they start every packet.
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incomming_songs
+---@param transfered_song_id integer    Index into collected_incoming_songs
 ---@return ProcessedSong        A processed song that likely has no instructions
 local function receive_header_packet(reader, transfered_song_id)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     -- The host should never send a 2nd song with the same ID, but it might happen if the host has reloaded their script.
     -- Purging this data means we loose controll over it, but the host must have already lost control, so it's kinda OK actualy.
-    collected_incomming_songs[transfered_song_id] = {}
+    collected_incoming_songs[transfered_song_id] = {}
 
     local name = bytes_with_len_to_string_from_reader(reader)
     local duration = vlq_to_int_from_reader(reader)
@@ -896,7 +896,7 @@ local function receive_header_packet(reader, transfered_song_id)
     local buffer_delay = vlq_to_int_from_reader(reader)
 
     ---@type ProcessedSong
-    local incomming_processed_song = {
+    local incoming_processed_song = {
         name = name,
         duration = duration,
         tracks = tracks,
@@ -905,8 +905,8 @@ local function receive_header_packet(reader, transfered_song_id)
         buffer_start_time = client:getSystemTime()
     }
 
-    collected_incomming_songs[transfered_song_id] = {
-        song = incomming_processed_song,
+    collected_incoming_songs[transfered_song_id] = {
+        song = incoming_processed_song,
         instructions_with_modifier_ids = {},
         player = nil
     }
@@ -918,35 +918,35 @@ local function receive_header_packet(reader, transfered_song_id)
 
         ---@type SongPlayerAPI
         local player_api = require("./player")
-        collected_incomming_songs[transfered_song_id].player =
-            player_api.new_player(collected_incomming_songs[transfered_song_id].song, nil)
+        collected_incoming_songs[transfered_song_id].player =
+            player_api.new_player(collected_incoming_songs[transfered_song_id].song, nil)
     end
 
-    return incomming_processed_song
+    return incoming_processed_song
 end
 
 ---@type table<ControlPacketCode, fun(transfered_song_id:integer)>
 local control_packet_handelers = {
     [control_packet_codes.start] = function(transfered_song_id)
-        if collected_incomming_songs[transfered_song_id] then
-            collected_incomming_songs[transfered_song_id].player:play()
+        if collected_incoming_songs[transfered_song_id] then
+            collected_incoming_songs[transfered_song_id].player:play()
         end
     end,
     [control_packet_codes.stop] = function(transfered_song_id)
-        if collected_incomming_songs[transfered_song_id] then
-            collected_incomming_songs[transfered_song_id].player:stop()
+        if collected_incoming_songs[transfered_song_id] then
+            collected_incoming_songs[transfered_song_id].player:stop()
         end
     end,
     [control_packet_codes.remove] = function(transfered_song_id)
-        if collected_incomming_songs[transfered_song_id] then
-            collected_incomming_songs[transfered_song_id] = nil
+        if collected_incoming_songs[transfered_song_id] then
+            collected_incoming_songs[transfered_song_id] = nil
         end
     end,
 }
 
 
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incomming_songs
+---@param transfered_song_id integer    Index into collected_incoming_songs
 local function receive_control_packet(reader, transfered_song_id)
     local control_code = vlq_to_int_from_reader(reader)
     if control_packet_handelers[control_code] then
@@ -1030,9 +1030,9 @@ end
 
 --- primary ping function. It receives a packet and sends it off for processing
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
----@param incomming_packet PackedSongPacket
-function pings.TL_FMP_receive_packet(incomming_packet)
-    local_receive_packet(incomming_packet)
+---@param incoming_packet PackedSongPacket
+function pings.TL_FMP_receive_packet(incoming_packet)
+    local_receive_packet(incoming_packet)
 end
 
 local function ping_packet_immediatly(outgoing_packed_packet)
@@ -1229,6 +1229,6 @@ return {
     end,
     remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
-    get_player_for_transfered_song = function(transfered_song_id) return collected_incomming_songs[transfered_song_id] and collected_incomming_songs[transfered_song_id].player or nil end,
+    get_player_for_transfered_song = function(transfered_song_id) return collected_incoming_songs[transfered_song_id] and collected_incoming_songs[transfered_song_id].player or nil end,
     get_target_milis_between_packets = function() return target_milis_between_packets end,
 }
