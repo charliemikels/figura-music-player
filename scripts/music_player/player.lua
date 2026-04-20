@@ -198,12 +198,11 @@ if client.compareVersions("1.20", client.getVersion() ) > 0 then
 end
 
 ---Returns a progress bar with a spinner
----@param width integer     -- width in number of characters
----@param progress number   -- Must be between 0 and 1. **Numbers less than 0 will cause the script to error**
+---@param width integer     -- Width in number of characters
+---@param progress number   -- Will be clamped to between 0 and 1.
 ---@return string
 local function progress_bar(width, progress)
-	-- progress = math.max( 0, math.min( progress, 1 ) )    -- removeing this clamp significantly reduces instructions.
-	-- note: math.clamp(progress, 0, 1) is actualy 10 _more_ instructions than above.
+    if progress < 0 then progress = 0 elseif progress > 1 then progress = 1 end
 
 	local num_bars = math.floor((width+1) * progress)
 	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
