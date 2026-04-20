@@ -177,16 +177,19 @@ get_all_instruments()
 -- --- Only set this to `false` for controlled environments.
 -- ---@field auto_stop_if_update_events_fail boolean?
 
-local spinner_states = {[1] = "▙",[2] = "▛",[3] = "▜",[4] = "▟",}
+local spinner_states = {[0] = "▙",[1] = "▛",[2] = "▜",[3] = "▟",}   -- indexed by 0 saves instructions in get_spinner. Be carefull if getting length.
+
+---returns a spinner synced to the current time.
+---@return string
 local function get_spinner()
-    local spinner_State =
+    return spinner_states[
         math.floor(
-            (client.getSystemTime()/1000)    -- Time in Seconds
-            *1.5    -- Speedup
+            client.getSystemTime()
+            /750    -- rescale. `/1000` would get this in seconds
             %1      -- Clamp to 0-1
             *4      -- Scale to 0-3
-        )+1         -- Slide to 1-4
-    return spinner_states[spinner_State]
+        )           -- Clamp to whole number
+    ]
 end
 
 local progress_bar_character = "▊"  -- the same width as a space in Minecraft's font
