@@ -187,6 +187,65 @@ local function instrument_is_available()
     return there_is_at_least_one_known_piano
 end
 
+
+local all_piano_info_display_roots = nil ---@type ModelPart?
+
+---@type table<ChloePianoID, {time:number, part:ModelPart}>
+local piano_time_to_info_text_timeout = {}
+local info_text_clear_time_padding = 2*1000
+
+local previous_key_for_piano_time_to_info_text_timeout = nil
+local function display_text_timeouts_watcher()
+    local this_piano_id, this_timeout_value = next(piano_time_to_info_text_timeout, previous_key_for_piano_time_to_info_text_timeout)
+    if not this_piano_id then
+        -- key is nil. We might just be at the end of the list.
+        if not previous_key_for_piano_time_to_info_text_timeout then
+            -- the previous key was also nil. This means the list is empty. Clean up.
+            all_piano_info_display_roots:remove()
+            events.world_tick:remove(display_text_timeouts_watcher)
+            return
+        end
+    else -- key and value are good
+        if this_timeout_value.time < client:getSystemTime() then
+            -- This value has expired and we may remove it.
+            this_timeout_value.part:remove()
+            piano_time_to_info_text_timeout[this_piano_id] = nil
+        end
+    end
+
+    previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- Step down the list. If nil, we check the start of list next loop.
+end
+
+local function start_display_text_timeouts_watcher()
+    all_piano_info_display_roots = models:newPart("piano_info_display_super_parrent", "World")
+    events.world_tick:register(display_text_timeouts_watcher)
+end
+
+local function add_or_update_display_text(piano_id, new_timeout_time)
+    if piano_time_to_info_text_timeout[piano_id] then   -- We know about this piano already. Let's just update the time.
+        piano_time_to_info_text_timeout[piano_id].time = math.max(piano_time_to_info_text_timeout[piano_id].time, new_timeout_time)
+        return
+    end
+
+    if not next(piano_time_to_info_text_timeout) then   -- this is the first piano and the watcher is not running
+        start_display_text_timeouts_watcher()   -- initilizes some things for us
+    end
+
+    local this_piano_root = all_piano_info_display_roots:newPart(piano_id, "World")
+    this_piano_root:setPos((piano_id_to_vec(piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
+
+    local this_piano_camera = this_piano_root:newPart(piano_id.."_billboard", "Camera")
+
+    local this_piano_text_task = this_piano_camera:newText( tostring(piano_id).."_info_text")
+    this_piano_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume" )
+    this_piano_text_task:setScale(0.2)
+    this_piano_text_task:setOpacity(0.75)
+    this_piano_text_task:setAlignment("CENTER")
+
+    piano_time_to_info_text_timeout[piano_id] = {time = new_timeout_time, part = this_piano_root}
+end
+
+
 ---@type InstrumentBuilder
 local piano_builder = {
     name = "ChloeSpacedOut Piano",
@@ -205,9 +264,12 @@ local piano_builder = {
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
+        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
+
         ---@param lib_uuid UUID
         ---@param piano_id string
         local function set_instance_piano_info(lib_uuid, piano_id)
+            local previous_piano_id = instance_piano_id
             if not (lib_uuid and piano_id) then
                 instance_piano_id = nil
                 instance_piano_lib = nil
@@ -219,6 +281,10 @@ local piano_builder = {
             instance_piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
             instance_piano = instance_piano_lib.getPiano(piano_id)
             instance_piano_midi_note_api = instance_piano.instance.midi.note
+
+            if #known_piano_notes > 0 then
+                add_or_update_display_text(piano_id, piano_time_to_info_text_timeout[previous_piano_id])
+            end
         end
 
         -- Assume the host player entity is playing the song. Let's figure out which piano they want to use.
@@ -245,8 +311,6 @@ local piano_builder = {
         -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
 
 
-        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
-
         -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
         local function stop_one_sound_immediatly()
             local note_to_stop = table.remove(known_piano_notes)
@@ -272,7 +336,9 @@ local piano_builder = {
                     local new_note = instance_piano_midi_note_api:play(
                         instance_piano.instance,
                         instruction.note,
-                        instruction.start_velocity * 0.5,   -- piano is a little loud by default reletive to my other instruments.
+                        instruction.start_velocity
+                            * 0.5                           -- Piano is a little loud by default reletive to the other instruments.
+                            * (avatar:getVolume() / 100),   -- Respect if viewer has muted the host.
 
                         instruction.track_index,--1,           -- Channel ID 1 is shared with the piano itself.
                         1,-- instruction.track_index,
@@ -282,9 +348,15 @@ local piano_builder = {
                             --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
                         (client.getSystemTime() - time_since_due)
                     )
-                    new_note:release((client.getSystemTime() - time_since_due) + instruction.duration)
+                    local note_release_time = (client.getSystemTime() - time_since_due) + instruction.duration
+                    new_note:release(note_release_time)
 
                     table.insert(known_piano_notes, new_note)
+
+
+                    -- Visual updates
+
+                    add_or_update_display_text(instance_piano_id, (note_release_time + info_text_clear_time_padding))
 
                     -- TODO: Trick piano into moveing it's keys.
 
