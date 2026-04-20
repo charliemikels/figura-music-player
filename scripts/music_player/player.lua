@@ -205,44 +205,44 @@ local function progress_bar(width, progress)
 	return progress_bar_string
 end
 
----@param playing_song PlayingSong
+---@param song_player SongPlayer
 ---@return boolean
-local function client_is_looking_at_song_player(playing_song)
+local function client_is_looking_at_song_player(song_player)
     if host:isHost() then return true end   -- means that, for the host, the display is visible at all times (within the distance range), but no funky behaviors in 3rd person or paperdolls.
-    local source_pos_in_screen_space = vectors.worldToScreenSpace(playing_song.source_pos)
+    local source_pos_in_screen_space = vectors.worldToScreenSpace(song_player.source_pos)
     if source_pos_in_screen_space.z > 1 and source_pos_in_screen_space.xy:length() < 0.2 then return true end
     return false
 end
 
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
----@param playing_song PlayingSong
-local function update_info_display_text(playing_song)
-    local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
+---@param song_player SongPlayer
+local function update_info_display_text(song_player)
+    local squared_distance = (client:getCameraPos() - song_player.source_pos):lengthSquared()
 
-    if squared_distance > 32 or not client_is_looking_at_song_player(playing_song) then
-        playing_song.info_display_root_part:setVisible(false)
+    if squared_distance > 32 or not client_is_looking_at_song_player(song_player) then
+        song_player.info_display_root_part:setVisible(false)
         return
     end
-    playing_song.info_display_root_part:setVisible(true)
+    song_player.info_display_root_part:setVisible(true)
 
 
     local info_text ---@type string?
 
-    if playing_song.controller.is_buffering() then
-        info_text = playing_song.info_display_base_string
-            .. "Buffering… " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_buffer_time() / 1000)) ) .. "s " .. get_spinner()
+    if song_player.controller.is_buffering() then
+        info_text = song_player.info_display_base_string
+            .. "Buffering… " .. tostring(math.floor(1 + (song_player.controller.get_remaining_buffer_time() / 1000)) ) .. "s " .. get_spinner()
     else
-        info_text = playing_song.info_display_base_string
-            .. progress_bar(20, playing_song.controller.get_progress())
-            .. " " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_time() / 1000)) ) .. "s"
+        info_text = song_player.info_display_base_string
+            .. progress_bar(20, song_player.controller.get_progress())
+            .. " " .. tostring(math.floor(1 + (song_player.controller.get_remaining_time() / 1000)) ) .. "s"
     end
 
-    playing_song.info_display_text_task:setText(info_text)
+    song_player.info_display_text_task:setText(info_text)
 end
 
 
 
----Applies config to a PlayingSong
+---Applies config to a SongPlayer
 ---Used during init, and may be used during playback.
 ---@param song_player SongPlayer
 ---@param config SongPlayerConfig
@@ -284,36 +284,36 @@ local function apply_config(song_player, config)
         end
     end
 
-    playing_song.info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \n\""..playing_song.name.."\"\n"
+    song_player.info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \n\""..song_player.name.."\"\n"
 
     -- Update info display offsets to match sound positions
-    if playing_song.source_entity then
-        if player:isLoaded() and playing_song.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
+    if song_player.source_entity then
+        if player:isLoaded() and song_player.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
             -- source entity is the host. We can use our avatar's atatchment points.
 
-            playing_song.info_display_root_part_parent_type = "Model"
-            playing_song.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
-            playing_song.info_display_text_pos_offset = vectors.vec3(-1 * player:getBoundingBox().x, 0.25, 0)
+            song_player.info_display_root_part_parent_type = "Model"
+            song_player.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
+            song_player.info_display_text_pos_offset = vectors.vec3(-1 * player:getBoundingBox().x, 0.25, 0)
 
-            playing_song.info_display_base_string = ("Playing \""..playing_song.name.."\"\n")   -- Shorter name if the host is right there.
+            song_player.info_display_base_string = ("Playing \""..song_player.name.."\"\n")   -- Shorter name if the host is right there.
         else
             -- entity is not the player, fallback to world positioning
 
-            playing_song.info_display_root_part_parent_type = "World"
-            playing_song.info_display_root_pos_offset = playing_song.source_pos     -- update_song should keep this case up to date
-            playing_song.info_display_text_pos_offset = vectors.vec3(-1 * playing_song.source_entity:getBoundingBox().x, 0.25, 0)
+            song_player.info_display_root_part_parent_type = "World"
+            song_player.info_display_root_pos_offset = song_player.source_pos     -- update_song should keep this case up to date
+            song_player.info_display_text_pos_offset = vectors.vec3(-1 * song_player.source_entity:getBoundingBox().x, 0.25, 0)
         end
     else
-        playing_song.info_display_root_part_parent_type = "World"
-        playing_song.info_display_root_pos_offset = playing_song.source_pos
-        playing_song.info_display_text_pos_offset = vectors.vec3(-0.75, 0.25, 0)
+        song_player.info_display_root_part_parent_type = "World"
+        song_player.info_display_root_pos_offset = song_player.source_pos
+        song_player.info_display_text_pos_offset = vectors.vec3(-0.75, 0.25, 0)
     end
 
-    if playing_song.controller.is_playing() then
+    if song_player.controller.is_playing() then
         -- The info screens have been created and need to be updated.
-        playing_song.info_display_root_part:setParentType(playing_song.info_display_root_part_parent_type)
-        playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset * 16)
-        playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
+        song_player.info_display_root_part:setParentType(song_player.info_display_root_part_parent_type)
+        song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset * 16)
+        song_player.info_display_text_task:setPos(song_player.info_display_text_pos_offset * 16)
     end
 
     if config.play_immediately then
@@ -406,7 +406,7 @@ local function update_song(song_player)
         end
     end
 
-    if playing_song.song_duration + playing_song.start_time < current_time then
+    if song_player.song_duration + song_player.start_time < current_time then
         print_debug("Song_dur + start_time is now less than current time.")
         if all_instruments_done then
             song_player.controller.stop()
@@ -631,7 +631,7 @@ local song_player_api = {
             deprecated_instruments = {},
 
             ---@type SongPlayerTrackConfig[]
-            track_config = track_configs, -- PlayingSongTrackConfig
+            track_config = track_configs, -- SongPlayerTrackConfig
 
             ---@class SongPlayerController
             controller = {
@@ -643,26 +643,26 @@ local song_player_api = {
                     print_host("Playing \"" .. tostring(song.name) .. "\"")
                     if song_player.controller.is_playing() then return end
 
-                    playing_song.info_display_root_part = models:newPart("song_info_text_root_"..tostring(playing_song.song_uuid))
+                    song_player.info_display_root_part = models:newPart("song_info_text_root_"..tostring(song_player.song_uuid))
 
-                    playing_song.info_display_root_part:setParentType(playing_song.info_display_root_part_parent_type)
-                    playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset * 16)
+                    song_player.info_display_root_part:setParentType(song_player.info_display_root_part_parent_type)
+                    song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset * 16)
 
-                    playing_song.info_display_billboard_part = playing_song.info_display_root_part:newPart("song_info_text_billboard_"..tostring(playing_song.song_uuid), "Camera")
+                    song_player.info_display_billboard_part = song_player.info_display_root_part:newPart("song_info_text_billboard_"..tostring(song_player.song_uuid), "Camera")
 
-                    playing_song.info_display_text_task = playing_song.info_display_billboard_part:newText("song_info_text_task_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
-                    playing_song.info_display_text_task:setText(playing_song.info_display_base_string)
-                    playing_song.info_display_text_task:setScale(0.33)
-                    playing_song.info_display_text_task:setOpacity(0.8)
-                    playing_song.info_display_text_task:setWidth(200)
-                    playing_song.info_display_text_task:setSeeThrough(true)
+                    song_player.info_display_text_task = song_player.info_display_billboard_part:newText("song_info_text_task_"..tostring(song_player.song_uuid))
+                    song_player.info_display_text_task:setPos(song_player.info_display_text_pos_offset * 16)
+                    song_player.info_display_text_task:setText(song_player.info_display_base_string)
+                    song_player.info_display_text_task:setScale(0.33)
+                    song_player.info_display_text_task:setOpacity(0.8)
+                    song_player.info_display_text_task:setWidth(200)
+                    song_player.info_display_text_task:setSeeThrough(true)
 
-                    playing_song.info_display_mute_instructions_text_task = playing_song.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_mute_instructions_text_task:setPos((playing_song.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
-                    playing_song.info_display_mute_instructions_text_task:setScale(0.2)
-                    playing_song.info_display_mute_instructions_text_task:setOpacity(0.5)
-                    playing_song.info_display_mute_instructions_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
+                    song_player.info_display_mute_instructions_text_task = song_player.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(song_player.song_uuid))
+                    song_player.info_display_mute_instructions_text_task:setPos((song_player.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
+                    song_player.info_display_mute_instructions_text_task:setScale(0.2)
+                    song_player.info_display_mute_instructions_text_task:setOpacity(0.5)
+                    song_player.info_display_mute_instructions_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
@@ -682,23 +682,23 @@ local song_player_api = {
 
                 ---@type fun():boolean
                 is_buffering = function()
-                    return (playing_song.buffer_delay
-                        and playing_song.buffer_start_time
-                        and (playing_song.buffer_start_time + playing_song.buffer_delay > client:getSystemTime())
+                    return (song_player.buffer_delay
+                        and song_player.buffer_start_time
+                        and (song_player.buffer_start_time + song_player.buffer_delay > client:getSystemTime())
                     )
                 end,
 
                 ---@type fun():number
                 get_remaining_buffer_time = function()
-                    if not playing_song.buffer_delay or playing_song.buffer_delay == 0 then return 0 end
-                    if not playing_song.buffer_start_time then return math.huge end
-                    return playing_song.buffer_delay - (client:getSystemTime() - playing_song.buffer_start_time)
+                    if not song_player.buffer_delay or song_player.buffer_delay == 0 then return 0 end
+                    if not song_player.buffer_start_time then return math.huge end
+                    return song_player.buffer_delay - (client:getSystemTime() - song_player.buffer_start_time)
                 end,
 
                 ---@type fun():number?
                 get_buffer_progress = function()
-                    if not playing_song.buffer_delay or playing_song.buffer_start_time then return nil end
-                    return math.min(1, (client.getSystemTime() - playing_song.buffer_start_time) / playing_song.buffer_delay)
+                    if not song_player.buffer_delay or song_player.buffer_start_time then return nil end
+                    return math.min(1, (client.getSystemTime() - song_player.buffer_start_time) / song_player.buffer_delay)
                 end,
 
                 ---@type fun():number?
@@ -721,8 +721,8 @@ local song_player_api = {
 
                 ---@type fun():number?
                 get_remaining_time = function()
-                    if not playing_song.start_time then return nil end
-                    return playing_song.song_duration - (client:getSystemTime() - playing_song.start_time)
+                    if not song_player.start_time then return nil end
+                    return song_player.song_duration - (client:getSystemTime() - song_player.start_time)
                 end,
 
                 ---@type fun()
@@ -747,15 +747,15 @@ local song_player_api = {
                         song_player.deprecated_instruments[key] = nil
                     end
 
-                    playing_song.info_display_text_task:remove()
-                    playing_song.info_display_mute_instructions_text_task:remove()
-                    playing_song.info_display_billboard_part:remove()
-                    playing_song.info_display_root_part:remove()
+                    song_player.info_display_text_task:remove()
+                    song_player.info_display_mute_instructions_text_task:remove()
+                    song_player.info_display_billboard_part:remove()
+                    song_player.info_display_root_part:remove()
 
-                    playing_song.info_display_text_task = nil
-                    playing_song.info_display_mute_instructions_text_task = nil
-                    playing_song.info_display_billboard_part = nil
-                    playing_song.info_display_root_part = nil
+                    song_player.info_display_text_task = nil
+                    song_player.info_display_mute_instructions_text_task = nil
+                    song_player.info_display_billboard_part = nil
+                    song_player.info_display_root_part = nil
 
                     models:removeTask()
                 end,
