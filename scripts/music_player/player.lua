@@ -199,13 +199,15 @@ end
 
 ---Returns a progress bar with a spinner
 ---@param width integer     -- width in number of characters
----@param progress number   -- will be clamped to a number between 0 and 1
+---@param progress number   -- Must be between 0 and 1. **Numbers less than 0 will cause the script to error**
 ---@return string
 local function progress_bar(width, progress)
-	progress = math.max( 0, math.min( progress, 1 ) )
+	-- progress = math.max( 0, math.min( progress, 1 ) )    -- removeing this clamp significantly reduces instructions.
+	-- note: math.clamp(progress, 0, 1) is actualy 10 _more_ instructions than above.
+
 	local num_bars = math.floor((width+1) * progress)
 	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
-	return progress_bar_string
+	return progress_bar_string  -- As it turns out, Lua actualy optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
 end
 
 ---@param playing_song PlayingSong
