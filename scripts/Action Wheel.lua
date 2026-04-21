@@ -113,66 +113,50 @@ if host:isHost() then
 
         -- How bad is it if we just write the entire song as verbatem as possible. It'll be very large on disk. But with the AST, do things improve?
 
-        local packets_real_table_file_name = "TL_song_exports/"..song.name..".real_table.lua"
-        local packets_real_table_base_path = packets_real_table_file_name:gsub("/[^/]*$", "/")
-        file:mkdirs(packets_real_table_base_path)
+        -- local packets_real_table_file_name = "TL_song_exports/"..song.name..".real_table.lua"
+        -- local packets_real_table_base_path = packets_real_table_file_name:gsub("/[^/]*$", "/")
+        -- file:mkdirs(packets_real_table_base_path)
 
 
-        local real_table_write_stream = file:openWriteStream(packets_real_table_file_name)
+        -- local real_table_write_stream = file:openWriteStream(packets_real_table_file_name)
 
-        local real_table_string_table = {}    ---@type string[]
+        -- local real_table_string_table = {}    ---@type string[]
 
-        -- printTable(song.processed_data)
+        -- -- printTable(song.processed_data)
 
-        table.insert(real_table_string_table, "-- https://github.com/charliemikels/figura-music-player/\n")
-        table.insert(real_table_string_table, "\n")
-        table.insert(real_table_string_table, "-- "..song.processed_data.name.."\n")
-        table.insert(real_table_string_table, "-- "..tostring(song.processed_data.duration / 1000).. " seconds".."\n")
-        table.insert(real_table_string_table, "-- "..tostring(#song.processed_data.instructions).. " instructions".."\n")
-        table.insert(real_table_string_table, "-- "..tostring(#song.processed_data.tracks).. " tracks".."\n")
-        table.insert(real_table_string_table, "\n")
-        table.insert(real_table_string_table, "\n")
+        -- table.insert(real_table_string_table, "-- https://github.com/charliemikels/figura-music-player/\n")
+        -- table.insert(real_table_string_table, "\n")
+        -- table.insert(real_table_string_table, "-- "..song.processed_data.name.."\n")
+        -- table.insert(real_table_string_table, "-- "..tostring(song.processed_data.duration / 1000).. " seconds".."\n")
+        -- table.insert(real_table_string_table, "-- "..tostring(#song.processed_data.instructions).. " instructions".."\n")
+        -- table.insert(real_table_string_table, "-- "..tostring(#song.processed_data.tracks).. " tracks".."\n")
+        -- table.insert(real_table_string_table, "\n")
+        -- table.insert(real_table_string_table, "\n")
 
-        local print_output = printTable(song.processed_data, 5000, true)    -- Holy shortcut, Batman!
-        print_output = print_output:gsub("table: ", "") -- remove the `table:` prefix from table types
-        print_output = print_output:gsub('%["(.-)"%]', "%1")    -- un-wrap string keys (`["my_key"]` → `my_key`)
-        print_output = print_output:gsub('%[(%d-)%] = ', "")    -- remove numerical index. (Lua pulls unindexed items in order anyways)
-        print_output = print_output:gsub('\n', ",\n")           -- Add commas to all lines.
-        print_output = print_output:gsub('{,', "{")             -- remove commas if the line ended with an open curly brace
-
-        printTable("what happens with quotes")
-        printTable("\"")
-        printTable("'")
+        -- local print_output = printTable(song.processed_data, 5000, true)    -- Holy shortcut, Batman!
+        -- print_output = print_output:gsub("table: ", "") -- remove the `table:` prefix from table types
+        -- print_output = print_output:gsub('%["(.-)"%]', "%1")    -- un-wrap string keys (`["my_key"]` → `my_key`)
+        -- print_output = print_output:gsub('%[(%d-)%] = ', "")    -- remove numerical index. (Lua pulls unindexed items in order anyways)
+        -- print_output = print_output:gsub('\n', ",\n")           -- Add commas to all lines.
+        -- print_output = print_output:gsub('{,', "{")             -- remove commas if the line ended with an open curly brace
 
 
-
-        table.insert(real_table_string_table, "return " .. print_output)
-
-        -- print(print_output)
+        -- table.insert(real_table_string_table, "return " .. print_output)
 
 
-        -- table.insert(real_table_string_table,               "local song_data = {\n")
-        -- table.insert(real_table_string_table, string.format("  name = %s\n", safely_wrap_string_in_quotes(song.processed_data.name)))
-        -- table.insert(real_table_string_table, string.format("  duration = %f\n", song.processed_data.duration))
-        -- table.insert(real_table_string_table,               "  tracks = {\n")
-
-        -- for track_i, track_v in ipairs(song.processed_data.tracks) do
-
+        -- local real_table_final_string = table.concat(real_table_string_table, "")
+        -- local real_table_bytes = table.pack(string.byte(real_table_final_string, 1, #real_table_final_string))
+        -- real_table_bytes.n = nil
+        -- for _, byte in ipairs(real_table_bytes) do
+        --     real_table_write_stream:write(byte)
         -- end
+        -- real_table_write_stream:close()
 
-
-
-
-
-
-
-        local real_table_final_string = table.concat(real_table_string_table, "")
-        local real_table_bytes = table.pack(string.byte(real_table_final_string, 1, #real_table_final_string))
-        real_table_bytes.n = nil
-        for _, byte in ipairs(real_table_bytes) do
-            real_table_write_stream:write(byte)
-        end
-        real_table_write_stream:close()
+        -- local start_instructions = avatar:getCurrentInstructions()
+        local baptized_song = require("scripts.music_player.file_processors.local_songs.starbound-atlas.mid.real_table")
+        -- local current_instructions = avatar:getCurrentInstructions()
+        -- print("instructions required to import (outside require)", current_instructions - start_instructions)    -- File api might require this song firt, so we need to put this test inside the song file too.
+        print(baptized_song)
 
     end)
 end
