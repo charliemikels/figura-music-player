@@ -9,10 +9,11 @@ local packets_per_second = 6
 local bytes_per_second = 500
 
 -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
-local max_packet_length = math.floor(bytes_per_second / packets_per_second) - 2
+local max_packet_length = packet_builder_api.get_max_packet_length()
+
 -- How long the ping system should try to wait before sending another packet.
 -- (Tick event adds 50 milis (1/20th of a second) of possible drift to account for.)
-local target_milis_between_packets = math.ceil(1000 / packets_per_second)
+local target_milis_between_packets = packet_builder_api.get_target_milis_between_packets()
 
 
 local do_debug_prints = false
