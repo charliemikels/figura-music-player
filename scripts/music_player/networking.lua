@@ -1,3 +1,5 @@
+local packet_receiver_api = require("./packet_receiver")
+local packet_builder_api = require("./packet_builder")
 
 -- Ping limits:
 -- Fewer than 32 pings in one second (~32 milis between packets min)
