@@ -5,9 +5,14 @@ local packet_builder_api = require("./packet_builder")
 -- Fewer than 32 pings in one second (~32 milis between packets min)
 -- Fewer than 1024 bytes per second (~1 byte/mili)
 
-local max_packet_length = 75-2            -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
-local target_milis_between_packets = 150   -- How long the ping system should try to wait before sending another packet. (Tick event adds 50 milis of possible drift to account for.)
--- ~6.6 packets/second, 75 bytes per packet, ~500 bytes per second. Roughly half of avatar's total ping quota.
+local packets_per_second = 6
+local bytes_per_second = 500
+
+-- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
+local max_packet_length = math.floor(bytes_per_second / packets_per_second) - 2
+-- How long the ping system should try to wait before sending another packet.
+-- (Tick event adds 50 milis (1/20th of a second) of possible drift to account for.)
+local target_milis_between_packets = math.ceil(1000 / packets_per_second)
 
 
 local do_debug_prints = false
