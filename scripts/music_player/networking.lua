@@ -1216,13 +1216,12 @@ local function new_network_song_player(song, config)
 
     -- ---@class NetworkedSongPlayer
 
-    ---@class NetworkedSongPlayerController
+    ---@class SongPlayerController
     net_player = {}
 
     for k,fn in pairs(our_song_player_controller) do
         net_player[k] = fn
     end
-
 
 
     return net_player
