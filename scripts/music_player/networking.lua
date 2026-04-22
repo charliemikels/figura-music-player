@@ -1194,6 +1194,9 @@ end
 ---@return SongPlayerController
 local function new_network_song_player(song, config)
     local song_player_api = require("./player")      ---@type SongPlayerAPI
+    if not host:isHost() then -- The caller is a viewer. They will not be able to do any syncronization with other clients, so just give them a normal player.
+        return song_player_api.new_player(song, config)
+    end
 
     local our_song_player_controller = song_player_api.new_player(song, config)
 
