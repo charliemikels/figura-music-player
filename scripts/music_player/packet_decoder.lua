@@ -1,7 +1,6 @@
 
 
-
-
+---@class PacketDecoderApi
 local packet_receiver_api = {
     receive_packet            = function() end,
     receive_local_packet      = function() end,

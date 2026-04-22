@@ -1,19 +1,12 @@
-local packet_receiver_api = require("./packet_receiver")
-local packet_builder_api = require("./packet_builder")
-
--- Ping limits:
--- Fewer than 32 pings in one second (~32 milis between packets min)
--- Fewer than 1024 bytes per second (~1 byte/mili)
-
-local packets_per_second = 6
-local bytes_per_second = 500
+local packet_decoder_api = require("./packet_decoder")  ---@type PacketDecoderApi
+local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 
 -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
-local max_packet_length = packet_builder_api.get_max_packet_length()
+local max_packet_length = packet_encoder_api.get_max_packet_length()
 
 -- How long the ping system should try to wait before sending another packet.
 -- (Tick event adds 50 milis (1/20th of a second) of possible drift to account for.)
-local target_milis_between_packets = packet_builder_api.get_target_milis_between_packets()
+local target_milis_between_packets = packet_encoder_api.get_target_milis_between_packets()
 
 
 local do_debug_prints = false

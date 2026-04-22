@@ -19,17 +19,11 @@ local max_packet_length = math.floor(bytes_per_second / packets_per_second) - 2
 local target_milis_between_packets = math.ceil(1000 / packets_per_second)
 
 
-
+---@class PacketEncoderApi
 local packet_builder_api = {
-    song_header_to_packets    = function()
-
-    end,
-    song_config_to_packets    = function()
-
-    end,
-    instructions_to_packets   = function()
-
-    end,
+    song_header_to_packets    = function() end,
+    song_config_to_packets    = function() end,
+    instructions_to_packets   = function() end,
 
     get_packets_per_second    = function() return packets_per_second end,
     get_bytes_per_second      = function() return bytes_per_second   end,
