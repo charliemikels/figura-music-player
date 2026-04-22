@@ -1193,23 +1193,36 @@ end
 ---@param config SongPlayerConfig
 ---@return SongPlayerController
 local function new_network_song_player(song, config)
-    -- TODO: Build a normal player for use on the host.
+    local song_player_api = require("./player")      ---@type SongPlayerAPI
+
+    local our_song_player_controller = song_player_api.new_player(song, config)
+
     -- TODO: Check song type. if it's a host-only song, build packets for it.
     -- TODO: Figure out how we want to represent local songs with a newtwork relationship.
-    -- TODO: Informing clients who is playing music is a useful safety feature. The display board should be part of the player.
-    --       (SongPlayer knows if the song is playing, its progress, its position/entity… It seems perfect.)
 
 
     -- This wraper needs to
-    -- - [ ] convert processed data into packets.
+    --  - [ ] Know if a song will processable/accessable to client already. (If it's a local song)
+    --      - [ ] Allways assume the client will need to build the data. (otherwise, caller could just use a normal player).
+    --      - [ ] If song is non-local, convert the song into packets and know how to ping them.
+    --      - [ ]
+    --  - [ ] TODO: should we have sepparate host/client players? Honestly probably not. We can re-use the transfer-song ideas and only deal with the "remote" player. This wrapper will make it feel host-ish to the caller.
 
 
-    local song_player_api = require("./player")      ---@type SongPlayerAPI
 
-    ---@class NetworkedSongPlayer
+
+    -- ---@class NetworkedSongPlayer
+
+    ---@class NetworkedSongPlayerController
     net_player = {}
 
-    return net_player.controller
+    for k,fn in pairs(our_song_player_controller) do
+        net_player[k] = fn
+    end
+
+
+
+    return net_player
 end
 
 ---@class SongNetworkingApi
