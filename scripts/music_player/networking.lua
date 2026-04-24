@@ -707,7 +707,7 @@ end
 
 
 
-
+--- Reverse of modifier_type_to_number_lookup for reverse lookups
 ---@type table<integer, string>
 local modifier_number_to_type_lookup = {}
 for name, id in pairs(modifier_type_to_number_lookup) do

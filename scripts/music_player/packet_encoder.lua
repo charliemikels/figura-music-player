@@ -21,7 +21,7 @@ local target_milis_between_packets = math.ceil(1000 / packets_per_second)
 
 ---@class PacketEncoderApi
 local packet_builder_api = {
-    song_header_to_packets    = function() end,
+    song_header_to_packets    = function() end,     -- TODO: since I'm thinking about it: buffer time should start counting _after_ the first instruction packet is received. (That is, buffer time excludes config and header packet time). This means we won't have to recalculate buffer time if we set a bunch of instruments. (new state?: "applying configuration")
     song_config_to_packets    = function() end,
     instructions_to_packets   = function() end,
 
