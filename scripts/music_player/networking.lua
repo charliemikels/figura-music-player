@@ -675,12 +675,8 @@ local function song_to_packets(processed_song, player_config, for_local_use)
     return final_packed_packet_list, transfered_song_id
 end
 
----@enum ControlPacketCode
-local control_packet_codes = {
-    stop = 0,       -- Stop a song by it's transfered ID
-    start = 1,      -- Play a song by it's transfered ID
-    remove = 2,     -- Delete a song from the transfered song list
-}
+
+local control_packet_codes = require("./packet_schema").control_packet_codes
 
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
