@@ -3,7 +3,7 @@ local function escape_patern_matching_magic_characters(string_to_escape)
 end
 
 ---@class LocalSongScript
----@field data PackedSongPacket[]
+---@field data PacketDataString[]
 ---@field name string
 
 local song_script_returns = {}
@@ -29,7 +29,7 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                 short_name = require_return.name,
                 start_data_processor = function()
                     local data = require_return.data
-                    -- TODO: expose more of the network API 
+                    -- TODO: expose more of the network API
                     return nil
                 end,
                 processed_data = nil,
@@ -69,7 +69,7 @@ local local_file_processor = {
     end,
 }
 
--- TODO: add some sort of "save song" command. that lets a user easily create a local song out of a fileAPI song. 
+-- TODO: add some sort of "save song" command. that lets a user easily create a local song out of a fileAPI song.
 
 
 return local_file_processor

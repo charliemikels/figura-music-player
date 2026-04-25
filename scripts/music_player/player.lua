@@ -671,6 +671,12 @@ local song_player_api = {
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
+                    -- TODO: I'm updateing the definition of buffer time so that it's reletive to when we receive the first data packet.
+                    --       That is, playing a song without data will first just buffer forever, waiting until it gets the first datapoint.
+                    --       We still need to do buffer _time_ since if we did buffer packet count, and we drop a packet, our buffer time will be offset.
+                    --       Some songs continue sending packets untill the very last moment, so we will just never play them if we drop too many and keep waiting for them.
+                    error("TODO: update what buffer time means to player.lua. (reletive to first data packet, not reletive to whatever it's currently reletive to.)")
+
                     local earliest_possible_start_time = (
                                 song_player.buffer_delay
                             and song_player.buffer_start_time

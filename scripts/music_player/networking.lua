@@ -136,40 +136,38 @@ local function bool_list_to_number(bools)
     return tonumber(table.concat(bits), 2)
 end
 
----@alias SongPacket Byte[]
+---@alias PacketDataBytes Byte[]
 
 --- When sending raw data through pings, Strings are far more efficient than tables.
 ---
 --- The final size will be the length of the SongPacket table + 2 bytes for the string's length info.
----@alias PackedSongPacket string Strings
+---@alias PacketDataString string Strings
 
 ---Converts a table of bytes (ints from 0 to 255) into a string
----@param unpacked_packet SongPacket
----@return PackedSongPacket
-local function pack_packet(unpacked_packet)
-    local packed_packet = string.char(table.unpack(unpacked_packet))
-    return packed_packet
+---@param data_bytes PacketDataBytes
+---@return PacketDataString
+local function packet_data_bytes_to_string(data_bytes)
+    local data_string = string.char(table.unpack(data_bytes))
+    return data_string
 end
 
 ---Converts a string into a table of bytes
----@param packed_packet PackedSongPacket
----@return SongPacket
-local function unpack_packet(packed_packet)
-    local unpacked_packet = table.pack(string.byte(packed_packet, 1, -1))
-    unpacked_packet.n = nil
-    return unpacked_packet
-    -- Shout out to using table.pack to unpack our packets, and table.unpack to pack out packets.
-    -- emperor-palpatine-ironic.gif
+---@param data_string PacketDataString
+---@return PacketDataBytes
+local function packet_data_string_to_bytes(data_string)
+    local data_bytes = table.pack(string.byte(data_string, 1, -1))
+    data_bytes.n = nil
+    return data_bytes
 end
 
 
 ---A helper that wraps a list of bytes with an index,
----@param bytes SongPacket
+---@param bytes PacketDataBytes
 ---@return PacketReader
 local function new_packet_reader(bytes)
     ---@class PacketReader
     local reader = {
-        bytes = bytes,  ---@type SongPacket
+        bytes = bytes,  ---@type PacketDataBytes
         index = 1,      ---@type integer
     }
     return reader
@@ -187,8 +185,8 @@ local packet_ids = {
 ---
 --- This can be used at any time to update a remote song's configuration.
 ---@param player_config SongPlayerConfig
----@return SongPacket
-local function build_config_packet_body(player_config)
+---@return PacketDataBytes
+local function build_config_packet(player_config)
 
     local config_packet_body = {}
 
@@ -320,13 +318,14 @@ end
 ---
 ---@see song_to_packets
 ---@param processed_song ProcessedSong
----@return SongPacket
-local function build_header_packet_without_buffer_delay(processed_song)
+---@param buffer_delay integer
+---@return PacketDataBytes
+local function build_header_packet(processed_song, buffer_delay)
     local packet = {}
     union_tables(packet, string_to_bytes_with_len(processed_song.name))
 
     union_tables(packet, int_to_vlq(
-        math.ceil(processed_song.duration) -- At 144FPS, the player can only update every 5ms ceil to drop sub-milisecond precission.
+        math.ceil(processed_song.duration) -- At 144FPS, the player can only update every 5ms. math.ceil to drop sub-milisecond precission.
     ))
 
     local track_type_bits = {}
@@ -335,6 +334,8 @@ local function build_header_packet_without_buffer_delay(processed_song)
     end
     union_tables(packet, int_to_vlq(#track_type_bits))
     union_tables(packet, int_to_vlq(bit_list_to_number(track_type_bits)))
+
+    union_tables(packet, int_to_vlq(buffer_delay))
     return packet
 end
 
@@ -345,16 +346,16 @@ local modifier_type_to_number_lookup = {
     -- pan = 3,
 }
 
----@alias DataPacketPart Byte[] Can represent an instruction, or a modifier for an earlier instruction
+---@alias PartialPacketDataBytes Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
 --- For use with song_instruction_to_packet_parts()
 ---
 --- A simple wraper so that I can reuse the "add modifier" code
 ---@param modifier NoteModifier                 The modifier to add
 ---@param instruction_modifier_list_id integer  The note ID to add this modifier to.
----@return {start_time: number, packet_part: DataPacketPart}
+---@return {start_time: number, packet_part: PartialPacketDataBytes}
 local function modifier_to_packet_part(modifier, instruction_start_time, instruction_modifier_list_id)
-    ---@type DataPacketPart
+    ---@type PartialPacketDataBytes
     local modifier_packet_part = {}
     union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time - instruction_start_time)))
     union_tables(modifier_packet_part, int_to_vlq(nil))
@@ -369,7 +370,7 @@ end
 ---@param instruction Instruction
 ---@param packet_start_time number      The start time of the current packet. Used to calculate the delta for this instruction.
 ---@param modifiers_tracker table
----@return {instruction_part_and_start: {start_time: number, packet_part: DataPacketPart}, modifier_parts_and_starts: {start_time: number, packet_part: DataPacketPart}[] }
+---@return {instruction_part_and_start: {start_time: number, packet_part: PartialPacketDataBytes}, modifier_parts_and_starts: {start_time: number, packet_part: PartialPacketDataBytes}[] }
 local function song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
     local modifier_packet_parts = {}
 
@@ -473,11 +474,9 @@ end
 --- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
 ---@see song_to_packets
 ---@param processed_song ProcessedSong
----@param transfered_song_id_vlq Byte[]?    -- If nil, then transferSong ID will not be added to to the packet
----@return SongPacket[] data_packets        Fully formed packets, ready to be packed and shipped.
+---@return PacketDataBytes[] data_packets        -- Fully formed packets, ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milis
-local function build_data_packets(processed_song, transfered_song_id_vlq)
-    if not transfered_song_id_vlq then transfered_song_id_vlq = {} end
+local function build_data_packets(processed_song)
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
 
@@ -486,22 +485,20 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
         total_number_of_unrecognized_modifier_types_by_type = {}  ---@type table<string, integer>
     }
 
-    ---@type SongPacket[]
+    ---@type PacketDataBytes[]
     local data_packets = {}
     local required_buffer_delay_in_milis = 0
 
     local current_packet_builder = {}
-    ---@type {start_time: number, packet_part: DataPacketPart}[]
+    ---@type {start_time: number, packet_part: PartialPacketDataBytes}[]
     local unhandled_modifiers_start_part_pairs = {}
-    union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
-    union_tables(current_packet_builder, transfered_song_id_vlq)
     local packet_start_time = processed_song.instructions[1].start_time
     union_tables(current_packet_builder, int_to_vlq(math.floor(packet_start_time)))
 
     --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
     ---
     --- Also runs the bulk of the buffer time calculations
-    ---@param proposed_packet_start_part_pair {start_time: number, packet_part: DataPacketPart}
+    ---@param proposed_packet_start_part_pair {start_time: number, packet_part: PartialPacketDataBytes}
     ---@param new_start_time number     The start time of the next packet, if one needs to be created.
     ---@return boolean instruction_packet_should_be_rebuilt
     local function check_and_make_room(proposed_packet_start_part_pair, new_start_time)
@@ -510,12 +507,8 @@ local function build_data_packets(processed_song, transfered_song_id_vlq)
             -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
             table.insert(data_packets, current_packet_builder)
 
-            packet_start_time = nil
-            current_packet_builder = nil
-            current_packet_builder = {}
-            union_tables(current_packet_builder, int_to_vlq(packet_ids.data))
-            union_tables(current_packet_builder, transfered_song_id_vlq)
             packet_start_time = new_start_time
+            current_packet_builder = {}
             union_tables(current_packet_builder, int_to_vlq(math.floor(new_start_time)))
 
             if ((#data_packets) * target_milis_between_packets) - required_buffer_delay_in_milis > proposed_packet_start_part_pair.start_time then
@@ -611,68 +604,53 @@ end
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
 ---@param processed_song ProcessedSong
 ---@param player_config SongPlayerConfig
----@param for_local_use boolean?
----@return PackedSongPacket[]
----@return integer transfered_song_id       Unique ID to address these packets (and player_data) on both the host and any clients.
-local function song_to_packets(processed_song, player_config, for_local_use)
-    local header_packet_body = build_header_packet_without_buffer_delay(processed_song)
-
-
-    local header_packet_head = {}
-    union_tables(header_packet_head, int_to_vlq(packet_ids.header))  -- First element is allways packet ID
-
-
-    songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
+---@return BundledPacket[]
+local function song_to_packets(processed_song, player_config)
     ---A unique ID for each song since the avatar loaded.
     local transfered_song_id = songs_turned_into_packets_so_far
-    local transfered_song_id_vlq = int_to_vlq(transfered_song_id)
-    union_tables(header_packet_head, transfered_song_id_vlq)             -- 2nd element is allways the song transfer ID
+    songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
 
-    local config_packet_body = build_config_packet_body(player_config)
-    local all_data_packets, buffer_delay = build_data_packets(processed_song, transfered_song_id_vlq)
+    local all_data_packets, buffer_delay = build_data_packets(processed_song)
+    local header_packet = build_header_packet(processed_song, buffer_delay)
+    local config_packet = build_config_packet(player_config)
 
-    local header_packet = {}
-
-    ---@type SongPacket[]
+    ---@type BundledPacket[]
     local final_packet_list = {}
-    local there_is_enough_space_to_combine_the_header_and_config_packets =
-        (#header_packet_head + #header_packet_body + #int_to_vlq(buffer_delay) + #config_packet_body)
-        < max_packet_length
-    if there_is_enough_space_to_combine_the_header_and_config_packets then
-        -- @e can join the header packet and the initial config packet
+    if (#header_packet + #config_packet) < max_packet_length then -- there is enough space to combine the header and config packets.
 
-        union_tables(header_packet_body, int_to_vlq(buffer_delay))
+        -- TODO: now that we're sending many small packets quickly, instead of large packets slower, is it worth while to combine header and config packets?
 
-        union_tables(header_packet, header_packet_head)
-        union_tables(header_packet, header_packet_body)
-        union_tables(header_packet, config_packet_body)
-        table.insert(final_packet_list, header_packet)
+        local joined_header_and_config = {}
+        union_tables(joined_header_and_config, header_packet)
+        union_tables(joined_header_and_config, config_packet)
+
+        table.insert(final_packet_list, {
+            transfered_song_id = transfered_song_id,
+            packet_type = packet_ids.header,
+            packet_data_string = packet_data_bytes_to_string(joined_header_and_config)
+        })
     else
-        -- We need to send the config packet as its own packet
-
-        union_tables(header_packet_body, int_to_vlq(buffer_delay + target_milis_between_packets))  -- buffer needs to be one packet longer.
-        union_tables(header_packet, header_packet_head)
-        union_tables(header_packet, header_packet_body)
-
-        table.insert(final_packet_list, header_packet)
-
-        local config_packet = {}
-        union_tables(config_packet, int_to_vlq(packet_ids.config))
-        union_tables(config_packet, transfered_song_id_vlq)
-        union_tables(config_packet, config_packet_body)
-        table.insert(final_packet_list, config_packet)
+        table.insert(final_packet_list, {
+            transfered_song_id = transfered_song_id,
+            packet_type = packet_ids.header,
+            packet_data_string = packet_data_bytes_to_string(header_packet)
+        })
+        table.insert(final_packet_list, {
+            transfered_song_id = transfered_song_id,
+            packet_type = packet_ids.config,
+            packet_data_string = packet_data_bytes_to_string(config_packet)
+        })
     end
 
     for _, data_packet in ipairs(all_data_packets) do
-        table.insert(final_packet_list, data_packet)
+        table.insert(final_packet_list, {
+            transfered_song_id = transfered_song_id,
+            packet_type = packet_ids.data,
+            packet_data_string = packet_data_bytes_to_string(data_packet)
+        })
     end
 
-    local final_packed_packet_list = {}
-    for _, unpacked_packet in ipairs(final_packet_list) do
-        table.insert(final_packed_packet_list, pack_packet(unpacked_packet))
-    end
-
-    return final_packed_packet_list, transfered_song_id
+    return final_packet_list
 end
 
 ---@enum ControlPacketCode
@@ -692,15 +670,11 @@ local collected_incoming_songs = {}
 ---@type table<integer, boolean>
 local missed_incoming_songs = {}
 
----@param transfered_song_id integer
+
 ---@param control_code ControlPacketCode
----@return PackedSongPacket
-local function make_control_packet(transfered_song_id, control_code)
-    local control_packet = {}
-    union_tables(control_packet, int_to_vlq(packet_ids.control))
-    union_tables(control_packet, int_to_vlq(transfered_song_id))
-    union_tables(control_packet, int_to_vlq(control_code))
-    return pack_packet(control_packet)
+---@return PacketDataString
+local function make_control_packet(control_code)
+    return packet_data_bytes_to_string( int_to_vlq(control_code) )
 end
 
 
@@ -968,7 +942,7 @@ local packet_receiving_functions = {
 
 
 local local_receive_packet_loop_is_running = false
-local incoming_packed_packets = {}  ---@type PackedSongPacket[]
+local incoming_packed_packets = {}  ---@type {transfer_id:integer, packet_type:SongPacketTypeIDs, packet_data:PacketDataString}[]
 
 --- Primary function to receive packets. Distributes packets to the correct receiving functions.
 ---
@@ -978,10 +952,10 @@ local incoming_packed_packets = {}  ---@type PackedSongPacket[]
 local function local_receive_packet_loop()
     local packed_packet_data = table.remove(incoming_packed_packets, 1)   -- table.remove is usualy inneficient when popping from the front. But we shouldn't have more than like 2 packets in here at a time, so should be fine.
 
-    local packet_data = unpack_packet(packed_packet_data)
+    local packet_data = packet_data_string_to_bytes(packed_packet_data.packet_data)
     local reader = new_packet_reader(packet_data)
-    local packet_id = vlq_to_int_from_reader(reader)
-    local transfered_song_id = vlq_to_int_from_reader(reader)
+    local packet_id = packed_packet_data.packet_type
+    local transfered_song_id = packed_packet_data.transfer_id
     packet_receiving_functions[packet_id](reader, transfered_song_id)
 
     if #incoming_packed_packets == 0 then
@@ -1004,25 +978,23 @@ end
 --- to find a new way to process pings so that we don't share TICK instructions with the rest of the avatar.
 ---
 ---@see local_receive_packet_loop
----
----@param packed_packet_data PackedSongPacket
-local function local_receive_packet(packed_packet_data)
-    table.insert(incoming_packed_packets, packed_packet_data)
+---@param transfer_id integer
+---@param packet_type SongPacketTypeIDs
+---@param packed_packet_data PacketDataString
+local function local_receive_packet(transfer_id, packet_type, packed_packet_data)
+    table.insert(incoming_packed_packets, {transfer_id = transfer_id, packet_type = packet_type, packet_data = packed_packet_data})
     if not local_receive_packet_loop_is_running then
         local_receive_packet_loop_is_running = true
         events.TICK:register(local_receive_packet_loop)
-
-    -- else
-    --     print("We already have a ping to process this tick")
 
     end
 end
 
 ---For use with outgoing_packet_queue and others to get the transfer ID out of a packet, without needing to trust whoever is giveing us the packets.
----@param packed_packet_data PackedSongPacket
+---@param packed_packet_data PacketDataString
 ---@return integer transfered_song_id
 local function get_transfer_id_from_packed_packet_data(packed_packet_data)
-    local packet_data = unpack_packet(packed_packet_data)
+    local packet_data = packet_data_string_to_bytes(packed_packet_data)
     local reader = new_packet_reader(packet_data)
     local packet_id = vlq_to_int_from_reader(reader)
     local transfered_song_id = vlq_to_int_from_reader(reader)
@@ -1031,26 +1003,33 @@ end
 
 --- primary ping function. It receives a packet and sends it off for processing
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
----@param incoming_packet PackedSongPacket
-function pings.TL_FMP_receive_packet(incoming_packet)
-    local_receive_packet(incoming_packet)
+---@param transfer_id integer
+---@param packet_type SongPacketTypeIDs
+---@param incoming_packet PacketDataString
+function pings.TL_FMP_receive_packet(transfer_id, packet_type, incoming_packet)
+    local_receive_packet(transfer_id, packet_type, incoming_packet)
 end
 
-local function ping_packet_immediatly(outgoing_packed_packet)
-    pings.TL_FMP_receive_packet(outgoing_packed_packet)
+---@param transfer_id integer
+---@param packet_type SongPacketTypeIDs
+---@param outgoing_packed_packet PacketDataString
+local function ping_packet_immediatly(transfer_id, packet_type, outgoing_packed_packet)
+    pings.TL_FMP_receive_packet(transfer_id, packet_type, outgoing_packed_packet)
 end
 
----@alias PacketQueue {transfered_song_id: integer, packet: PackedSongPacket}[]
+---@alias BundledPacket {transfered_song_id: integer, packet_type: SongPacketTypeIDs, packet_data_string: PacketDataString}    -- a light weight way to keep a packet tied to it's packet ID and transfer ID.
+
+---@alias PacketQueue BundledPacket[]
 
 local outgoing_packet_queue_index = 1   ---@type integer        Index into outgoing_packet_queue. Using an index so that we don't have to remove items from the list.
-local outgoing_packet_queue = {}        ---@type PacketQueue
+local outgoing_bundled_packets_queue = {}        ---@type PacketQueue
 
 local ping_loop_start_time
 
 local ping_loop_identifier = "TL_FMP_song_data_ping_loop"
 
 local function stop_and_cleanup_packet_ping_loop()
-    outgoing_packet_queue = {}
+    outgoing_bundled_packets_queue = {}
     outgoing_packet_queue_index = 1
     ping_loop_start_time = nil
     events.WORLD_TICK:remove(ping_loop_identifier)
@@ -1069,21 +1048,21 @@ local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song
 
     for search_index =
         outgoing_packet_queue_index, -- we can ignore packets that we've already sent.
-        #outgoing_packet_queue
+        #outgoing_bundled_packets_queue
     do
-        local should_delete_packet = outgoing_packet_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
+        local should_delete_packet = outgoing_bundled_packets_queue[search_index].transfered_song_id == transfered_song_id_to_cancel
         if not should_delete_packet then
             if (size_of_hole > 0) then
                 -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
-                outgoing_packet_queue[search_index - size_of_hole] = outgoing_packet_queue[search_index]
-                outgoing_packet_queue[search_index] = nil
+                outgoing_bundled_packets_queue[search_index - size_of_hole] = outgoing_bundled_packets_queue[search_index]
+                outgoing_bundled_packets_queue[search_index] = nil
             end
         else
             if outgoing_packet_queue_index == search_index then
                 -- In this situation, we can just skip the packet instead of modifying the table
                 outgoing_packet_queue_index = outgoing_packet_queue_index + 1
             else
-                outgoing_packet_queue[search_index] = nil
+                outgoing_bundled_packets_queue[search_index] = nil
                 size_of_hole = size_of_hole + 1
             end
         end
@@ -1093,7 +1072,7 @@ local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song
     -- But since lua considers the length to the index of the last non-nil value,
     -- it effectively means the list has shrunk, so #outgoing_packet_queue sould
     -- accuratly represent the new size.
-    if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
+    if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then stop_and_cleanup_packet_ping_loop() end
 end
 
 --- outgoing_packet_queue needs to stay in order, so it's simpler to keep an index
@@ -1113,12 +1092,12 @@ local function remove_already_sent_packets_from_outgoing_packet_queue()
     end
 
     -- table.move() isn't available in Lua 5.2, but combineing pack and unpack should get us close enough
-    local new_outgoing_packet_queue = table.pack(table.unpack(outgoing_packet_queue, outgoing_packet_queue_index))
+    local new_outgoing_packet_queue = table.pack(table.unpack(outgoing_bundled_packets_queue, outgoing_packet_queue_index))
     new_outgoing_packet_queue.n = nil   -- table.pack adds an `n` field that we don't want.
-    outgoing_packet_queue = new_outgoing_packet_queue   ---@type PacketQueue
+    outgoing_bundled_packets_queue = new_outgoing_packet_queue   ---@type PacketQueue
 
     outgoing_packet_queue_index = 1
-    if outgoing_packet_queue_index > #outgoing_packet_queue then stop_and_cleanup_packet_ping_loop() end
+    if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then stop_and_cleanup_packet_ping_loop() end
 end
 
 --- Host-side event loop to emit pings from the ping queue
@@ -1130,14 +1109,18 @@ local function ping_loop()
         -- It will still be the average, but enabling us to send a packet slightly
         -- early will avoid the "slip" caused from missing the perfect time to emmit a packet.
 
-        print_debug("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_packet_queue).."…")
+        print_debug("pinging packet #"..tostring(outgoing_packet_queue_index).."/"..tostring(#outgoing_bundled_packets_queue).."…")
 
-        pings.TL_FMP_receive_packet(outgoing_packet_queue[outgoing_packet_queue_index].packet)
+        pings.TL_FMP_receive_packet(
+            outgoing_bundled_packets_queue[outgoing_packet_queue_index].transfered_song_id,
+            outgoing_bundled_packets_queue[outgoing_packet_queue_index].packet_type,
+            outgoing_bundled_packets_queue[outgoing_packet_queue_index].packet_data_string
+        )
 
         outgoing_packet_queue_index = outgoing_packet_queue_index + 1
 
         -- check if list is empty
-        if outgoing_packet_queue_index > #outgoing_packet_queue then print_host("All pings sent."); stop_and_cleanup_packet_ping_loop() end
+        if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then print_host("All pings sent."); stop_and_cleanup_packet_ping_loop() end
     end
 end
 
@@ -1156,25 +1139,25 @@ end
 ---
 --- Probably unnessesary. most of the time that we want to ping something,
 --- we either want to ping it ASAP, or we're pinging bulk data.
----@param outgoing_packed_packet PackedSongPacket
-local function ping_packet(outgoing_packed_packet)
-    table.insert(outgoing_packet_queue, {transfered_song_id = get_transfer_id_from_packed_packet_data(outgoing_packed_packet), packet = outgoing_packed_packet})
+---@param outgoing_bundled_packet BundledPacket
+local function ping_packet(outgoing_bundled_packet)
+    table.insert(outgoing_bundled_packets_queue, outgoing_bundled_packet)
     check_or_start_ping_loop()
 end
 
 ---Add several packets to the packet queue
----@param outgoing_packed_packets PackedSongPacket[]
-local function ping_packets(outgoing_packed_packets)
-    for _, packet in ipairs(outgoing_packed_packets) do
-        table.insert(outgoing_packet_queue, {transfered_song_id = get_transfer_id_from_packed_packet_data(packet), packet = packet})
+---@param outgoing_bundled_packets BundledPacket[]
+local function ping_packets(outgoing_bundled_packets)
+    for _, bundled_packet in ipairs(outgoing_bundled_packets) do
+        table.insert(outgoing_bundled_packets_queue, bundled_packet)
     end
     check_or_start_ping_loop()
 end
 
 ---@return number
 local function outgoing_packet_queue_progress()
-    if #outgoing_packet_queue == 0 then return 1 end
-    return outgoing_packet_queue_index / #outgoing_packet_queue
+    if #outgoing_bundled_packets_queue == 0 then return 1 end
+    return outgoing_packet_queue_index / #outgoing_bundled_packets_queue
 end
 
 --- A SongPlayer wrapper that plays the a song on all clients (viewers and host).
@@ -1221,9 +1204,9 @@ local function new_network_song_player(song, config)
 end
 
 ---@class SongNetworkingApi
----@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig, for_local_use:boolean?):PackedSongPacket[], integer
----@field local_receive_packet  fun(packed_packet_data:PackedSongPacket, for_local_use:boolean?)
----@field ping_packets          fun(outgoing_packed_packets:PackedSongPacket[])
+---@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):BundledPacket[]
+---@field local_receive_packet  fun(packed_packet_data:PacketDataString)
+---@field ping_packets          fun(outgoing_packed_packets:PacketDataString[])
 ---@field outgoing_packet_queue_progress    fun():number
 ---@field play_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to play the selected song.
 ---@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song, and removes any remaining queued packets for the song.
@@ -1237,13 +1220,15 @@ return {
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
     play_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.start))
+        ping_packet_immediatly(transfered_song_id, packet_ids.control, make_control_packet(control_packet_codes.start))
     end,
     stop_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.stop))
+        ping_packet_immediatly(transfered_song_id, packet_ids.control, make_control_packet(control_packet_codes.stop))
         remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id) -- Does not cancel the above packet, since ping_packet_immediatly bypasses the packet queue
     end,
-    remove_transfered_song = function(transfered_song_id) ping_packet_immediatly(make_control_packet(transfered_song_id, control_packet_codes.remove)) end,
+    remove_transfered_song = function(transfered_song_id)
+        ping_packet_immediatly(transfered_song_id, packet_ids.control, make_control_packet(control_packet_codes.remove))
+    end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
     get_player_for_transfered_song = function(transfered_song_id) return collected_incoming_songs[transfered_song_id] and collected_incoming_songs[transfered_song_id].player or nil end,
     get_target_milis_between_packets = function() return target_milis_between_packets end,

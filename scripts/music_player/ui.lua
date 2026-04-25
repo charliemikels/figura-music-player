@@ -265,7 +265,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         song_player_config.source_entity = player
         song_player_config.play_immediately = true
 
-        local packets, transfer_id = networking_api.song_to_packets(processed_song, song_player_config)
+        local packets = networking_api.song_to_packets(processed_song, song_player_config)
+        local transfer_id = packets[1].transfered_song_id
 
         processed_songs_and_players[song.id].packets = packets
         processed_songs_and_players[song.id].transfer_song_id = transfer_id

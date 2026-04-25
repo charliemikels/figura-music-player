@@ -17,7 +17,11 @@ if host:isHost() then
         local networking_api = require("scripts/music_player/networking")
         local config_api = require("scripts/music_player/config_cache")
         local song_config = config_api.load_song_config(song.id)
-        local packets = networking_api.song_to_packets(song.processed_data, song_config)
+        local bundled_packets = networking_api.song_to_packets(song.processed_data, song_config)
+        local packets = {}
+        for _, bp in ipairs(bundled_packets) do
+            table.insert(packets, bp.packet_data_string)
+        end
 
         -- convert packets into one big long string, and wrap it in lua long quotes and a return statement so that we can load it later.
 
