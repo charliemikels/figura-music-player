@@ -877,7 +877,7 @@ local function receive_header_packet(reader, transfered_song_id)
         tracks = tracks,
         instructions = {},
         buffer_delay = buffer_delay,
-        buffer_start_time = client:getSystemTime()
+        buffer_start_time = nil -- will be auto-filled by player.lua once it gets its first instruction.
     }
 
     collected_incoming_songs[transfered_song_id] = {

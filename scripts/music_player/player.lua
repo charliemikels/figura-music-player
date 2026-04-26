@@ -232,9 +232,11 @@ local function update_info_display_text(song_player)
 
     local info_text ---@type string?
 
-    if song_player.controller.is_buffering() then
+    if song_player.controller.is_buffering_or_needs_to_buffer() then
         info_text = song_player.info_display_base_string
             .. "Buffering… " .. tostring(math.floor(1 + (song_player.controller.get_remaining_buffer_time() / 1000)) ) .. "s " .. get_spinner()
+            -- There's a moment where song_player.controller.get_remaining_buffer_time returns math.huge and this text just says "Buffering… infs"
+            -- We could add an extra state for this rare moment where it could say "Waiting for data…" instead.
     else
         info_text = song_player.info_display_base_string
             .. progress_bar(20, song_player.controller.get_progress())
@@ -421,6 +423,18 @@ local function update_song(song_player)
     end
 end
 
+---Gets the earliest possible start time for this song. Will return client:getSystemTime() if past the minimum buffer time.
+---@param song_player SongPlayer
+---@return number get_earliest_possible_start_time
+local function get_earliest_possible_start_time(song_player)
+    local earliest_possible_start_time = (
+            song_player.buffer_delay
+        and song_player.buffer_start_time   -- might be math.huge if song has not received its first instruction.
+        and ( song_player.buffer_start_time + song_player.buffer_delay )
+        or  client:getSystemTime()
+    )
+    return (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
+end
 
 ---@class SongPlayerAPI
 local song_player_api = {
@@ -608,7 +622,7 @@ local song_player_api = {
             --- The client time when the song started buffering. Compare with current time and buffer_delay
             --- to see if we've received enough packets to play this song in full.
             ---@type number
-            buffer_start_time = (song.buffer_start_time or nil),
+            buffer_start_time = (song.buffer_start_time or (song.buffer_delay and math.huge) or nil),
 
             source_entity = nil,    ---@type Entity? If this is defined, overwrite source_pos every update()
             source_pos = vec(0,0,0),    ---@type Vector3
@@ -671,27 +685,14 @@ local song_player_api = {
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
-                    -- TODO: I'm updateing the definition of buffer time so that it's reletive to when we receive the first data packet.
-                    --       That is, playing a song without data will first just buffer forever, waiting until it gets the first datapoint.
-                    --       We still need to do buffer _time_ since if we did buffer packet count, and we drop a packet, our buffer time will be offset.
-                    --       Some songs continue sending packets untill the very last moment, so we will just never play them if we drop too many and keep waiting for them.
-                    error("TODO: update what buffer time means to player.lua. (reletive to first data packet, not reletive to whatever it's currently reletive to.)")
-
-                    local earliest_possible_start_time = (
-                                song_player.buffer_delay
-                            and song_player.buffer_start_time
-                            and ( song_player.buffer_start_time + song_player.buffer_delay )
-                        or  client:getSystemTime()
-                    )
-
-                    song_player.start_time = (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
+                    song_player.start_time = get_earliest_possible_start_time(song_player)
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
                     song_player.primary_event:register(update_this_song)
                 end,
 
                 ---@type fun():boolean
-                is_buffering = function()
+                is_buffering_or_needs_to_buffer = function()
                     return (song_player.buffer_delay
                         and song_player.buffer_start_time
                         and (song_player.buffer_start_time + song_player.buffer_delay > client:getSystemTime())
@@ -777,6 +778,22 @@ local song_player_api = {
             }
         }
         apply_config(song_player, config)
+
+        if       song_player.buffer_delay
+            and (song_player.buffer_start_time == math.huge)
+            and (#song_player.instructions == 0)
+        then -- this song needs to buffer, but that not started yet. Add a metatable that updates buffer_start_time (and start_time) when we receive the first instruction.
+            setmetatable(song_player.instructions, {
+                __newindex = function(table, index, value)
+                    setmetatable(song_player.instructions, nil) -- Remove the metamethod after the first write. Technicaly this will burn all metamethods on `.instructions`, but this is the only one, so… probably fine.
+                    table[index] = value                        -- set the index _after_ removeing the metamethod so that this isn't recursive
+                    song_player.buffer_start_time = client:getSystemTime()
+                    if song_player.controller.is_playing() then
+                        song_player.start_time = get_earliest_possible_start_time(song_player)
+                    end
+                end
+            })
+        end
 
         return song_player.controller
     end,
