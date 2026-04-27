@@ -922,7 +922,7 @@ local function receive_control_packet(reader, transfered_song_id)
 end
 
 -- function lookup table for packet receiver
----@type table<SongPacketTypeIDs, fun(reader: PacketReader, transfered_song_id: integer)>
+---@type table<PacketTypeIDs, fun(reader: PacketReader, transfered_song_id: integer)>
 local packet_receiving_functions = {
     [packet_ids.control] = receive_control_packet,
     [packet_ids.header] = receive_header_packet,
@@ -932,7 +932,7 @@ local packet_receiving_functions = {
 
 
 local local_receive_packet_loop_is_running = false
-local incoming_packed_packets = {}  ---@type {transfer_id:integer, packet_type:SongPacketTypeIDs, packet_data:PacketDataString}[]
+local incoming_packed_packets = {}  ---@type {transfer_id:integer, packet_type:PacketTypeIDs, packet_data:PacketDataString}[]
 
 --- Primary function to receive packets. Distributes packets to the correct receiving functions.
 ---
@@ -969,7 +969,7 @@ end
 ---
 ---@see local_receive_packet_loop
 ---@param transfer_id integer
----@param packet_type SongPacketTypeIDs
+---@param packet_type PacketTypeIDs
 ---@param packed_packet_data PacketDataString
 local function local_receive_packet(transfer_id, packet_type, packed_packet_data)
     table.insert(incoming_packed_packets, {transfer_id = transfer_id, packet_type = packet_type, packet_data = packed_packet_data})
@@ -983,20 +983,20 @@ end
 --- primary ping function. It receives a packet and sends it off for processing
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
 ---@param transfer_id integer
----@param packet_type SongPacketTypeIDs
+---@param packet_type PacketTypeIDs
 ---@param incoming_packet PacketDataString
 function pings.TL_FMP_receive_packet(transfer_id, packet_type, incoming_packet)
     local_receive_packet(transfer_id, packet_type, incoming_packet)
 end
 
 ---@param transfer_id integer
----@param packet_type SongPacketTypeIDs
+---@param packet_type PacketTypeIDs
 ---@param outgoing_packed_packet PacketDataString
 local function ping_packet_immediatly(transfer_id, packet_type, outgoing_packed_packet)
     pings.TL_FMP_receive_packet(transfer_id, packet_type, outgoing_packed_packet)
 end
 
----@alias BundledPacket {transfered_song_id: integer, packet_type: SongPacketTypeIDs, packet_data_string: PacketDataString}    -- a light weight way to keep a packet tied to it's packet ID and transfer ID.
+---@alias BundledPacket {transfered_song_id: integer, packet_type: PacketTypeIDs, packet_data_string: PacketDataString}    -- a light weight way to keep a packet tied to it's packet ID and transfer ID.
 
 ---@alias PacketQueue BundledPacket[]
 

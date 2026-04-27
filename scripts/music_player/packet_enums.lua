@@ -4,7 +4,7 @@
 ---@alias PartialPacketDataBytes Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
 
----@enum SongPacketTypeIDs
+---@enum PacketTypeIDs
 local packet_type_ids = {
     control = 0,   -- A very tiny packet to send a few simple control codes.
     header = 1, -- Includeds initial like name, duration, track_types
