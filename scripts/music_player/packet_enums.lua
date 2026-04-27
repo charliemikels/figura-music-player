@@ -5,7 +5,7 @@
 
 
 ---@enum SongPacketTypeIDs
-local packet_ids = {
+local packet_type_ids = {
     control = 0,   -- A very tiny packet to send a few simple control codes.
     header = 1, -- Includeds initial like name, duration, track_types
     data = 2,   -- Bulk of the packet stream
@@ -22,7 +22,7 @@ local control_packet_codes = {
 
 ---@class PacketEnumsAPI
 local packet_enums_api = {
-    packet_ids = packet_ids,
+    packet_type_ids = packet_type_ids,
     control_packet_codes = control_packet_codes,
 }
 

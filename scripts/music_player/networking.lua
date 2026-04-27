@@ -162,7 +162,7 @@ local function packet_data_string_to_bytes(data_string)
 end
 
 
-local packet_ids = packet_enums_api.packet_ids
+local packet_ids = packet_enums_api.packet_type_ids
 
 --- Builds a config packet out of a SongPlayerConfig table.
 ---
