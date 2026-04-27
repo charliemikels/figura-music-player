@@ -1,7 +1,7 @@
 {
     "authors":["Tanner Limes"],
     "name": "Figura Music Player",
-    "description": "Play Midi and ABC music",
+    "description": "Play music to delight and annoy your fiends",
     "version": "5.0.0-beta.4",
     "color": "#78ff92",
     "autoload": ["scripts/Action Wheel"]
