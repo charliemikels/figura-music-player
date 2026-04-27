@@ -141,7 +141,7 @@ end
 --- When sending raw data through pings, Strings are far more efficient than tables.
 ---
 --- The final size will be the length of the SongPacket table + 2 bytes for the string's length info.
----@alias PacketDataString string Strings
+---@alias PacketDataString string
 
 ---Converts a table of bytes (ints from 0 to 255) into a string
 ---@param data_bytes PacketDataBytes
