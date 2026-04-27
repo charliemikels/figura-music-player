@@ -79,6 +79,9 @@ local library_functions = {     -- TODO: refactor. these don't need to be stored
     get_library_length = function(self)
         if not self.song_keys_are_sorted then sort_library(self) end
         return #self.sorted_songs
+    end,
+    add_local_songs = function(self)
+        -- TODO
     end
 }
 
@@ -107,7 +110,8 @@ local libraries_api = {
             add_source_directory = library_functions.add_source_directory,
             get_song_by_id = library_functions.get_song_by_id,
             get_song_by_sorted_index = library_functions.get_song_by_sorted_index,
-            get_library_length = library_functions.get_library_length
+            get_library_length = library_functions.get_library_length,
+            add_local_songs = library_functions.add_local_songs
         }
         return library
     end,
@@ -116,8 +120,10 @@ local libraries_api = {
     ---@return Library
     build_default_library = function(self)
         local library = self:build_library()
-        library:add_source_directory("TL_Songbook")
-        -- TODO: add local sources
+        if host:isHost() then
+            library:add_source_directory("TL_Songbook")
+        end
+        library:add_local_songs()
         return library
     end
 }

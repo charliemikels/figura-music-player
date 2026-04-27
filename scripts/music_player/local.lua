@@ -1,3 +1,4 @@
+--[[
 local function escape_patern_matching_magic_characters(string_to_escape)
     return string_to_escape:gsub("([^%w])", "%%%1")
 end
@@ -73,3 +74,4 @@ local local_file_processor = {
 
 
 return local_file_processor
+--]]
