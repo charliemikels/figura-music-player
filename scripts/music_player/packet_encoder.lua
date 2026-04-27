@@ -1,9 +1,11 @@
 
 -- Packets are used both for pings and local song storage.
 -- "Local" meaning bundled with the avatar upload.
+--
 -- Packets must be small enough to
 --  1. Fit into the ping requirements
---  2. Be processable by the lowest supported permission level.
+--  2. Be processable by the lowest supported permission level (more + small > few + big)
+--  3. Not monopolize the ping budget from the rest of the avatar
 
 -- Ping limits (see https://figura-wiki.pages.dev/tutorials/Pings#ping-rate-limiting )
 -- Fewer than 32 pings in one second (~32 milis between packets min)
@@ -12,7 +14,7 @@
 local pings_per_second = 6
 local bytes_per_second = 500
 
--- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
+-- In bytes. (-2 because storing data as a string adds 2 bytes to encode the string's length)
 local max_packet_length = math.floor(bytes_per_second / pings_per_second) - 2
 -- How long the ping system should try to wait before sending another packet.
 -- (Tick event adds 50 milis (1/20th of a second) of possible drift to account for.)
