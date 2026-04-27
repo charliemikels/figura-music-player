@@ -1158,7 +1158,11 @@ local function new_network_song_player(processed_song, player_config)
     -- net_player = {}
     -- for k,fn in pairs(our_song_player_controller) do net_player[k] = fn end
 
-    -- TODO: Check song type. if it's a host-only song, immediatly build packets for it.
+    if processed_song.is_local then -- The song is local. we just need to tell the viewer to create a player and play the song.
+        -- TODO
+    else -- The song is not local. We need to turn the song into packets and send that over
+        -- TODO
+    end
 
     -- TODO: Set up the remote player. Immediatly ping the song's header packets (Or whatever method we need to do for local songs).
     --       This will be enough to create a remote/transfered player with an empty config.
