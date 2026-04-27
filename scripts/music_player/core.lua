@@ -15,10 +15,13 @@ end)
 
 ---@alias Byte integer
 
----@alias DataSourceTypes "files"|"local"|"manual"
+---@alias DataSourceTypes "files"|"local" --|"manual"
+
+-- TODO: DataSource is a rat's nest. Especialy since we only have either FilesApi songs and Local songs
 
 ---@alias DataSource
 ---| FilesApiDataSource
+---| LocalDataSource
 
 ---@class FilesApiDataSource
 ---@field type DataSourceTypes
@@ -26,7 +29,7 @@ end)
 
 ---@class LocalDataSource
 ---@field type DataSourceTypes
----@field raw_data Byte[]
+---@field raw_data PacketDataString[]
 
 ---@class Song
 ---@field id string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
@@ -52,6 +55,7 @@ end)
 ---@field tracks Track[]
 ---@field buffer_start_time number?  The time when the song started buffering
 ---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.
+---@field is_local boolean?          Is true if song data does not need to be pinged.
 
 ---Tracks ProcessedSong are the step immediatly before PlayingSong.
 ---@class Track
