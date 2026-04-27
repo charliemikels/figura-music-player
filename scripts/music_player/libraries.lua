@@ -58,34 +58,46 @@ local function sort_library(library)
     library.song_keys_are_sorted = true
 end
 
----Assorted functions for the library table.
----@type table
-local library_functions = {     -- TODO: refactor. these don't need to be stored in a table. Just make them functions.
-    add_source_directory = function(self, new_source_path)
-        self.song_keys_are_sorted = false
-        local display_and_full_paths = list_files_in_path_recursively(new_source_path)
-        local file_processor_api = require("./file_processor")
-        for _, song in ipairs(file_processor_api.song_list_from_paths(display_and_full_paths, self.id)) do
-            self.songs[song.id] = song
-        end
-    end,
-    get_song_by_id = function(self, id)
-        return self.songs[id]
-    end,
-    get_song_by_sorted_index = function(self, index)
-        if not self.song_keys_are_sorted then sort_library(self) end
-        return self.sorted_songs[index]
-    end,
-    get_library_length = function(self)
-        if not self.song_keys_are_sorted then sort_library(self) end
-        return #self.sorted_songs
-    end,
-    add_local_songs = function(self)
-        -- TODO
-    end
-}
 
-local library_id_counter = 0
+---@param library Library
+---@param new_source_path string
+local function add_source_directory(library, new_source_path)
+    library.song_keys_are_sorted = false
+    local display_and_full_paths = list_files_in_path_recursively(new_source_path)
+    local file_processor_api = require("./file_processor")
+    for _, song in ipairs(file_processor_api.song_list_from_paths(display_and_full_paths)) do
+        library.songs[song.id] = song
+    end
+end
+
+---@param library Library
+---@param id string
+---@return Song
+local function get_song_by_id (library, id)
+    return library.songs[id]
+end
+
+---@param library Library
+---@param index integer
+---@return Song
+local function get_song_by_sorted_index(library, index)
+    if not library.song_keys_are_sorted then sort_library(library) end
+    return library.sorted_songs[index]
+end
+
+---@param library Library
+---@return integer
+local function get_library_length(library)
+    if not library.song_keys_are_sorted then sort_library(library) end
+    return #library.sorted_songs
+end
+
+---@param library Library
+local function add_local_songs(library)
+    -- TODO
+end
+
+
 ---@class LibrariesApi
 ---@field build_library fun(self:LibrariesApi): Library
 ---@field build_default_library fun(self:LibrariesApi): Library
@@ -94,24 +106,23 @@ local libraries_api = {
     ---@param self LibrariesApi
     ---@return Library
     build_library = function(self)
-        library_id_counter = library_id_counter +1
         ---@class Library
-        ---@field id integer                A little something so that File processors know if they've seen this library before.
         ---@field songs table<string, Song> Canonical song list.
         ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
-        ---@field add_source_directory fun(self:Library, path:string)
-        ---@field get_song_by_id fun(self:Library, id:string):Song?
-        ---@field get_song_by_sorted_index fun(self:Library, index:integer):Song?
-        ---@field get_library_length fun(self:Library):integer
+        ---@field add_source_directory fun(library:Library, path:string)
+        ---@field get_song_by_id fun(library:Library, id:string):Song?
+        ---@field get_song_by_sorted_index fun(library:Library, index:integer):Song?
+        ---@field get_library_length fun(library:Library):integer
+        ---@field package song_keys_are_sorted boolean
         local library = {
-            id = library_id_counter,
             songs = {},
             sorted_songs = {},
-            add_source_directory = library_functions.add_source_directory,
-            get_song_by_id = library_functions.get_song_by_id,
-            get_song_by_sorted_index = library_functions.get_song_by_sorted_index,
-            get_library_length = library_functions.get_library_length,
-            add_local_songs = library_functions.add_local_songs
+            song_keys_are_sorted = false,
+            add_source_directory = add_source_directory,
+            get_song_by_id = get_song_by_id,
+            get_song_by_sorted_index = get_song_by_sorted_index,
+            get_library_length = get_library_length,
+            add_local_songs = add_local_songs
         }
         return library
     end,
