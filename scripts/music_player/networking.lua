@@ -992,17 +992,6 @@ local function local_receive_packet(transfer_id, packet_type, packed_packet_data
     end
 end
 
----For use with outgoing_packet_queue and others to get the transfer ID out of a packet, without needing to trust whoever is giveing us the packets.
----@param packed_packet_data PacketDataString
----@return integer transfered_song_id
-local function get_transfer_id_from_packed_packet_data(packed_packet_data)
-    local packet_data = packet_data_string_to_bytes(packed_packet_data)
-    local reader = new_packet_reader(packet_data)
-    local packet_id = vlq_to_int_from_reader(reader)
-    local transfered_song_id = vlq_to_int_from_reader(reader)
-    return transfered_song_id
-end
-
 --- primary ping function. It receives a packet and sends it off for processing
 --- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
 ---@param transfer_id integer
