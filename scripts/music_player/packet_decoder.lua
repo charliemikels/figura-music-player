@@ -15,13 +15,13 @@ local packet_receiver_api = {
     receive_local_packet      = function() end,
 
     ---@type fun(packet_data:BundledPacket):Song
-    song_header_from_packets  = function(packet_data) end,
+    song_header_from_packets  = function(packet_data) return {} end,
 
     ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
-    song_config_from_packets  = function(partial_song, packet_data) end,
+    song_config_from_packets  = function(partial_song, packet_data) return {} end,
 
     ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
-    instructions_from_packets = function(partial_song, packet_data) end,
+    instructions_from_packets = function(partial_song, packet_data) return {} end,
 }
 
 return packet_receiver_api

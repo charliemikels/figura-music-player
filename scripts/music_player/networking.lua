@@ -1,5 +1,6 @@
 local packet_decoder_api = require("./packet_decoder")  ---@type PacketDecoderApi
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
+local packet_enums_api   = require("./packet_enums")    ---@type PacketEnumsAPI
 
 -- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
 local max_packet_length = packet_encoder_api.get_max_packet_length()
@@ -161,25 +162,7 @@ local function packet_data_string_to_bytes(data_string)
 end
 
 
----A helper that wraps a list of bytes with an index,
----@param bytes PacketDataBytes
----@return PacketReader
-local function new_packet_reader(bytes)
-    ---@class PacketReader
-    local reader = {
-        bytes = bytes,  ---@type PacketDataBytes
-        index = 1,      ---@type integer
-    }
-    return reader
-end
-
----@enum SongPacketTypeIDs
-local packet_ids = {
-    control = 0,   -- A very tiny packet to send a few simple control codes.
-    header = 1, -- Includeds initial like name, duration, track_types
-    data = 2,   -- Bulk of the packet stream
-    config = 3, -- A packet that might appear to update a song's configuration
-}
+local packet_ids = packet_enums_api.packet_ids
 
 --- Builds a config packet out of a SongPlayerConfig table.
 ---
@@ -345,8 +328,6 @@ local modifier_type_to_number_lookup = {
     pitch_wheel = 2,
     -- pan = 3,
 }
-
----@alias PartialPacketDataBytes Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
 --- For use with song_instruction_to_packet_parts()
 ---
@@ -653,13 +634,13 @@ local function song_to_packets(processed_song, player_config)
     return final_packet_list
 end
 
----@enum ControlPacketCode
-local control_packet_codes = {
-    stop = 0,       -- Stop a song by it's transfered ID
-    start = 1,      -- Play a song by it's transfered ID
-    remove = 2,     -- Delete a song from the transfered song list
-}
+local control_packet_codes = packet_enums_api.control_packet_codes
 
+---@param control_code ControlPacketCode
+---@return PacketDataString
+local function make_control_packet(control_code)
+    return packet_data_bytes_to_string( int_to_vlq(control_code) )
+end
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
@@ -673,15 +654,22 @@ local collected_incoming_songs = {}
 local missed_incoming_songs = {}
 
 
----@param control_code ControlPacketCode
----@return PacketDataString
-local function make_control_packet(control_code)
-    return packet_data_bytes_to_string( int_to_vlq(control_code) )
+
+
+
+
+
+---A helper that wraps a list of bytes with an index,
+---@param bytes PacketDataBytes
+---@return PacketReader
+local function new_packet_reader(bytes)
+    ---@class PacketReader
+    local reader = {
+        bytes = bytes,  ---@type PacketDataBytes
+        index = 1,      ---@type integer
+    }
+    return reader
 end
-
-
-
-
 
 --- Reverse of modifier_type_to_number_lookup for reverse lookups
 ---@type table<integer, string>
