@@ -667,6 +667,8 @@ local control_packet_codes = {
 local collected_incoming_songs = {}
 
 -- list of transfer IDs that we must have missed
+--
+-- Allows us to throw a warning the first time, and ignore followup missing songs.
 ---@type table<integer, boolean>
 local missed_incoming_songs = {}
 
