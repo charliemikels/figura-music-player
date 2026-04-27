@@ -1144,16 +1144,16 @@ end
 --- Use this instead of manualy working with the networking / packet building process.
 ---
 --- Host Only. May turn a song into packets (expensive) and call ping functions.
----@param song ProcessedSong
----@param config SongPlayerConfig
+---@param processed_song ProcessedSong
+---@param player_config SongPlayerConfig
 ---@return SongPlayerController
-local function new_network_song_player(song, config)
+local function new_network_song_player(processed_song, player_config)
     local song_player_api = require("./player")      ---@type SongPlayerAPI
     if not host:isHost() then -- The caller is a viewer. They will not be able to do any syncronization with other clients, so just give them a normal player.
-        return song_player_api.new_player(song, config)
+        return song_player_api.new_player(processed_song, player_config)
     end
 
-    local our_song_player_controller = song_player_api.new_player(song, config)
+    local our_song_player_controller = song_player_api.new_player(processed_song, player_config)
 
     -- TODO: Check song type. if it's a host-only song, build packets for it.
     -- TODO: Figure out how we want to represent local songs with a newtwork relationship.
@@ -1183,6 +1183,7 @@ local function new_network_song_player(song, config)
 end
 
 ---@class SongNetworkingApi
+---@field new_network_song_player fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):SongPlayerController
 ---@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):BundledPacket[]
 ---@field local_receive_packet  fun(packed_packet_data:PacketDataString)
 ---@field ping_packets          fun(outgoing_packed_packets:PacketDataString[])
@@ -1194,6 +1195,7 @@ end
 ---@field get_player_for_transfered_song fun(transfered_song_id:integer):SongPlayerController  Treat this as read-only. Edits to this player will only be seen by the host.
 ---@field get_target_milis_between_packets fun():integer                Returns `target_milis_between_packets`, so that we can make time-estemations from packet rate.
 return {
+    new_network_song_player = new_network_song_player,
     song_to_packets = song_to_packets,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     ping_packets = ping_packets,
