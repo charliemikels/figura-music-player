@@ -1153,11 +1153,25 @@ local function new_network_song_player(processed_song, player_config)
         return song_player_api.new_player(processed_song, player_config)
     end
 
-    local our_song_player_controller = song_player_api.new_player(processed_song, player_config)
+    -- local our_song_player_controller = song_player_api.new_player(processed_song, player_config)
+    -- ---@class SongPlayerController
+    -- net_player = {}
+    -- for k,fn in pairs(our_song_player_controller) do net_player[k] = fn end
 
-    -- TODO: Check song type. if it's a host-only song, build packets for it.
+    -- TODO: Check song type. if it's a host-only song, immediatly build packets for it.
+
+    -- TODO: Set up the remote player. Immediatly ping the song's header packets (Or whatever method we need to do for local songs).
+    --       This will be enough to create a remote/transfered player with an empty config.
+
+
+    -- TODO: Get the remote player build a controller arround it. For most set functions, we'll need to ping data over. But we can also look at ourself for most other actions.
+
+
     -- TODO: Figure out how we want to represent local songs with a newtwork relationship.
 
+
+
+    -- TODO: Remove play_immediatly as a config paramiter. We don't need to do magic to get things to play if we can just talk to the remote player with control codes.
 
     -- This wraper needs to
     --  - [ ] Know if a song will processable/accessable to client already. (If it's a local song)
@@ -1171,15 +1185,10 @@ local function new_network_song_player(processed_song, player_config)
 
     -- ---@class NetworkedSongPlayer
 
-    ---@class SongPlayerController
-    net_player = {}
-
-    for k,fn in pairs(our_song_player_controller) do
-        net_player[k] = fn
-    end
 
 
-    return net_player
+
+    return {}
 end
 
 ---@class SongNetworkingApi
