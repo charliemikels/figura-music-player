@@ -92,9 +92,14 @@ local function get_library_length(library)
     return #library.sorted_songs
 end
 
+
 ---@param library Library
 local function add_local_songs(library)
-    -- TODO
+    library.song_keys_are_sorted = false
+    local local_songs = require("./local_songs").get_local_songs()
+    for _, song in pairs(local_songs) do
+        library.songs[song.id] = song
+    end
 end
 
 
