@@ -101,8 +101,6 @@ local function packet_data_bytes_to_string(data_bytes)
     return data_string
 end
 
-local packet_ids = packet_enums_api.packet_type_ids
-
 --- Builds a config packet out of a SongPlayerConfig table.
 ---
 --- This can be used at any time to update a remote song's configuration.
@@ -516,6 +514,8 @@ local function build_data_packets_and_buffer_time(processed_song)
 
     return data_packets, required_buffer_delay_in_milis + (1 * target_milis_between_packets)
 end
+
+-- local packet_ids = packet_enums_api.packet_type_ids
 
 -- ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
 -- ---@param processed_song ProcessedSong
