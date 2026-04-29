@@ -37,7 +37,7 @@ end)
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
 ---@field processed_data ProcessedSong? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
----@field start_data_processor fun(self:Song): TL_Future
+---@field start_data_processor fun(self:Song): TL_Future<ProcessedSong>
 
 
 

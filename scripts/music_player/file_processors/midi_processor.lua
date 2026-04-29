@@ -1471,7 +1471,7 @@ local midi_processor_loop_stage_functions = {
 
 ---Convert a song with midi data into a processed song.
 ---@param song Song
----@return TL_Future
+---@return TL_Future<ProcessedSong>
 local function midi_processor(song)
     -- if not host:isHost() then
     --     error("Viewer tried to process a song.")
@@ -1563,8 +1563,8 @@ local function midi_processor(song)
     local state = song.data_processor_state
     add_new_device(state, default_midi_device_name)
 
-    ---@type TL_FutureController, TL_Future
-    local future_controller, return_future = require("./../futures").new_future("Song")
+    local futures_api =  require("./../futures") ---@type TL_FuturesAPI
+    local future_controller, return_future =  futures_api.new_future("ProcessedSong")
 
     local function processor_loop()
         if state.is_done then

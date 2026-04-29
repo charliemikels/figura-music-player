@@ -1,15 +1,16 @@
 
+-- "TL" futures to avoid name collisions with the built-in futures.
+
 -- This script lets other scripts create and use `TL_Futures`, and makes sure each future has an `TL_FutureController` to go with it.
 --
 -- When using futures, create the future using `require("path/to/futures"):new_future()`,
 -- then return the un_finished future to your customer, and give the controller to the async process.
 
-local future_factory = {
+---@generic T
+---@class TL_FuturesAPI
+---@field new_future fun(type_of_value:`T`, catch_for_colon_syntax:nil):TL_FutureController<T>,TL_Future<T>     Creates a future and captures the type information
+local tl_futures_api = {
 
-    ---Creates a bright future
-    ---@param type_of_value `T`     -- TODO: Generics are still WIP. Revisit, or just type as `string`.
-    ---@return TL_FutureController
-    ---@return TL_Future
     new_future = function(type_of_value, catch_for_colon_syntax)
         if type(type_of_value) == "table" and type_of_value.new_future then
             -- caller probably used `:` syntax, which means `type_of_value` is actualy `self`. Let's help them out and try the 2nd paramiter.
@@ -29,7 +30,7 @@ local future_factory = {
             if not up__is_done then error("Future is not done") end
         end
 
-        -- TODO: LuaLS Generics are currently (2025-04-22) WIP. Revisit the `any`s in this declaration once more stable.
+
 
         ---Futures store the state of an async process. When the process is done, a value or an error can be extracted from the future.
         ---
@@ -38,17 +39,17 @@ local future_factory = {
         ---
         ---(Dev note: The "Future" type already sorta exist in Figura (see the networking/HTTP module),
         ---but I really wanted a callback functions to make chaining easier, so I'm defining my own type.)
-        ---@class TL_Future
+        ---@class TL_Future<T>
         ---@field is_done fun(self:TL_Future): boolean              Returns false if background process is still running
         ---@field get_progress fun(self:TL_Future): number          Returns a number from 0 to 1 (or whatever the value of "progress" is)
         ---@field has_error fun(self:TL_Future): boolean            Returns true if an error occured inside the future
         ---@field throw_error fun(self:TL_Future)                   Throws any stored errors.
-        ---@field get_error fun(self:TL_Future): any                Returns any stored errors.
-        ---@field get_value fun(self:TL_Future): any                Returns any stored values.
-        ---@field get_expected_value_type fun(self:TL_Future): string        Returns the expected type of the value. Can be ran before future is done.
-        ---@field get_value_or_get_error fun(self:TL_Future): any?  If no errors, return the value. Otherwise, return error as the value.
-        ---@field get_value_or_throw_error fun(self:TL_Future): any?  If no errors, return the value. Otherwise, throw the error.
-        ---@field register_callback fun(self:TL_Future, fn:fun(future:TL_Future)):TL_Future   Register a function to run after the future is done.
+        ---@field get_error fun(self:TL_Future): string?            Returns any stored errors.
+        ---@field get_value fun(self:TL_Future): T                  Returns any stored values.
+        ---@field get_expected_value_type fun(self:TL_Future): string   Returns the expected type of the value. Can be ran before future is done.
+        ---@field get_value_or_get_error fun(self:TL_Future): T|string  If no errors, return the value. Otherwise, return error as the value.
+        ---@field get_value_or_throw_error fun(self:TL_Future): T?  If no errors, return the value. Otherwise, throw the error.
+        ---@field register_callback fun(self:TL_Future<T>, fn:fun(future:TL_Future<T>)):TL_Future<T>   Register a function to run after the future is done.
         local future = {
             is_done = function(self)
                 return up__is_done
@@ -87,7 +88,7 @@ local future_factory = {
             get_value_or_get_error = function(self)
                 up__done_or_error()
                 if up__value then return up__value end
-                if up__error then return up__error end
+                return up__error
             end,
 
             get_value_or_throw_error = function(self)
@@ -125,12 +126,12 @@ local future_factory = {
         ---`TL_FutureController`s are paired with a `TL_Future`. The system that returns a future uses the controller to update and fulfill the future.
         ---
         ---@see TL_Future
-        ---@class TL_FutureController
+        ---@class TL_FutureController<T>
         ---@field is_done fun(self:TL_FutureController):boolean Returns the running state of the future. Controll this with `set_done_with_value()` and `set_done_with_error()`
-        ---@field set_done_with_value fun(self:TL_FutureController, value:any)
+        ---@field set_done_with_value fun(self:TL_FutureController, value:T)
         ---@field set_done_with_error fun(self:TL_FutureController, error:string)
         ---@field set_progress fun(self:TL_FutureController, progress:number)       `Progress` is a number from 0-1 that represents the completion of the future.
-        ---@field get_future fun(self:TL_FutureController):TL_Future                 Returns the future assosiated with this controller.
+        ---@field get_future fun(self:TL_FutureController):TL_Future<T>              Returns the future assosiated with this controller.
         local future_controller = {
             is_done = function(self) return up__is_done end,
             set_done_with_value = function(self, value) up__value = value; up__set_done(); end,
@@ -143,4 +144,4 @@ local future_factory = {
     end
 }
 
-return future_factory
+return tl_futures_api
