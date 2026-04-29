@@ -10,6 +10,7 @@ end
 
 local song_script_returns = {}
 local local_songs = {}      ---@type Song[]
+local local_song_future_controllers = {}      ---@type TL_FutureController[]    -- inexes will be in sync with the local_songs list
 
 local local_songs_directory_path = "./local_songs"
 local pattern_to_exclude = string.gsub(local_songs_directory_path, "%.%/(%a-)", "%1").."$"  -- Basicaly `"./thing"` → `"thing$"
@@ -24,6 +25,8 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                 print(tostring(script).." exists, but does not look like a local song")
             else
                 print("Found local song:", require_return.name)
+                local tl_futures_api = require("./futures") ---@type TL_FuturesAPI
+                local future_controller, return_future = tl_futures_api.new_future("ProcessedSong")
 
                 ---@type Song
                 local detected_song = {
@@ -31,9 +34,8 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                     name = require_return.name,
                     short_name = require_return.name,
                     start_data_processor = function()
-                        local data = require_return.data
-                        -- TODO: expose more of the network API
-                        return nil
+                        -- for local songs, start_data_processor is sorta a lie. The data procesor has already started on avatar init, but works slowly.
+                        return return_future
                     end,
                     processed_data = nil,
                     source = { ---@type LocalDataSource
@@ -42,16 +44,15 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                     },
                 }
                 table.insert(local_songs, detected_song)
+                table.insert(local_song_future_controllers, future_controller)  -- index should be in sync with the local song
                 table.insert(song_script_returns, require_return)
             end
         end
     end
-
-
-
-
-
 end
+
+-- We've built a list of local songs and assigned processors to them. We can start our tick loop and fill them in one by one.
+-- TODO
 
 
 ---@class LocalSongApi
