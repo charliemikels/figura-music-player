@@ -1469,7 +1469,9 @@ local midi_processor_loop_stage_functions = {
 }
 
 
----Convert a song with midi data into a processed song.
+--- Convert a song with midi data into a processed song.
+---
+--- Followup calls will not restart the processor, but just return
 ---@param song Song
 ---@return TL_Future<ProcessedSong>
 local function midi_processor(song)
@@ -1606,6 +1608,9 @@ local function midi_processor(song)
     -- It's safe to assume the HOST is allways at max perms. So ultimately,
     -- it's fine.
     events.WORLD_RENDER:register(processor_loop)
+
+    -- overwrite song's processor function to just return the existing future, instead of restarting the processor
+    song.start_data_processor = function(_) return return_future end
 
     return return_future
 end
