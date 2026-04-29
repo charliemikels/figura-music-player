@@ -207,7 +207,7 @@ end
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
----@type table<integer, {song: ProcessedSong, instructions_with_modifier_ids: table<integer, Instruction>, player: SongPlayerController}>
+---@type table<integer, {song: ProcessedSong, player: SongPlayerController}>
 local collected_incoming_songs = {}
 
 -- list of transfer IDs that we must have missed
@@ -246,7 +246,7 @@ local function receive_data_packet(reader, transfered_song_id)
         return
     end
     local song = collected_incoming_songs[transfered_song_id].song
-    local modifiable_instructions = collected_incoming_songs[transfered_song_id].instructions_with_modifier_ids
+    local modifiable_instructions =  song.packet_decoder_info.instructions_with_modifier_ids
     local packet_start_time = vlq_to_int_from_reader(reader)
     repeat
         local instruction_start_delta = vlq_to_int_from_reader(reader)
@@ -423,12 +423,14 @@ local function receive_header_packet(reader, transfered_song_id)
         tracks = tracks,
         instructions = {},
         buffer_delay = buffer_delay,
-        buffer_start_time = nil -- will be auto-filled by player.lua once it gets its first instruction.
+        buffer_start_time = nil, -- will be auto-filled by player.lua once it gets its first instruction.
+        packet_decoder_info = {
+            instructions_with_modifier_ids = {}
+        }
     }
 
     collected_incoming_songs[transfered_song_id] = {
         song = incoming_processed_song,
-        instructions_with_modifier_ids = {},
         player = nil
     }
 

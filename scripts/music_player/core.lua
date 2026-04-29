@@ -38,7 +38,6 @@ end)
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
 ---@field processed_data ProcessedSong? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
----@field packet_decoder_info PacketDecoderInfo?    Temporary space for Packet Decoder to track ongoing information.
 ---@field start_data_processor fun(self:Song): TL_Future<ProcessedSong>
 
 
@@ -58,6 +57,7 @@ end)
 ---@field buffer_start_time number?  The time when the song started buffering
 ---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.
 ---@field is_local boolean?          Is true if song data does not need to be pinged.
+---@field packet_decoder_info PacketDecoderInfo?    Temporary space for Packet Decoder to track ongoing information.
 
 ---Tracks ProcessedSong are the step immediatly before PlayingSong.
 ---@class Track
