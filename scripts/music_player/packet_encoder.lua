@@ -108,7 +108,7 @@ local packet_ids = packet_enums_api.packet_type_ids
 --- This can be used at any time to update a remote song's configuration.
 ---@param player_config SongPlayerConfig
 ---@return PacketDataBytes
-local function build_config_packet_from_song(player_config)
+local function build_config_packet(player_config)
 
     local config_packet_body = {}
 
@@ -242,7 +242,7 @@ end
 ---@param processed_song ProcessedSong
 ---@param buffer_delay integer
 ---@return PacketDataBytes
-local function build_header_packet_from_song(processed_song, buffer_delay)
+local function build_header_packets(processed_song, buffer_delay)
     local packet = {}
     union_tables(packet, string_to_bytes_with_len(processed_song.name))
 
@@ -399,7 +399,7 @@ end
 ---@param processed_song ProcessedSong
 ---@return PacketDataBytes[] data_packets        -- Fully formed packets ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milis
-local function build_data_packets_from_song_with_buffer_time(processed_song)
+local function build_data_packets_and_buffer_time(processed_song)
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
 
@@ -593,9 +593,9 @@ end
 
 ---@class PacketEncoderApi
 local packet_builder_api = {
-    build_header_packets_from_song  = build_header_packet_from_song,
-    build_config_packet_from_song   = build_config_packet_from_song,
-    build_data_packets_from_song_with_buffer_time = build_data_packets_from_song_with_buffer_time,
+    build_header_packets  = build_header_packets,
+    build_config_packet   = build_config_packet,
+    build_data_packets_and_buffer_time = build_data_packets_and_buffer_time,
     make_control_packet             = make_control_packet,
 
     get_pings_per_second             = function() return pings_per_second end,
