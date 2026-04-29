@@ -234,13 +234,6 @@ local function new_packet_reader(bytes)
     return reader
 end
 
---- Reverse of modifier_type_to_number_lookup for reverse lookups
----@type table<integer, string>
-local modifier_number_to_type_lookup = {}
-for name, id in pairs(modifier_type_to_number_lookup) do
-    modifier_number_to_type_lookup[id] = name
-end
-
 ---Reads a data packet out of a Reader.
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
 ---@param transfered_song_id integer    Index into collected_incoming_songs
@@ -287,7 +280,7 @@ local function receive_data_packet(reader, transfered_song_id)
             local modifier_type_id = vlq_to_int_from_reader(reader)
             local modifier_value = vlq_to_int_from_reader(reader)
 
-            local modifier_type = modifier_number_to_type_lookup[modifier_type_id]
+            local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
 
             if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
 

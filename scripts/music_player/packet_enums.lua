@@ -20,18 +20,26 @@ local control_packet_codes = {
 }
 
 ---@enum ModifierTypeCodes
-local modifier_type_codes = {
+local modifier_key_to_number = {
     volume = 1,
     pitch_wheel = 2,
     -- pan = 3,
 }
+
+--- Reverse of modifier_type_codes for reverse lookups
+---@type table<ModifierTypeCodes, string>
+local modifier_number_to_key = {}
+for name, id in pairs(modifier_key_to_number) do
+    modifier_number_to_key[id] = name
+end
 
 
 ---@class PacketEnumsAPI
 local packet_enums_api = {
     packet_type_ids = packet_type_ids,
     control_packet_codes = control_packet_codes,
-    modifier_type_codes = modifier_type_codes,
+    modifier_key_to_number = modifier_key_to_number,
+    modifier_number_to_key = modifier_number_to_key,
 }
 
 return packet_enums_api

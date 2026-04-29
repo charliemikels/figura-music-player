@@ -273,7 +273,7 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
         -- nil signals that this is a modifier for an instruction we've (probably) already sent
         -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
     union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
-    union_tables(modifier_packet_part, int_to_vlq(packet_enums_api.modifier_type_codes[modifier.type]))
+    union_tables(modifier_packet_part, int_to_vlq(packet_enums_api.modifier_key_to_number[modifier.type]))
     union_tables(modifier_packet_part, int_to_vlq(modifier.value))
     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
 end
@@ -313,7 +313,7 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
 
         -- make new packet parts for each modifier
         for _, modifier in ipairs(instruction.modifiers) do
-            if not packet_enums_api.modifier_type_codes[modifier.type] then
+            if not packet_enums_api.modifier_key_to_number[modifier.type] then
                 if not modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] then
                     modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = 1
                     print_debug("song_instruction_to_packet_parts: unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
