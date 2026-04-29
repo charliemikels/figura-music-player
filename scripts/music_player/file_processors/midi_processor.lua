@@ -1033,8 +1033,8 @@ midi_message_functions = {
 ---| '"process"'
 ---| '"done"'
 
----@alias MidiProcessorFunctionReturn {progress: number, finished_song: ProcessedSong?}
----@alias MidiProcessorFunction fun(song: Song, state: MidiProcessorState): MidiProcessorFunctionReturn
+---@alias MidiProcessorFunctionReturn {progress: number, finished_song: Song?}
+---@alias MidiProcessorFunction fun(song: SongHolder, state: MidiProcessorState): MidiProcessorFunctionReturn
 
 ---@type table<MidiProcessorStageKey, MidiProcessorFunction>
 local midi_processor_loop_stage_functions = {
@@ -1449,7 +1449,7 @@ local midi_processor_loop_stage_functions = {
         end
         seen_instruments = nil
 
-        ---@type ProcessedSong
+        ---@type Song
         local processed_song = {
             name = song.short_name,
             duration = state.processed_metadata.time_song_end,
@@ -1472,8 +1472,8 @@ local midi_processor_loop_stage_functions = {
 --- Convert a song with midi data into a processed song.
 ---
 --- Followup calls will not restart the processor, but just return
----@param song Song
----@return TL_Future<ProcessedSong>
+---@param song SongHolder
+---@return TL_Future<Song>
 local function midi_processor(song)
     -- if not host:isHost() then
     --     error("Viewer tried to process a song.")
@@ -1566,7 +1566,7 @@ local function midi_processor(song)
     add_new_device(state, default_midi_device_name)
 
     local futures_api =  require("./../futures") ---@type TL_FuturesAPI
-    local future_controller, return_future =  futures_api.new_future("ProcessedSong")
+    local future_controller, return_future =  futures_api.new_future("Song")
 
     local function processor_loop()
         if state.is_done then
@@ -1589,7 +1589,7 @@ local function midi_processor(song)
                 end
                 if value.finished_song then
                     state.is_done = true
-                    song.processed_data = value.finished_song
+                    song.processed_song = value.finished_song
                     events.WORLD_RENDER:remove(processor_loop)
                     future_controller:set_done_with_value(value.finished_song)
                 end
@@ -1629,7 +1629,7 @@ local midi_processor_api = {
             local file_ext = file_paths.full_path:match("%.([^%.]+)$"):lower()
             for _, supported_file_ext in pairs(supported_extensions) do
                 if supported_file_ext == file_ext then
-                    ---@type Song
+                    ---@type SongHolder
                     local new_song = {
                         uuid = client.intUUIDToString(client.generateUUID()),
                         id = file_paths.full_path,

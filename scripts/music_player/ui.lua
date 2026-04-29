@@ -257,9 +257,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             previous_action_wheel_page = nil
         end)
 
-    ---@param song Song Assumes song is fully processed and ready to go
+    ---@param song SongHolder Assumes song is fully processed and ready to go
     local function apply_song_configs_and_save_to_processed_list(song)
-        local processed_song = song.processed_data
+        local processed_song = song.processed_song
 
         local song_player_config = config_cahe_api.load_song_config(song.id)
         song_player_config.source_entity = player
@@ -353,7 +353,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     local song_config_action_wheel_page = action_wheel:newPage()
 
     ---@class ConfigPageState
-    ---@field targeted_song Song
+    ---@field targeted_song SongHolder
     ---@field targeted_song_config SongPlayerConfig
     ---@field selected_track_index integer
     ---@field selected_instrument_index integer
@@ -365,7 +365,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         local instrument_picker_title = "[ { 'text': '"
             .."Editing \"" .. config_page_state.targeted_song.short_name:gsub("'", "\\'")
             .. "\", track " .. string.format("%02d", config_page_state.selected_track_index)
-            .. "\n" .. "Track Name: \"" .. config_page_state.targeted_song.processed_data.tracks[config_page_state.selected_track_index].recommended_instrument_name .. "\""
+            .. "\n" .. "Track Name: \"" .. config_page_state.targeted_song.processed_song.tracks[config_page_state.selected_track_index].recommended_instrument_name .. "\""
             .. "\n" .. "Select an instrument with left click"
 
         local number_of_instruments = #config_page_state.instrument_keys
@@ -445,7 +445,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         track_picker_title = track_picker_title .. "\n" .. "Scroll to select a track"
         track_picker_title = track_picker_title .. "\n"
 
-        local number_of_tracks = #config_page_state.targeted_song.processed_data.tracks
+        local number_of_tracks = #config_page_state.targeted_song.processed_song.tracks
         local tracks_to_display = num_songs_to_display_in_selector / 2
 
         -- get index range
@@ -462,7 +462,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         end
 
         for k = start_index, end_index do
-            local current_track = config_page_state.targeted_song.processed_data.tracks[k]
+            local current_track = config_page_state.targeted_song.processed_song.tracks[k]
 
             track_picker_title = track_picker_title
                 .. "\n"
@@ -512,7 +512,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             local scroll_amount = keybinds:getKeybinds()["Scroll song list faster"]:isPressed() and 20 or 1
             config_page_state.selected_track_index = config_page_state.selected_track_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
 
-            local total_track_count = #config_page_state.targeted_song.processed_data.tracks
+            local total_track_count = #config_page_state.targeted_song.processed_song.tracks
 
             -- Scroll wrap
             if config_page_state.selected_track_index > total_track_count then config_page_state.selected_track_index = 1 end

@@ -146,7 +146,7 @@ local modifier_type_to_number_lookup = {
 
 
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
----@param processed_song ProcessedSong
+---@param processed_song Song
 ---@param player_config SongPlayerConfig
 ---@return BundledPacket[]
 local function song_to_packets(processed_song, player_config)
@@ -207,7 +207,7 @@ end
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
----@type table<integer, {song: ProcessedSong, player: SongPlayerController}>
+---@type table<integer, {song: Song, player: SongPlayerController}>
 local collected_incoming_songs = {}
 
 -- list of transfer IDs that we must have missed
@@ -396,7 +396,7 @@ end
 ---Parces a header packet out of a Reader. Packet type and transfered_song_id have already been received since they start every packet.
 ---@param reader PacketReader           Where the packet id and transfer song ID have already been read
 ---@param transfered_song_id integer    Index into collected_incoming_songs
----@return ProcessedSong        A processed song that likely has no instructions
+---@return Song        A processed song that likely has no instructions
 local function receive_header_packet(reader, transfered_song_id)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     -- The host should never send a 2nd song with the same ID, but it might happen if the host has reloaded their script.
@@ -416,7 +416,7 @@ local function receive_header_packet(reader, transfered_song_id)
 
     local buffer_delay = vlq_to_int_from_reader(reader)
 
-    ---@type ProcessedSong
+    ---@type Song
     local incoming_processed_song = {
         name = name,
         duration = duration,
@@ -702,7 +702,7 @@ end
 --- Use this instead of manualy working with the networking / packet building process.
 ---
 --- Host Only. May turn a song into packets (expensive) and call ping functions.
----@param processed_song ProcessedSong
+---@param processed_song Song
 ---@param player_config SongPlayerConfig
 ---@return SongPlayerController
 local function new_network_song_player(processed_song, player_config)
@@ -754,8 +754,8 @@ local function new_network_song_player(processed_song, player_config)
 end
 
 ---@class SongNetworkingApi
----@field new_network_song_player fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):SongPlayerController
----@field song_to_packets       fun(processed_song:ProcessedSong, player_config:SongPlayerConfig):BundledPacket[]
+---@field new_network_song_player fun(processed_song:Song, player_config:SongPlayerConfig):SongPlayerController
+---@field song_to_packets       fun(processed_song:Song, player_config:SongPlayerConfig):BundledPacket[]
 ---@field local_receive_packet  fun(packed_packet_data:PacketDataString)
 ---@field ping_packets          fun(outgoing_packed_packets:PacketDataString[])
 ---@field outgoing_packet_queue_progress    fun():number

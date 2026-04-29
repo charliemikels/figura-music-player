@@ -441,7 +441,7 @@ local song_player_api = {
     --- Create a new SongPlayer and return its SongPlayerController.
     ---
     --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responcible for one song.
-    ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): SongPlayerController
+    ---@type fun(song: Song, config: SongPlayerConfig?): SongPlayerController
     new_player = function (song, config)
         if not config or (not next(config)) then config = {} end
         print_debug("New player for", song.name)

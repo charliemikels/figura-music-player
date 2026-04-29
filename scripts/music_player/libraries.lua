@@ -47,7 +47,7 @@ end
 local function sort_library(library)
     if library.song_keys_are_sorted then return end
 
-    ---@type Song[]
+    ---@type SongHolder[]
     local sorted_songs = {}
     for _, song in pairs(library.songs) do
         table.insert(sorted_songs, #sorted_songs +1, song)
@@ -72,14 +72,14 @@ end
 
 ---@param library Library
 ---@param id string
----@return Song
+---@return SongHolder
 local function get_song_by_id (library, id)
     return library.songs[id]
 end
 
 ---@param library Library
 ---@param index integer
----@return Song
+---@return SongHolder
 local function get_song_by_sorted_index(library, index)
     if not library.song_keys_are_sorted then sort_library(library) end
     return library.sorted_songs[index]
@@ -112,11 +112,11 @@ local libraries_api = {
     ---@return Library
     build_library = function(self)
         ---@class Library
-        ---@field songs table<string, Song> Canonical song list.
-        ---@field sorted_songs Song[] Sorted song list. Used to display the songs in alphabetical order.
+        ---@field songs table<string, SongHolder> Canonical song list.
+        ---@field sorted_songs SongHolder[] Sorted song list. Used to display the songs in alphabetical order.
         ---@field add_source_directory fun(library:Library, path:string)
-        ---@field get_song_by_id fun(library:Library, id:string):Song?
-        ---@field get_song_by_sorted_index fun(library:Library, index:integer):Song?
+        ---@field get_song_by_id fun(library:Library, id:string):SongHolder?
+        ---@field get_song_by_sorted_index fun(library:Library, index:integer):SongHolder?
         ---@field get_library_length fun(library:Library):integer
         ---@field package song_keys_are_sorted boolean
         local library = {

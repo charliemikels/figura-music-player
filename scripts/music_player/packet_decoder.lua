@@ -13,16 +13,16 @@
 ---@class PacketDecoderApi
 local packet_receiver_api = {
 
-    ---@type fun(packet_data:BundledPacket):ProcessedSong
+    ---@type fun(packet_data:BundledPacket):Song
     new_song_from_header_packet  = function(packet_data)
 
         return {}
     end,
 
-    ---@type fun(partial_song:ProcessedSong, packet_data:BundledPacket):ProcessedSong
+    ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
     add_config_to_song_from_packet  = function(partial_song, packet_data) return {} end,
 
-    ---@type fun(partial_song:ProcessedSong, packet_data:BundledPacket):ProcessedSong
+    ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
     add_instructions_to_song_from_packet = function(partial_song, packet_data)
 
         return {}

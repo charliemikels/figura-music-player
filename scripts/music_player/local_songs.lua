@@ -9,7 +9,7 @@ end
 ---@field name string
 
 local song_script_returns = {}
-local local_songs = {}      ---@type Song[]
+local local_songs = {}      ---@type SongHolder[]
 local local_song_future_controllers = {}      ---@type TL_FutureController[]    -- inexes will be in sync with the local_songs list
 
 local local_songs_directory_path = "./local_songs"
@@ -28,7 +28,7 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                 local tl_futures_api = require("./futures") ---@type TL_FuturesAPI
                 local future_controller, return_future = tl_futures_api.new_future("ProcessedSong")
 
-                ---@type Song
+                ---@type SongHolder
                 local detected_song = {
                     uuid = client.intUUIDToString(client.generateUUID()),
                     id = "",    -- TODO
@@ -38,7 +38,7 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                         -- for local songs, start_data_processor is sorta a lie. The data procesor has already started on avatar init, but works slowly.
                         return return_future
                     end,
-                    processed_data = nil,
+                    processed_song = nil,
                     source = { ---@type LocalDataSource
                         type = "local",
                         raw_data = require_return.data
@@ -57,8 +57,8 @@ end
 
 
 ---@class LocalSongApi
----@field get_local_songs fun():Song[]
----@field convert_song_to_local fun(song:Song)
+---@field get_local_songs fun():SongHolder[]
+---@field convert_song_to_local fun(song:SongHolder)
 local local_songs_api = {
     get_local_songs = function() return local_songs end,
     convert_song_to_local = function(song) end

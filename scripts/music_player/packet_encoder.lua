@@ -237,7 +237,7 @@ end
 --- You probably want to use `song_to_packets` instead of calling this fn directly.
 ---
 ---@see song_to_packets
----@param processed_song ProcessedSong
+---@param processed_song Song
 ---@param buffer_delay integer
 ---@return PacketDataBytes
 local function build_header_packets(processed_song, buffer_delay)
@@ -387,7 +387,7 @@ end
 
 --- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
 ---@see song_to_packets
----@param processed_song ProcessedSong
+---@param processed_song Song
 ---@return PacketDataBytes[] data_packets        -- Fully formed packets ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milis
 local function build_data_packets_and_buffer_time(processed_song)

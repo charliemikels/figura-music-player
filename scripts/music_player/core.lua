@@ -31,14 +31,14 @@ end)
 ---@field type DataSourceTypes
 ---@field raw_data PacketDataString[]
 
----@class Song
+---@class SongHolder
 ---@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of speciffic instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)
 ---@field id string     A unique ID for this song in this library. Usualy the same as fuul_path.
 ---@field name string   The name used in the displayed song list
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
----@field processed_data ProcessedSong? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
----@field start_data_processor fun(self:Song): TL_Future<ProcessedSong>
+---@field processed_song Song? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
+---@field start_data_processor fun(self:SongHolder): TL_Future<Song>
 
 
 
@@ -49,7 +49,7 @@ end)
 ---
 ---Stores enough data to apply settings about the song (number of tracks / assigned instruments / disabled tracks),
 ---and instructions ready to turn into packets.
----@class ProcessedSong
+---@class Song
 ---@field instructions Instruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
 ---@field name string
 ---@field duration number
