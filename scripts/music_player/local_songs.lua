@@ -12,7 +12,7 @@ local song_script_returns = {}
 local local_songs = {}      ---@type Song[]
 
 local local_songs_directory_path = "./local_songs"
-local pattern_to_exclude = string.gsub(local_songs_directory_path, "%.%/(%a-)", "%1").."$"
+local pattern_to_exclude = string.gsub(local_songs_directory_path, "%.%/(%a-)", "%1").."$"  -- Basicaly `"./thing"` → `"thing$"
 for _, script in pairs(listFiles(local_songs_directory_path, true)) do
     if not string.match(script, pattern_to_exclude) then
         local require_success, require_return = pcall(function() return require(script) end)
