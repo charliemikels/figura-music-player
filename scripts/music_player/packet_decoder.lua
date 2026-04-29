@@ -20,7 +20,17 @@ local packet_receiver_api = {
     add_config_to_song_from_packet  = function(partial_song, packet_data) return {} end,
 
     ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
-    add_instructions_to_song_from_packet = function(partial_song, packet_data) return {} end,
+    add_instructions_to_song_from_packet = function(partial_song, packet_data)
+        -- TODO: Modifiers can be spread between many packets. Therefore we need to care about previous packets.
+        --       The current implementation stores modifier instruction info in a big table indexed by transfer_id.
+        --
+        --       `collected_incoming_songs[transfer_id].instructions_with_modifier_ids[modifier_id]`
+        --
+        --       Local songs won't have a transfer ID. not in the same way as a real transfered song.
+        --       Move this table as an extra value inside Song.
+
+        return {}
+    end,
 
     ---@type fun(controller:SongPlayerController, packet_data:BundledPacket):SongPlayerController
     controll_player_from_packet = function(controller, packet_data) return {} end,
