@@ -9,12 +9,18 @@
 --      Converters just transform the data from packets to tables
 --      Receivers actualy keep track of trasfer IDs and ongoing assembly.
 
+---@class PacketDecoderInfo
+---@field instructions_with_modifier_ids table<integer, Instruction>
 
 ---@class PacketDecoderApi
 local packet_receiver_api = {
 
     ---@type fun(packet_data:BundledPacket):Song
-    new_song_from_header_packet  = function(packet_data) return {} end,
+    new_song_from_header_packet  = function(packet_data)
+        -- in addition to the normal song data, remember to initilize PacketDecoderInfo. It's new as of this commit.
+
+        return {}
+    end,
 
     ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
     add_config_to_song_from_packet  = function(partial_song, packet_data) return {} end,
