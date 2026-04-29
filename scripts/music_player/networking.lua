@@ -591,9 +591,9 @@ local function song_to_packets(processed_song, player_config)
     local transfered_song_id = songs_turned_into_packets_so_far
     songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
 
-    local all_data_packets, buffer_delay = build_data_packets(processed_song)
-    local header_packet = build_header_packet(processed_song, buffer_delay)
-    local config_packet = build_config_packet(player_config)
+    local all_data_packets, buffer_delay =  packet_encoder_api.build_data_packets_and_buffer_time(processed_song)
+    local header_packet = packet_encoder_api.build_header_packets(processed_song, buffer_delay)
+    local config_packet = packet_encoder_api.build_config_packet(player_config)
 
     ---@type BundledPacket[]
     local final_packet_list = {}
