@@ -19,11 +19,19 @@ local control_packet_codes = {
     remove = 2,     -- Delete a song from the transfered song list
 }
 
+---@enum ModifierTypeCodes
+local modifier_type_codes = {
+    volume = 1,
+    pitch_wheel = 2,
+    -- pan = 3,
+}
+
 
 ---@class PacketEnumsAPI
 local packet_enums_api = {
     packet_type_ids = packet_type_ids,
     control_packet_codes = control_packet_codes,
+    modifier_type_codes = modifier_type_codes,
 }
 
 return packet_enums_api
