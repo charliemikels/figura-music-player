@@ -1034,11 +1034,11 @@ midi_message_functions = {
 ---| '"done"'
 
 ---@alias MidiProcessorFunctionReturn {progress: number, finished_song: Song?}
----@alias MidiProcessorFunction fun(song: SongHolder, state: MidiProcessorState): MidiProcessorFunctionReturn
+---@alias MidiProcessorFunction fun(song_holder: SongHolder, state: MidiProcessorState): MidiProcessorFunctionReturn
 
 ---@type table<MidiProcessorStageKey, MidiProcessorFunction>
 local midi_processor_loop_stage_functions = {
-    init = function(song, state)
+    init = function(song_holder, state)
         -- Ensure everything is ready to go for reading and organizing
 
         -- Set up input stream for read step, or skip read if not needed
@@ -1048,8 +1048,8 @@ local midi_processor_loop_stage_functions = {
         -- It is worth while to keep track of songs that have host-only data (needs pings) vs songs that are
         -- bundled with the avatar. (Don't need pings for data, just start/stop.) But for the midi parcer
         -- itself, this distinction is not exactly nessesary.
-        if song.source.type == "files" then
-            state.reader.file_stream = file:openReadStream(song.source.full_path)
+        if song_holder.source.type == "files" then
+            state.reader.file_stream = file:openReadStream(song_holder.source.full_path)
             if state.reader.file_stream:available() then state.reader.total_file_size = state.reader.file_stream:available() end
             state.stage = "read"
         else
@@ -1059,7 +1059,7 @@ local midi_processor_loop_stage_functions = {
         return { progress = 0 }
     end,
 
-    read = function(song, state)
+    read = function(song_holder, state)
         -- read in data, a few bytes at a time, so that we don't freeze the game reading a hughe file.
         for _ = 1, max_read_steps_per_event, 1 do
             if
@@ -1184,7 +1184,7 @@ local midi_processor_loop_stage_functions = {
 
                         if state.midi_header_info.format == "2" then
                             error("MIDI format 2 not yet supported."
-                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                                .." Send this MIDI file (".. song_holder.name ..") to the script author for testing.")
                         end
 
                         -- Number of tracks
@@ -1212,7 +1212,7 @@ local midi_processor_loop_stage_functions = {
                             -- TODO
 
                             error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
-                                .." Send this MIDI file (".. song.name ..") to the script author for testing.")
+                                .." Send this MIDI file (".. song_holder.name ..") to the script author for testing.")
                         else
                             --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
                             local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
@@ -1382,7 +1382,7 @@ local midi_processor_loop_stage_functions = {
         )}
     end,
 
-    done = function(song, state)
+    done = function(song_holder, state)
         -- Check note builder for any left over notes.
         for _, device_channels in pairs(state.instruction_builder) do
             for _, channel_data in pairs(device_channels) do
@@ -1451,7 +1451,7 @@ local midi_processor_loop_stage_functions = {
 
         ---@type Song
         local processed_song = {
-            name = song.short_name,
+            name = song_holder.short_name,
             duration = state.processed_metadata.time_song_end,
             instructions = state.complete_instructions,
             tracks = player_track_data
@@ -1472,15 +1472,15 @@ local midi_processor_loop_stage_functions = {
 --- Convert a song with midi data into a processed song.
 ---
 --- Followup calls will not restart the processor, but just return
----@param song SongHolder
+---@param song_holder SongHolder
 ---@return TL_Future<Song>
-local function midi_processor(song)
+local function midi_processor(song_holder)
     -- if not host:isHost() then
     --     error("Viewer tried to process a song.")
     -- end
 
     ---@class MidiProcessorState
-    song.data_processor_state = {
+    song_holder.data_processor_state = {
         is_done = false,
 
         ---@type MidiProcessorStageKey
@@ -1562,7 +1562,7 @@ local function midi_processor(song)
         },
     }
 
-    local state = song.data_processor_state
+    local state = song_holder.data_processor_state
     add_new_device(state, default_midi_device_name)
 
     local futures_api =  require("./../futures") ---@type TL_FuturesAPI
@@ -1575,7 +1575,7 @@ local function midi_processor(song)
 
         elseif midi_processor_loop_stage_functions[state.stage] then
             ---@type boolean, string|MidiProcessorFunctionReturn
-            local success, value = pcall(midi_processor_loop_stage_functions[state.stage], song, state)
+            local success, value = pcall(midi_processor_loop_stage_functions[state.stage], song_holder, state)
             if not success then
                 ---@cast value string
                 state.is_done = true
@@ -1589,7 +1589,7 @@ local function midi_processor(song)
                 end
                 if value.finished_song then
                     state.is_done = true
-                    song.processed_song = value.finished_song
+                    song_holder.processed_song = value.finished_song
                     events.WORLD_RENDER:remove(processor_loop)
                     future_controller:set_done_with_value(value.finished_song)
                 end
@@ -1610,7 +1610,7 @@ local function midi_processor(song)
     events.WORLD_RENDER:register(processor_loop)
 
     -- overwrite song's processor function to just return the existing future, instead of restarting the processor
-    song.start_data_processor = function(_) return return_future end
+    song_holder.start_data_processor = function(_) return return_future end
 
     return return_future
 end
