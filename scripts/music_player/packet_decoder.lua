@@ -3,8 +3,6 @@
 
 -- There should be no ping functions here. This entire file must be runable on the viewer.
 
--- who should be in charge of knowing what song a packet belongs to? (Who tracks the transfer id?)
-
 -- IDEA: two types of functions here. Receivers, and converters.
 --      Converters just transform the data from packets to tables
 --      Receivers actualy keep track of trasfer IDs and ongoing assembly.
@@ -15,16 +13,16 @@
 ---@class PacketDecoderApi
 local packet_receiver_api = {
 
-    ---@type fun(packet_data:BundledPacket):Song
+    ---@type fun(packet_data:BundledPacket):ProcessedSong
     new_song_from_header_packet  = function(packet_data)
 
         return {}
     end,
 
-    ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
+    ---@type fun(partial_song:ProcessedSong, packet_data:BundledPacket):ProcessedSong
     add_config_to_song_from_packet  = function(partial_song, packet_data) return {} end,
 
-    ---@type fun(partial_song:Song, packet_data:BundledPacket):Song
+    ---@type fun(partial_song:ProcessedSong, packet_data:BundledPacket):ProcessedSong
     add_instructions_to_song_from_packet = function(partial_song, packet_data)
 
         return {}
