@@ -108,7 +108,7 @@ local packet_ids = packet_enums_api.packet_type_ids
 --- This can be used at any time to update a remote song's configuration.
 ---@param player_config SongPlayerConfig
 ---@return PacketDataBytes
-local function build_config_packet(player_config)
+local function build_config_packet_from_song(player_config)
 
     local config_packet_body = {}
 
@@ -242,7 +242,7 @@ end
 ---@param processed_song ProcessedSong
 ---@param buffer_delay integer
 ---@return PacketDataBytes
-local function build_header_packet(processed_song, buffer_delay)
+local function build_header_packet_from_song(processed_song, buffer_delay)
     local packet = {}
     union_tables(packet, string_to_bytes_with_len(processed_song.name))
 
@@ -399,7 +399,7 @@ end
 ---@param processed_song ProcessedSong
 ---@return PacketDataBytes[] data_packets        -- Fully formed packets ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milis
-local function build_data_packets(processed_song)
+local function build_data_packets_from_song_with_buffer_time(processed_song)
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
 
@@ -524,57 +524,57 @@ local function build_data_packets(processed_song)
     return data_packets, required_buffer_delay_in_milis + (1 * target_milis_between_packets)
 end
 
----Immediatly converts an entire ProcessedSong and any config data into a list of packets
----@param processed_song ProcessedSong
----@param player_config SongPlayerConfig
----@return BundledPacket[]
-local function song_to_packets(processed_song, player_config)
-    ---A unique ID for each song since the avatar loaded.
-    local transfered_song_id = songs_turned_into_packets_so_far
-    songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
+-- ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
+-- ---@param processed_song ProcessedSong
+-- ---@param player_config SongPlayerConfig
+-- ---@return BundledPacket[]
+-- local function song_to_packets(processed_song, player_config)
+--     ---A unique ID for each song since the avatar loaded.
+--     local transfered_song_id = songs_turned_into_packets_so_far
+--     songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
 
-    local all_data_packets, buffer_delay = build_data_packets(processed_song)
-    local header_packet = build_header_packet(processed_song, buffer_delay)
-    local config_packet = build_config_packet(player_config)
+--     local all_data_packets, buffer_delay = build_data_packets(processed_song)
+--     local header_packet = build_header_packet(processed_song, buffer_delay)
+--     local config_packet = build_config_packet(player_config)
 
-    ---@type BundledPacket[]
-    local final_packet_list = {}
-    if (#header_packet + #config_packet) < max_packet_length then -- there is enough space to combine the header and config packets.
+--     ---@type BundledPacket[]
+--     local final_packet_list = {}
+--     if (#header_packet + #config_packet) < max_packet_length then -- there is enough space to combine the header and config packets.
 
-        -- TODO: now that we're sending many small packets quickly, instead of large packets slower, is it worth while to combine header and config packets?
+--         -- TODO: now that we're sending many small packets quickly, instead of large packets slower, is it worth while to combine header and config packets?
 
-        local joined_header_and_config = {}
-        union_tables(joined_header_and_config, header_packet)
-        union_tables(joined_header_and_config, config_packet)
+--         local joined_header_and_config = {}
+--         union_tables(joined_header_and_config, header_packet)
+--         union_tables(joined_header_and_config, config_packet)
 
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.header,
-            packet_data_string = packet_data_bytes_to_string(joined_header_and_config)
-        })
-    else
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.header,
-            packet_data_string = packet_data_bytes_to_string(header_packet)
-        })
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.config,
-            packet_data_string = packet_data_bytes_to_string(config_packet)
-        })
-    end
+--         table.insert(final_packet_list, {
+--             transfered_song_id = transfered_song_id,
+--             packet_type = packet_ids.header,
+--             packet_data_string = packet_data_bytes_to_string(joined_header_and_config)
+--         })
+--     else
+--         table.insert(final_packet_list, {
+--             transfered_song_id = transfered_song_id,
+--             packet_type = packet_ids.header,
+--             packet_data_string = packet_data_bytes_to_string(header_packet)
+--         })
+--         table.insert(final_packet_list, {
+--             transfered_song_id = transfered_song_id,
+--             packet_type = packet_ids.config,
+--             packet_data_string = packet_data_bytes_to_string(config_packet)
+--         })
+--     end
 
-    for _, data_packet in ipairs(all_data_packets) do
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.data,
-            packet_data_string = packet_data_bytes_to_string(data_packet)
-        })
-    end
+--     for _, data_packet in ipairs(all_data_packets) do
+--         table.insert(final_packet_list, {
+--             transfered_song_id = transfered_song_id,
+--             packet_type = packet_ids.data,
+--             packet_data_string = packet_data_bytes_to_string(data_packet)
+--         })
+--     end
 
-    return final_packet_list
-end
+--     return final_packet_list
+-- end
 
 local control_packet_codes = packet_enums_api.control_packet_codes
 
@@ -591,18 +591,16 @@ end
 
 
 
-
-
-
 ---@class PacketEncoderApi
 local packet_builder_api = {
-    song_header_to_packets  = function() end,
-    song_config_to_packets  = function() end,
-    instructions_to_packets = function() end,
+    build_header_packets_from_song  = build_header_packet_from_song,
+    build_config_packet_from_song   = build_config_packet_from_song,
+    build_data_packets_from_song_with_buffer_time = build_data_packets_from_song_with_buffer_time,
+    make_control_packet             = make_control_packet,
 
-    get_pings_per_second  = function() return pings_per_second end,
-    get_bytes_per_second  = function() return bytes_per_second end,
-    get_max_packet_length = function() return max_packet_length end,
+    get_pings_per_second             = function() return pings_per_second end,
+    get_bytes_per_second             = function() return bytes_per_second end,
+    get_max_packet_length            = function() return max_packet_length end,
     get_target_milis_between_packets = function() return target_milis_between_packets end,
 }
 
