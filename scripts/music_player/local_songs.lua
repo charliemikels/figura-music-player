@@ -30,7 +30,8 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
 
                 ---@type Song
                 local detected_song = {
-                    id = "",
+                    uuid = client.intUUIDToString(client.generateUUID()),
+                    id = "",    -- TODO
                     name = require_return.name,
                     short_name = require_return.name,
                     start_data_processor = function()

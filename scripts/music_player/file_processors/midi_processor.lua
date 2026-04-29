@@ -1631,6 +1631,7 @@ local midi_processor_api = {
                 if supported_file_ext == file_ext then
                     ---@type Song
                     local new_song = {
+                        uuid = client.intUUIDToString(client.generateUUID()),
                         id = file_paths.full_path,
                         name = file_paths.short_path,
                         short_name = file_paths.short_path:match("([^/]*)%."),

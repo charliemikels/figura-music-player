@@ -32,8 +32,9 @@ end)
 ---@field raw_data PacketDataString[]
 
 ---@class Song
----@field id string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
----@field name string The name used in the displayed song list
+---@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of speciffic instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)
+---@field id string     A unique ID for this song in this library. Usualy the same as fuul_path.
+---@field name string   The name used in the displayed song list
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
 ---@field processed_data ProcessedSong? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
