@@ -237,19 +237,19 @@ end
 --- You probably want to use `song_to_packets` instead of calling this fn directly.
 ---
 ---@see song_to_packets
----@param processed_song Song
+---@param song Song
 ---@param buffer_delay integer
 ---@return PacketDataBytes
-local function build_header_packets(processed_song, buffer_delay)
+local function build_header_packets(song, buffer_delay)
     local packet = {}
-    union_tables(packet, string_to_bytes_with_len(processed_song.name))
+    union_tables(packet, string_to_bytes_with_len(song.name))
 
     union_tables(packet, int_to_vlq(
-        math.ceil(processed_song.duration) -- At 144FPS, the player can only update every 5ms. math.ceil to drop sub-milisecond precission.
+        math.ceil(song.duration) -- At 144FPS, the player can only update every 5ms. math.ceil to drop sub-milisecond precission.
     ))
 
     local track_type_bits = {}
-    for _, track in ipairs(processed_song.tracks) do
+    for _, track in ipairs(song.tracks) do
         table.insert(track_type_bits, track.instrument_type_id)
     end
     union_tables(packet, int_to_vlq(#track_type_bits))
@@ -387,10 +387,10 @@ end
 
 --- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
 ---@see song_to_packets
----@param processed_song Song
+---@param song Song
 ---@return PacketDataBytes[] data_packets        -- Fully formed packets ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milis
-local function build_data_packets_and_buffer_time(processed_song)
+local function build_data_packets_and_buffer_time(song)
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
 
@@ -406,7 +406,7 @@ local function build_data_packets_and_buffer_time(processed_song)
     local current_packet_builder = {}
     ---@type {start_time: number, packet_part: PartialPacketDataBytes}[]
     local unhandled_modifiers_start_part_pairs = {}
-    local packet_start_time = processed_song.instructions[1].start_time
+    local packet_start_time = song.instructions[1].start_time
     union_tables(current_packet_builder, int_to_vlq(math.floor(packet_start_time)))
 
     --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
@@ -437,7 +437,7 @@ local function build_data_packets_and_buffer_time(processed_song)
         return instruction_packet_should_be_rebuilt
     end
 
-    for _, instruction in ipairs(processed_song.instructions) do
+    for _, instruction in ipairs(song.instructions) do
         local instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
         local instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
         local modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts

@@ -9,8 +9,8 @@ end
 ---@field name string
 
 local song_script_returns = {}
-local local_songs = {}      ---@type SongHolder[]
-local local_song_future_controllers = {}      ---@type TL_FutureController[]    -- inexes will be in sync with the local_songs list
+local local_song_holders = {}      ---@type SongHolder[]
+local local_song_processor_future_controllers = {}      ---@type TL_FutureController[]    -- inexes will be in sync with the local_songs list
 
 local local_songs_directory_path = "./local_songs"
 local pattern_to_exclude = string.gsub(local_songs_directory_path, "%.%/(%a-)", "%1").."$"  -- Basicaly `"./thing"` → `"thing$"
@@ -29,7 +29,7 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                 local future_controller, return_future = tl_futures_api.new_future("ProcessedSong")
 
                 ---@type SongHolder
-                local detected_song = {
+                local detected_potential_song = {
                     uuid = client.intUUIDToString(client.generateUUID()),
                     id = "",    -- TODO
                     name = require_return.name,
@@ -44,8 +44,8 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                         raw_data = require_return.data
                     },
                 }
-                table.insert(local_songs, detected_song)
-                table.insert(local_song_future_controllers, future_controller)  -- index should be in sync with the local song
+                table.insert(local_song_holders, detected_potential_song)
+                table.insert(local_song_processor_future_controllers, future_controller)  -- index should be in sync with the local song
                 table.insert(song_script_returns, require_return)
             end
         end
@@ -57,10 +57,10 @@ end
 
 
 ---@class LocalSongApi
----@field get_local_songs fun():SongHolder[]
+---@field get_local_song_holders fun():SongHolder[]
 ---@field convert_song_to_local fun(song:SongHolder)
 local local_songs_api = {
-    get_local_songs = function() return local_songs end,
+    get_local_song_holders = function() return local_song_holders end,
     convert_song_to_local = function(song) end
 }
 

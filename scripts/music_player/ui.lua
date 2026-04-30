@@ -64,7 +64,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     --- Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
         if not host:isHost() then return "Song list" end
-        if not next(song_library.songs) then
+        if not next(song_library.song_holders) then
             return "Song list\nNo songs found. Check the `[figura root]/data/TL_Songbook` directory."
         end
 
@@ -282,8 +282,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             selected_song_index = selected_song_index + scroll_amount * scroll_direction * (natural_scroll and 1 or -1)
 
             -- Scroll wrap
-            if selected_song_index > #song_library.sorted_songs then selected_song_index = 1 end
-            if selected_song_index < 1 then selected_song_index = #song_library.sorted_songs end
+            if selected_song_index > #song_library.sorted_song_holders then selected_song_index = 1 end
+            if selected_song_index < 1 then selected_song_index = #song_library.sorted_song_holders end
 
             update_main_page_ui()
         end)

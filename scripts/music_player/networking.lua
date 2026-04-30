@@ -417,7 +417,7 @@ local function receive_header_packet(reader, transfered_song_id)
     local buffer_delay = vlq_to_int_from_reader(reader)
 
     ---@type Song
-    local incoming_processed_song = {
+    local incoming_song = {
         name = name,
         duration = duration,
         tracks = tracks,
@@ -430,7 +430,7 @@ local function receive_header_packet(reader, transfered_song_id)
     }
 
     collected_incoming_songs[transfered_song_id] = {
-        song = incoming_processed_song,
+        song = incoming_song,
         player = nil
     }
 
@@ -445,7 +445,7 @@ local function receive_header_packet(reader, transfered_song_id)
             player_api.new_player(collected_incoming_songs[transfered_song_id].song, nil)
     end
 
-    return incoming_processed_song
+    return incoming_song
 end
 
 ---@type table<ControlPacketCode, fun(transfered_song_id:integer)>
