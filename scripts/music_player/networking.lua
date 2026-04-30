@@ -153,31 +153,17 @@ local function song_to_packets(processed_song, player_config)
 
     ---@type BundledPacket[]
     local final_packet_list = {}
-    if (#header_packet + #config_packet) < max_packet_length then -- there is enough space to combine the header and config packets.
 
-        -- TODO: now that we're sending many small packets quickly, instead of large packets slower, is it worth while to combine header and config packets?
-
-        local joined_header_and_config = {}
-        union_tables(joined_header_and_config, header_packet)
-        union_tables(joined_header_and_config, config_packet)
-
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_enums_api.packet_type_ids.header,
-            packet_data_string = packet_data_bytes_to_string(joined_header_and_config)
-        })
-    else
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_enums_api.packet_type_ids.header,
-            packet_data_string = packet_data_bytes_to_string(header_packet)
-        })
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_enums_api.packet_type_ids.config,
-            packet_data_string = packet_data_bytes_to_string(config_packet)
-        })
-    end
+    table.insert(final_packet_list, {
+        transfered_song_id = transfered_song_id,
+        packet_type = packet_enums_api.packet_type_ids.header,
+        packet_data_string = packet_data_bytes_to_string(header_packet)
+    })
+    table.insert(final_packet_list, {
+        transfered_song_id = transfered_song_id,
+        packet_type = packet_enums_api.packet_type_ids.config,
+        packet_data_string = packet_data_bytes_to_string(config_packet)
+    })
 
     for _, data_packet in ipairs(all_data_packets) do
         table.insert(final_packet_list, {
