@@ -287,7 +287,7 @@ local function new_config_from_packet(packet_data)
     ---@type SongPlayerConfig
     local config_data = {}
 
-    reader = new_packet_reader(packet_data)
+    local reader = new_packet_reader(packet_data)
 
     local source_pos_bool_list = vlq_to_int_from_reader(reader)
     if source_pos_bool_list == nil then
