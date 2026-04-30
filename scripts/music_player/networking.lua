@@ -178,12 +178,6 @@ end
 
 local control_packet_codes = packet_enums_api.control_packet_codes
 
----@param control_code ControlPacketCode
----@return PacketDataString
-local function make_control_packet(control_code)
-    return packet_data_bytes_to_string( int_to_vlq(control_code) )
-end
-
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
 ---@type table<integer, {song: Song, player: SongPlayerController}>
@@ -751,14 +745,27 @@ return {
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
     play_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(transfered_song_id, packet_enums_api.packet_type_ids.control, make_control_packet(control_packet_codes.start))
+        ping_packet_immediatly(
+            transfered_song_id,
+            packet_enums_api.packet_type_ids.control,
+            packet_encoder_api.make_control_packet(control_packet_codes.start)
+        )
     end,
     stop_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(transfered_song_id, packet_enums_api.packet_type_ids.control, make_control_packet(control_packet_codes.stop))
+        ping_packet_immediatly(
+            transfered_song_id,
+            packet_enums_api.packet_type_ids.control,
+            packet_encoder_api.make_control_packet(control_packet_codes.stop)
+        )
         remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id) -- Does not cancel the above packet, since ping_packet_immediatly bypasses the packet queue
     end,
     remove_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(transfered_song_id, packet_enums_api.packet_type_ids.control, make_control_packet(control_packet_codes.remove))
+        ping_packet_immediatly(
+            transfered_song_id,
+            packet_enums_api.packet_type_ids.control,
+            packet_encoder_api.make_control_packet(control_packet_codes.remove)
+        )
+        -- TODO: keep?
     end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
     get_player_for_transfered_song = function(transfered_song_id) return collected_incoming_songs[transfered_song_id] and collected_incoming_songs[transfered_song_id].player or nil end,
