@@ -126,11 +126,6 @@ end
 
 local control_packet_codes = packet_enums_api.control_packet_codes
 
----@param control_code ControlPacketCode
----@return PacketDataString
-local function make_control_packet(control_code)
-    return packet_data_bytes_to_string( int_to_vlq(control_code) )
-end
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
@@ -346,22 +341,6 @@ local function new_song_from_header_packet(packet_data_string)
             instructions_with_modifier_ids = {}
         }
     }
-
-    -- collected_incoming_songs[transfered_song_id] = {
-    --     song = incoming_song,
-    --     player = nil
-    -- }
-
-    -- if reader.index <= #reader.bytes then -- There is still data in the reader, the rest is config data.
-    --     receive_config_packet(reader, transfered_song_id)
-    -- else
-    --     -- there is no config data, let's initilize a blank player
-
-    --     ---@type SongPlayerAPI
-    --     local player_api = require("./player")
-    --     collected_incoming_songs[transfered_song_id].player =
-    --         player_api.new_player(collected_incoming_songs[transfered_song_id].song, nil)
-    -- end
 
     return incoming_song
 end
