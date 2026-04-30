@@ -135,7 +135,6 @@ local function packet_data_string_to_bytes(data_string)
 end
 
 
-local packet_ids = packet_enums_api.packet_type_ids
 
 ---@type table<string, integer>
 local modifier_type_to_number_lookup = {
@@ -170,18 +169,18 @@ local function song_to_packets(processed_song, player_config)
 
         table.insert(final_packet_list, {
             transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.header,
+            packet_type = packet_enums_api.packet_type_ids.header,
             packet_data_string = packet_data_bytes_to_string(joined_header_and_config)
         })
     else
         table.insert(final_packet_list, {
             transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.header,
+            packet_type = packet_enums_api.packet_type_ids.header,
             packet_data_string = packet_data_bytes_to_string(header_packet)
         })
         table.insert(final_packet_list, {
             transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.config,
+            packet_type = packet_enums_api.packet_type_ids.config,
             packet_data_string = packet_data_bytes_to_string(config_packet)
         })
     end
@@ -189,7 +188,7 @@ local function song_to_packets(processed_song, player_config)
     for _, data_packet in ipairs(all_data_packets) do
         table.insert(final_packet_list, {
             transfered_song_id = transfered_song_id,
-            packet_type = packet_ids.data,
+            packet_type = packet_enums_api.packet_type_ids.data,
             packet_data_string = packet_data_bytes_to_string(data_packet)
         })
     end
@@ -482,10 +481,10 @@ end
 -- function lookup table for packet receiver
 ---@type table<PacketTypeIDs, fun(reader: PacketReader, transfered_song_id: integer)>
 local packet_receiving_functions = {
-    [packet_ids.control] = receive_control_packet,
-    [packet_ids.header] = receive_header_packet,
-    [packet_ids.data] = receive_data_packet,
-    [packet_ids.config] = receive_config_packet,
+    [packet_enums_api.packet_type_ids.control] = receive_control_packet,
+    [packet_enums_api.packet_type_ids.header] = receive_header_packet,
+    [packet_enums_api.packet_type_ids.data] = receive_data_packet,
+    [packet_enums_api.packet_type_ids.config] = receive_config_packet,
 }
 
 
@@ -772,14 +771,14 @@ return {
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
     play_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(transfered_song_id, packet_ids.control, make_control_packet(control_packet_codes.start))
+        ping_packet_immediatly(transfered_song_id, packet_enums_api.packet_type_ids.control, make_control_packet(control_packet_codes.start))
     end,
     stop_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(transfered_song_id, packet_ids.control, make_control_packet(control_packet_codes.stop))
+        ping_packet_immediatly(transfered_song_id, packet_enums_api.packet_type_ids.control, make_control_packet(control_packet_codes.stop))
         remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id) -- Does not cancel the above packet, since ping_packet_immediatly bypasses the packet queue
     end,
     remove_transfered_song = function(transfered_song_id)
-        ping_packet_immediatly(transfered_song_id, packet_ids.control, make_control_packet(control_packet_codes.remove))
+        ping_packet_immediatly(transfered_song_id, packet_enums_api.packet_type_ids.control, make_control_packet(control_packet_codes.remove))
     end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
     get_player_for_transfered_song = function(transfered_song_id) return collected_incoming_songs[transfered_song_id] and collected_incoming_songs[transfered_song_id].player or nil end,
