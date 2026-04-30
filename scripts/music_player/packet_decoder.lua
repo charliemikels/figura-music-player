@@ -157,18 +157,14 @@ local function new_packet_reader(packet_data)
     return reader
 end
 
----Reads a data packet out of a Reader.
----@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incoming_songs
-local function receive_data_packet(reader, transfered_song_id)
-    if not collected_incoming_songs[transfered_song_id] then
-        if not missed_incoming_songs[transfered_song_id] then
-            print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost data packets for this song will be ignored.")
-            missed_incoming_songs[transfered_song_id] = true
-        end
-        return
-    end
-    local song = collected_incoming_songs[transfered_song_id].song
+
+
+---@param song Song     Will be modified by the function
+---@param packet_data PacketDataString
+local function add_instructions_to_song_from_packet(song, packet_data)
+
+    local reader = new_packet_reader(packet_data)
+
     local modifiable_instructions =  song.packet_decoder_info.instructions_with_modifier_ids
     local packet_start_time = vlq_to_int_from_reader(reader)
     repeat
@@ -376,13 +372,7 @@ end
 local packet_receiver_api = {
     new_song_from_header_packet = new_song_from_header_packet,
     new_config_from_packet = new_config_from_packet,
-
-    ---@type fun(partial_song:Song, packet_data:PacketDataString):Song
-    add_instructions_to_song_from_packet = function(partial_song, packet_data)
-
-        return {}
-    end,
-
+    add_instructions_to_song_from_packet = add_instructions_to_song_from_packet,
     controll_player_from_packet = controll_player_from_packet
 }
 

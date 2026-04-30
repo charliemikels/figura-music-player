@@ -203,8 +203,6 @@ end
 ---@param transfered_song_id integer
 ---@param packet_data_string PacketDataString
 local function receive_data_packet(transfered_song_id, packet_data_string)
-    local reader = new_packet_reader(packet_data_string_to_bytes(packet_data_string))
-
     if not collected_incoming_songs[transfered_song_id] then
         if not missed_incoming_songs[transfered_song_id] then
             print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost data packets for this song will be ignored.")
@@ -212,58 +210,11 @@ local function receive_data_packet(transfered_song_id, packet_data_string)
         end
         return
     end
-    local song = collected_incoming_songs[transfered_song_id].song
-    local modifiable_instructions =  song.packet_decoder_info.instructions_with_modifier_ids
-    local packet_start_time = vlq_to_int_from_reader(reader)
-    repeat
-        local instruction_start_delta = vlq_to_int_from_reader(reader)
-        local track_index = vlq_to_int_from_reader(reader)
-        if track_index then -- Track index is provided. This is a normal instruction
 
-            local duration = vlq_to_int_from_reader(reader)
-            local note = vlq_to_int_from_reader(reader)
-            local start_velocity = vlq_to_int_from_reader(reader)
-
-            ---@type Instruction
-            local instruction = {
-                start_time = instruction_start_delta + packet_start_time,
-                track_index = track_index,
-                duration = duration,
-                note = note,
-                start_velocity = start_velocity,
-                modifiers = {}
-            }
-
-            local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
-            if assigned_instruction_modifier_id then
-                modifiable_instructions[assigned_instruction_modifier_id] = instruction
-            end
-
-            table.insert(song.instructions, instruction)
-
-        else -- Track index is nil, this is a modifier for an instruction we have (probably) already seen.
-
-            local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
-            local modifier_type_id = vlq_to_int_from_reader(reader)
-            local modifier_value = vlq_to_int_from_reader(reader)
-
-            local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
-
-            if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
-
-                local un_deltaed_start_time = instruction_start_delta + packet_start_time + modifiable_instructions[assigned_instruction_modifier_id].start_time
-
-                ---@type NoteModifier
-                local modifier = {
-                    start_time = un_deltaed_start_time,
-                    type = modifier_type,
-                    value = modifier_value
-                }
-
-                table.insert(modifiable_instructions[assigned_instruction_modifier_id].modifiers, modifier)
-            end
-        end
-    until reader.index > #reader.bytes
+    packet_decoder_api.add_instructions_to_song_from_packet(
+        collected_incoming_songs[transfered_song_id].song,
+        packet_data_string
+    )
 end
 
 
