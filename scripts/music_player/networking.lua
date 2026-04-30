@@ -400,16 +400,10 @@ local function receive_header_packet(reader, transfered_song_id)
         player = nil
     }
 
-    if reader.index <= #reader.bytes then -- There is still data in the reader, the rest is config data.
-        receive_config_packet(reader, transfered_song_id)
-    else
-        -- there is no config data, let's initilize a blank player
-
-        ---@type SongPlayerAPI
-        local player_api = require("./player")
-        collected_incoming_songs[transfered_song_id].player =
-            player_api.new_player(collected_incoming_songs[transfered_song_id].song, nil)
-    end
+    ---@type SongPlayerAPI
+    local player_api = require("./player")
+    collected_incoming_songs[transfered_song_id].player =
+        player_api.new_player(collected_incoming_songs[transfered_song_id].song, nil)
 
     return incoming_song
 end
