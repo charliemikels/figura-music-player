@@ -349,16 +349,8 @@ local function receive_config_packet(transfered_song_id, packet_data_string)
     local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
     config_data.play_immediately = boolean_configs[1]
 
-    if not collected_incoming_songs[transfered_song_id].player then
-        -- This config packet must be inside of a header packet. It is our job to create the player.
 
-        ---@type SongPlayerAPI
-        local player_api = require("./player")
-        collected_incoming_songs[transfered_song_id].player =
-            player_api.new_player(collected_incoming_songs[transfered_song_id].song, config_data)
-    else
-        collected_incoming_songs[transfered_song_id].player.set_new_config(config_data)
-    end
+    collected_incoming_songs[transfered_song_id].player.set_new_config(config_data)
 end
 
 ---@param transfered_song_id integer
