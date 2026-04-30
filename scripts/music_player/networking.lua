@@ -365,49 +365,19 @@ end
 ---@param packet_data_string PacketDataString
 local function receive_header_packet(transfered_song_id, packet_data_string)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
-    -- The host should never send a 2nd song with the same ID, but it might happen if the host has reloaded their script.
-    -- Purging this data means we loose controll over it, but the host must have already lost control, so it's kinda OK actualy.
     collected_incoming_songs[transfered_song_id] = {}
 
-    local reader = new_packet_reader(packet_data_string_to_bytes(packet_data_string))
-
-    local name = bytes_with_len_to_string_from_reader(reader)
-    local duration = vlq_to_int_from_reader(reader)
-
-    local num_tracks = vlq_to_int_from_reader(reader)
-    local track_type_id_flags = int_to_bit_list(vlq_to_int_from_reader(reader), num_tracks)
-    ---@type Track[]
-    local tracks = {}
-    for i, type in ipairs(track_type_id_flags) do
-        tracks[i] = {instrument_type_id = type}
-    end
-
-    local buffer_delay = vlq_to_int_from_reader(reader)
-
-    ---@type Song
-    local incoming_song = {
-        name = name,
-        duration = duration,
-        tracks = tracks,
-        instructions = {},
-        buffer_delay = buffer_delay,
-        buffer_start_time = nil, -- will be auto-filled by player.lua once it gets its first instruction.
-        packet_decoder_info = {
-            instructions_with_modifier_ids = {}
-        }
-    }
-
-    collected_incoming_songs[transfered_song_id] = {
-        song = incoming_song,
-        player = nil
-    }
+    local new_song = packet_decoder_api.new_song_from_header_packet(packet_data_string)
+    printTable(new_song)
 
     ---@type SongPlayerAPI
     local player_api = require("./player")
-    collected_incoming_songs[transfered_song_id].player =
-        player_api.new_player(collected_incoming_songs[transfered_song_id].song, nil)
 
-    return incoming_song
+    collected_incoming_songs[transfered_song_id] = {
+        song = new_song,
+        player = player_api.new_player(new_song, nil)
+    }
+    return new_song
 end
 
 
