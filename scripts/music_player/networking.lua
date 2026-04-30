@@ -200,10 +200,11 @@ local function new_packet_reader(bytes)
     return reader
 end
 
----Reads a data packet out of a Reader.
----@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incoming_songs
-local function receive_data_packet(reader, transfered_song_id)
+---@param transfered_song_id integer
+---@param packet_data_string PacketDataString
+local function receive_data_packet(transfered_song_id, packet_data_string)
+    local reader = new_packet_reader(packet_data_string_to_bytes(packet_data_string))
+
     if not collected_incoming_songs[transfered_song_id] then
         if not missed_incoming_songs[transfered_song_id] then
             print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost data packets for this song will be ignored.")
@@ -265,11 +266,12 @@ local function receive_data_packet(reader, transfered_song_id)
     until reader.index > #reader.bytes
 end
 
----Reads a config packet out of a Reader.
----Returns nothing, but modifies collected_incoming_songs[transfered_song_id]
----@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incoming_songs
-local function receive_config_packet(reader, transfered_song_id)
+
+---@param transfered_song_id integer
+---@param packet_data_string PacketDataString
+local function receive_config_packet(transfered_song_id, packet_data_string)
+    local reader = new_packet_reader(packet_data_string_to_bytes(packet_data_string))
+
     ---@type SongPlayerConfig
     local config_data = {}
 
@@ -359,15 +361,15 @@ local function receive_config_packet(reader, transfered_song_id)
     end
 end
 
----Parces a header packet out of a Reader. Packet type and transfered_song_id have already been received since they start every packet.
----@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incoming_songs
----@return Song        A processed song that likely has no instructions
-local function receive_header_packet(reader, transfered_song_id)
+---@param transfered_song_id integer
+---@param packet_data_string PacketDataString
+local function receive_header_packet(transfered_song_id, packet_data_string)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     -- The host should never send a 2nd song with the same ID, but it might happen if the host has reloaded their script.
     -- Purging this data means we loose controll over it, but the host must have already lost control, so it's kinda OK actualy.
     collected_incoming_songs[transfered_song_id] = {}
+
+    local reader = new_packet_reader(packet_data_string_to_bytes(packet_data_string))
 
     local name = bytes_with_len_to_string_from_reader(reader)
     local duration = vlq_to_int_from_reader(reader)
@@ -408,39 +410,18 @@ local function receive_header_packet(reader, transfered_song_id)
     return incoming_song
 end
 
----@type table<ControlPacketCode, fun(transfered_song_id:integer)>
-local control_packet_handelers = {
-    [control_packet_codes.start] = function(transfered_song_id)
-        if collected_incoming_songs[transfered_song_id] then
-            collected_incoming_songs[transfered_song_id].player:play()
-        end
-    end,
-    [control_packet_codes.stop] = function(transfered_song_id)
-        if collected_incoming_songs[transfered_song_id] then
-            collected_incoming_songs[transfered_song_id].player:stop()
-        end
-    end,
-    [control_packet_codes.remove] = function(transfered_song_id)
-        if collected_incoming_songs[transfered_song_id] then
-            collected_incoming_songs[transfered_song_id] = nil
-        end
-    end,
-}
 
-
----@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incoming_songs
-local function receive_control_packet(reader, transfered_song_id)
-    local control_code = vlq_to_int_from_reader(reader)
-    if control_packet_handelers[control_code] then
-        control_packet_handelers[control_code](transfered_song_id)
-    else
-        print_debug("unrecognized controll code `"..tostring(control_code).."` for transfered song #"..tostring(transfered_song_id))
-    end
+---@param transfered_song_id integer
+---@param packet_data_string PacketDataString
+local function receive_control_packet(transfered_song_id, packet_data_string)
+    packet_decoder_api.controll_player_from_packet(
+        collected_incoming_songs[transfered_song_id].player,
+        packet_data_string
+    )
 end
 
 -- function lookup table for packet receiver
----@type table<PacketTypeIDs, fun(reader: PacketReader, transfered_song_id: integer)>
+---@type table<PacketTypeIDs, fun(transfered_song_id: integer, packet_data_string:PacketDataString)>
 local packet_receiving_functions = {
     [packet_enums_api.packet_type_ids.control] = receive_control_packet,
     [packet_enums_api.packet_type_ids.header] = receive_header_packet,
@@ -450,7 +431,7 @@ local packet_receiving_functions = {
 
 
 local local_receive_packet_loop_is_running = false
-local incoming_packed_packets = {}  ---@type {transfer_id:integer, packet_type:PacketTypeIDs, packet_data:PacketDataString}[]
+local incoming_packed_packets = {}  ---@type BundledPacket[]
 
 --- Primary function to receive packets. Distributes packets to the correct receiving functions.
 ---
@@ -458,13 +439,9 @@ local incoming_packed_packets = {}  ---@type {transfer_id:integer, packet_type:P
 --- By running in a tick event, we ensure that, on the off chance we receive two pings on the same tick, that we process them on diffrent ticks.
 ---@see local_receive_packet
 local function local_receive_packet_loop()
-    local packed_packet_data = table.remove(incoming_packed_packets, 1)   -- table.remove is usualy inneficient when popping from the front. But we shouldn't have more than like 2 packets in here at a time, so should be fine.
-
-    local packet_data = packet_data_string_to_bytes(packed_packet_data.packet_data)
-    local reader = new_packet_reader(packet_data)
-    local packet_id = packed_packet_data.packet_type
-    local transfered_song_id = packed_packet_data.transfer_id
-    packet_receiving_functions[packet_id](reader, transfered_song_id)
+    ---@type BundledPacket
+    local incomming_bundled_packet = table.remove(incoming_packed_packets, 1)   -- table.remove is usualy inneficient when popping from the front. But we shouldn't have more than like 2 packets in here at a time, so should be fine.
+    packet_receiving_functions[incomming_bundled_packet.packet_type](incomming_bundled_packet.transfered_song_id, incomming_bundled_packet.packet_data_string)
 
     if #incoming_packed_packets == 0 then
         events.TICK:remove(local_receive_packet_loop)
@@ -486,11 +463,18 @@ end
 --- to find a new way to process pings so that we don't share TICK instructions with the rest of the avatar.
 ---
 ---@see local_receive_packet_loop
----@param transfer_id integer
+---@param transfered_song_id integer
 ---@param packet_type PacketTypeIDs
----@param packed_packet_data PacketDataString
-local function local_receive_packet(transfer_id, packet_type, packed_packet_data)
-    table.insert(incoming_packed_packets, {transfer_id = transfer_id, packet_type = packet_type, packet_data = packed_packet_data})
+---@param packet_data_string PacketDataString
+local function local_receive_packet(transfered_song_id, packet_type, packet_data_string)
+    ---@type BundledPacket
+    local bundled_packet = {
+        transfered_song_id = transfered_song_id,
+        packet_type = packet_type,
+        packet_data_string = packet_data_string,
+    }
+
+    table.insert(incoming_packed_packets, bundled_packet)
     if not local_receive_packet_loop_is_running then
         local_receive_packet_loop_is_running = true
         events.TICK:register(local_receive_packet_loop)
