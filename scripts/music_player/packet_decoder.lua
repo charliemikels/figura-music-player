@@ -278,13 +278,16 @@ local function receive_data_packet(reader, transfered_song_id)
     until reader.index > #reader.bytes
 end
 
----Reads a config packet out of a Reader.
----Returns nothing, but modifies collected_incoming_songs[transfered_song_id]
----@param reader PacketReader           Where the packet id and transfer song ID have already been read
----@param transfered_song_id integer    Index into collected_incoming_songs
-local function receive_config_packet(reader, transfered_song_id)
+--- Returns a config packet
+---
+--- Does nothing with the config cache library. We're assumeing whoever built this packet built it ready-to-go. (Also this script will run on the viewer anyways, so no access to the cache stuff anyways.)
+---@param packet_data PacketDataString
+---@return SongPlayerConfig
+local function new_config_from_packet(packet_data)
     ---@type SongPlayerConfig
     local config_data = {}
+
+    reader = new_packet_reader(packet_data)
 
     local source_pos_bool_list = vlq_to_int_from_reader(reader)
     if source_pos_bool_list == nil then
@@ -360,16 +363,7 @@ local function receive_config_packet(reader, transfered_song_id)
     local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
     config_data.play_immediately = boolean_configs[1]
 
-    if not collected_incoming_songs[transfered_song_id].player then
-        -- This config packet must be inside of a header packet. It is our job to create the player.
-
-        ---@type SongPlayerAPI
-        local player_api = require("./player")
-        collected_incoming_songs[transfered_song_id].player =
-            player_api.new_player(collected_incoming_songs[transfered_song_id].song, config_data)
-    else
-        collected_incoming_songs[transfered_song_id].player.set_new_config(config_data)
-    end
+    return config_data
 end
 
 --- Creates and returns a new song from a header packet.
@@ -453,9 +447,7 @@ end
 ---@class PacketDecoderApi
 local packet_receiver_api = {
     new_song_from_header_packet = new_song_from_header_packet,
-
-    ---@type fun(packet_data:PacketDataString):SongPlayerConfig
-    new_song_player_config_from_packet = function(packet_data) return {} end,
+    new_config_from_packet = new_config_from_packet,
 
     ---@type fun(partial_song:Song, packet_data:PacketDataString):Song
     add_instructions_to_song_from_packet = function(partial_song, packet_data)
