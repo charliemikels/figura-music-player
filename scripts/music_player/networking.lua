@@ -136,12 +136,6 @@ end
 
 
 
----@type table<string, integer>
-local modifier_type_to_number_lookup = {
-    volume = 1,
-    pitch_wheel = 2,
-    -- pan = 3,
-}
 
 
 ---Immediatly converts an entire ProcessedSong and any config data into a list of packets
