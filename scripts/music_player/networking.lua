@@ -281,7 +281,6 @@ local function receive_header_packet(transfered_song_id, packet_data_string)
     collected_incoming_songs[transfered_song_id] = {}
 
     local new_song = packet_decoder_api.new_song_from_header_packet(packet_data_string)
-    printTable(new_song)
 
     ---@type SongPlayerAPI
     local player_api = require("./player")
