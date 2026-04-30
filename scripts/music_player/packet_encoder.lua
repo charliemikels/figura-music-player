@@ -105,10 +105,10 @@ end
 ---
 --- This can be used at any time to update a remote song's configuration.
 ---@param player_config SongPlayerConfig
----@return PacketDataBytes
+---@return PacketDataString
 local function build_config_packet(player_config)
 
-    local config_packet_body = {}
+    local config_packet_body = {}   ---@type PacketDataBytes[]
 
     -- Source Entity / Position data
     do
@@ -225,7 +225,7 @@ local function build_config_packet(player_config)
     }
     union_tables(config_packet_body, int_to_vlq(bool_list_to_number(boolean_configs)))
 
-    return config_packet_body
+    return packet_data_bytes_to_string(config_packet_body)
 end
 
 --- Builds a most of a header packet out of a processed song
@@ -239,7 +239,7 @@ end
 ---@see song_to_packets
 ---@param song Song
 ---@param buffer_delay integer
----@return PacketDataBytes
+---@return PacketDataString
 local function build_header_packets(song, buffer_delay)
     local packet = {}
     union_tables(packet, string_to_bytes_with_len(song.name))
@@ -256,7 +256,8 @@ local function build_header_packets(song, buffer_delay)
     union_tables(packet, int_to_vlq(bit_list_to_number(track_type_bits)))
 
     union_tables(packet, int_to_vlq(buffer_delay))
-    return packet
+
+    return packet_data_bytes_to_string(packet)
 end
 
 --- For use with song_instruction_to_packet_parts()
@@ -388,7 +389,7 @@ end
 --- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
 ---@see song_to_packets
 ---@param song Song
----@return PacketDataBytes[] data_packets        -- Fully formed packets ready to be bundled and shipped.
+---@return PacketDataString[] data_packets        -- Fully formed packets ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milis
 local function build_data_packets_and_buffer_time(song)
 
@@ -512,7 +513,12 @@ local function build_data_packets_and_buffer_time(song)
         end
     end
 
-    return data_packets, required_buffer_delay_in_milis + (1 * target_milis_between_packets)
+    local data_packets_as_strings = {}  ---@type PacketDataString[]
+    for _, data_packet_in_bytes in ipairs(data_packets) do
+        table.insert(data_packets_as_strings, packet_data_bytes_to_string(data_packet_in_bytes))
+    end
+
+    return data_packets_as_strings, required_buffer_delay_in_milis + (1 * target_milis_between_packets)
 end
 
 -- local packet_ids = packet_enums_api.packet_type_ids

@@ -157,19 +157,19 @@ local function song_to_packets(processed_song, player_config)
     table.insert(final_packet_list, {
         transfered_song_id = transfered_song_id,
         packet_type = packet_enums_api.packet_type_ids.header,
-        packet_data_string = packet_data_bytes_to_string(header_packet)
+        packet_data_string = header_packet
     })
     table.insert(final_packet_list, {
         transfered_song_id = transfered_song_id,
         packet_type = packet_enums_api.packet_type_ids.config,
-        packet_data_string = packet_data_bytes_to_string(config_packet)
+        packet_data_string = config_packet
     })
 
     for _, data_packet in ipairs(all_data_packets) do
         table.insert(final_packet_list, {
             transfered_song_id = transfered_song_id,
             packet_type = packet_enums_api.packet_type_ids.data,
-            packet_data_string = packet_data_bytes_to_string(data_packet)
+            packet_data_string = data_packet
         })
     end
 
