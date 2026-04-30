@@ -110,13 +110,6 @@ local function int_to_bool_list(int, length)
     return bool_list
 end
 
----@alias PacketDataBytes Byte[]
-
---- When sending raw data through pings, Strings are far more efficient than tables.
----
---- The final size will be the length of the SongPacket table + 2 bytes for the string's length info.
----@alias PacketDataString string
-
 ---Converts a table of bytes (ints from 0 to 255) into a string
 ---@param data_bytes PacketDataBytes
 ---@return PacketDataString

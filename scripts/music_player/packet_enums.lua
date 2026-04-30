@@ -3,6 +3,12 @@
 
 ---@alias PartialPacketDataBytes Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
+---@alias PacketDataBytes Byte[]
+
+--- When sending raw data through pings, Strings are far more efficient than tables.
+---
+--- The final size will be the length of the SongPacket table + 2 bytes for the string's length info.
+---@alias PacketDataString string
 
 ---@enum PacketTypeIDs
 local packet_type_ids = {
