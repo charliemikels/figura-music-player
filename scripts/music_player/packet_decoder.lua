@@ -69,7 +69,11 @@ end
 local function bytes_with_len_to_string_from_reader(reader)
     local len_string = vlq_to_int_from_reader(reader)
     if len_string == nil then return nil end
-    local str = string.char(table.unpack( reader.bytes, reader.index, reader.index+len_string-1 ))
+    local str = string.char(table.unpack(
+        reader.bytes,
+        reader.index,
+        reader.index + len_string - 1
+    ))
     reader.index = reader.index + len_string
     return str
 end
