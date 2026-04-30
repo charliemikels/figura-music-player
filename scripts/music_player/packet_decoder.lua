@@ -454,8 +454,8 @@ end
 local packet_receiver_api = {
     new_song_from_header_packet = new_song_from_header_packet,
 
-    ---@type fun(partial_song:Song, packet_data:PacketDataString):Song
-    add_config_to_song_from_packet = function(partial_song, packet_data) return {} end,
+    ---@type fun(packet_data:PacketDataString):SongPlayerConfig
+    new_song_player_config_from_packet = function(packet_data) return {} end,
 
     ---@type fun(partial_song:Song, packet_data:PacketDataString):Song
     add_instructions_to_song_from_packet = function(partial_song, packet_data)
