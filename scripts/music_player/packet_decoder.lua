@@ -3,11 +3,7 @@
 
 -- There should be no ping functions here. This entire file must be runable on the viewer.
 
--- IDEA: two types of functions here. Receivers, and converters.
---      Converters just transform the data from packets to tables
---      Receivers actualy keep track of trasfer IDs and ongoing assembly.
-
----@class PacketDecoderInfo
+---@class PacketDecoderInfo -- Stored inside a Song so that we can have information about any ongoing decoding processes
 ---@field instructions_with_modifier_ids table<integer, Instruction>
 
 ---@class PacketDecoderApi
