@@ -641,25 +641,27 @@ local song_player_api = {
                     end
 
                     playing_song.info_display_root_part = models:newPart("song_info_text_root_"..tostring(playing_song.song_uuid))
-
-                    playing_song.info_display_root_part:setParentType(playing_song.info_display_root_part_parent_type)
-                    playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset * 16)
+                    playing_song.info_display_root_part
+                        :setParentType(playing_song.info_display_root_part_parent_type)
+                        :setPos(playing_song.info_display_root_pos_offset * 16)
 
                     playing_song.info_display_billboard_part = playing_song.info_display_root_part:newPart("song_info_text_billboard_"..tostring(playing_song.song_uuid), "Camera")
 
                     playing_song.info_display_text_task = playing_song.info_display_billboard_part:newText("song_info_text_task_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
-                    playing_song.info_display_text_task:setText(playing_song.info_display_base_string)
-                    playing_song.info_display_text_task:setScale(0.33)
-                    playing_song.info_display_text_task:setOpacity(0.8)
-                    playing_song.info_display_text_task:setWidth(200)
-                    playing_song.info_display_text_task:setSeeThrough(true)
+                    playing_song.info_display_text_task
+                        :setPos(playing_song.info_display_text_pos_offset * 16)
+                        :setText(playing_song.info_display_base_string)
+                        :setScale(0.33)
+                        :setOpacity(0.8)
+                        :setWidth(200)
+                        :setSeeThrough(true)
 
                     playing_song.info_display_mute_instructions_text_task = playing_song.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_mute_instructions_text_task:setPos((playing_song.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
-                    playing_song.info_display_mute_instructions_text_task:setScale(0.2)
-                    playing_song.info_display_mute_instructions_text_task:setOpacity(0.5)
-                    playing_song.info_display_mute_instructions_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
+                    playing_song.info_display_mute_instructions_text_task
+                        :setPos((playing_song.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
+                        :setScale(0.2)
+                        :setOpacity(0.5)
+                        :setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
