@@ -1477,7 +1477,13 @@ local midi_processor_loop_stage_functions = {
         }
         printTable_debug(processed_song)
 
-        print_debug("Midi processor successfuly built a song.", false, true)
+        print_debug(
+            "Midi processor successfuly built song `"..song_holder.name
+                .. "`. Durration: "..tostring(processed_song.duration/1000).."s"
+                .. ", Instruction count: "..tostring(#processed_song.instructions)
+                .. ", Track count: "..tostring(#processed_song.tracks)
+            , false, true
+        )
 
         state.is_done = true
         return {
@@ -1615,6 +1621,8 @@ local function midi_processor(song_holder)
             end
         end
     end
+
+    print_debug("Starting midi processor for `"..song_holder.name.."`…", false, true)
 
     -- leveraging the event loop to preform async-like code.
     -- The tick event wouldn't be ideal here because if the function takes
