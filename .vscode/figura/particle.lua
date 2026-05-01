@@ -1,0 +1,282 @@
+--================================================================================================--
+--=====  CLASSES  ================================================================================--
+--================================================================================================--
+
+---A Minecraft particle identifier.
+---
+---Only the default Minecraft particles are auto-completed.  
+---You can use any particle from any mod, even if it does not auto-complete.
+---
+---Note: Modded particles that require an `extra` will not work and will instead error.
+---@alias ParticleID
+---| "minecraft:ambient_entity_effect"
+---| "minecraft:angry_villager"
+---| "minecraft:ash"
+---| "minecraft:barrier"
+---| "minecraft:block"
+---| "minecraft:bubble"
+---| "minecraft:bubble_column_up"
+---| "minecraft:bubble_pop"
+---| "minecraft:campfire_cosy_smoke"
+---| "minecraft:campfire_signal_smoke"
+---| "minecraft:cloud"
+---| "minecraft:composter"
+---| "minecraft:crimson_spore"
+---| "minecraft:crit"
+---| "minecraft:current_down"
+---| "minecraft:damage_indicator"
+---| "minecraft:dolphin"
+---| "minecraft:dragon_breath"
+---| "minecraft:dripping_dripstone_lava"
+---| "minecraft:dripping_dripstone_water"
+---| "minecraft:dripping_honey"
+---| "minecraft:dripping_lava"
+---| "minecraft:dripping_obsidian_tear"
+---| "minecraft:dripping_water"
+---| "minecraft:dust"
+---| "minecraft:dust_color_transition"
+---| "minecraft:effect"
+---| "minecraft:elder_guardian"
+---| "minecraft:electric_spark"
+---| "minecraft:enchant"
+---| "minecraft:enchanted_hit"
+---| "minecraft:end_rod"
+---| "minecraft:entity_effect"
+---| "minecraft:explosion"
+---| "minecraft:explosion_emitter"
+---| "minecraft:falling_dripstone_lava"
+---| "minecraft:falling_dripstone_water"
+---| "minecraft:falling_dust"
+---| "minecraft:falling_honey"
+---| "minecraft:falling_lava"
+---| "minecraft:falling_nectar"
+---| "minecraft:falling_obsidian_tear"
+---| "minecraft:falling_spore_blossom"
+---| "minecraft:falling_water"
+---| "minecraft:firework"
+---| "minecraft:fishing"
+---| "minecraft:flame"
+---| "minecraft:flash"
+---| "minecraft:glow"
+---| "minecraft:glow_squid_ink"
+---| "minecraft:happy_villager"
+---| "minecraft:heart"
+---| "minecraft:instant_effect"
+---| "minecraft:item"
+---| "minecraft:item_slime"
+---| "minecraft:item_snowball"
+---| "minecraft:landing_honey"
+---| "minecraft:landing_lava"
+---| "minecraft:landing_obsidian_tear"
+---| "minecraft:large_smoke"
+---| "minecraft:lava"
+---| "minecraft:light"
+---| "minecraft:mycelium"
+---| "minecraft:nautilus"
+---| "minecraft:note"
+---| "minecraft:poof"
+---| "minecraft:portal"
+---| "minecraft:rain"
+---| "minecraft:reverse_portal"
+---| "minecraft:scrape"
+---| "minecraft:smoke"
+---| "minecraft:sneeze"
+---| "minecraft:snowflake"
+---| "minecraft:soul"
+---| "minecraft:soul_fire_flame"
+---| "minecraft:spit"
+---| "minecraft:spore_blossom_air"
+---| "minecraft:splash"
+---| "minecraft:squid_ink"
+---| "minecraft:sweep_attack"
+---| "minecraft:totem_of_undying"
+---| "minecraft:underwater"
+---| "minecraft:vibration"
+---| "minecraft:warped_spore"
+---| "minecraft:wax_off"
+---| "minecraft:wax_on"
+---| "minecraft:white_ash"
+---| "minecraft:witch"
+
+--================================================================================================--
+--=====  FUNCTIONS  ==============================================================================--
+--================================================================================================--
+
+---Contains a single `function` for creating a particle.
+particle = {}
+
+---Adds a particle to the world.
+---
+---Only the default Minecraft particles are auto-completed.  
+---You can use modded particles as long as they only take a position and velocity to function.
+---
+---Certain particles change how the parameters of this function work.  
+---If a particle is not on this list, assume it functions normally:
+---> **minecraft:ambient_entity_effect** / **minecraft:entity_effect**
+--->
+---> The last three values of `pos_vel` set the velocity *and* color of the particle.  
+---> Velocity is converted into a direction.  
+---> Any horizontal velocity is applied in all horizontal directions randomly.  
+---> Each color is a number `0..1` or `1..255`. If the color is above 1, then the color is
+---`(255 - num) / 255` If the color is above 255, set color to `(-num % 255) / 255` then calculate
+---as if color was above 1.  
+---> (2 -> 253, 255 -> 0).  
+---> It is possible to mix different ranges of colors. A color of `1,0,1` is the same as `1,255,1`
+---but the second color will move up instead of spreading out because of the high Y velocity.
+---> ***
+---
+---> **minecraft:angry_villager** / **minecraft:heart**
+--->
+---> Velocity is completely ignored and always moves up about half a block.
+---> ***
+---
+---> **minecraft:ash**
+--->
+---> Velocity is completely ignored and always falls in a random direction.
+---> ***
+---
+---> **minecraft:barrier** / **minecraft:flash** / **minecraft:underwater**
+--->
+---> Velocity is completely ignored and never moves.
+---> ***
+---
+---> **minecraft:block** / **minecraft:falling_dust**
+--->
+---> The `extra` is a `string` set to the blockstate string of the selected block.
+---> ***
+---
+---> **minecraft:bubble** / **minecraft:bubble_column_up** / **minecraft:current_down**
+--->
+---> Dies after 1 tick if out of water at any point
+---> ***
+---
+---> **minecraft:composter** / **minecraft:dolphin** / **minecraft:happy_villager** /
+---**minecraft:mycelium**
+--->
+---> Velocity is capped at a very slow speed per axis.
+---> ***
+---
+---> **minecraft:crimson_spore** / **minecraft:item_slime** / **minecraft:item_snowball** /
+---**minecraft:lava** / **minecraft:rain** / **minecraft:warped_spore**
+--->
+---> Velocity is completely ignored and flies in a random direction, preferring any upward
+---direction.
+---> ***
+---
+---> **minecraft:dripping_honey** / **minecraft:dripping_lava** /
+---**minecraft:dripping_obsidian_tear** / **minecraft:dripping_water** /
+---**minecraft:dripping_dripstone_lava** / **minecraft:dripping_dripstone_water**
+--->
+---> Velocity is completely ignored and always sticks for a while before falling until hitting
+---something solid.
+---> ***
+---
+---> **minecraft:dust**
+--->
+---> Velocity is capped at a very slow speed per axis.  
+---> The `extra` is a `Vector4` set to the color and size of the particle.  
+---> `x`, `y`, and `z` are numbers `0..1` for red, green, and blue respectively.  
+---> `w` is a number `0..10` for the size of the particle.
+---> ***
+---
+---> **minecraft:dust_color_transition**
+--->
+---> The last three values of `pos_vel` set the end color of the particle.  
+---> Each color is a number `0..1`.
+---> The `extra` is a `Vector4` set to the start color and transition speed of the particle.  
+---> `x`, `y`, and `z` are numbers `0..1` for red, green, and blue respectively.  
+---> `w` is a number `1..` for the amount of ticks it takes to transition from the start color to
+---the end color.
+---> ***
+---
+---> **minecraft:elder_guardian**
+--->
+---> Ignores position and velocity, always circles the viewer's camera from top to bottom.
+---> ***
+---
+---> **minecraft:enchant** / **minecraft:nautilus**
+--->
+---> The first three values of `pos_vel` set the end position of the particle.  
+---> The end postion Y is always decreased by ~1.125.  
+---> The last three values of `pos_vel` set the start position offset of the particle.  
+---> The offset is *not* moved by the decrease of the end position Y.  
+---> ***
+---
+---> **minecraft:explosion** / **minecraft:sweep_attack**
+--->
+---> Velocity is completely ignored.
+---> The `w` of `pos_vel` is a number that sets the size of the particle.
+---> 0 is the default size of the particle, negative numbers increase the size, postitive numbers
+---> decrease it. If the number is >2, the explosion particle will be inverted and will increase in
+---> size as the number gets bigger.
+---> ***
+---
+---> **minecraft:explosion_emitter**
+--->
+---> Velocity is completely ignored.  
+---> Spawns many "minecraft:explosion" particles around it.
+---> ***
+---
+---> **minecraft:falling_honey** / **minecraft:falling_lava** / **minecraft:falling_nectar** /
+---**minecraft:falling_obsidian_tear** / **minecraft:falling_water** / **minecraft:landing_honey** /
+---**minecraft:landing_lava** / **minecraft:landing_obsidian_tear** /
+---**minecraft:falling_dripstone_lava** / **minecraft:falling_dripstone_water**
+--->
+---> Velocity is completely ignored and falls until hitting something solid.
+---> ***
+---
+---> **minecraft:instant_effect** / **minecraft:witch**
+--->
+---> Velocity is converted into a direction.  
+---> Any horizontal velocity is applied in all horizontal directions randomly.  
+---> ***
+---
+---> **minecraft:item**
+--->
+---> The `extra` is a `string` set to the item and NBT string of the selected item.
+---> ***
+---
+---> **minecraft:note**
+--->
+---> The `w` of `pos_vel` is a number `0..1` that sets the hue of the note, starting at lime and
+---shifting backwards.  
+---> Velocity is completely ignored and the note always moves up about half a block.
+---> ***
+---
+---> **minecraft:portal**
+--->
+---> The first three values of `pos_vel` set the end position of the particle.  
+---> The last three values of `pos_vel` set the start position offset of the particle.  
+---> The offset Y is always increased by 1.
+---> ***
+---
+---> **minecraft:vibration** *1.17 only!*
+--->
+---> The last three values of `pos_vel` set the end position of the particle.  
+---> The `extra` is a `Vector4` set to the start position and speed of the particle.  
+---> `w` is a number `1..` for the amount of ticks it takes to reach the end positon.
+---> ***
+---
+---> **minecraft:white_ash**
+--->
+---> Velocity is completely ignored and flies in a random direction, preferring any negative
+---direction.
+--->***
+---
+---> **PARTICLES WITH AN UNKNOWN EFFECT**   
+---> These particles are placed here since some 1.17 particle have yet to be tested.  
+---> *If you have information on exactly how these particles work, let me know.*
+--->
+---> minecraft:falling_spore_blossom (Possibly acts like a slower minecraft:falling_honey?)  
+---> minecraft:glow (Possibly acts like minecraft:barrier?)  
+---> minecraft:light (Possibly acts like minecraft:composter?)  
+---> minecraft:scrape (Possibly acts like minecraft:composter?)  
+---> minecraft:snowflake  
+---> minecraft:spore_blossom_air  
+---> minecraft:wax_off (Possibly acts like minecraft:composter?)  
+---> minecraft:wax_on (Possibly acts like minecraft:composter?)
+---@param name ParticleID
+---@param pos_vel Vector6
+---@param extra1? Vector3 | Vector4 | string
+---@param extra2? Vector3 | Vector4
+function particle.addParticle(name, pos_vel, extra1, extra2) end
