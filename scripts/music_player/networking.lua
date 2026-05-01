@@ -205,7 +205,7 @@ end
 local function receive_data_packet(transfered_song_id, packet_data_string)
     if not collected_incoming_songs[transfered_song_id] then
         if not missed_incoming_songs[transfered_song_id] then
-            print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost data packets for this song will be ignored.")
+            print_debug("Received a data packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost packets for this song will be ignored.")
             missed_incoming_songs[transfered_song_id] = true
         end
         return
@@ -221,6 +221,14 @@ end
 ---@param transfered_song_id integer
 ---@param packet_data_string PacketDataString
 local function receive_config_packet(transfered_song_id, packet_data_string)
+    if not collected_incoming_songs[transfered_song_id] then
+        if not missed_incoming_songs[transfered_song_id] then
+            print_debug("Received a config packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost packets for this song will be ignored.")
+            missed_incoming_songs[transfered_song_id] = true
+        end
+        return
+    end
+
     local new_config = packet_decoder_api.new_config_from_packet(packet_data_string)
     collected_incoming_songs[transfered_song_id].player.set_new_config(new_config)
 end
@@ -247,6 +255,14 @@ end
 ---@param transfered_song_id integer
 ---@param packet_data_string PacketDataString
 local function receive_control_packet(transfered_song_id, packet_data_string)
+    if not collected_incoming_songs[transfered_song_id] then
+        if not missed_incoming_songs[transfered_song_id] then
+            print_debug("Received a control packet for song with transfer ID `"..tostring(transfered_song_id).."` before receiving a header packet for the song. Future lost packets for this song will be ignored.")
+            missed_incoming_songs[transfered_song_id] = true
+        end
+        return
+    end
+
     packet_decoder_api.controll_player_from_packet(
         collected_incoming_songs[transfered_song_id].player,
         packet_data_string
