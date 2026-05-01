@@ -2,13 +2,6 @@ local packet_decoder_api = require("./packet_decoder")  ---@type PacketDecoderAp
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 local packet_enums_api   = require("./packet_enums")    ---@type PacketEnumsAPI
 
--- In bytes. (-2 because storing packets as a string adds 2 bytes to encode the packet string's length)
-local max_packet_length = packet_encoder_api.get_max_packet_length()
-
--- How long the ping system should try to wait before sending another packet.
--- (Tick event adds 50 milis (1/20th of a second) of possible drift to account for.)
-local target_milis_between_packets = packet_encoder_api.get_target_milis_between_packets()
-
 
 local do_debug_prints = false
 local function print_debug(...) if do_debug_prints then print(...) end end
@@ -307,7 +300,7 @@ end
 
 --- Host-side event loop to emit pings from the ping queue
 local function ping_loop()
-    if ping_loop_start_time + (target_milis_between_packets * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
+    if ping_loop_start_time + (packet_encoder_api.get_target_milis_between_packets() * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
         -- we can emit another packet
         -- Note that this condition may be true in situations where the time between
         -- two packets is slightly _less_ than target_milis_between_packets.
@@ -464,5 +457,5 @@ return {
     end,
     cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
     get_player_for_transfered_song = function(transfered_song_id) return collected_incoming_songs[transfered_song_id] and collected_incoming_songs[transfered_song_id].player or nil end,
-    get_target_milis_between_packets = function() return target_milis_between_packets end,
+    get_target_milis_between_packets = function() return packet_encoder_api.get_target_milis_between_packets() end,
 }
