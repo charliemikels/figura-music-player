@@ -427,6 +427,10 @@ local function new_network_song_player(outbound_song, outbound_player_config)
     ---@type SongPlayerController
     local custom_song_controller = {
         play = function()
+            if #outgoing_bundled_packets_queue > 0 then
+                print_debug("The outgoing packet queue is already bussy. Playback might be delayed.")
+            end
+
             -- We have to re-initilize the song in case someone new has loaded us for the first time.
             ping_packet_immediatly(
                 transfered_song_id,
