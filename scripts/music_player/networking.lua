@@ -215,6 +215,16 @@ local function ping_packet_immediatly(transfer_id, packet_type, outgoing_packed_
     pings.TL_FMP_receive_packet(transfer_id, packet_type, outgoing_packed_packet)
 end
 
+--- Just like local_receive_packet, but skips the processor loop.
+---
+--- Should be host-only. The processor loop in important to make sure we're not overrunning resource limits on the viewer
+---@param transfer_id integer
+---@param packet_type PacketTypeIDs
+---@param packet_data_string PacketDataString
+local function local_receive_packet_immediately(transfer_id, packet_type, packet_data_string)
+    packet_receiving_functions[packet_type](transfer_id, packet_data_string)
+end
+
 ---@alias BundledPacket {transfered_song_id: integer, packet_type: PacketTypeIDs, packet_data_string: PacketDataString}    -- a light weight way to keep a packet tied to it's packet ID and transfer ID.
 
 ---@alias PacketQueue BundledPacket[]
@@ -367,53 +377,125 @@ end
 --- Use this instead of manualy working with the networking / packet building process.
 ---
 --- Host Only. May turn a song into packets (expensive) and call ping functions.
----@param processed_song Song
----@param player_config SongPlayerConfig
+---@param outbound_song Song
+---@param outbound_player_config SongPlayerConfig
 ---@return SongPlayerController
-local function new_network_song_player(processed_song, player_config)
+local function new_network_song_player(outbound_song, outbound_player_config)
     local song_player_api = require("./player")      ---@type SongPlayerAPI
     if not host:isHost() then -- The caller is a viewer.
         -- To avoid double-playback issues (where host makes a player, and also the viewer happens to make a player), this function will throw our own error
         error("new_network_song_player was called, but caller is not Host. Use the normal song_player instead to let the viewer play songs.")
     end
 
-    -- local our_song_player_controller = song_player_api.new_player(processed_song, player_config)
-    -- ---@class SongPlayerController
-    -- net_player = {}
-    -- for k,fn in pairs(our_song_player_controller) do net_player[k] = fn end
+    local transfered_song_id = songs_turned_into_packets_so_far
+    songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
 
-    -- if processed_song.is_local then -- The song is local. We won't need to ping data.
-    --     error("Implement new_network_song_player's `processed_song.is_local` logic")    -- TODO
-    -- else -- The song is not local. We need to turn the song into packets and send that over
-    -- end
+    -- Gather the data
 
-    -- TODO: Set up the remote player. Immediatly ping the song's header packets (Or whatever method we need to do for local songs).
-    --       This will be enough to create a remote/transfered player with an empty config.
+    local song_data_packets, buffer_time = packet_encoder_api.build_data_packets_and_buffer_time(outbound_song)
+    local header_packet_data = packet_encoder_api.build_header_packets(outbound_song, buffer_time)
+    local config_packet_data = packet_encoder_api.build_config_packet(outbound_player_config)
+
+    local bundled_song_data_packets = {}    ---@type BundledPacket[]
+    for _, song_data_packet in ipairs(song_data_packets) do
+        ---@type BundledPacket
+        local bundled_packet = {
+            packet_data_string = song_data_packet,
+            packet_type = packet_enums_api.packet_type_ids.data,
+            transfered_song_id = transfered_song_id
+        }
+        table.insert(bundled_song_data_packets, bundled_packet)
+    end
+
+    -- Initilize remote player on host so the controller can be initilized.
+    -- We don't need to initilize this on the viewers just yet because we'll allways reset it on :play() anyways.
+
+    local_receive_packet_immediately(
+        transfered_song_id,
+        packet_enums_api.packet_type_ids.header,
+        header_packet_data
+    )
+    local_receive_packet_immediately(
+        transfered_song_id,
+        packet_enums_api.packet_type_ids.config,
+        config_packet_data
+    )
+
+    -- keep one table call away so that we can reset the underlying reader whenever we want.
+    local incoming_song_and_controller = collected_incoming_songs[transfered_song_id]
+
+    ---@type SongPlayerController
+    local custom_song_controller = {
+        play = function()
+            -- We have to re-initilize the song in case someone new has loaded us for the first time.
+            ping_packet_immediatly(
+                transfered_song_id,
+                packet_enums_api.packet_type_ids.header,
+                header_packet_data
+            )
+            ping_packet_immediatly(
+                transfered_song_id,
+                packet_enums_api.packet_type_ids.config,
+                config_packet_data
+            )
+
+            -- We've reset the player and stuff. Sanity-check that our… pointers… to the transfered song and controller stuff are still good
+            incoming_song_and_controller = collected_incoming_songs[transfered_song_id]
+
+            -- Send the start signal. Buffer time is now based on when we receive the first data packet, so it's safe to start now, and send data later.
+
+            ping_packet_immediatly(
+                transfered_song_id,
+                packet_enums_api.packet_type_ids.control,
+                packet_encoder_api.make_control_packet(packet_enums_api.control_packet_codes.start)
+            )
+
+            ping_packets(bundled_song_data_packets)
+
+            -- TODO: we've done a lot of pings in one tick.
+            -- This is fine on the receiving side since we have the incomeing packet dequeing system
+            -- But we need to make sure we're not running into the ping limits by sending 3-4 at once.
+        end,
+
+        stop = function()
+            ping_packet_immediatly(
+                transfered_song_id,
+                packet_enums_api.packet_type_ids.control,
+                packet_encoder_api.make_control_packet(packet_enums_api.control_packet_codes.stop)
+            )
+
+            -- Stop pinging new packets (we'll reset and restart with play)
+            remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id)
+
+            -- This will mess up buffer time calculation.
+        end,
+
+        set_new_config = function(new_config)
+            config_packet_data = packet_encoder_api.build_config_packet(new_config)
+            ping_packet_immediatly(
+                transfered_song_id,
+                packet_enums_api.packet_type_ids.config,
+                config_packet_data
+            )
+        end,
+    }
+    for k, v in pairs(incoming_song_and_controller.player) do
+        if not custom_song_controller[k] then -- there's a function we haven't implemented yet
+            print_debug("Key `"..tostring(k).."` is not implemented in networked_song_player's controller.")
+            if type(v) == "function" then
+                custom_song_controller[k] = function(...)
+                    -- forwards controll to the current local player
+                    return incoming_song_and_controller.player[k](...)
+                end
+            end
+        end
+    end
 
 
     -- TODO: Get the remote player build a controller arround it. For most set functions, we'll need to ping data over. But we can also look at ourself for most other actions.
 
 
-    -- TODO: Figure out how we want to represent local songs with a newtwork relationship.
-
-
-
     -- TODO: Remove play_immediatly as a config paramiter. We don't need to do magic to get things to play if we can just talk to the remote player with control codes.
-
-    -- This wraper needs to
-    --  - [ ] Know if a song will processable/accessable to client already. (If it's a local song)
-    --      - [ ] Allways assume the client will need to build the data. (otherwise, caller could just use a normal player).
-    --      - [ ] If song is non-local, convert the song into packets and know how to ping them.
-    --      - [ ]
-    --  - [ ] TODO: should we have sepparate host/client players? Honestly probably not. We can re-use the transfer-song ideas and only deal with the "remote" player. This wrapper will make it feel host-ish to the caller.
-
-
-
-
-    -- ---@class NetworkedSongPlayer
-
-
-
 
     return {}
 end
