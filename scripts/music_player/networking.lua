@@ -259,6 +259,7 @@ local function remove_packets_from_outgoing_queue_by_transfer_id(transfered_song
             if outgoing_packet_queue_index == search_index then
                 -- In this situation, we can just skip the packet instead of modifying the table
                 outgoing_packet_queue_index = outgoing_packet_queue_index + 1
+                ping_loop_start_time = ping_loop_start_time + packet_encoder_api.get_target_milis_between_packets() -- advance ping_loop_start_time to account for moved index
             else
                 outgoing_bundled_packets_queue[search_index] = nil
                 size_of_hole = size_of_hole + 1
@@ -294,7 +295,10 @@ local function remove_already_sent_packets_from_outgoing_packet_queue()
     new_outgoing_packet_queue.n = nil   -- table.pack adds an `n` field that we don't want.
     outgoing_bundled_packets_queue = new_outgoing_packet_queue   ---@type PacketQueue
 
+    -- upgrade ping_loop_start_time to account for change in index (we're setting index to 1 immediatly after)
+    ping_loop_start_time = ping_loop_start_time + (packet_encoder_api.get_target_milis_between_packets() * (outgoing_packet_queue_index -1))
     outgoing_packet_queue_index = 1
+
     if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then stop_and_cleanup_packet_ping_loop() end
 end
 
