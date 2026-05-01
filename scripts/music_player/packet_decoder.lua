@@ -10,39 +10,6 @@ local function print_debug(...) if do_debug_prints then print(...) end end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
-
----A hacky way to combine two int-indexed tables
----@generic T:table
----@param table_1 T     This table is modified to include table_2's contents
----@param table_2 table
----@return T
-local function union_tables(table_1, table_2)
-    for _, v in ipairs(table_2) do
-        table.insert(table_1, v)
-    end
-    return table_1
-end
-
----Convert an integer (or nil) into a variable-length-quantity byte list
----@param integer integer?
----@return Byte[]
-local function int_to_vlq(integer)
-    if integer == nil then
-        -- 0x80 (10000000) is not a valid first byte in the sequence.
-        -- The first byte will either be `0x00`, or have a `1` somewhere in the data to start the number.
-        -- 0x08 is legal in the middle of the sequence, but never as the initial.
-        -- We can use this exception to represent nils in our packets.
-        return { 0x80 }
-    end
-    local bytes = { integer % 128 }
-    integer = math.floor(integer / 128)
-    while integer > 0 do
-        table.insert(bytes, 1, 0x80 + (integer % 128))
-        integer = math.floor(integer / 128)
-    end
-    return bytes
-end
-
 ---Convert a variable-length-quantity into an integer (or a nil) and advances PacketReader's index.
 ---@param packet_reader PacketReader
 ---@return integer?
@@ -106,14 +73,6 @@ local function int_to_bool_list(int, length)
     return bool_list
 end
 
----Converts a table of bytes (ints from 0 to 255) into a string
----@param data_bytes PacketDataBytes
----@return PacketDataString
-local function packet_data_bytes_to_string(data_bytes)
-    local data_string = string.char(table.unpack(data_bytes))
-    return data_string
-end
-
 ---Converts a string into a table of bytes
 ---@param data_string PacketDataString
 ---@return PacketDataBytes
@@ -122,26 +81,6 @@ local function packet_data_string_to_bytes(data_string)
     data_bytes.n = nil
     return data_bytes
 end
-
-
-local control_packet_codes = packet_enums_api.control_packet_codes
-
-
--- The colection of songs received from the Host (or whatever called add_packet_to_song).
--- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
----@type table<integer, {song: Song, player: SongPlayerController}>
-local collected_incoming_songs = {}
-
--- list of transfer IDs that we must have missed
---
--- Allows us to throw a warning the first time, and ignore followup missing songs.
----@type table<integer, boolean>
-local missed_incoming_songs = {}
-
-
-
-
-
 
 
 ---A helper that wraps a list of bytes with an index,
@@ -156,7 +95,6 @@ local function new_packet_reader(packet_data)
     }
     return reader
 end
-
 
 
 ---@param song Song     Will be modified by the function
@@ -343,9 +281,9 @@ end
 
 ---@type table<ControlPacketCode, fun(controller:SongPlayerController, reader:PacketReader)>
 local control_packet_handelers = {
-    [control_packet_codes.start] = function(controller, _)  controller:play() end,
-    [control_packet_codes.stop] = function(controller, _)   controller:stop() end,
-    [control_packet_codes.remove] = function(_, _)
+    [packet_enums_api.control_packet_codes.start] = function(controller, _)  controller:play() end,
+    [packet_enums_api.control_packet_codes.stop] = function(controller, _)   controller:stop() end,
+    [packet_enums_api.control_packet_codes.remove] = function(_, _)
         -- This controll code is for network management. It tells a client they can delete a song we've sent
     end,
 }
