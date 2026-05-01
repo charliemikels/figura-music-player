@@ -24,7 +24,21 @@ local target_milis_between_packets = math.ceil(1000 / pings_per_second)
 
 
 local do_debug_prints = false
-local function print_debug(...) if do_debug_prints then print(...) end end
+
+--- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
+---@param message string
+---@param is_warning boolean?
+---@param allways_log boolean?
+local function print_debug(message, is_warning, allways_log)
+    if do_debug_prints then print(message) end
+    if do_debug_prints or allways_log then
+        if is_warning then
+            host:warnToLog(message)
+        else
+            host:writeToLog(message)
+        end
+    end
+end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
@@ -317,7 +331,16 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
             if not packet_enums_api.modifier_key_to_number[modifier.type] then
                 if not modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] then
                     modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = 1
-                    print_debug("song_instruction_to_packet_parts: unrecognized modifier type: `"..tostring(modifier.type).."`. See Modifier", modifier, "in instruction", instruction)
+                    print_debug(
+                        "song_instruction_to_packet_parts: unrecognized modifier type: `"
+                            ..tostring(modifier.type)
+                            .."`.\ninstruction.start_time: "
+                            ..tostring(instruction.start_time)
+                            ..", instruction.note: "
+                            ..tostring(instruction.note)
+                            .."`.\n This warning will be suppressed for the rest of this song."
+                        , true
+                    )
                 else
                     modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] + 1
                 end
@@ -430,7 +453,7 @@ local function build_data_packets_and_buffer_time(song)
                 -- Too much time has passed for us to play this instruction on time.
                 -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
                 required_buffer_delay_in_milis = ((#data_packets) * target_milis_between_packets) - proposed_packet_start_part_pair.start_time
-                print_debug("buffer time changed:", required_buffer_delay_in_milis / 1000)
+                print_debug("buffer time changed: "..tostring(required_buffer_delay_in_milis / 1000).."s")
             end
 
             instruction_packet_should_be_rebuilt = true
@@ -507,7 +530,7 @@ local function build_data_packets_and_buffer_time(song)
 
     -- debug to notice unhandled modifier types
     if next(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) then
-        print_debug("build_data_packets found some unrecognized note modifiers")
+        print_debug("build_data_packets found some unrecognized note modifiers", true)
         for modifier_name, ammount in pairs(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) do
             print_debug("  found "..tostring(ammount).." instances of the `"..modifier_name.."` modifier")
         end

@@ -17,7 +17,20 @@ local midi_chunk_types = {
     track = "MTrk"
 }
 
-local function print_debug(...) if do_debug_prints then print(...) end end
+--- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
+---@param message string
+---@param is_warning boolean?
+---@param allways_log boolean?
+local function print_debug(message, is_warning, allways_log)
+    if do_debug_prints then print(message) end
+    if do_debug_prints or allways_log then
+        if is_warning then
+            host:warnToLog(message)
+        else
+            host:writeToLog(message)
+        end
+    end
+end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 
 ---For use with state and track chunk initilization.
@@ -528,13 +541,13 @@ midi_meta_event_functions = {
         local new_device_name = string.char(table.unpack(data))
 
         if track.current_device == new_device_name then
-            print_debug("track", track.index," attempted to change devices to a device it's already using. (device", new_device_name, ")" )
+            print_debug("track "..tostring(track.index).." attempted to change devices to a device it's already using. (device `" .. new_device_name .. "`)")
         elseif track.current_device == default_midi_device_name then
             track.current_device = new_device_name
-            print_debug("track", track.index, "switched to device", new_device_name)
+            print_debug("track " ..tostring(track.index) .. "switched to device `" ..new_device_name.."`")
         else
-            print_debug("Current device:", track.current_device)
-            print_debug("new device:", new_device_name)
+            print_debug("Current device: ".. track.current_device, true, true)
+            print_debug("new device: ".. new_device_name, true, true)
             error("Midi tried to switch track #".. tostring(track.index)
                 .." to a new device (`"..tostring(new_device_name)
                 .."`) after it was already set to device `"..tostring(track.current_device)
@@ -559,7 +572,7 @@ midi_meta_event_functions = {
                 name = track.meta_state.custom_program_name or (channel+1 == 10 and "Percussion") or patch_name_lookup[patch_number]
             })
 
-            print_debug("Late change for new device: channel", channel, "selected instrument", patch_name_lookup[patch_number])
+            print_debug("Late change for new device: channel `" .. tostring(channel).. "`, selected instrument `"..patch_name_lookup[patch_number].."`")
 
             track.meta_state.early_program_change_patch_number = nil
             track.meta_state.early_program_change_channel_number = nil
@@ -739,17 +752,17 @@ midi_message_functions = {
 
         local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
         if not note_to_stop then
-            print_debug("Note off tried to stop a not that was not been started before. Ignoring")
+            print_debug("Note off tried to stop a note that was not been started before. Ignoring.")
             return
         end
         note_to_stop.duration = start_time - note_to_stop.start_time
 
-        print_debug("Ending note:", note_id, "(dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
+        print_debug("Ending note: " .. tostring(note_id) .. " (dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
         table.insert(state.complete_instructions, note_to_stop)
         state.instruction_builder[track.current_device][channel].notes[note_id] = nil
 
-        print_debug("Finished instructions:", #state.complete_instructions)
+        print_debug("Finished instructions: " .. tostring(#state.complete_instructions))
     end,
 
     ---Note On event
@@ -773,7 +786,7 @@ midi_message_functions = {
         end
         -- initialize a new note in the note builder
 
-        print_debug("Starting new note:", note_id, "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
+        print_debug("Starting new note: " .. tostring(note_id) .. "(v: "..tostring(note_velocity).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
         local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
 
@@ -818,10 +831,10 @@ midi_message_functions = {
         local controller_value = read_next_chunk_byte(track)
 
         if control_change_and_mode_change_functions[controller_number] then
-            print_debug("Running control change function", controller_number)
+            print_debug("Running control change function ".. tostring(controller_number))
             control_change_and_mode_change_functions[controller_number](state, track, channel, start_time, controller_value)
         else
-            print_debug("⚠ Ignoring unrecognized control change code", controller_number)
+            print_debug("Ignoring unrecognized control change code ".. tostring(controller_number), true, true)
             -- error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
             -- TODO: It looks like we're not expected to implement every controller event. There are some pre-defined events
             -- that we should take care of, but at some point, I think we can change this error to just a log message.
@@ -863,7 +876,7 @@ midi_message_functions = {
 
         table.insert(this_channel_metadata.seen_instruments, {id = patch_number, name = name})
 
-        print_debug("channel", channel, "selected instrument", patch_name_lookup[patch_number])
+        print_debug("channel: `" .. tostring(channel) .. "` selected instrument: `" .. tostring(patch_name_lookup[patch_number]) .."`")
     end,
 
     ---Channel Presure (Channel Aftertouch)
@@ -1055,7 +1068,7 @@ local midi_processor_loop_stage_functions = {
         else
             error("song.source.type is not `files`. Non files API sources are not supported yet.")
         end
-        print_debug("init done")
+        print_debug("init done", false, true)
         return { progress = 0 }
     end,
 
@@ -1171,7 +1184,7 @@ local midi_processor_loop_stage_functions = {
 
                         if header_chunk.length > expected_header_chunk_length then
                             print_debug("Header chunk is larger than expected. Got " .. tostring(header_chunk.length)
-                                .. " instead of " .. tostring(expected_header_chunk_length)
+                                .. " instead of " .. tostring(expected_header_chunk_length), true, true
                             )
                         end
 
@@ -1232,7 +1245,7 @@ local midi_processor_loop_stage_functions = {
 
                     else
                         table.insert(state.chunks.unknown_chunks, new_chunk)
-                        print_debug("Found a chunk with an unknown type.")
+                        print_debug("Found a chunk with an unknown type.", true, true)
                     end
 
                 else -- We've inside of a chunk. Read file data into the current chunk.
@@ -1264,7 +1277,7 @@ local midi_processor_loop_stage_functions = {
             end
 
             state.stage = "process"
-            print_debug("read done")
+            print_debug("read done", false, true)
         end
         return {
             progress = state.reader and (
@@ -1301,7 +1314,7 @@ local midi_processor_loop_stage_functions = {
             if not soonest_track then
                 -- No tracks passed the get-soonest-track logic. They must all be done.
                 print_debug("All tracks ended")
-                print_debug("process done")
+                print_debug("process done" , false, true)
                 state.stage = "done"
                 return { progress = 0.9 }
             end
@@ -1351,7 +1364,7 @@ local midi_processor_loop_stage_functions = {
             )
 
             if midi_message_functions[event_id_without_channel] then
-                print_debug("processing event:", event_id_without_channel, "track:", soonest_track_index, "time:", soonest_start_time)
+                print_debug("processing event: " ..tostring(event_id_without_channel) .. " track: " .. tostring(soonest_track_index) .. " time: " .. tostring(soonest_start_time))
                 midi_message_functions[event_id_without_channel](state, soonest_track, midi_channel, soonest_start_time)
             else
                 error("Unimplemented Event ID: "..number_to_dec_and_hex(event_id_without_channel))
@@ -1458,7 +1471,7 @@ local midi_processor_loop_stage_functions = {
         }
         printTable_debug(processed_song)
 
-        print_debug("Midi processor successfuly build a song.")
+        print_debug("Midi processor successfuly built a song.", false, true)
 
         state.is_done = true
         return {
@@ -1585,7 +1598,7 @@ local function midi_processor(song_holder)
                 ---@cast value MidiProcessorFunctionReturn
                 if value.progress then
                     future_controller:set_progress(value.progress)
-                    print_debug("Progress:", value.progress)
+                    -- print_debug("Progress: " .. tostring(value.progress))
                 end
                 if value.finished_song then
                     state.is_done = true

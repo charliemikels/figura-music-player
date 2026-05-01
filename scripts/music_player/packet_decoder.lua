@@ -6,7 +6,20 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 
 
 local do_debug_prints = false
-local function print_debug(...) if do_debug_prints then print(...) end end
+--- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
+---@param message string
+---@param is_warning boolean?
+---@param allways_log boolean?
+local function print_debug(message, is_warning, allways_log)
+    if do_debug_prints then print(message) end
+    if do_debug_prints or allways_log then
+        if is_warning then
+            host:warnToLog(message)
+        else
+            host:writeToLog(message)
+        end
+    end
+end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
@@ -190,10 +203,10 @@ local function new_config_from_packet(packet_data)
             if success and possible_entity then
                 config_data.source_entity = possible_entity
             else
-                print_debug("There was an error getting the entity with uuid:", uuid_string)
+                print_debug("There was an error getting the entity with uuid: " .. uuid_string, true)
                 if not success
-                    then print_debug("world.getEntity returned this error:", possible_entity)
-                    else print_debug("world.getEntity returned nil (Entity not loaded).")
+                    then print_debug("world.getEntity returned this error: " .. possible_entity, true)
+                    else print_debug("world.getEntity returned nil (Entity not loaded).", true)
                 end
             end
 
@@ -231,7 +244,7 @@ local function new_config_from_packet(packet_data)
             local track_number = vlq_to_int_from_reader(reader)
             local instrument_name = bytes_with_len_to_string_from_reader(reader)
             config_data.instrument_selections[track_number] = { name = instrument_name }
-            print_debug("config assigned", instrument_name, "to track", track_number)
+            print_debug("config assigned instrument " .. instrument_name .. " to track " .. tostring(track_number))
         end
     end
 
