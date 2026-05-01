@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
@@ -31,9 +33,9 @@ network = {}
 
 ---**THERE IS A MUCH BETTER WAY TO HANDLE PINGS. SEE THE `ping` TABLE FOR MORE INFORMATION.**
 ---***
----Registers a ping that allows you to send information to all clients running this script.  
+---Registers a ping that allows you to send information to all clients running this script.
 ---This is mainly used to sync variables that do not sync normally. (`Keybind`s, `action_wheel`
----functions, NBT, etc.)  
+---functions, NBT, etc.)
 ---You may register up to *65535* pings in one script.
 ---
 ---All examples in this description will assume that the ping is called *"pingname"*.
@@ -59,7 +61,7 @@ function network.registerPing(ping) end
 
 ---**THERE IS A MUCH BETTER WAY TO HANDLE PINGS. SEE THE `ping` TABLE FOR MORE INFORMATION.**
 ---***
----Sends a ping out to all clients running this script.  
+---Sends a ping out to all clients running this script.
 ---Pings are 5 bytes big without a value.
 ---
 ---A ping may also contain a value to send with the ping. This adds the following bytes based on the
@@ -84,11 +86,11 @@ function network.ping(ping, value) end
 ---A table containing pings. You can create a new ping by defining a function here.
 ---
 ---Pings are mainly used to sync variables that do not sync normally. (`Keybind`s, `action_wheel`
----functions, NBT, etc.)  
+---functions, NBT, etc.)
 ---You may have up to 65,535 pings in one script.
 ---
 ---Note: Functions placed in this table are converted. A `PingFunction` of a given function will not
----be equal to the function it is made from.  
+---be equal to the function it is made from.
 ---This also means that calling the normal function will
 ---not call the `PingFunction` made from it.
 ---@type table<string, PingFunction>

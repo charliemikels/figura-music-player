@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -135,7 +137,7 @@
 ---| "DELETE"
 ---| "HOME"
 
----A keybind registered by Minecraft or a mod.  
+---A keybind registered by Minecraft or a mod.
 ---This value is not limited to keybinds registered by Minecraft, any keybind registered by a mod
 ---will also work (but will not be auto-completed here.)
 ---@alias MinecraftKeybind
@@ -174,7 +176,7 @@
 ---| "key.fullscreen" #Miscellaneous: Toggle Fullscreen
 ---| "key.togglePerspective" #Miscellaneous: Toggle Perspective
 
----A keybind that is bound to a key.  
+---A keybind that is bound to a key.
 ---You can use this to determine when you are pressing a key or registered control.
 ---@class Keybind
 local Keybind = {}
@@ -201,7 +203,7 @@ function Keybind.getName() end
 
 ---FiguraKeybind ⇐ Keybind
 ---***
----A custom keybind created by the script.  
+---A custom keybind created by the script.
 ---These binds can be changed by the player later in Figura's keybind menu.
 ---@class FiguraKeybind : Keybind
 local FiguraKeybind = {}
@@ -215,7 +217,7 @@ function FiguraKeybind.reset() end
 
 ---RegisteredKeybind ⇐ Keybind
 ---***
----A keybind registered by Minecraft or another mod.  
+---A keybind registered by Minecraft or another mod.
 ---These binds are changed Minecraft's controls menu.
 ---@class RegisteredKeybind : Keybind
 

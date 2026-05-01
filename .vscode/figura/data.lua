@@ -1,8 +1,10 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
 
----Contains functions involving saving and loading data to and from files.  
+---Contains functions involving saving and loading data to and from files.
 ---It uses the avatar name as the default file name.
 ---
 ---Data files can be found at `./minecraft/figura/stored_vars`
@@ -25,7 +27,7 @@ function data.getName() end
 ---@return boolean
 function data.hasTracking() end
 
----Returns a value from the given key in the active data file.  
+---Returns a value from the given key in the active data file.
 ---Returns nil if the key does not exist.
 ---@param key string
 ---@return string|table|Vector

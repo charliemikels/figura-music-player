@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
@@ -31,10 +33,10 @@ function sound.isCustomSoundRegistered(name) end
 ---@param vol_pitch? Vector2
 function sound.playCustomSound(name, pos, vol_pitch) end
 
----`vol_pitch: Vector2`  
+---`vol_pitch: Vector2`
 ---&emsp;Two numbers that represent the volume and pitch of the sound.
 ---***
----Plays a sound event at the given world position.  
+---Plays a sound event at the given world position.
 ---Sounds are played on the `player` channel.
 ---@param name string
 ---@param pos VectorPos

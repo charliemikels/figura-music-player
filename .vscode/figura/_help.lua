@@ -1,8 +1,10 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
 
----This table does not actually exist in figura.  
+---This table does not actually exist in figura.
 ---This is only here to show off what this documentation can show you.
 ---***
 ---To see more help on a specific section of this documentation, index this like a normal lua
@@ -80,7 +82,7 @@ help = {
     ["StatusEffectID"] = function() end
   },
 
-  ---View the descriptions of every class in this documentation.  
+  ---View the descriptions of every class in this documentation.
   ---You can also attempt to index the classes to peek further into them.
   ["class"] = {
     ---@type ActionWheelSlot
@@ -176,7 +178,7 @@ help = {
 
   ---View how the documentation is formatted for faster gathering of information.
   ["format"] = {
-    ---The basic documentation format is below.  
+    ---The basic documentation format is below.
     ---To see help on a specific part, index this help page with the name of the part below.
     ---***
     ---***
@@ -188,7 +190,7 @@ help = {
     ["basic"] = {
       ---The "scope" can either be `global`, `local`, or `field`.
       ---
-      ---A `global` scope means that this variable can be accessed from anywhere.  
+      ---A `global` scope means that this variable can be accessed from anywhere.
       ---A `local` scope means this variable can only be accessed where it was created.
       ---A `field` scope means this variable is inside a `table`.
       ["scope"] = {},
@@ -211,7 +213,7 @@ help = {
       ["description"] = {}
     },
 
-    ---The class documentation format is below.  
+    ---The class documentation format is below.
     ---To see help on a specific part, index this help page with the name of the part below.
     ---
     ---Note: `table`s also use this format. However, "class" and "inheritance" do not appear.
@@ -231,7 +233,7 @@ help = {
     ["class"] = {
       ---The "scope" can either be `global`, `local`, or `field`.
       ---
-      ---A `global` scope means that this variable can be accessed from anywhere.  
+      ---A `global` scope means that this variable can be accessed from anywhere.
       ---A `local` scope means this variable can only be accessed where it was created.
       ---A `field` scope means this variable is inside a `table`.
       ["scope"] = {},
@@ -239,7 +241,7 @@ help = {
       ---The "name" is how you access this variable in its scope.
       ["name"] = {},
 
-      ---The "class" is the class this variable takes the form of.  
+      ---The "class" is the class this variable takes the form of.
       ---When a variable contains a class, it can be indexed with the fields of the class it contains
       ---like a table.
       ---
@@ -247,7 +249,7 @@ help = {
       ---fields. However, most of Figura's classes are read-only and cannot be modified.
       ["class"] = {},
 
-      ---The "fields" are the variables inside the class that you can use like a normal `table` index.  
+      ---The "fields" are the variables inside the class that you can use like a normal `table` index.
       ---Some fields are functions and can be run to modify or get information from the object this
       ---class is connected to.
       ["field"] = {},
@@ -258,7 +260,7 @@ help = {
       ["type"] = {},
 
       ---The "inheritance" is the chain of classes (starting with the class itself) that this class
-      ---inherits fields from.  
+      ---inherits fields from.
       ---Inheritance allows a class to use fields from other classes as if the class itself contained
       ---them.
       ---
@@ -269,7 +271,7 @@ help = {
       ["description"] = {}
     },
 
-    ---The class documentation format is below.  
+    ---The class documentation format is below.
     ---To see help on a specific part, index this help page with the name of the part below.
     ---
     ---Note: `table`s also use this format. However, "class" and "inheritance" do not appear.
@@ -285,7 +287,7 @@ help = {
     ---> definitionNotice
     ---> ***
     ---> description
-    ---> 
+    --->
     ---> expandedVariables
     ["func"] = {
       ---The "name" is how you access this function in its scope.
@@ -298,7 +300,7 @@ help = {
       ---The "type" of a param is the type of value this param accepts.
       ["type"] = {},
 
-      ---A `...` (or "vararg") signifies an infinite number of comma seperated values.  
+      ---A `...` (or "vararg") signifies an infinite number of comma seperated values.
       ---A function will likely state what the "vararg" requires.
       ["..."] = {},
 
@@ -306,7 +308,7 @@ help = {
       ["return"] = {},
 
       ---The "definition notice" is a notice that explains which definition a function uses if
-      ---multiple show up.  
+      ---multiple show up.
       ---Sometimes, when classes inherit, they overwrite functions they inherit to change how they
       ---work.
       ["definitionNotice"] = {},
@@ -319,7 +321,7 @@ help = {
       ["expandedVariables"] = {}
     },
 
-    ---Some other unexplained parts of the documentation format.  
+    ---Some other unexplained parts of the documentation format.
     ---Index this help page to learn more...
     ["other"] = {
       ---Arrays are displayed like so:
@@ -344,7 +346,7 @@ help = {
       ---@type table<string, boolean>
       dictionary = {},
 
-      ---A "literal" is, quite literally, a *literal* value.  
+      ---A "literal" is, quite literally, a *literal* value.
       ---Literal values are used if a variable can only have specific values, such as specific strings
       ---or numbers.
       ---
@@ -380,7 +382,7 @@ help = {
   ["owndoc"] = {
     ---You can create descriptions for any variable or function by using three dashes:
     ---```
-    ------This is a description comment!  
+    ------This is a description comment!
     ------I use markdown for formatting!
     ------
     ------> Hello world!
@@ -405,7 +407,7 @@ help = {
     ["s2_Typing"] = {},
 
     ---Functions can also be documented using `@param name type`, `@vararg type`, and
-    ---`@return type`.  
+    ---`@return type`.
     ---If your function has multiple params or returns, then you need make multiple comments.
     ---
     ---You can use these comments like so:
@@ -505,7 +507,7 @@ help = {
         ---what type of variables to expect from functions.
         ---Hints appear as a box to the right of variables and to the left of values:
         ---
-        ---variable`:type`  
+        ---variable`:type`
         ---`name:`"1234"
         ["enable"] = {},
 
@@ -576,7 +578,7 @@ help = {
         ---//Do not touch unless you know what you are doing.
         ---```
         ---***
-        ---Disables specific diagnostics that do not matter to someone using Figura.  
+        ---Disables specific diagnostics that do not matter to someone using Figura.
         ---This specifically:
         ---* Disables warnings when using all-lowercase globals.
         ---* Disables warnings for trailing spaces.

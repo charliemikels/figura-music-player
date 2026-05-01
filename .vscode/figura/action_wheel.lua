@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -19,27 +21,27 @@ local ActionWheelSlot = {}
 ---Clears the slot of all of its changes.
 function ActionWheelSlot.clear() end
 
----Returns the current color of the slot.  
+---Returns the current color of the slot.
 ---Returns `nil` if the color has not been set by `.setColor()`.
 ---@return VectorColor?
 function ActionWheelSlot.getColor() end
 
----Returns the current function of the slot.  
+---Returns the current function of the slot.
 ---Returns `nil` if the function has not been set by `.setFunction()`.
 ---@return function?
 function ActionWheelSlot.getFunction() end
 
----Returns the current hover color of the slot.  
+---Returns the current hover color of the slot.
 ---Returns `nil` if the hover color has not been set by `.setHoverColor()`.
 ---@return VectorColor?
 function ActionWheelSlot.getHoverColor() end
 
----Returns the current hover item of the slot.  
+---Returns the current hover item of the slot.
 ---Returns `nil` if the hover item has not been set by `.setHoverItem()`.
 ---@return ItemStack?
 function ActionWheelSlot.getHoverItem() end
 
----Returns the current item icon of the slot.  
+---Returns the current item icon of the slot.
 ---Returns `nil` if the item has not been set by `.setItem()`.
 ---@return ItemStack?
 function ActionWheelSlot.getItem() end
@@ -59,7 +61,7 @@ function ActionWheelSlot.getTitle() end
 
 ---Returns the UV used for rendering the texture as well as the texture size.
 ---
----First two numbers are the offset, next two numbers are the size of the UV,  
+---First two numbers are the offset, next two numbers are the size of the UV,
 ---last two numbers are the size of the texture itself.
 ---@return Vector6
 function ActionWheelSlot.getUV() end
@@ -68,7 +70,7 @@ function ActionWheelSlot.getUV() end
 ---@param color VectorColor
 function ActionWheelSlot.setColor(color) end
 
----Sets the function to run when the slot is clicked.  
+---Sets the function to run when the slot is clicked.
 ---If a `parameter` is given, the *current value* is saved as soon as the function is set and then
 ---used every time the slot is activated.
 ---@param func function
@@ -87,7 +89,7 @@ function ActionWheelSlot.setHoverItem(item) end
 ---@param item ItemStack|string
 function ActionWheelSlot.setItem(item) end
 
----Sets the action wheel custom texture.  
+---Sets the action wheel custom texture.
 ---`resource` is only needed if the texture type is set to `"Resource"`.
 ---@param type ActionWheelTextureType
 ---@param resource? string
@@ -112,7 +114,7 @@ function ActionWheelSlot.setUV(uvOffset, uvSize, textureSize) end
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
 
----The action wheel. This has up to 8 slots that can be customized to do whatever you want.  
+---The action wheel. This has up to 8 slots that can be customized to do whatever you want.
 ---Hold the `Figura: Action Wheel key` keybind to use the action wheel.
 action_wheel = {
   SLOT_1 = ActionWheelSlot,

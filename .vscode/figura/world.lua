@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -59,13 +61,13 @@ function World.getLunarTime() end
 ---@return MoonPhase
 function World.getMoonPhase() end
 
----Returns how heavy rain is falling in this world.  
+---Returns how heavy rain is falling in this world.
 ---`0` is no rain, `1` is full rain.
 ---@param delta number
 ---@return number
 function World.getRainGradient(delta) end
 
----Returns the redstone power the given block position is receiving.  
+---Returns the redstone power the given block position is receiving.
 ---This does *not* return the redstone power the block is sending.
 ---
 ---Note: Returns `0` if the block position is not loaded.
@@ -80,8 +82,8 @@ function World.getRedstonePower(pos) end
 ---@return NibbleInt
 function World.getSkyLightLevel(pos) end
 
----Returns the strong redstone power of the block position is receiving.  
----This does *not* return the redstone power the block is sending.  
+---Returns the strong redstone power of the block position is receiving.
+---This does *not* return the redstone power the block is sending.
 ---This *only* checks for direct connections, redstone power sent through non-redstone blocks are
 ---ignored.
 ---@param pos VectorPos
@@ -92,12 +94,12 @@ function World.getStrongRedstonePower(pos) end
 ---@return integer
 function World.getTime() end
 
----Returns the total amount of ticks that have passed since the start of day 0.  
+---Returns the total amount of ticks that have passed since the start of day 0.
 ---This will not always sync up with `getTime` if the world's time is modified.
 ---@return integer
 function World.getTimeOfDay() end
 
----Returns if the world actually exists.  
+---Returns if the world actually exists.
 ---This is useful for checking if the avatar is currently in a "fake" world.
 ---@return boolean
 function World.hasWorld() end

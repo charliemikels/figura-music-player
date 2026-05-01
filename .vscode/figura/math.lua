@@ -1,10 +1,12 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
 
 ---Interpolates numbers or vectors between a and b.
 ---
----Will not accept a raw table as input.  
+---Will not accept a raw table as input.
 ---Use vectors.of() to convert from raw table to vector table.
 ---@generic T : number|Vector
 ---@param a T

@@ -1,10 +1,12 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
 
 ---A Minecraft block identifier.
 ---
----Only the default Minecraft blocks are auto-completed.  
+---Only the default Minecraft blocks are auto-completed.
 ---You can use any block from any mod, even if it does not auto-complete.
 ---@alias BlockID
 ---| "minecraft:acacia_button" #Acacia Button
@@ -958,7 +960,7 @@
 
 ---A `table` containing blockstate properties.
 ---
----Only the default Minecraft block state properties are auto-completed.  
+---Only the default Minecraft block state properties are auto-completed.
 ---You can use any block state property from any mod, even if it does not auto-complete.
 ---@class BlockStateProperties
 ---@field [string] string
@@ -1125,8 +1127,8 @@ local BlockStateProperties = {
   ---@type "ceiling"|"floor"|"wall"
   face = nil,
 
-  ---For most blocks, what direction the block faces.  
-  ---  
+  ---For most blocks, what direction the block faces.
+  ---
   ---For wall-attached bells as well as cocoa, the opposite is true.
   ---***
   ---> | State | Valid Blocks |
@@ -1335,7 +1337,7 @@ local BlockStateProperties = {
   ---@type "false"|"true"
   open = nil,
 
-  ---Direction the arrows point, followed by the position of the line face.  
+  ---Direction the arrows point, followed by the position of the line face.
   ---
   ---***
   ---> | State | Valid Blocks |
@@ -1529,7 +1531,7 @@ function BlockState.getBlastResistance() end
 ---@return string[]
 function BlockState.getBlockTags() end
 
----Returns a table of vectors, each vector corresponding to a "box" of the block's collision.  
+---Returns a table of vectors, each vector corresponding to a "box" of the block's collision.
 ---`{minX, minY, minZ, maxX, maxY, maxZ}`
 ---@return Vector6[]
 function BlockState.getCollisionShape() end
@@ -1541,7 +1543,7 @@ function BlockState.getCollisionShape() end
 ---@return NibbleInt
 function BlockState.getComparatorOutput() end
 
----Returns the tile entity data if it exists.  
+---Returns the tile entity data if it exists.
 ---@todo Aliases for tile entity data // GS: You're crazy if you actually do it.
 ---@return table
 function BlockState.getEntityData() end
@@ -1562,7 +1564,7 @@ function BlockState.getLuminance() end
 ---@return number
 function BlockState.getMapColor() end
 
----Returns the name of the block material.  
+---Returns the name of the block material.
 ---This does not return a readable string, instead it returns a field id for the material.
 ---
 ---Material IDs are auto-completed and come with a description of what they are.
@@ -1573,7 +1575,7 @@ function BlockState.getMaterial() end
 ---@return NibbleInt
 function BlockState.getOpacity() end
 
----Returns a table of vectors, each vector corresponding to a "box" of the block's visual outline.  
+---Returns a table of vectors, each vector corresponding to a "box" of the block's visual outline.
 ---`{minX, minY, minZ, maxX, maxY, maxZ}`
 ---@return Vector6[]
 function BlockState.getOutlineShape() end
@@ -1590,7 +1592,7 @@ function BlockState.getSoundGroup() end
 ---@return number
 function BlockState.getVelocityMultiplier() end
 
----Returns if the block is a block entity.  
+---Returns if the block is a block entity.
 ---Block entities store extra data such as inventory or advanced states.
 ---@return boolean
 function BlockState.hasBlockEntity() end

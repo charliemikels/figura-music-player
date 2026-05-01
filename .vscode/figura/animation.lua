@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -82,14 +84,14 @@ function Animation.getStartOffset() end
 ---@return boolean
 function Animation.isPlaying() end
 
----Pauses the animation.  
+---Pauses the animation.
 ---You can resume by using `.play()` or `.start()`.
 function Animation.pause() end
 
 ---Starts/restarts the animation.
 function Animation.play() end
 
----Sets the blend time of the animation in seconds.  
+---Sets the blend time of the animation in seconds.
 ---Blending is done when an animation is starting or ending.
 ---@param time number
 function Animation.setBlendTime(time) end
@@ -111,8 +113,8 @@ function Animation.setLoopDelay(delay) end
 function Animation.setLoopMode(mode) end
 
 ---If replace is enabled, the animation will stop vanilla rotations on parts that are part of the
----animation's timeline.  
----They will still be able to move.  
+---animation's timeline.
+---They will still be able to move.
 ---
 ---Similar to how mimic parts work, but instead of only rotations, it is only for positions.
 ---@param bool boolean
@@ -129,7 +131,7 @@ function Animation.setOverride(bool) end
 
 ---Sets the priority of an animation over the others, you must put this value yourself.
 ---
----Priority determines how animations interact.  
+---Priority determines how animations interact.
 ---Animations with the same priority will blend together while animations of lower priority will not
 ---run at all if higher priority animation is running.
 ---@param priority integer

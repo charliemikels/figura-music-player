@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
@@ -5,7 +7,7 @@
 ---Contains functions relating to the chat.
 chat = {}
 
----Retrieves a message from chat.  
+---Retrieves a message from chat.
 ---Messages are ordered from bottom to top, starting at 1.
 ---
 ---Returns `nil` if there is no message at the given location.

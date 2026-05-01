@@ -1,10 +1,12 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
 
 ---A Minecraft item identifier.
 ---
----Only the default Minecraft items are auto-completed.  
+---Only the default Minecraft items are auto-completed.
 ---You can use any item from any mod, even if it does not auto-complete.
 ---@alias ItemID
 ---| "minecraft:acacia_boat" #Acacia Boat
@@ -1145,12 +1147,12 @@ function ItemStack.getCount() end
 ---@return number
 function ItemStack.getDamage() end
 
----Returns a list of item tags that contain this item.  
+---Returns a list of item tags that contain this item.
 ---Item tags are assigned by datapacks.
 ---@return string[]
 function ItemStack.getItemTags() end
 
----Returns the amount of levels added on top of the normal cost to work with this item in an anvil.  
+---Returns the amount of levels added on top of the normal cost to work with this item in an anvil.
 ---This will be equal to `2^ANVIL_USES - 1`.
 ---@return number
 function ItemStack.getRepairCost() end
@@ -1176,7 +1178,7 @@ function ItemStack.getName() end
 ---@return ItemRarity
 function ItemStack.getRarity() end
 
----Returns the item's NBT tag as a Lua `table`, returns `nil` if there is no tag.  
+---Returns the item's NBT tag as a Lua `table`, returns `nil` if there is no tag.
 ---All keys are in lowercase.
 ---@return table?
 function ItemStack.getTag() end

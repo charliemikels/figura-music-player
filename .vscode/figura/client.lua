@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
@@ -7,7 +9,7 @@
 ---For all other players running your script, it will return nil. (except for isHost())
 client={}
 
----Returns whether the first given version is ahead or behind the second given version.  
+---Returns whether the first given version is ahead or behind the second given version.
 ---Both parameters must be valid semantic versions.
 ---* `-1` if `version < compareTo`
 ---* `0` if `version == compareTo`
@@ -20,14 +22,14 @@ function client.checkVersion(version, compareTo) end
 ---Clears the title and subtitle text.
 function client.clearTitle() end
 
----Returns the most recently shown actionbar text.  
+---Returns the most recently shown actionbar text.
 ---This persists through worlds.
 ---
 ---Note: This will cause a VM error if no action bar text has been shown since the game started.
 ---@return string
 function client.getActionBar() end
 
----Returns the namespaced ID of the currently active shader.  
+---Returns the namespaced ID of the currently active shader.
 ---Returns nil if no shader is active.
 ---@return string
 function client.getActiveShader() end
@@ -39,7 +41,7 @@ function client.getAllocatedMemory() end
 ---Returns the chunk count debug line from the debug screen.
 ---
 ---Note: This is not actually the count, this is the entire debug line containing that information
----and may look similar to the example below.  
+---and may look similar to the example below.
 ---`"C: 497/15000 (s) D: 12, pC: 000, pU: 00, aB: 12"`
 ---@return string
 function client.getChunksCount() end
@@ -48,7 +50,7 @@ function client.getChunksCount() end
 ---@return boolean
 function client.getCrosshairEnabled() end
 
----Returns the offset of the crosshair.  
+---Returns the offset of the crosshair.
 ---Returns nil if it hasn't been set yet.
 ---@return Vector2
 function client.getCrosshairPos() end
@@ -56,7 +58,7 @@ function client.getCrosshairPos() end
 ---Returns the entity count debug line from the debug screen.
 ---
 ---Note: This is not actually the count, this is the entire debug line containing that information
----and may look similar to the example below.  
+---and may look similar to the example below.
 ---`"E: 17/83, B: 0, SD: 12"`
 ---@return string
 function client.getEntityCount() end
@@ -68,12 +70,12 @@ function client.getFOV() end
 ---Returns the frame count debug line from the debug screen.
 ---
 ---Note: This is not actually the FPS, this is the entire debug line containing that information
----and may look similar to the example below.  
+---and may look similar to the example below.
 ---`"67 fps T: 120 vsyncfancy fancy-clouds B: 2"`
 ---@return string
 function client.getFPS() end
 
----Returns the GUI scale as set in Minecraft's settings.  
+---Returns the GUI scale as set in Minecraft's settings.
 ---Auto is `0`.
 ---@return number
 function client.getGUIScale() end
@@ -98,7 +100,7 @@ function client.getMemoryInUse() end
 ---@return Vector2
 function client.getMousePos() end
 
----Returns the most recent direction the scroll wheel has scrolled.  
+---Returns the most recent direction the scroll wheel has scrolled.
 ---Calling this function resets the scroll wheel's direction back to neutral.
 ---* Neutral: `0`
 ---* Up: `1`
@@ -134,12 +136,12 @@ function client.getServerBrand() end
 ---Returns the sound count debug line from the debug screen.
 ---
 ---Note: This is not actually the count, this is (almost) the entire debug line containing that
----information and may look similar to the example below.  
+---information and may look similar to the example below.
 ---`"Sounds: 1/247 + 0/8"`
 ---@return string
 function client.getSoundCount() end
 
----Returns the most recently shown subtitle.  
+---Returns the most recently shown subtitle.
 ---
 ---Note: This will cause a VM error if no subtitle has been shown since the game started or since
 ---`.clearTitle()` was last called.
@@ -150,7 +152,7 @@ function client.getSubtitle() end
 ---@return number
 function client.getSystemTime() end
 
----Returns the most recently shown title.  
+---Returns the most recently shown title.
 ---
 ---Note: This will cause a VM error if no title has been shown since the game started or since
 ---`.clearTitle()` was last called.
@@ -161,7 +163,7 @@ function client.getTitle() end
 ---@return string
 function client.getVersion() end
 
----Returns the "type" of Minecraft currently running.  
+---Returns the "type" of Minecraft currently running.
 ---This is usually the currently running mod loader.
 ---@return string
 function client.getVersionType() end
@@ -178,7 +180,7 @@ function client.isHost() end
 ---@return boolean
 function client.isHudEnabled() end
 
----Returns if the singleplayer world is paused.  
+---Returns if the singleplayer world is paused.
 ---Multiplayer games cannot be paused.
 ---@return boolean
 function client.isPaused() end

@@ -1,10 +1,12 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
 
 ---A Minecraft dimension identifier.
 ---
----Only the default Minecraft dimensions are auto-completed.  
+---Only the default Minecraft dimensions are auto-completed.
 ---You can use any dimension from any mod, even if it does not auto-complete.
 ---@alias DimensionID
 ---| "minecraft:overworld"
@@ -22,7 +24,7 @@
 
 ---A Minecraft entity identifier.
 ---
----Only the default Minecraft entities are auto-completed.  
+---Only the default Minecraft entities are auto-completed.
 ---You can use any entity from any mod, even if it does not auto-complete.
 ---@alias EntityID
 ---| "minecraft:axolotl" #Axolotl
@@ -111,7 +113,7 @@
 
 ---A damage source name.
 ---
----Only the default Minecraft damage sources are auto-completed.  
+---Only the default Minecraft damage sources are auto-completed.
 ---You can use any damage source, even if it does not auto-complete.
 ---@alias DamageSource
 ---| "anvil" #Anvil
@@ -155,7 +157,7 @@
 
 ---A Minecraft status effect identifier.
 ---
----Only the default Minecraft status effects are auto-completed.  
+---Only the default Minecraft status effects are auto-completed.
 ---You can use any status effect from any mod, even if it does not auto-complete.
 ---@alias StatusEffectID
 ---| "minecraft:absorption" #Absorption
@@ -247,7 +249,7 @@ function Entity.getEyeHeight() end
 ---@return VectorPos
 function Entity.getEyeY() end
 
----Returns how long this entity will be on fire for.  
+---Returns how long this entity will be on fire for.
 ---If this number is negative, it is how long the entity is immune to being set on fire.
 ---@return number
 function Entity.getFireTicks() end
@@ -274,8 +276,8 @@ function Entity.getName() end
 
 ---Returns an NBT value from this entity using the given SNBT path.
 ---
----`List`, `Compound`, `Byte_Array`, `Int_Array`, `Long_Array` tags return a `table`.  
----`Byte`, `Short`, `Int`, `Long`, `Float`, and `Double` tags return a `number`.  
+---`List`, `Compound`, `Byte_Array`, `Int_Array`, `Long_Array` tags return a `table`.
+---`Byte`, `Short`, `Int`, `Long`, `Float`, and `Double` tags return a `number`.
 ---`String` tags return a `string`.
 ---@param nbtpath string
 ---@return string|number|table
@@ -294,7 +296,7 @@ function Entity.getPos(delta) end
 ---@return VectorAng
 function Entity.getRot(delta) end
 
----Returns the position of the block this entity is looking at.  
+---Returns the position of the block this entity is looking at.
 ---Returns `nil` if not looking at any blocks.
 ---@param targetLiquid boolean
 ---@return VectorPos?
@@ -383,8 +385,8 @@ function Entity.isWet() end
 ---@class LivingEntity : Entity
 local LivingEntity = {}
 
----Returns which hand is active.  
----Active hand is determined by the last hand to use an item.  
+---Returns which hand is active.
+---Active hand is determined by the last hand to use an item.
 ---Returns nil if no item has been used.
 ---@return HandString?
 function LivingEntity.getActiveHand() end
@@ -404,7 +406,7 @@ function LivingEntity.getArmor() end
 ---@return number
 function LivingEntity.getBodyYaw(delta) end
 
----Returns how long this entity has been dead for in ticks.  
+---Returns how long this entity has been dead for in ticks.
 ---An entity is deleted after being dead for 20 ticks.
 ---@return number
 function LivingEntity.getDeathTime() end
@@ -421,7 +423,7 @@ function LivingEntity.getHealthPercentage() end
 ---@return number
 function LivingEntity.getMaxHealth() end
 
----Returns the duration and amplifier of the given status effect on this entity.  
+---Returns the duration and amplifier of the given status effect on this entity.
 ---Returns `nil` if the given status effect does not exist on this entity.
 ---@param effect StatusEffectID
 ---@return StatusEffect

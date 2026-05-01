@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -14,13 +16,13 @@
 
 ---A predicate that tests for a block.
 ---
----Return `true` to stop raycasting and return the current block.  
+---Return `true` to stop raycasting and return the current block.
 ---Return `false` to continue and ignore the current block.
 ---@alias BlockPredicate fun(block: BlockState, pos: VectorPos): boolean
 
 ---A predicate that tests for an entity.
 ---
----Return `true` to stop raycasting and return the current entity.  
+---Return `true` to stop raycasting and return the current entity.
 ---Return `false` to continue and ignore the current entity.
 ---@alias EntityPredicate fun(entity: Entity|LivingEntity|Player): boolean
 
@@ -39,7 +41,7 @@ function renderer.getCameraPos() end
 ---@return VectorAng
 function renderer.getCameraRot() end
 
----Returns if fire can be rendered on the avatar.  
+---Returns if fire can be rendered on the avatar.
 ---Returns `nil` if it has not been set by `.setRenderFire()`.
 ---@return boolean?
 function renderer.getRenderFire() end
@@ -48,7 +50,7 @@ function renderer.getRenderFire() end
 ---@return boolean
 function renderer.getRenderPlayerHead() end
 
----Returns the radius of the player's shadow.  
+---Returns the radius of the player's shadow.
 ---Returns `nil` if the size has not been set by `.setShadowSize()`.
 ---@return number?
 function renderer.getShadowSize() end
@@ -62,7 +64,7 @@ function renderer.getTextWidth(text) end
 ---@return boolean
 function renderer.isCameraBackwards() end
 
----Returns if the model is being viewed in first-person.  
+---Returns if the model is being viewed in first-person.
 ---This will always return false for other clients since they cannot see your first-person model.
 ---@return boolean
 function renderer.isFirstPerson() end
@@ -75,7 +77,7 @@ function renderer.isMountEnabled() end
 ---@return boolean
 function renderer.isMountShadowEnabled() end
 
----Casts a ray from startPos to endPos, looking at the blocks on the way.  
+---Casts a ray from startPos to endPos, looking at the blocks on the way.
 ---If the ray never hits anything, then the function returns nil.
 ---@param startPos VectorPos
 ---@param endPos VectorPos
@@ -85,7 +87,7 @@ function renderer.isMountShadowEnabled() end
 ---@return {state: BlockState, pos: VectorPos}?
 function renderer.raycastBlocks(startPos, endPos, shapeHandling, fluidHandling, predicate) end
 
----Casts a ray from startPos to endPos, returning the first entity it sees on the way.  
+---Casts a ray from startPos to endPos, returning the first entity it sees on the way.
 ---If the ray never hits anything, then the function returns nil.
 ---@param startPos VectorPos
 ---@param endPos VectorPos
@@ -101,7 +103,7 @@ function renderer.setMountEnabled(enabled) end
 ---@param enabled boolean
 function renderer.setMountShadowEnabled(enabled) end
 
----Toggle the rendering of fire on your avatar.  
+---Toggle the rendering of fire on your avatar.
 ---Set to `nil` to reset to default.
 ---@param enabled? boolean
 function renderer.setRenderFire(enabled) end
@@ -110,12 +112,12 @@ function renderer.setRenderFire(enabled) end
 ---@param enabled boolean
 function renderer.setRenderPlayerHead(enabled) end
 
----Sets the radius of the player's shadow.  
+---Sets the radius of the player's shadow.
 ---Set the radius to `nil` to reset the shadow.
 ---@param radius number?
 function renderer.setShadowSize(radius) end
 
----Shows the animation of you swinging your arm.  
+---Shows the animation of you swinging your arm.
 ---Set `offhand` to swing the offhand arm instead.
 ---
 ---Note: This is automatically synced to other players.

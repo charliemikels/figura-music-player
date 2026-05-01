@@ -1,14 +1,16 @@
+---@meta
+
 --================================================================================================--
 --=====  FUNCTIONS  ==============================================================================--
 --================================================================================================--
 
----Logs a value to Minecraft's chat and log output.  
+---Logs a value to Minecraft's chat and log output.
 ---If `jsonEncode` is true, it will try to encode the log into json text.
 ---@param value any
 ---@param jsonEncode? boolean
 function log(value, jsonEncode) end
 
----Logs a value to Minecraft's chat and log output.  
+---Logs a value to Minecraft's chat and log output.
 ---If `jsonEncode` is true, it will try to encode the log into json text.
 ---
 ---Alias of `log`.
@@ -16,8 +18,8 @@ function log(value, jsonEncode) end
 ---@param jsonEncode? boolean
 function print(value, jsonEncode) end
 
----Logs the contents of the given `table` to Minecraft's chat and log output.  
----Attempting to log anything other than a pure `table` will log nothing.  
+---Logs the contents of the given `table` to Minecraft's chat and log output.
+---Attempting to log anything other than a pure `table` will log nothing.
 ---If the second parameter is true, the contents of nested tables will also be outputed.
 ---
 ---Note: This will not log a `Vector`, use `log` instead.
@@ -25,8 +27,8 @@ function print(value, jsonEncode) end
 ---@param showNested? boolean
 function logTableContent(tbl, showNested) end
 
----Logs the contents of the given `table` to Minecraft's chat and log output.  
----Attempting to log anything other than a pure `table` will log nothing.  
+---Logs the contents of the given `table` to Minecraft's chat and log output.
+---Attempting to log anything other than a pure `table` will log nothing.
 ---If the second parameter is true, the contents of nested tables will also be outputed.
 ---
 ---Alias of `logTableContent`
@@ -56,7 +58,7 @@ function loadstring(body) end
 function type(v) end
 
 
----**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**  
+---**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**
 ---You should not run this function, Figura will run it for you.
 ---
 ---Use the below code to create this function:
@@ -69,7 +71,7 @@ function type(v) end
 ---This function runs its contents every Minecraft tick.
 ---
 ---Since almost all Minecraft data changes every tick, you should check that data in this function
----if you want it to change every tick.  
+---if you want it to change every tick.
 ---Some examples of code that could be placed here are:
 ---* Getting the health of the player,
 ---* Getting what the player is holding,
@@ -89,11 +91,11 @@ function type(v) end
 ---different scripts easier.
 function tick() end
 
----`delta`:  
----&emsp; The distance between the last tick and next tick this frame sits on.  
+---`delta`:
+---&emsp; The distance between the last tick and next tick this frame sits on.
 ---&emsp; This is a value `0..1`.
 ---***
----**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**  
+---**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**
 ---You should not run this function, Figura will run it for you.
 ---
 ---Use the below code to create this function:
@@ -103,11 +105,11 @@ function tick() end
 ---end
 ---```
 ---***
----This function runs its contents every frame that this script's avatar is visible.  
+---This function runs its contents every frame that this script's avatar is visible.
 ---This will only run on the player if they are in third person or can see any part of their
 ---avatar that is connected to them (Not `NO_PARENT`) in first person.
 ---
----It is very ineffecient to run code here. Only run code that should change every frame.  
+---It is very ineffecient to run code here. Only run code that should change every frame.
 ---A few simple examples of code that could be placed here are:
 ---* Moving/rotating/scaling parts smoothly,
 ---* Getting the positions of parts.
@@ -124,11 +126,11 @@ function tick() end
 ---@param delta number
 function render(delta) end
 
----`delta`:  
----&emsp; The distance between the last tick and next tick this frame sits on.  
+---`delta`:
+---&emsp; The distance between the last tick and next tick this frame sits on.
 ---&emsp; This is a value `0..1`.
 ---***
----**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**  
+---**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**
 ---You should not run this function, Figura will run it for you.
 ---
 ---Use the below code to create this function:
@@ -149,7 +151,7 @@ function render(delta) end
 ---@param delta number
 function world_render(delta) end
 
----**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**  
+---**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**
 ---You should not run this function, Figura will run it for you.
 ---
 ---Use the below code to create this function:
@@ -169,10 +171,10 @@ function world_render(delta) end
 ---different scripts easier.
 function player_init() end
 
----`cmd`:  
----&emsp; Contains the *full* message (including the prefix) used to trigger this function.  
+---`cmd`:
+---&emsp; Contains the *full* message (including the prefix) used to trigger this function.
 ---***
----**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**  
+---**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**
 ---You should not run this function, Figura will run it for you.
 ---
 ---Use the below code to create this function:
@@ -194,7 +196,7 @@ function player_init() end
 ---@param cmd string
 function onCommand(cmd) end
 
----**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**  
+---**THIS FUNCTION DOES NOT EXIST UNTIL YOU CREATE IT!**
 ---You should not run this function, Figura will run it for you.
 ---
 ---Use the below code to create this function:

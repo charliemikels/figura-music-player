@@ -1,10 +1,12 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
 
 ---A Minecraft particle identifier.
 ---
----Only the default Minecraft particles are auto-completed.  
+---Only the default Minecraft particles are auto-completed.
 ---You can use any particle from any mod, even if it does not auto-complete.
 ---
 ---Note: Modded particles that require an `extra` will not work and will instead error.
@@ -107,20 +109,20 @@ particle = {}
 
 ---Adds a particle to the world.
 ---
----Only the default Minecraft particles are auto-completed.  
+---Only the default Minecraft particles are auto-completed.
 ---You can use modded particles as long as they only take a position and velocity to function.
 ---
----Certain particles change how the parameters of this function work.  
+---Certain particles change how the parameters of this function work.
 ---If a particle is not on this list, assume it functions normally:
 ---> **minecraft:ambient_entity_effect** / **minecraft:entity_effect**
 --->
----> The last three values of `pos_vel` set the velocity *and* color of the particle.  
----> Velocity is converted into a direction.  
----> Any horizontal velocity is applied in all horizontal directions randomly.  
+---> The last three values of `pos_vel` set the velocity *and* color of the particle.
+---> Velocity is converted into a direction.
+---> Any horizontal velocity is applied in all horizontal directions randomly.
 ---> Each color is a number `0..1` or `1..255`. If the color is above 1, then the color is
 ---`(255 - num) / 255` If the color is above 255, set color to `(-num % 255) / 255` then calculate
----as if color was above 1.  
----> (2 -> 253, 255 -> 0).  
+---as if color was above 1.
+---> (2 -> 253, 255 -> 0).
 ---> It is possible to mix different ranges of colors. A color of `1,0,1` is the same as `1,255,1`
 ---but the second color will move up instead of spreading out because of the high Y velocity.
 ---> ***
@@ -173,18 +175,18 @@ particle = {}
 ---
 ---> **minecraft:dust**
 --->
----> Velocity is capped at a very slow speed per axis.  
----> The `extra` is a `Vector4` set to the color and size of the particle.  
----> `x`, `y`, and `z` are numbers `0..1` for red, green, and blue respectively.  
+---> Velocity is capped at a very slow speed per axis.
+---> The `extra` is a `Vector4` set to the color and size of the particle.
+---> `x`, `y`, and `z` are numbers `0..1` for red, green, and blue respectively.
 ---> `w` is a number `0..10` for the size of the particle.
 ---> ***
 ---
 ---> **minecraft:dust_color_transition**
 --->
----> The last three values of `pos_vel` set the end color of the particle.  
+---> The last three values of `pos_vel` set the end color of the particle.
 ---> Each color is a number `0..1`.
----> The `extra` is a `Vector4` set to the start color and transition speed of the particle.  
----> `x`, `y`, and `z` are numbers `0..1` for red, green, and blue respectively.  
+---> The `extra` is a `Vector4` set to the start color and transition speed of the particle.
+---> `x`, `y`, and `z` are numbers `0..1` for red, green, and blue respectively.
 ---> `w` is a number `1..` for the amount of ticks it takes to transition from the start color to
 ---the end color.
 ---> ***
@@ -196,10 +198,10 @@ particle = {}
 ---
 ---> **minecraft:enchant** / **minecraft:nautilus**
 --->
----> The first three values of `pos_vel` set the end position of the particle.  
----> The end postion Y is always decreased by ~1.125.  
----> The last three values of `pos_vel` set the start position offset of the particle.  
----> The offset is *not* moved by the decrease of the end position Y.  
+---> The first three values of `pos_vel` set the end position of the particle.
+---> The end postion Y is always decreased by ~1.125.
+---> The last three values of `pos_vel` set the start position offset of the particle.
+---> The offset is *not* moved by the decrease of the end position Y.
 ---> ***
 ---
 ---> **minecraft:explosion** / **minecraft:sweep_attack**
@@ -213,7 +215,7 @@ particle = {}
 ---
 ---> **minecraft:explosion_emitter**
 --->
----> Velocity is completely ignored.  
+---> Velocity is completely ignored.
 ---> Spawns many "minecraft:explosion" particles around it.
 ---> ***
 ---
@@ -227,8 +229,8 @@ particle = {}
 ---
 ---> **minecraft:instant_effect** / **minecraft:witch**
 --->
----> Velocity is converted into a direction.  
----> Any horizontal velocity is applied in all horizontal directions randomly.  
+---> Velocity is converted into a direction.
+---> Any horizontal velocity is applied in all horizontal directions randomly.
 ---> ***
 ---
 ---> **minecraft:item**
@@ -239,21 +241,21 @@ particle = {}
 ---> **minecraft:note**
 --->
 ---> The `w` of `pos_vel` is a number `0..1` that sets the hue of the note, starting at lime and
----shifting backwards.  
+---shifting backwards.
 ---> Velocity is completely ignored and the note always moves up about half a block.
 ---> ***
 ---
 ---> **minecraft:portal**
 --->
----> The first three values of `pos_vel` set the end position of the particle.  
----> The last three values of `pos_vel` set the start position offset of the particle.  
+---> The first three values of `pos_vel` set the end position of the particle.
+---> The last three values of `pos_vel` set the start position offset of the particle.
 ---> The offset Y is always increased by 1.
 ---> ***
 ---
 ---> **minecraft:vibration** *1.17 only!*
 --->
----> The last three values of `pos_vel` set the end position of the particle.  
----> The `extra` is a `Vector4` set to the start position and speed of the particle.  
+---> The last three values of `pos_vel` set the end position of the particle.
+---> The `extra` is a `Vector4` set to the start position and speed of the particle.
 ---> `w` is a number `1..` for the amount of ticks it takes to reach the end positon.
 ---> ***
 ---
@@ -263,17 +265,17 @@ particle = {}
 ---direction.
 --->***
 ---
----> **PARTICLES WITH AN UNKNOWN EFFECT**   
----> These particles are placed here since some 1.17 particle have yet to be tested.  
+---> **PARTICLES WITH AN UNKNOWN EFFECT**
+---> These particles are placed here since some 1.17 particle have yet to be tested.
 ---> *If you have information on exactly how these particles work, let me know.*
 --->
----> minecraft:falling_spore_blossom (Possibly acts like a slower minecraft:falling_honey?)  
----> minecraft:glow (Possibly acts like minecraft:barrier?)  
----> minecraft:light (Possibly acts like minecraft:composter?)  
----> minecraft:scrape (Possibly acts like minecraft:composter?)  
----> minecraft:snowflake  
----> minecraft:spore_blossom_air  
----> minecraft:wax_off (Possibly acts like minecraft:composter?)  
+---> minecraft:falling_spore_blossom (Possibly acts like a slower minecraft:falling_honey?)
+---> minecraft:glow (Possibly acts like minecraft:barrier?)
+---> minecraft:light (Possibly acts like minecraft:composter?)
+---> minecraft:scrape (Possibly acts like minecraft:composter?)
+---> minecraft:snowflake
+---> minecraft:spore_blossom_air
+---> minecraft:wax_off (Possibly acts like minecraft:composter?)
 ---> minecraft:wax_on (Possibly acts like minecraft:composter?)
 ---@param name ParticleID
 ---@param pos_vel Vector6

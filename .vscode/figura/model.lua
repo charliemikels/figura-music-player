@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -55,21 +57,21 @@
 ---@class BasicModelPart
 local BasicModelPart = {}
 
----Returns if the part is enabled or not.  
+---Returns if the part is enabled or not.
 ---Returns `nil` if the part has not been toggled with `.setEnabled()` yet.
 ---
 ---If the function returns `nil` assume the part is enabled.
 ---@return boolean?
 function BasicModelPart.getEnabled() end
 
----Returns the position offset of the part.  
+---Returns the position offset of the part.
 ---Returns `nil` if the part has not been moved with `.setPos()` yet.
 ---
 ---If the function returns `nil` assume the part is at `0,0,0`
 ---@return VectorPos?
 function BasicModelPart.getPos() end
 
----Returns the rotation offset of the part.  
+---Returns the rotation offset of the part.
 ---Returns `nil` if the part has not been moved with `.setRot()` yet.
 ---@return VectorAng?
 function BasicModelPart.getRot() end
@@ -101,7 +103,7 @@ function BasicModelPart.setScale(pos) end
 ---@class VanillaModelPart : BasicModelPart
 local VanillaModelPart = {}
 
----Returns if the part is enabled before any `.setEnabled()` operations are applied.  
+---Returns if the part is enabled before any `.setEnabled()` operations are applied.
 ---Always seems to return `false`.
 ---@return boolean
 function VanillaModelPart.getOriginEnabled() end
@@ -110,17 +112,17 @@ function VanillaModelPart.getOriginEnabled() end
 ---@return VectorPos
 function VanillaModelPart.getOriginPos() end
 
----Returns the part's original angle *in radians*.  
+---Returns the part's original angle *in radians*.
 ---If you want the angle in degrees, use `math.deg()` or `<Vector>.toDeg()`.
 ---@return VectorAng
 function VanillaModelPart.getOriginRot() end
 
----Returns if the part's skin customization setting is enabled.  
+---Returns if the part's skin customization setting is enabled.
 ---Returns `nil` if the part does not have a setting.
 ---@return boolean?
 function VanillaModelPart.isOptionEnabled() end
 
----The proxy for the `CustomModelPart` class.  
+---The proxy for the `CustomModelPart` class.
 ---This only exists to fix inheritance of `CustomModelPart`s inside `CustomModelPart`s.
 ---@class CustomModelPartProxy : BasicModelPart
 ---@field [string] CustomModelPart
@@ -164,7 +166,7 @@ function CustomModelPart.getAnimScale() end
 ---@return CustomModelPart[]
 function CustomModelPart.getChilderen() end
 
----Returns the current color of the part.  
+---Returns the current color of the part.
 ---The default color is `<1,1,1>`.
 ---@return VectorColor
 function CustomModelPart.getColor() end
@@ -177,7 +179,7 @@ function CustomModelPart.getCullEnabled() end
 ---@return boolean
 function CustomModelPart.getExtraTexEnabled() end
 
----Returns the light value set by `.setLight()`.  
+---Returns the light value set by `.setLight()`.
 ---Returns `nil` if it hasn't been set yet.
 ---@return Vector2?
 function CustomModelPart.getLight() end
@@ -257,7 +259,7 @@ function CustomModelPart.partToWorldDir(dir) end
 ---*Just a word of caution, this function is very complicated. Do not expect to get how it works
 ---right from the start.*
 ---
----Takes a `Vector` with a blockbench position, then:  
+---Takes a `Vector` with a blockbench position, then:
 ---* Makes a pivot `x` (which is *not* this part's pivot) at the center of the player's neck.
 ---* Offsets pivot `x` by this part's Lua position offset,
 ---* Rotates pivot `x`'s position around this part's `(Lua position offset + Lua pivot offset)`,
@@ -286,15 +288,15 @@ function CustomModelPart.setCullEnabled(boolean) end
 ---@param boolean boolean
 function CustomModelPart.setExtraTexEnabled(boolean) end
 
----Overrides the light level the part is rendered at.  
----Any value below 0 or above 15 will render the part invisible.  
+---Overrides the light level the part is rendered at.
+---Any value below 0 or above 15 will render the part invisible.
 ---`nil` returns the part to normal.
 ---
 ---The first value of the vector controls block light, the second controls sky light.
 ---@param vector? Vector2
 function CustomModelPart.setLight(vector) end
 
----Sets the mimic mode of the model.  
+---Sets the mimic mode of the model.
 ---If true, the model will *mimic* its parent as set by `.setParentType()` instead of having its
 ---origin connected to the parent part's origin.
 ---@param state boolean
@@ -306,8 +308,8 @@ function CustomModelPart.setMimicMode(state) end
 ---@param num number
 function CustomModelPart.setOpacity(num) end
 
----Overrides the overlay level the part is rendered at.  
----Any value below 0 or above 15 will render the part black.  
+---Overrides the overlay level the part is rendered at.
+---Any value below 0 or above 15 will render the part black.
 ---`nil` returns the part to normal.
 ---
 ---The first value controls a white overlay, the second value controls the hurt overlay.
@@ -336,7 +338,7 @@ function CustomModelPart.setRot(ang) end
 ---@param shader Shader
 function CustomModelPart.setShader(shader) end
 
----Changes which texture is applied to the part.  
+---Changes which texture is applied to the part.
 ---`resource` is only needed if the texture type is set to `"Resource"`.
 ---@param type TextureType
 ---@param resource? string
@@ -352,7 +354,7 @@ function CustomModelPart.setTextureSize(vector) end
 ---@param uv VectorUV
 function CustomModelPart.setUV(uv) end
 
----Sets the UV data of the given side.  
+---Sets the UV data of the given side.
 ---UV's must be in BlockBench format.
 ---@param face CubeSide
 ---@param vector Vector4
@@ -390,9 +392,9 @@ function CustomModelPart.worldToPartPos(pos) end
 ---...then you need to use `model.Player.Head.TopHat` to access it.
 ---
 ---Note: Auto-completion does not know what folders and parts you have in your model at first, but
----will learn based on what folders and parts you access yourself.  
+---will learn based on what folders and parts you access yourself.
 ---If you want autocompletion for model paths, use
----[*Manuel-Underscore*'s Figura VSCode extension](https://marketplace.visualstudio.com/items?itemName=Manuel-Underscore.figura).  
+---[*Manuel-Underscore*'s Figura VSCode extension](https://marketplace.visualstudio.com/items?itemName=Manuel-Underscore.figura).
 ---If you use the above extension, guessed parts will have a different icon from parts found in the
 ---model.
 ---@type table<string, CustomModelPart>

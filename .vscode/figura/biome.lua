@@ -1,3 +1,5 @@
+---@meta
+
 --================================================================================================--
 --=====  CLASSES  ================================================================================--
 --================================================================================================--
@@ -77,7 +79,7 @@ function Biome.isHot() end
 
 ---A Minecraft biome identifier.
 ---
----Only the default Minecraft biomes are auto-completed.  
+---Only the default Minecraft biomes are auto-completed.
 ---You can use any biome from any mod, even if it does not auto-complete.
 ---@alias BiomeID
 ---| "minecraft:ocean" #Ocean
