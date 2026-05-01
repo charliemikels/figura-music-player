@@ -711,6 +711,9 @@ midi_meta_event_functions = {
     -- end
 }
 
+---@type table<integer, true>
+local ignored_controll_change_codes = {}
+
 local midi_message_functions    -- pre-initilized so that note-on can call note-off when velocity is 0
 
 ---Collection of functions to process midi message events from a Midi Tracks, indexed by their event ID byte.
@@ -834,7 +837,10 @@ midi_message_functions = {
             print_debug("Running control change function ".. tostring(controller_number))
             control_change_and_mode_change_functions[controller_number](state, track, channel, start_time, controller_value)
         else
-            print_debug("Ignoring unrecognized control change code ".. tostring(controller_number), true, true)
+            if not ignored_controll_change_codes[controller_number] then
+                print_debug("Ignoring unrecognized control change code ".. tostring(controller_number)..". Future warnings for this code will be suppressed.", true, true)
+                ignored_controll_change_codes[controller_number] = true
+            end
             -- error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
             -- TODO: It looks like we're not expected to implement every controller event. There are some pre-defined events
             -- that we should take care of, but at some point, I think we can change this error to just a log message.
