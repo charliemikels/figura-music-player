@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  STREAM                                                                                                          ---
@@ -28,8 +28,8 @@ local InputStream
 
 ---===== METHODS =====---
 
----Marks the current position in this stream.  
----To check if a stream supports marking, see `:markSupported()`.  
+---Marks the current position in this stream.
+---To check if a stream supports marking, see `:markSupported()`.
 ---Return to the latest mark by calling `:reset()`.
 ---
 ---The mark should be invalidated after the given number of bytes are read from this stream.
@@ -38,7 +38,7 @@ function InputStream:mark(limit) end
 
 ---Reads a single byte from this stream.
 ---
----Does not work if this stream can only be read asyncronously.  
+---Does not work if this stream can only be read asyncronously.
 ---To check if a stream can only be read asyncronously, see `:isAsyncOnly()`.
 ---@return integer
 function InputStream:read() end
@@ -54,7 +54,7 @@ function InputStream:readAsync() end
 ---@*vmerror If marking is not supported.
 function InputStream:reset() end
 
----Skips the given amount of bytes in this stream.  
+---Skips the given amount of bytes in this stream.
 ---The amount of bytes that were actually skipped is returned.
 ---
 ---If `n` is `nil`, it will default to `0`.
@@ -62,7 +62,7 @@ function InputStream:reset() end
 ---@return integer
 function InputStream:skip(n) end
 
----Transfers the remaining data in this stream to the given OutputStream.  
+---Transfers the remaining data in this stream to the given OutputStream.
 ---The amount of bytes that were transferred is returned.
 ---@param out OutputStream
 ---@return integer
@@ -101,15 +101,7 @@ local OutputStream
 ---Flushes the data in this stream, immediately sending any buffered data through it.
 function OutputStream:flush() end
 
----Writes the given byte to the stream.  
+---Writes the given byte to the stream.
 ---The byte may be buffered and not immediately sent. To immediately send buffered bytes, see `:flush()`.
 ---@param byte integer
 function OutputStream:write(byte) end
-
-
-
-
-
-
-
-

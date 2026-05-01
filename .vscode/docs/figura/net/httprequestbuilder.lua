@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  HTTPREQUESTBUILDER                                                                                              ---
@@ -13,7 +13,7 @@ local HttpRequestBuilder
 
 ---===== METHODS =====---
 
----Sends this request.  
+---Sends this request.
 ---The returned Future will contain the server's response when it is resolved.
 ---@return Future.HttpResponse
 function HttpRequestBuilder:send() end

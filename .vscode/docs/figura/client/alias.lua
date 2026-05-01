@@ -1,5 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
+---@diagnostic disable: luadoc-miss-cate-name
 
 
 ---==================================================================================================================---
@@ -298,7 +299,7 @@
 ---@alias ClientAPI.criteria string
 ---Can only be changed by commands.
 ---| "dummy"
----Can only be changed by commands.  
+---Can only be changed by commands.
 ---Unopped players can change their own score with the `/trigger` command if it is enabled.
 ---| "trigger"
 ---Increases when the score holder dies.
@@ -385,42 +386,42 @@
 ---| "killedByTeam.white"
 ---Increases when the score holder breaks the specified item.
 ---
----This criteria requires an item id to replace the `*`.  
+---This criteria requires an item id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.broken:namespace.item_id`.
 ---| "minecraft.broken:*"
 ---Increases when the score holder crafts the specified item.
 ---
----This criteria requires an item id to replace the `*`.  
+---This criteria requires an item id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.crafted:namespace.item_id`.
 ---| "minecraft.crafted:*"
 ---Increases when the score holder drops the specified item.
 ---
----This criteria requires an item id to replace the `*`.  
+---This criteria requires an item id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.dropped:namespace.item_id`.
 ---| "minecraft.dropped:*"
 ---Increases when the score holder kills the specified entity.
 ---
----This criteria requires an entity id to replace the `*`.  
+---This criteria requires an entity id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.killed:namespace.entity_id`.
 ---| "minecraft.killed:*"
 ---Increases when the score holder is killed by the specified entity.
 ---
----This criteria requires an entity id to replace the `*`.  
+---This criteria requires an entity id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.killed_by:namespace.entity_id`.
 ---| "minecraft.killed_by:*"
 ---Increases when the score holder mines the specified block.
 ---
----This criteria requires a block id to replace the `*`.  
+---This criteria requires a block id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.mined:namespace.block_id`.
 ---| "minecraft.mined:*"
 ---Increases when the score holder picks up the specified item.
 ---
----This criteria requires an item id to replace the `*`.  
+---This criteria requires an item id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.picked_up:namespace.item_id`.
 ---| "minecraft.picked_up:*"
 ---Increases when the score holder uses the specified item.
 ---
----This criteria requires an item id to replace the `*`.  
+---This criteria requires an item id to replace the `*`.
 ---This should result in a criteria that looks like `minecraft.used:namespace.item_id`.
 ---| "minecraft.used:*"
 ---Increases when a pair of animals are bred by the score holder.
@@ -463,7 +464,7 @@
 ---| "minecraft.custom:minecraft.eat_cake_slice"
 ---Increases when the score holder enchants an item.
 ---| "minecraft.custom:minecraft.enchant_item"
----Increases when the score holder falls.  
+---Increases when the score holder falls.
 ---Falling from a jump does not count unless falling more than one block.
 ---| "minecraft.custom:minecraft.fall_one_cm"
 ---Increases when the score holder fills a cauldron with water.

@@ -1,5 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  RESOURCESAPI-INTERNAL                                                                                           ---

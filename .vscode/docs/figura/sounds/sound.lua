@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  SOUND                                                                                                           ---
@@ -77,7 +77,7 @@ function Sound:isPlaying() end
 
 ---===== SETTERS =====---
 
----Sets the multiplier for the distance this sound can be heard from.  
+---Sets the multiplier for the distance this sound can be heard from.
 ---Minimum value is `1`.
 ---
 ---If `mul` is `nil`, it will default to `1`.
@@ -135,7 +135,7 @@ function Sound:setPos(x, y, z) end
 ---@return self
 function Sound:setSubtitle(text) end
 
----Sets the volume of this sound.  
+---Sets the volume of this sound.
 ---Maximum value is `1`.
 ---
 ---If `vol` is `nil`, it will default to `0`.
@@ -148,7 +148,7 @@ function Sound:setVolume(vol) end
 
 ---===== CHAINED =====---
 
----Sets the multiplier for the distance this sound can be heard from.  
+---Sets the multiplier for the distance this sound can be heard from.
 ---Minimum value is `1`.
 ---
 ---If `mul` is `nil`, it will default to `1`.
@@ -206,7 +206,7 @@ function Sound:pos(x, y, z) end
 ---@return self
 function Sound:subtitle(text) end
 
----Sets the volume of this sound.  
+---Sets the volume of this sound.
 ---Maximum value is `1`.
 ---
 ---If `vol` is `nil`, it will default to `0`.

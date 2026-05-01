@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  NETWORKINGAPI                                                                                                   ---
@@ -13,7 +13,7 @@ local FileAPI
 
 ---===== METHODS =====---
 
----Deletes the file or directory at the given path.  
+---Deletes the file or directory at the given path.
 ---Returns `true` if successful.
 ---@param path string
 ---@return boolean
@@ -25,20 +25,20 @@ function FileAPI:delete(path) end
 ---@nodiscard
 function FileAPI:exists(path) end
 
----Gets a list of all file and directory names at the given path.  
+---Gets a list of all file and directory names at the given path.
 ---Returns `nil` if the given path is not a directory.
 ---@param path string
 ---@return string[]
 ---@nodiscard
 function FileAPI:list(path) end
 
----Creates a new directory at the given path.  
+---Creates a new directory at the given path.
 ---Returns `true` if successful.
 ---@param path string
 ---@return boolean
 function FileAPI:mkdir(path) end
 
----Recursively create new directories until the given path.  
+---Recursively create new directories until the given path.
 ---Returns `true` if successful.
 ---@param path string
 ---@return boolean
@@ -102,5 +102,3 @@ function FileAPI:isFile(path) end
 ---@return boolean
 ---@nodiscard
 function FileAPI:isPathAllowed(path) end
-
-

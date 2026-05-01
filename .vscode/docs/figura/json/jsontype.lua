@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  JSONTYPE                                                                                                        ---
@@ -45,28 +45,28 @@ function JsonArray:add(value) end
 ---@nodiscard
 function JsonArray:contains(value) end
 
----Gets the index of the first instance of the given value in this array.  
+---Gets the index of the first instance of the given value in this array.
 ---Returns `0` if the given value does not exist in this array.
 ---@param value any
 ---@return integer
 ---@nodiscard
 function JsonArray:indexOf(value) end
 
----Inserts the given value in the given index of this array.  
+---Inserts the given value in the given index of this array.
 ---Any values already at the given index and above it are shifted up to make space.
 ---@*vmerror If `value` is `nil`.
 ---@param index integer
 ---@param value any
 function JsonArray:insert(index, value) end
 
----Gets the index of the last instance of the given value in this array.  
+---Gets the index of the last instance of the given value in this array.
 ---Returns `0` if the given value does not exist in this array.
 ---@param value any
 ---@return integer
 ---@nodiscard
 function JsonArray:lastIndexOf(value) end
 
----Removes the first instance of the given value from this array.  
+---Removes the first instance of the given value from this array.
 ---Any values above the index of the found instance are shifted down to fill in the empty spot.
 ---
 ---Returns `true` if this had an effect on the array.
@@ -74,7 +74,7 @@ function JsonArray:lastIndexOf(value) end
 ---@return boolean
 function JsonArray:remove(value) end
 
----Removes the value at the given index in this array and returns it.  
+---Removes the value at the given index in this array and returns it.
 ---Any values above the given index are shifted down to fill in the empty spot.
 ---@param index integer
 ---@return any
@@ -139,7 +139,7 @@ function JsonObject:get(key) end
 
 ---===== SETTERS =====---
 
----Puts the given value at the given key in this object.  
+---Puts the given value at the given key in this object.
 ---`nil` values cannot be used to remove a key. Use `:remove()` to remove a key instead.
 ---
 ---Returns the value that was previously associated with the given key or `nil` if no value was associated.

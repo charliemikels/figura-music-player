@@ -1,5 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
+---@diagnostic disable: luadoc-miss-cate-name
 
 
 ---==================================================================================================================---
@@ -33,7 +34,7 @@ local AvatarAPI
 ---
 ---> ***
 ---
----This function is not magic.  
+---This function is not magic.
 ---Doing the following:
 ---```lua
 ---local var = "uno"
@@ -96,7 +97,7 @@ function AvatarAPI:getAnimationComplexity() end
 
 ---Gets the author(s) of this avatar.
 ---
----This is affected by the `author` and `authors` metadata.  
+---This is affected by the `author` and `authors` metadata.
 ---If the `authors` array is used, all authors will be separated by a single line feed.
 ---
 ---Returns `"?"` if no authors are found.
@@ -238,7 +239,7 @@ function AvatarAPI:getNBT() end
 ---@nodiscard
 function AvatarAPI:getName() end
 
----Gets this avatar's permission level on the viewing client.  
+---Gets this avatar's permission level on the viewing client.
 ---This is not a perfect indicator for what features the avatar has access to as a client can change the limits of a
 ---permission level on their client.
 ---

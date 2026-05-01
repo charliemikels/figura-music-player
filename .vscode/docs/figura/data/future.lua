@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  FUTURE                                                                                                          ---
@@ -106,4 +106,3 @@ function Future_Socket:getOrError() end
 ---@nodiscard
 function Future_Socket:getValue() end
 --]]
-

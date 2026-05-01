@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  HOSTAPI                                                                                                         ---
@@ -36,7 +36,7 @@ function HostAPI:clearTitle() end
 ---@nodiscard
 function HostAPI:screenshot(name) end
 
----Sends a command as the player. The `/` is optional.  
+---Sends a command as the player. The `/` is optional.
 ---Minecraft will automatically block commands that require signed arguments (such as `/say`.)
 ---
 ---*This requires the* **`Chat Message`** *permission to work!*
@@ -82,7 +82,7 @@ function HostAPI:getAttackCharge() end
 ---@nodiscard
 function HostAPI:getChatColor() end
 
----Gets the contents of the chat message at the given index where `1` is the most recent message.  
+---Gets the contents of the chat message at the given index where `1` is the most recent message.
 ---
 ---Returns `nil` if no message is found at the given index.
 ---@param index integer
@@ -130,7 +130,7 @@ function HostAPI:getScreen() end
 
 ---Gets the `ItemStack` in the given slot of the currently open screen.
 ---
----Returns an `ItemStack` of air if no item exists in that slot.  
+---Returns an `ItemStack` of air if no item exists in that slot.
 ---Returns `nil` if the given slot id is out of range, there is no open screen, or the current screen has no slots.
 ---@param slot Minecraft.slotID
 ---@return ItemStack?
@@ -202,7 +202,7 @@ function HostAPI:isJumping() end
 
 ---===== SETTERS =====---
 
----Sets the action bar message to the given text.  
+---Sets the action bar message to the given text.
 ---The message may be a [Raw JSON Text object](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Java_Edition).
 ---
 ---If `animated` is set, any text in the message that is not colored will cycle colors.
@@ -233,7 +233,7 @@ function HostAPI:setChatColor(color) end
 
 ---Sets the color of the text in the chat input.
 ---
----If `r` is `nil`, the text color will be unset.  
+---If `r` is `nil`, the text color will be unset.
 ---If `g` or `b` are `nil`, they will default to `0`.
 ---@generic self
 ---@param self self
@@ -245,7 +245,7 @@ function HostAPI:setChatColor(r, g, b) end
 
 ---Sets the contents of the chat message at the given index where `1` is the most recent message.
 ---
----If `message` is `nil`, the chat message is deleted.  
+---If `message` is `nil`, the chat message is deleted.
 ---If `bgcolor` is `nil`, it will default to black.
 ---@generic self
 ---@param self self
@@ -273,7 +273,7 @@ function HostAPI:setChatText(text) end
 ---@return self
 function HostAPI:setClipboard(text) end
 
----Sets the given slot to contain the given item stack.  
+---Sets the given slot to contain the given item stack.
 ---This only works in creative mode.
 ---
 ---
@@ -284,7 +284,7 @@ function HostAPI:setClipboard(text) end
 ---@return self
 function HostAPI:setSlot(slot, item) end
 
----Sets the HUD subtitle to the given text.  
+---Sets the HUD subtitle to the given text.
 ---The subtitle may be a [Raw JSON Text object](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Java_Edition).
 ---
 ---This only prepares the subtitle, it does not print it out. Use `HostAPI:setTitle()` to print out the title and
@@ -295,7 +295,7 @@ function HostAPI:setSlot(slot, item) end
 ---@return self
 function HostAPI:setSubtitle(text) end
 
----Sets the HUD title to the given text.  
+---Sets the HUD title to the given text.
 ---The title may be a [Raw JSON Text object](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Java_Edition).
 ---
 ---This will prepare and print the title. It will also print the subtitle if one is prepared.
@@ -334,7 +334,7 @@ function HostAPI:setUnlockCursor(state) end
 
 ---===== CHAINED =====---
 
----Sets the action bar message to the given text.  
+---Sets the action bar message to the given text.
 ---The message may be a [Raw JSON Text object](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Java_Edition).
 ---
 ---If `animated` is set, any text in the message that is not colored will cycle colors.
@@ -365,7 +365,7 @@ function HostAPI:chatColor(color) end
 
 ---Sets the color of the text in the chat input.
 ---
----If `r` is `nil`, the text color will be unset.  
+---If `r` is `nil`, the text color will be unset.
 ---If `g` or `b` are `nil`, they will default to `0`.
 ---@generic self
 ---@param self self
@@ -393,7 +393,7 @@ function HostAPI:chatText(text) end
 ---@return self
 function HostAPI:clipboard(text) end
 
----Sets the HUD subtitle to the given text.  
+---Sets the HUD subtitle to the given text.
 ---The message may be a [Raw JSON Text object](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Java_Edition).
 ---
 ---This only prepares the subtitle, it does not print it out. Use `HostAPI:title()` to print out the title and subtitle.
@@ -403,7 +403,7 @@ function HostAPI:clipboard(text) end
 ---@return self
 function HostAPI:subtitle(text) end
 
----Sets the HUD title to the given text.  
+---Sets the HUD title to the given text.
 ---The message may be a [Raw JSON Text object](https://minecraft.fandom.com/wiki/Raw_JSON_text_format#Java_Edition).
 ---
 ---This will prepare and print the title. It will also print the subtitle if one is prepared.

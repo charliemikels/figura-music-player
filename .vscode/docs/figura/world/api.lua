@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  WORLDAPI                                                                                                        ---
@@ -41,8 +41,8 @@ function WorldAPI.newBlock(block, x, y, z) end
 ---
 ---Item NBT can be defined by adding `{tag1:value1,tag2:value2,...}` after the item id.
 ---
----If `count` is `nil`, it will default to `1`.  
----If `damage` is `nil`, it will default to `0`.  
+---If `count` is `nil`, it will default to `1`.
+---If `damage` is `nil`, it will default to `0`.
 ---@param item Minecraft.itemID
 ---@param count? integer
 ---@param damage? integer
@@ -60,7 +60,7 @@ function WorldAPI.newItem(item, count, damage) end
 ---@nodiscard
 function WorldAPI.avatarVars() end
 
----Gets if a world exists yet.  
+---Gets if a world exists yet.
 ---This will be false in *very* specific situations so this usually isn't needed.
 ---
 ---Most other world functions will fail if this is not true.
@@ -127,7 +127,7 @@ function WorldAPI.getBlocks(min, max) end
 ---
 ---The maximum size of the bounds is 8×8×8.
 ---
----If `minX`, `minY`, or `minZ` are `nil`, they will default to `0`.  
+---If `minX`, `minY`, or `minZ` are `nil`, they will default to `0`.
 ---If `max` is `nil`, it will default to `⟨0, 0, 0⟩`.
 ---@param minX? number
 ---@param minY? number
@@ -141,7 +141,7 @@ function WorldAPI.getBlocks(minX, minY, minZ, max) end
 ---
 ---The maximum size of the bounds is 8×8×8.
 ---
----If `min` is `nil`, it will default to `⟨0, 0, 0⟩`.  
+---If `min` is `nil`, it will default to `⟨0, 0, 0⟩`.
 ---If `maxX`, `maxY`, or `maxZ` are `nil`, they will default to `0`.
 ---@param min? Vector3
 ---@param maxX? number
@@ -202,7 +202,7 @@ function WorldAPI.getBuildHeight() end
 ---@nodiscard
 function WorldAPI.getDay(delta) end
 
----Gets the time in ticks of the current day. If a delta is given, it is simply added.  
+---Gets the time in ticks of the current day. If a delta is given, it is simply added.
 ---This value matches the amount of day time that has passed in the world. If time is frozen, this
 ---value is too.
 ---
@@ -211,7 +211,7 @@ function WorldAPI.getDay(delta) end
 ---@nodiscard
 function WorldAPI.getDayTime() end
 
----Gets the time in ticks of the current day. If a delta is given, it is simply added.  
+---Gets the time in ticks of the current day. If a delta is given, it is simply added.
 ---This value matches the amount of day time that has passed in the world. If time is frozen, this
 ---value is too.
 ---
@@ -246,7 +246,7 @@ function WorldAPI.getHeight(pos, heightmap) end
 
 ---Gets the highest position at the given horizontal coordinates using the given hightmap.
 ---
----If `x` or `z` are `nil`, they will default to `0`.  
+---If `x` or `z` are `nil`, they will default to `0`.
 ---If `heightmap` is `nil`, it will default to `"MOTION_BLOCKING"`.
 ---@*error Position is truncated instead of floored, causing the wrong column to be selected in negative coordinates.
 ---@param x? number
@@ -310,7 +310,7 @@ function WorldAPI.getPlayers() end
 function WorldAPI.getRainGradient(delta) end
 
 ---Gets the maximum redstone power level of the blocks directly adjacent to the given world
----position.  
+---position.
 ---This *does* include the redstone power level emitted by the given world position which is then
 ---received by an adjacent block.
 ---
@@ -323,7 +323,7 @@ function WorldAPI.getRainGradient(delta) end
 function WorldAPI.getRedstonePower(pos) end
 
 ---Gets the maximum redstone power level of the blocks directly adjacent to the given world
----position.  
+---position.
 ---This *does* include the redstone power level emitted by the given world position which is then
 ---received by an adjacent block.
 ---
@@ -364,7 +364,7 @@ function WorldAPI.getSkyLightLevel(x, y, z) end
 ---@nodiscard
 function WorldAPI.getSpawnPoint() end
 
----Gets the redstone power level that the given world position is receiving.  
+---Gets the redstone power level that the given world position is receiving.
 ---This does *not* include the redstone power the world position itself is emitting.
 ---
 ---Returns `0` if the world position is not loaded.
@@ -375,7 +375,7 @@ function WorldAPI.getSpawnPoint() end
 ---@nodiscard
 function WorldAPI.getStrongRedstonePower(pos) end
 
----Gets the redstone power level that the given world position is receiving.  
+---Gets the redstone power level that the given world position is receiving.
 ---This does *not* include the redstone power the world position itself is emitting.
 ---
 ---Returns `0` if the world position is not loaded.
@@ -388,7 +388,7 @@ function WorldAPI.getStrongRedstonePower(pos) end
 ---@nodiscard
 function WorldAPI.getStrongRedstonePower(x, y, z) end
 
----Gets the world's game time in ticks. If a delta is given, it is simply added.  
+---Gets the world's game time in ticks. If a delta is given, it is simply added.
 ---This value never stops increasing.
 ---
 ---If `delta` is `nil`, it will default to `0`.
@@ -397,21 +397,21 @@ function WorldAPI.getStrongRedstonePower(x, y, z) end
 ---@nodiscard
 function WorldAPI.getTime(delta) end
 
----Gets the world's total day time in ticks. If a delta is given, it is simply added.  
+---Gets the world's total day time in ticks. If a delta is given, it is simply added.
 ---This value matches the total amount of day time that has passed in the world. If time is frozen, this value is too.
 ---
 ---Despite the name of this function, it does not get the time of the current day. If you want that value, use
----`world.getTimeOfDay() % 24000`.  
+---`world.getTimeOfDay() % 24000`.
 ---You can also use this number to get the amount of days passed with `math.floor(world.getTimeOfDay() / 24000)`.
 ---@return integer
 ---@nodiscard
 function WorldAPI.getTimeOfDay() end
 
----Gets the world's total day time in ticks. If a delta is given, it is simply added.  
+---Gets the world's total day time in ticks. If a delta is given, it is simply added.
 ---This value matches the total amount of day time that has passed in the world. If time is frozen, this value is too.
 ---
 ---Despite the name of this function, it does not get the time of the current day. If you want that value, use
----`world.getTimeOfDay() % 24000`.  
+---`world.getTimeOfDay() % 24000`.
 ---You can also use this number to get the amount of days passed with `math.floor(world.getTimeOfDay() / 24000)`.
 ---@param delta number
 ---@return number

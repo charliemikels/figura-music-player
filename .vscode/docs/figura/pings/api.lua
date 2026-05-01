@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  PINGAPI                                                                                                         ---
@@ -10,7 +10,7 @@
 ---
 ---> ***
 ---
----Ping functions allow sending information that other clients may not have access to.  
+---Ping functions allow sending information that other clients may not have access to.
 ---Things such as:
 ---* Worn equipment
 ---* Player health
@@ -44,7 +44,7 @@
 ---│   print("Goodbye world!")  ├•  print("Goodbye world!")
 ---└•end                        └•end
 ---```
----&emsp;  
+---&emsp;
 ---Pings allow other clients to run code that would normally be unreachable for them.
 ---```lua
 ---function pings.coolPing(x)
@@ -84,7 +84,7 @@
 ---├•  end                        ├•  end
 ---└•end                          └•end
 ---```
----&emsp;  
+---&emsp;
 ---Custom-made functions are not an exception. If a ping contains one, it will run its entire
 ---contents like normal.
 ---```lua
@@ -99,7 +99,7 @@
 ---├•   models.MyModel.Head:setVisible(false) ├•  models.MyModel.Head:setVisible(false)
 ---└• end                                     └•end
 ---```
----&emsp;  
+---&emsp;
 ---Pings do have limits. They do not cause clients to magically think they are the host. They are
 ---still limited by what they know.
 ---```lua

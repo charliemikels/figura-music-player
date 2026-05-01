@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  MODELPART-INTERNAL                                                                                              ---
@@ -17,7 +17,7 @@
 ---  MODELPART                                                                                                       ---
 ---==================================================================================================================---
 
----A part of the avatar's model.  
+---A part of the avatar's model.
 ---This can be a group, cube, or mesh.
 ---@class ModelPart: ModelPart.*INTERNAL*
 ---The function to run after this model part calculates its matrices, but before it is fully rendered.
@@ -126,7 +126,7 @@ function ModelPart:remove() end
 ---@return self
 function ModelPart:removeChild(part) end
 
----Removes a previously added render task by name.  
+---Removes a previously added render task by name.
 ---If no name is given, all render tasks are removed from this part.
 ---@generic self
 ---@param self self
@@ -334,7 +334,7 @@ function ModelPart:getSecondaryTexture() end
 ---@nodiscard
 function ModelPart:getTask() end
 
----Gets the render task with the given name from this part.  
+---Gets the render task with the given name from this part.
 ---If a render task with the given name isn't found, `nil` is returned instead.
 ---
 ---If the task is confirmed to be of a certain type, add `--[[@as ???Task]]` after the function call to allow the Lua
@@ -478,7 +478,7 @@ function ModelPart:setColor(col) end
 ---@return self
 function ModelPart:setColor(r, g, b) end
 
----Sets the block light and sky light overrides of this part.  
+---Sets the block light and sky light overrides of this part.
 ---Light values above 15 or below 0 will cause the part to stop rendering.
 ---
 ---If `light` is `nil`, light overrides are removed.
@@ -488,10 +488,10 @@ function ModelPart:setColor(r, g, b) end
 ---@return self
 function ModelPart:setLight(light) end
 
----Sets the block light and sky light overrides of this part.  
+---Sets the block light and sky light overrides of this part.
 ---Light values above 15 or below 0 will cause the part to stop rendering.
 ---
----If `block` is `nil`, light overrides are removed.  
+---If `block` is `nil`, light overrides are removed.
 ---If `sky` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -598,7 +598,7 @@ function ModelPart:setOverlay(overlays) end
 
 ---Sets the white flash and hurt overlays on this part.
 ---
----If `white` is `nil`, all overlays are removed.  
+---If `white` is `nil`, all overlays are removed.
 ---If `hurt` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -701,8 +701,8 @@ function ModelPart:setPrimaryColor(r, g, b) end
 ---@return self
 function ModelPart:setPrimaryRenderType(renderType) end
 
----Sets the primary texture of this part.  
----Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.  
+---Sets the primary texture of this part.
+---Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.
 ---Setting the texture type to `"CUSTOM"` allows selecting a Figura `Texture` to use as the texture source.
 ---
 ---If `texture` is `nil`, it will default to `"PRIMARY"`.
@@ -787,8 +787,8 @@ function ModelPart:setSecondaryColor(r, g, b) end
 ---@return self
 function ModelPart:setSecondaryRenderType(renderType) end
 
----Sets the secondary texture of this part.  
----Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.  
+---Sets the secondary texture of this part.
+---Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.
 ---Setting the texture type to `"CUSTOM"` allows selecting a Figura `Texture` to use as the texture source.
 ---
 ---If `texture` is `nil`, it will default to `"SECONDARY"`.
@@ -825,7 +825,7 @@ function ModelPart:setUV(u, v) end
 ---@return self
 function ModelPart:setUVMatrix(mat) end
 
----Sets the UV offset of this part in pixels.  
+---Sets the UV offset of this part in pixels.
 ---Throws if the part has multiple different sized textures on its faces.
 ---
 ---If `uv` is `nil`, it will default to `⟨0, 0⟩`.
@@ -835,7 +835,7 @@ function ModelPart:setUVMatrix(mat) end
 ---@return self
 function ModelPart:setUVPixels(uv) end
 
----Sets the UV offset of this part in pixels.  
+---Sets the UV offset of this part in pixels.
 ---Throws if the part has multiple different sized textures on its faces.
 ---
 ---If `u` or `v` are `nil`, they will default to `0`.
@@ -846,7 +846,7 @@ function ModelPart:setUVPixels(uv) end
 ---@return self
 function ModelPart:setUVPixels(u, v) end
 
----Sets if this part is visible.  
+---Sets if this part is visible.
 ---If this part's parent is invisible, this does nothing and this part will always be invisible.
 ---
 ---If `state` is `nil`, it will default to `true`.
@@ -883,7 +883,7 @@ function ModelPart:color(col) end
 ---@return self
 function ModelPart:color(r, g, b) end
 
----Sets the block light and sky light overrides of this part.  
+---Sets the block light and sky light overrides of this part.
 ---Light values above 15 or below 0 will cause the part to stop rendering.
 ---
 ---If `light` is `nil`, light overrides are removed.
@@ -893,10 +893,10 @@ function ModelPart:color(r, g, b) end
 ---@return self
 function ModelPart:light(light) end
 
----Sets the block light and sky light overrides of this part.  
+---Sets the block light and sky light overrides of this part.
 ---Light values above 15 or below 0 will cause the part to stop rendering.
 ---
----If `block` is `nil`, light overrides are removed.  
+---If `block` is `nil`, light overrides are removed.
 ---If `sky` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -996,7 +996,7 @@ function ModelPart:overlay(overlays) end
 
 ---Sets the white flash and hurt overlays on this part.
 ---
----If `white` is `nil`, all overlays are removed.  
+---If `white` is `nil`, all overlays are removed.
 ---If `hurt` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -1094,8 +1094,8 @@ function ModelPart:primaryRenderType(renderType) end
 ---@return self
 function ModelPart:primaryTexture(renderType) end
 
----Sets the primary texture of this part.  
----Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.  
+---Sets the primary texture of this part.
+---Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.
 ---Setting the texture type to `"CUSTOM"` allows selecting a Figura `Texture` to use as the texture source.
 ---
 ---If `texture` is `nil`, it will default to `"PRIMARY"`.
@@ -1189,8 +1189,8 @@ function ModelPart:secondaryRenderType(renderType) end
 ---@return self
 function ModelPart:secondaryTexture(renderType) end
 
----Sets the secondary texture of this part.  
----Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.  
+---Sets the secondary texture of this part.
+---Setting the texture type to `"RESOURCE"` allows selecting any namespaced texture to use as the texture source.
 ---Setting the texture type to `"CUSTOM"` allows selecting a Figura `Texture` to use as the texture source.
 ---
 ---If `texture` is `nil`, it will default to `"SECONDARY"`.
@@ -1227,7 +1227,7 @@ function ModelPart:uv(u, v) end
 ---@return self
 function ModelPart:uvMatrix(mat) end
 
----Sets the UV offset of this part in pixels.  
+---Sets the UV offset of this part in pixels.
 ---Throws if the part has multiple different sized textures on its faces.
 ---
 ---If `uv` is `nil`, it will default to `⟨0, 0⟩`.
@@ -1237,7 +1237,7 @@ function ModelPart:uvMatrix(mat) end
 ---@return self
 function ModelPart:uvPixels(uv) end
 
----Sets the UV offset of this part in pixels.  
+---Sets the UV offset of this part in pixels.
 ---Throws if the part has multiple different sized textures on its faces.
 ---
 ---If `u` or `v` are `nil`, they will default to `0`.
@@ -1248,7 +1248,7 @@ function ModelPart:uvPixels(uv) end
 ---@return self
 function ModelPart:uvPixels(u, v) end
 
----Sets if this part is visible.  
+---Sets if this part is visible.
 ---If this part's parent is invisible, this does nothing and this part will always be invisible.
 ---
 ---If `state` is `nil`, it will default to `true`.

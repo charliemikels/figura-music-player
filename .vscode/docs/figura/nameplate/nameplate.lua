@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  NAMEPLATE                                                                                                       ---
@@ -135,7 +135,7 @@ function EntityNameplate:isVisible() end
 
 ---===== SETTERS =====---
 
----Sets the color of this nameplate's background.  
+---Sets the color of this nameplate's background.
 ---If a `Vector3` is given, it is augmented with the `a` value defined below.
 ---
 ---If `color` is `nil`, it will default to `⟨0, 0, 0, a⟩` where `a` is either `0.24705` or the Text Background Opacity
@@ -148,7 +148,7 @@ function EntityNameplate:setBackgroundColor(color) end
 
 ---Sets the color of this nameplate's background.
 ---
----If `r`, `g`, or `b` are `nil`, they will default to `0`.  
+---If `r`, `g`, or `b` are `nil`, they will default to `0`.
 ---If `a` is `nil`, it will default to either `0.24705` or the Text Background Opacity setting if Text Background is set
 ---to "Everywhere".
 ---@generic self
@@ -160,7 +160,7 @@ function EntityNameplate:setBackgroundColor(color) end
 ---@return self
 function EntityNameplate:setBackgroundColor(r, g, b, a) end
 
----Sets the block light and sky light overrides of this nameplate.  
+---Sets the block light and sky light overrides of this nameplate.
 ---Light values above 15 or below 0 will cause the nameplate to become faded.
 ---
 ---If `light` is `nil`, light overrides are removed.
@@ -170,10 +170,10 @@ function EntityNameplate:setBackgroundColor(r, g, b, a) end
 ---@return self
 function EntityNameplate:setLight(light) end
 
----Sets the block light and sky light overrides of this nameplate.  
+---Sets the block light and sky light overrides of this nameplate.
 ---Light values above 15 or below 0 will cause the nameplate to become faded.
 ---
----If `block` is `nil`, light overrides are removed.  
+---If `block` is `nil`, light overrides are removed.
 ---If `sky` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -182,7 +182,7 @@ function EntityNameplate:setLight(light) end
 ---@return self
 function EntityNameplate:setLight(block, sky) end
 
----Sets if this nameplate's text has an outline.  
+---Sets if this nameplate's text has an outline.
 ---Text shadow will do nothing while this is `true`.
 ---
 ---If `state` is `nil`, it will default to `false`.
@@ -272,7 +272,7 @@ function EntityNameplate:setScale(scale) end
 ---@return self
 function EntityNameplate:setScale(x, y, z) end
 
----Sets if this nameplate's text has a shadow.  
+---Sets if this nameplate's text has a shadow.
 ---Has no immediate effect if text outline is enabled.
 ---
 ---If `state` is `nil`, it will default to `false`.
@@ -294,7 +294,7 @@ function EntityNameplate:setVisible(state) end
 
 ---===== CHAINED =====---
 
----Sets the color of this nameplate's background.  
+---Sets the color of this nameplate's background.
 ---If a `Vector3` is given, it is augmented with the `a` value defined below.
 ---
 ---If `color` is `nil`, it will default to `⟨0, 0, 0, a⟩` where `a` is either `0.24705` or the Text Background Opacity
@@ -307,7 +307,7 @@ function EntityNameplate:backgroundColor(color) end
 
 ---Sets the color of this nameplate's background.
 ---
----If `r`, `g`, or `b` are `nil`, they will default to `0`.  
+---If `r`, `g`, or `b` are `nil`, they will default to `0`.
 ---If `a` is `nil`, it will default to either `0.24705` or the Text Background Opacity setting if Text Background is set
 ---to "Everywhere".
 ---@generic self
@@ -319,7 +319,7 @@ function EntityNameplate:backgroundColor(color) end
 ---@return self
 function EntityNameplate:backgroundColor(r, g, b, a) end
 
----Sets the block light and sky light overrides of this nameplate.  
+---Sets the block light and sky light overrides of this nameplate.
 ---Light values above 15 or below 0 will cause the nameplate to become faded.
 ---
 ---If `light` is `nil`, light overrides are removed.
@@ -329,10 +329,10 @@ function EntityNameplate:backgroundColor(r, g, b, a) end
 ---@return self
 function EntityNameplate:light(light) end
 
----Sets the block light and sky light overrides of this nameplate.  
+---Sets the block light and sky light overrides of this nameplate.
 ---Light values above 15 or below 0 will cause the nameplate to become faded.
 ---
----If `block` is `nil`, light overrides are removed.  
+---If `block` is `nil`, light overrides are removed.
 ---If `sky` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -341,7 +341,7 @@ function EntityNameplate:light(light) end
 ---@return self
 function EntityNameplate:light(block, sky) end
 
----Sets if this nameplate's text has an outline.  
+---Sets if this nameplate's text has an outline.
 ---Text shadow will do nothing while this is `true`.
 ---
 ---If `state` is `nil`, it will default to `false`.
@@ -431,7 +431,7 @@ function EntityNameplate:scale(scale) end
 ---@return self
 function EntityNameplate:scale(x, y, z) end
 
----Sets if this nameplate's text has a shadow.  
+---Sets if this nameplate's text has a shadow.
 ---Has no immediate effect if text outline is enabled.
 ---
 ---If `state` is `nil`, it will default to `false`.

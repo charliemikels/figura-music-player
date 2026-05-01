@@ -1,5 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
+---@diagnostic disable: luadoc-miss-cate-name
 
 
 ---==================================================================================================================---
@@ -305,7 +306,7 @@ function ClientAPI.getTabList() end
 
 ---Gets the width and height of the given text in text-pixels.
 ---
----If `maxwidth` is set, the text will be trimmed to this width.  
+---If `maxwidth` is set, the text will be trimmed to this width.
 ---If `wrap` is set, the text will automatically wrap at `maxwidth`.
 ---@param text string
 ---@param maxwidth? integer
@@ -314,7 +315,7 @@ function ClientAPI.getTabList() end
 ---@nodiscard
 function ClientAPI.getTextDimensions(text, maxwidth, wrap) end
 
----Gets the height of the given text in text-pixels.  
+---Gets the height of the given text in text-pixels.
 ---(This is usually a multiple of 9.)
 ---@param text string
 ---@return integer

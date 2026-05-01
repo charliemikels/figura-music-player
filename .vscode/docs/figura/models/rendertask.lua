@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: luadoc-miss-cate-name
 
 ---==================================================================================================================---
 ---  RENDERTASK                                                                                                      ---
@@ -8,7 +8,7 @@
 
 ---The base class of all render tasks.
 ---
----This should be used if the type of render task is not known or does not need to be known.  
+---This should be used if the type of render task is not known or does not need to be known.
 ---To avoid having to type-check a render task, use `RenderTask.any`.
 ---@class RenderTask
 local RenderTask
@@ -83,7 +83,7 @@ function RenderTask:isVisible() end
 
 ---===== SETTERS =====---
 
----Sets the block light and sky light overrides of this task.  
+---Sets the block light and sky light overrides of this task.
 ---Light values above 15 or below 0 will cause the task to stop rendering.
 ---
 ---If `light` is `nil`, light overrides are removed.
@@ -93,10 +93,10 @@ function RenderTask:isVisible() end
 ---@return self
 function RenderTask:setLight(light) end
 
----Sets the block light and sky light overrides of this task.  
+---Sets the block light and sky light overrides of this task.
 ---Light values above 15 or below 0 will cause the task to stop rendering.
 ---
----If `block` is `nil`, light overrides are removed.  
+---If `block` is `nil`, light overrides are removed.
 ---If `sky` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -127,7 +127,7 @@ function RenderTask:setOverlay(overlays) end
 
 ---Sets the white flash and hurt overlays on this task.
 ---
----If `white` is `nil`, all overlays are removed.  
+---If `white` is `nil`, all overlays are removed.
 ---If `hurt` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -208,7 +208,7 @@ function RenderTask:setVisible(state) end
 
 ---===== CHAINED =====---
 
----Sets the block light and sky light overrides of this task.  
+---Sets the block light and sky light overrides of this task.
 ---Light values above 15 or below 0 will cause the task to stop rendering.
 ---
 ---If `light` is `nil`, light overrides are removed.
@@ -218,10 +218,10 @@ function RenderTask:setVisible(state) end
 ---@return self
 function RenderTask:light(light) end
 
----Sets the block light and sky light overrides of this task.  
+---Sets the block light and sky light overrides of this task.
 ---Light values above 15 or below 0 will cause the task to stop rendering.
 ---
----If `block` is `nil`, light overrides are removed.  
+---If `block` is `nil`, light overrides are removed.
 ---If `sky` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -252,7 +252,7 @@ function RenderTask:overlay(overlays) end
 
 ---Sets the white flash and hurt overlays on this task.
 ---
----If `white` is `nil`, all overlays are removed.  
+---If `white` is `nil`, all overlays are removed.
 ---If `hurt` is `nil`, it will default to `0`.
 ---@generic self
 ---@param self self
@@ -379,13 +379,13 @@ local EntityTask
 
 ---===== METHODS =====---
 
----Creates an Entity from the NBT data stored in this entity task.  
+---Creates an Entity from the NBT data stored in this entity task.
 ---Returns `nil` if an entity can't be made for some reason.
 ---@return Entity?
 ---@nodiscard
 function EntityTask:asEntity() end
 
----Sets the walking limb distance for this task's entity, if applicable.  
+---Sets the walking limb distance for this task's entity, if applicable.
 ---This influences the walking animation of the entity stored in this task.
 ---
 ---This should be run once every tick for it to function properly.
@@ -405,7 +405,7 @@ function EntityTask:updateWalkingDistance(dist) end
 ---@return self
 function EntityTask:setHeadRotation(rot) end
 
----Sets the NBT stored in this entity task to the given SNBT string.  
+---Sets the NBT stored in this entity task to the given SNBT string.
 ---The stored NBT is used to create the entity this task renders.
 ---
 ---The `id` property is *required* and must contain the namespaced id of a valid Minecraft entity.
@@ -415,7 +415,7 @@ function EntityTask:setHeadRotation(rot) end
 ---@return self
 function EntityTask:setNbt(snbt) end
 
----Sets the NBT stored in this entity task to the given SNBT string.  
+---Sets the NBT stored in this entity task to the given SNBT string.
 ---The stored NBT is used to create the entity this task renders.
 ---@generic self
 ---@param self self
@@ -495,7 +495,7 @@ local SpriteTask
 
 ---===== GETTERS =====---
 
----Gets the color multiplier of this part.  
+---Gets the color multiplier of this part.
 ---This also includes opacity.
 ---
 ---This is a multiplier, that means that `⟨1, 1, 1, 1⟩` will result in no change and `⟨0, 0, 0, 1⟩` will
@@ -551,7 +551,7 @@ function SpriteTask:getVertices() end
 
 ---===== SETTERS =====---
 
----Sets the color multiplier of this part.  
+---Sets the color multiplier of this part.
 ---Optionally takes a Vector4 to control opacity.
 ---
 ---This is a multiplier, that means that `⟨1, 1, 1, 1⟩` will result in no change and `⟨0, 0, 0, 1⟩` will result in
@@ -644,7 +644,7 @@ function SpriteTask:setSize(width, height) end
 
 ---**Do not use this version of this function, it ignores the given dimensions!**
 ---
----Sets the texture this task uses to the given texture.  
+---Sets the texture this task uses to the given texture.
 ---The dimensions of the given texture are used.
 ---@*error This overload is completely broken. Vector2 is ignored entirely by implementation.
 ---@*error A path cannot be given to this version of this function due to an error.
@@ -657,7 +657,7 @@ function SpriteTask:setTexture(texture, dimensions) end
 
 ---Sets the texture this task uses to the given texture or path.
 ---
----If given a texture object, the dimensions of the texture are used if no dimensions are given.  
+---If given a texture object, the dimensions of the texture are used if no dimensions are given.
 ---If given a texture path, the dimensions of the texture must be given.
 ---
 ---The width and height of the texture must be given.
@@ -671,7 +671,7 @@ function SpriteTask:setTexture(texture, width, height) end
 
 ---Sets the texture this task uses to the given texture or path.
 ---
----If given a texture object, the dimensions of the texture are used if no dimensions are given.  
+---If given a texture object, the dimensions of the texture are used if no dimensions are given.
 ---If given a texture path, the dimensions of the texture must be given.
 ---
 ---The `_` parameter *must* have a value if `dimensions` is not `nil`.
@@ -725,7 +725,7 @@ function SpriteTask:setUVPixels(u, v) end
 
 ---===== CHAINED =====---
 
----Sets the color multiplier of this part.  
+---Sets the color multiplier of this part.
 ---Optionally takes a Vector4 to control opacity.
 ---
 ---This is a multiplier, that means that `⟨1, 1, 1, 1⟩` will result in no change and `⟨0, 0, 0, 1⟩` will result in
@@ -956,7 +956,7 @@ function TextTask:setAlignment(align) end
 ---@return self
 function TextTask:setBackground(state) end
 
----Sets the color of this task's background.  
+---Sets the color of this task's background.
 ---If a `Vector3` is given, it is augmented with the `a` value defined below.
 ---
 ---If `color` is `nil`, it will default to `⟨0, 0, 0, a⟩` where `a` is either `0.24705` or the Text Background Opacity
@@ -969,7 +969,7 @@ function TextTask:setBackgroundColor(color) end
 
 ---Sets the color of this task's background.
 ---
----If `r`, `g`, or `b` are `nil`, they will default to `0`.  
+---If `r`, `g`, or `b` are `nil`, they will default to `0`.
 ---If `a` is `nil`, it will default to either `0.24705` or the Text Background Opacity setting if Text Background is set
 ---to "Everywhere".
 ---@generic self
@@ -988,7 +988,7 @@ function TextTask:setBackgroundColor(r, g, b, a) end
 ---@return self
 function TextTask:setOpacity(opacity) end
 
----Sets if this task's text should have an outline.  
+---Sets if this task's text should have an outline.
 ---Text shadows are not rendered if this is enabled.
 ---
 ---If `state` is `nil`, it will default to `false`.
@@ -1078,7 +1078,7 @@ function TextTask:alignment(align) end
 ---@return self
 function TextTask:background(state) end
 
----Sets the color of this task's background.  
+---Sets the color of this task's background.
 ---If a `Vector3` is given, it is augmented with the `a` value defined below.
 ---
 ---If `color` is `nil`, it will default to `⟨0, 0, 0, a⟩` where `a` is either `0.24705` or the Text Background Opacity
@@ -1091,7 +1091,7 @@ function TextTask:backgroundColor(color) end
 
 ---Sets the color of this task's background.
 ---
----If `r`, `g`, or `b` are `nil`, they will default to `0`.  
+---If `r`, `g`, or `b` are `nil`, they will default to `0`.
 ---If `a` is `nil`, it will default to either `0.24705` or the Text Background Opacity setting if Text Background is set
 ---to "Everywhere".
 ---@generic self
@@ -1110,7 +1110,7 @@ function TextTask:backgroundColor(r, g, b, a) end
 ---@return self
 function TextTask:opacity(opacity) end
 
----Sets if this task's text should have an outline.  
+---Sets if this task's text should have an outline.
 ---Text shadows are not rendered if this is enabled.
 ---
 ---If `state` is `nil`, it will default to `false`.
