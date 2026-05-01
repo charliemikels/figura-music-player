@@ -52,6 +52,7 @@ help = {
     ---@return Key string
     ["Key"] = function() end,
 
+    ---@alias LightLevel integer
     ---@return LightLevel number
     ["LightLevel"] = function() end,
 
@@ -67,6 +68,7 @@ help = {
     ---@return PingSupported type
     ["PingSupported"] = function() end,
 
+    ---@alias RedstonePower integer
     ---@return RedstonePower number
     ["RedstonePower"] = function() end,
 
@@ -104,6 +106,7 @@ help = {
     ---@type CustomModelPart
     CustomModelPart = {},
 
+---@diagnostic disable-next-line: undefined-doc-name
     ---@type CustomModelPartContainer
     CustomModelPartContainer = {},
 
@@ -116,6 +119,7 @@ help = {
     ---@type FiguraKeybind
     FiguraKeybind = {},
 
+---@diagnostic disable-next-line: undefined-doc-name
     ---@type FormatTable
     FormatTable = {},
 
