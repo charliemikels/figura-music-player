@@ -358,6 +358,7 @@ help = {
       ---Note: This help page contains an example of what it would look like if a variable had a literal
       ---`string` value.
       ---@type '"This is a literal string"'
+---@diagnostic disable-next-line: assign-type-mismatch
       literal = {},
 
       ---A variable can have multiple types. When this happens, the types will be seperated by a bar:
