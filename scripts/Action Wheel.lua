@@ -2,8 +2,6 @@ local root_action_wheel_page = action_wheel:newPage()
 action_wheel:setPage(root_action_wheel_page)
 -- root_action_wheel_page:setAction(-1, require("scripts/abc_player/abc_player"))
 
-host:writeToLog("I'm in the Minecraft log!\nand it does new lines")
-
 if host:isHost() then
     local default_library = require("scripts/music_player/libraries"):build_default_library()
     local song = default_library:get_song_by_sorted_index(14) -- 10: rush e full. 14: Starbound Atlas
