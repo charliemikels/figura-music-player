@@ -12,10 +12,10 @@
 
 ---@enum PacketTypeIDs
 local packet_type_ids = {
-    control = 0,   -- A very tiny packet to send a few simple control codes.
-    header = 1, -- Includeds initial like name, duration, track_types
-    data = 2,   -- Bulk of the packet stream
-    config = 3, -- A packet that might appear to update a song's configuration
+    control = 0,    -- A very tiny packet to send a few simple control codes.
+    header = 1,     -- Includeds initial like name, duration, track_types
+    data = 2,       -- Bulk of the packet stream
+    config = 3,     -- A packet that might appear to update a song's configuration
 }
 
 ---@enum ControlPacketCode
