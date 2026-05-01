@@ -1,6 +1,6 @@
 ---@meta _
 ---@diagnostic disable: duplicate-set-field
-
+---@diagnostic disable: duplicate-doc-field
 
 ---==================================================================================================================---
 ---  BLOCKSTATE                                                                                                      ---
@@ -45,7 +45,7 @@ function BlockState:emitsRedstonePower() end
 ---@nodiscard
 function BlockState:getBlastResistance() end
 
----Gets the shape of this block's collision as a list of Vector3 pairs.  
+---Gets the shape of this block's collision as a list of Vector3 pairs.
 ---Each pair contains both corners of a box in the shape as `{⟨minX, minY, minZ⟩, ⟨maxX, maxY, maxZ⟩}`.
 ---
 ---The coordinates used are relative to the starting corner of this block's position.
@@ -107,7 +107,7 @@ function BlockState:getMapColor() end
 ---@nodiscard
 function BlockState:getOpacity() end
 
----Gets the shape of this block's outline as a list of Vector3 pairs.  
+---Gets the shape of this block's outline as a list of Vector3 pairs.
 ---Each pair contains both corners of a box in the shape as `{⟨minX, minY, minZ⟩, ⟨maxX, maxY, maxZ⟩}`.
 ---
 ---The coordinates used are relative to the starting corner of this block's position.
