@@ -239,7 +239,6 @@ function renderlayers.lineWidth(float) end
 ---@param operation GL_All
 function renderlayers.logicOp(operation) end
 
-renderlayers.logicOp()
 ---Resets the rendering to default state
 function renderlayers.restoreDefaults() end
 
