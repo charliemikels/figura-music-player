@@ -55,6 +55,22 @@ function HostAPI:sendChatCommand(command) end
 ---@return self
 function HostAPI:sendChatMessage(message) end
 
+---Write directly to the Minecraft log, allowing for logging debug data without filling chat
+---
+---This will appear in the log with the prefix `[Render thread/INFO]: [FIGURA/LUA] -- `
+---@generic self
+---@param self self
+---@param message string
+function HostAPI:writeToLog(message) end
+
+---Write a warning directly to the Minecraft log, allowing for logging debug data without filling chat
+---
+---This will appear in the log with the prefix `[Render thread/WARN]: [FIGURA/LUA] -- `
+---@generic self
+---@param self self
+---@param message string
+function HostAPI:warnToLog(message) end
+
 ---Causes the player entity's arm to swing.
 ---@generic self
 ---@param self self
