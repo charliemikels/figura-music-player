@@ -451,7 +451,7 @@ local function new_network_song_player(outbound_song, outbound_player_config)
     local custom_song_controller
     custom_song_controller = {
         play = function()
-            custom_song_controller:stop()
+            if custom_song_controller.is_playing() then return end
 
             if #outgoing_bundled_packets_queue > 0 then
                 print_debug("The outgoing packet queue is already bussy. Playback might be delayed.")
