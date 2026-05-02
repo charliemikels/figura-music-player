@@ -24,22 +24,9 @@ if host:isHost() then
 
         -- local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
         local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
-        print("pre play() …")
-        print("playing?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
         -- song_player_controller:play()
-        print("post play() …")
-        print("playing?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
 
-        local testname = "double check counter or something"
-        local counter = 10
-        events.TICK:register(function ()
-            print("playing?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
-            counter = counter - 1
-            if counter < 0 then
-                print("done testing")
-                events.TICK:remove(testname)
-            end
-        end, testname)
+
 
 
         -- local bundled_packets = networking_api.song_to_packets(song.processed_song, song_config)
