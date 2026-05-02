@@ -117,6 +117,7 @@ end
 ---@param transfered_song_id integer
 ---@param packet_data_string PacketDataString
 local function receive_header_packet(transfered_song_id, packet_data_string)
+    print("received header packet")
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     collected_incoming_songs[transfered_song_id] = {}
 
@@ -447,11 +448,17 @@ local function new_network_song_player(outbound_song, outbound_player_config)
     local incoming_song_and_controller = collected_incoming_songs[transfered_song_id]
 
     ---@type SongPlayerController
-    local custom_song_controller = {
+    local custom_song_controller
+    custom_song_controller = {
         play = function()
+            custom_song_controller:stop()
+
             if #outgoing_bundled_packets_queue > 0 then
                 print_debug("The outgoing packet queue is already bussy. Playback might be delayed.")
             end
+
+            print("Playing song race test:")
+            print("pinging header packet. Should be pinged _and_ received immediatly")
 
             -- We have to re-initilize the song in case someone new has loaded us for the first time.
             ping_packet_immediatly(
@@ -460,18 +467,16 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 header_packet_data,
                 true
             )
-            ping_packet_immediatly(
-                transfered_song_id,
-                packet_enums_api.packet_type_ids.config,
-                config_packet_data,
-                true
-            )
 
-            -- We've reset the player and stuff. Sanity-check that our… pointers… to the transfered song and controller stuff are still good
+            print("updateing local controller refrence. (are we doing this before header packet is received?)")
+
+            -- We've reset the player and its controller. Just in case, update our player.
             incoming_song_and_controller = collected_incoming_songs[transfered_song_id]
 
             -- Send the start signal. Buffer time is now based on when we receive the first data packet, so it's safe to start now, and send data later.
+            -- Pinging immediatly and receiveing immediatly should™ reduce (if not eliminate, to be tested) the need for a "grace" time to wait for the song to play.
 
+            print("Pinging start command. Should be pinged _and_ received immediatly")
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.control,
@@ -479,6 +484,14 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 true
             )
 
+            print("Pinging config packet. Should be pinged now, received next tick")
+            ping_packet_immediatly(
+                transfered_song_id,
+                packet_enums_api.packet_type_ids.config,
+                config_packet_data
+            )
+
+            print("queueing data packets to be pinged.")
             ping_packets(bundled_song_data_packets)
 
             -- TODO: we've done a lot of pings in one tick.
@@ -490,13 +503,12 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.control,
-                packet_encoder_api.make_control_packet(packet_enums_api.control_packet_codes.stop)
+                packet_encoder_api.make_control_packet(packet_enums_api.control_packet_codes.stop),
+                true
             )
 
             -- Stop pinging new packets (we'll reset and restart with play)
             remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id)
-
-            -- This will mess up buffer time calculation.
         end,
 
         set_new_config = function(new_config)
