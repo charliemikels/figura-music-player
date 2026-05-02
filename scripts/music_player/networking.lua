@@ -519,10 +519,10 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             local local_player_is_playing = collected_incoming_songs[transfered_song_id].player.is_playing()
             if local_player_is_playing then -- Local player is playing. Double check that we didn't just send a stop command.
                 local we_stopped_playing_recently = time_stop_last_called and (time_stop_last_called + durration_to_wait_before_assumeing_play_or_stop_failed > client:getSystemTime())
-                if we_stopped_playing_recently then return we_stopped_playing_recently end
+                if we_stopped_playing_recently then return false end
             else    -- local player is not playing, but maybe we sent the play command recently and it hasn't made it through.
                 local we_started_playing_recently = time_play_last_called and (time_play_last_called + durration_to_wait_before_assumeing_play_or_stop_failed > client:getSystemTime())
-                if we_started_playing_recently then return we_started_playing_recently end
+                if we_started_playing_recently then return true end
             end
 
             return local_player_is_playing
