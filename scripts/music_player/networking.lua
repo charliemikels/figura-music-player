@@ -526,7 +526,7 @@ local function new_network_song_player(outbound_song, outbound_player_config)
 
     -- TODO: Remove play_immediatly as a config paramiter. We don't need to do magic to get things to play if we can just talk to the remote player with control codes.
 
-    return {}
+    return custom_song_controller
 end
 
 ---@class SongNetworkingApi
