@@ -443,10 +443,14 @@ local function new_network_song_player(outbound_song, outbound_player_config)
 
     local time_play_last_called = nil  ---@type number?    For use with is_playing. Hides some of the delay cause by going through ping
     local time_stop_last_called = nil  ---@type number?    For use with is_playing. Hides some of the delay cause by going through ping
-    local durration_to_wait_before_assumeing_play_or_stop_failed = math.max(
-        outbound_song.duration / 4,
-        2 * 1000
+    local durration_to_wait_before_assumeing_play_or_stop_failed = math.min(
+        outbound_song.duration,
+        math.max(
+            outbound_song.duration / 4,
+            10 * 1000
+        )
     )
+
 
     ---@type SongPlayerController
     local custom_song_controller
