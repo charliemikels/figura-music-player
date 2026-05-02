@@ -291,8 +291,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 end)
             elseif processed_songs_and_players[target_song.id].net_player_controller then
                 -- song is ready to play, but we should only play one song at a time using this UI.
-                if  not playing_song_controller
-                    or not processed_songs_and_players[target_song.id].net_player_controller.is_playing()
+                if not playing_song_controller
+                    and not processed_songs_and_players[target_song.id].net_player_controller.is_playing()
                 then
                     if networking_api.outgoing_packet_queue_progress() < 1 then
                         -- If, for whatever reason, the avatar is useing the networking API elsewhere and the packet queue is full, refuse to start the song.
