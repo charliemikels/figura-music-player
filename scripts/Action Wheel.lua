@@ -32,7 +32,7 @@ if host:isHost() then
         print("playing?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
 
         local testname = "double check counter or something"
-        local counter = 15
+        local counter = 10
         events.TICK:register(function ()
             print("playing?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
             counter = counter - 1

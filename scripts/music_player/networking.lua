@@ -441,9 +441,6 @@ local function new_network_song_player(outbound_song, outbound_player_config)
         config_packet_data
     )
 
-    -- keep one table call away so that we can reset the underlying reader whenever we want.
-    local incoming_song_and_controller = collected_incoming_songs[transfered_song_id]
-
     ---@type SongPlayerController
     local custom_song_controller
     custom_song_controller = {
@@ -466,9 +463,6 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             )
 
             print("updateing local controller refrence. (are we doing this before header packet is received?)")
-
-            -- We've reset the player and its controller. Just in case, update our player.
-            incoming_song_and_controller = collected_incoming_songs[transfered_song_id]
 
             -- Send the start signal. Buffer time is now based on when we receive the first data packet, so it's safe to start now, and send data later.
             -- Pinging immediatly and receiveing immediatly should™ reduce (if not eliminate, to be tested) the need for a "grace" time to wait for the song to play.
@@ -517,13 +511,13 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             )
         end,
     }
-    for k, v in pairs(incoming_song_and_controller.player) do
+    for k, v in pairs(collected_incoming_songs[transfered_song_id].player) do -- loop through the functions of a known player. At this stage, this player will be the wrong player. But it holds the keys we need.
         if not custom_song_controller[k] then -- there's a function we haven't implemented yet
             print_debug("Key `"..tostring(k).."` is not implemented in networked_song_player's controller.")
             if type(v) == "function" then
                 custom_song_controller[k] = function(...)
                     -- forwards controll to the current local player
-                    return incoming_song_and_controller.player[k](...)
+                    return collected_incoming_songs[transfered_song_id].player[k](...)
                 end
             end
         end
