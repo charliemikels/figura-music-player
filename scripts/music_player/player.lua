@@ -786,7 +786,6 @@ local song_player_api = {
                         song_player.info_display_root_part = nil
                     end
 
-                    models:removeTask()
                 end,
 
                 ---@type fun(new_config: SongPlayerConfig)
