@@ -114,20 +114,17 @@ local function receive_config_packet(transfered_song_id, packet_data_string)
     collected_incoming_songs[transfered_song_id].player.set_new_config(new_config)
 end
 
+--- Creates and stores a new song and player in collected_incoming_songs.
+--- Will discard old songs if the same transfer_id is used multiple times.
 ---@param transfered_song_id integer
 ---@param packet_data_string PacketDataString
 local function receive_header_packet(transfered_song_id, packet_data_string)
-    print("received header packet")
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     collected_incoming_songs[transfered_song_id] = {}
-
     local new_song = packet_decoder_api.new_song_from_header_packet(packet_data_string)
-
-    ---@type SongPlayerAPI
-    local player_api = require("./player")
-
+    local player_api = require("./player")  ---@type SongPlayerAPI
     collected_incoming_songs[transfered_song_id] = {
-        song = new_song,
+        song   = new_song,
         player = player_api.new_player(new_song, nil)
     }
     return new_song
