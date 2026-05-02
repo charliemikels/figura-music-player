@@ -14,14 +14,30 @@ if host:isHost() then
         -- local post_tojson = avatar:getCurrentInstructions()
         -- print("instructions after toJson", post_tojson - starting_ammount)  -- OK: going to and from json is actualy extreamly cheep instruction-wise. Space-wise it's pretty rough.
 
-        local networking_api = require("scripts/music_player/networking") ---@type SongNetworkingApi
+        local networking_api = require("scripts/music_player/networking")   ---@type SongNetworkingApi
         local config_api = require("scripts/music_player/config_cache")     ---@type ConfigCacheAPI
+        local music_player_api = require("scripts/music_player/player")     ---@type SongPlayerAPI
         local song_config = config_api.load_song_config(song.id)
         song_config.source_entity = player
 
-        local networked_song_player_controller = networking_api.new_network_song_player(song.processed_song, song_config)
-        printTable(networked_song_player_controller)
-        networked_song_player_controller:play()
+
+
+        -- local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
+        local song_player_controller = networking_api.new_network_song_player(song.processed_song, song_config)
+        printTable(song_player_controller)
+        song_player_controller:play()
+        print("is playing right now?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
+
+        local testname = "double check counter or something"
+        local counter = 40
+        events.TICK:register(function (_)
+            print("is playing right now?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
+            counter = counter - 1
+            if counter < 0 then
+                print("done testing")
+                events.TICK:remove(testname)
+            end
+        end, testname)
 
 
         -- local bundled_packets = networking_api.song_to_packets(song.processed_song, song_config)
