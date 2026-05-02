@@ -17,6 +17,7 @@ if host:isHost() then
         local networking_api = require("scripts/music_player/networking") ---@type SongNetworkingApi
         local config_api = require("scripts/music_player/config_cache")     ---@type ConfigCacheAPI
         local song_config = config_api.load_song_config(song.id)
+        song_config.source_entity = player
 
         local networked_song_player_controller = networking_api.new_network_song_player(song.processed_song, song_config)
         printTable(networked_song_player_controller)
