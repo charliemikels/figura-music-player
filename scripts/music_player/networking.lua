@@ -25,47 +25,6 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 local songs_turned_into_packets_so_far = 0  -- used to build a unique ID number for each transfered song
 
 
-
-
-
----Immediatly converts an entire ProcessedSong and any config data into a list of packets
----@param processed_song Song
----@param player_config SongPlayerConfig
----@return BundledPacket[]
-local function song_to_packets(processed_song, player_config)
-    ---A unique ID for each song since the avatar loaded.
-    local transfered_song_id = songs_turned_into_packets_so_far
-    songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
-
-    local all_data_packets, buffer_delay =  packet_encoder_api.build_data_packets_and_buffer_time(processed_song)
-    local header_packet = packet_encoder_api.build_header_packets(processed_song, buffer_delay)
-    local config_packet = packet_encoder_api.build_config_packet(player_config)
-
-    ---@type BundledPacket[]
-    local final_packet_list = {}
-
-    table.insert(final_packet_list, {
-        transfered_song_id = transfered_song_id,
-        packet_type = packet_enums_api.packet_type_ids.header,
-        packet_data_string = header_packet
-    })
-    table.insert(final_packet_list, {
-        transfered_song_id = transfered_song_id,
-        packet_type = packet_enums_api.packet_type_ids.config,
-        packet_data_string = config_packet
-    })
-
-    for _, data_packet in ipairs(all_data_packets) do
-        table.insert(final_packet_list, {
-            transfered_song_id = transfered_song_id,
-            packet_type = packet_enums_api.packet_type_ids.data,
-            packet_data_string = data_packet
-        })
-    end
-
-    return final_packet_list
-end
-
 local control_packet_codes = packet_enums_api.control_packet_codes
 
 -- The colection of songs received from the Host (or whatever called add_packet_to_song).
@@ -558,7 +517,6 @@ end
 ---@field get_target_milis_between_packets fun():integer                Returns `target_milis_between_packets`, so that we can make time-estemations from packet rate.
 return {
     new_network_player = new_network_song_player,
-    -- song_to_packets = song_to_packets,       -- @field song_to_packets       fun(processed_song:Song, player_config:SongPlayerConfig):BundledPacket[]
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
