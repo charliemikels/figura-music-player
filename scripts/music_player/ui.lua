@@ -286,7 +286,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
                     local song_player_config = config_cahe_api.load_song_config(target_song.id)
                     add_ui_speciffic_config_fields(song_player_config)
-                    processed_songs_and_players[target_song.id].net_player_controller = networking_api.new_network_song_player(target_song.processed_song, song_player_config)
+                    processed_songs_and_players[target_song.id].net_player_controller = networking_api.new_network_player(target_song.processed_song, song_player_config)
                     update_main_page_ui()
                 end)
             elseif processed_songs_and_players[target_song.id].net_player_controller then

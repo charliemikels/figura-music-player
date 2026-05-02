@@ -23,7 +23,7 @@ if host:isHost() then
 
 
         -- local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
-        local song_player_controller = networking_api.new_network_song_player(song.processed_song, song_config)
+        local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
         print("pre play() …")
         print("playing?", song_player_controller.is_playing(), song_player_controller.is_buffering_or_needs_to_buffer())
         -- song_player_controller:play()
