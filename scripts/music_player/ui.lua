@@ -52,14 +52,14 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     ---@type table<string, Action>
     local actions = {}
 
-    ---@type table<string, {processor_future: TL_Future?, error: string?, packets: string[]?, transfer_song_id: integer?}>
+    ---@type table<string, {processor_future: TL_Future?, error: string?, net_player_controller: SongPlayerController}>
     local processed_songs_and_players = {}
 
     local num_songs_to_display_in_selector = 16
 
     local selected_song_index = 1           -- Matches a song in song_library. Library is sorted in alphabetical order.
     local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
-    local playing_song_transfer_id = nil    -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
+    local playing_song_controller = nil    ---@type SongPlayerController? -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
 
     --- Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
@@ -83,30 +83,29 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
         local selector_title_string = ""
 
-        if playing_song_transfer_id then
+        if playing_song_controller then
             selector_title_string = selector_title_string .. "Currently playing: \"" .. song_library:get_song_by_id(playing_song_library_id).name .."\""
-            local song_player = networking_api.get_player_for_transfered_song(playing_song_transfer_id)
-            if song_player and song_player.get_progress() then
+            if playing_song_controller and playing_song_controller.get_progress() then
                 selector_title_string = selector_title_string .. "\n"
 
-                if song_player.get_progress() < 0 then
+                if playing_song_controller.get_progress() < 0 then
                     -- Song is buffering and has not started
                     selector_title_string = selector_title_string
                         .. "Buffering: Ready in "
                         .. tostring(math.floor(
-                            1+ (song_player.get_start_time() - client.getSystemTime()) / 1000
+                            1+ (playing_song_controller.get_start_time() - client.getSystemTime()) / 1000
                         ))
                         .. "s"
                 else
                     selector_title_string = selector_title_string
                         -- .. "("
                         .. tostring(math.floor(
-                            (song_player.get_start_time() + song_player.get_duration() - client.getSystemTime()) / 1000
+                            (playing_song_controller.get_start_time() + playing_song_controller.get_duration() - client.getSystemTime()) / 1000
                         ))
                         .."s | "
 
                         .. tostring(math.floor(
-                            song_player.get_progress() * 100
+                            playing_song_controller.get_progress() * 100
                         ))
                         .."%"
                 end
@@ -127,15 +126,18 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             this_row = this_row .. (index == selected_song_index and "→" or "  ")
 
             -- Status
-            if this_row_song.id == playing_song_library_id then
+            if      processed_songs_and_players[this_row_song.id]
+                and processed_songs_and_players[this_row_song.id].net_player_controller
+                and processed_songs_and_players[this_row_song.id].net_player_controller.is_playing()
+            then
                 -- song is playing
                 this_row = this_row .. "♬"
             elseif processed_songs_and_players[this_row_song.id] then
                 if processed_songs_and_players[this_row_song.id].error then
                     this_row = this_row .. "🚫"
-                elseif not processed_songs_and_players[this_row_song.id].packets then
+                elseif not processed_songs_and_players[this_row_song.id].net_player_controller then
                     -- Song is in the midle of being processed.
-                    -- (We know because no packets have been built yet, but an entry in this table was created)
+                    -- (We know because the player has not been built yet, but an entry in this table was created)
                     this_row = this_row .. "⏳"
                 else
                     this_row = this_row .. "✓ "
@@ -205,12 +207,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     end
 
 
-    --- For songs with multiple head/config packets, `playing_watcher` might deside they've finished playing before they've
-    --- had the chance to start. EG: Header packet is received, but config packet (which ultimately trigers the `play` command)
-    --- has not been sent yet.
-    ---
-    --- This keeps track of when the player was started, and when we should consider a song to have stopped.
-    local time_when_playing_watcher_grace_ends = 0
     -- TODO: One The whole playing_watcher is here to check when the song is done,
     -- but maybe we could have let the song tell us when it is done. (some sort of
     -- callback on either song or transfer system.) This would avoid issues like
@@ -222,12 +218,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     -- Keeps UI updated while action wheel is open and song is playing.
     -- When the song ends, also clears out playing_song_transfer_id and playing_song_library_id
     local function playing_watcher()
-        if  (      not playing_song_transfer_id
-                or not networking_api.get_player_for_transfered_song(playing_song_transfer_id)
-                or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
-            ) and time_when_playing_watcher_grace_ends < client:getSystemTime()
-        then
-            playing_song_transfer_id = nil
+        if playing_song_controller and not playing_song_controller.is_playing() then
+            playing_song_controller = nil
             playing_song_library_id = nil
             events.TICK:remove(playing_watcher)
 
@@ -257,20 +249,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             previous_action_wheel_page = nil
         end)
 
-    ---@param song SongHolder Assumes song is fully processed and ready to go
-    local function apply_song_configs_and_save_to_processed_list(song)
-        local processed_song = song.processed_song
-
-        local song_player_config = config_cahe_api.load_song_config(song.id)
-        song_player_config.source_entity = player
-        song_player_config.play_immediately = true
-
-        local packets = networking_api.song_to_packets(processed_song, song_player_config)
-        local transfer_id = packets[1].transfered_song_id
-
-        processed_songs_and_players[song.id].packets = packets
-        processed_songs_and_players[song.id].transfer_song_id = transfer_id
-
+    ---@param config SongPlayerConfig
+    local function add_ui_speciffic_config_fields(config)
+        config.source_entity = player
     end
 
     actions.select_song = action_wheel:newAction()
@@ -303,13 +284,15 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         return
                     end
 
-                    apply_song_configs_and_save_to_processed_list(target_song)
+                    local song_player_config = config_cahe_api.load_song_config(target_song.id)
+                    add_ui_speciffic_config_fields(song_player_config)
+                    processed_songs_and_players[target_song.id].net_player_controller = networking_api.new_network_song_player(target_song.processed_song, song_player_config)
                     update_main_page_ui()
                 end)
-            elseif processed_songs_and_players[target_song.id].packets then
-                -- song is ready to send, but we should only play one song at a time using this UI.
-                if  not playing_song_transfer_id
-                    or not networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+            elseif processed_songs_and_players[target_song.id].net_player_controller then
+                -- song is ready to play, but we should only play one song at a time using this UI.
+                if  not playing_song_controller
+                    or not processed_songs_and_players[target_song.id].net_player_controller.is_playing()
                 then
                     if networking_api.outgoing_packet_queue_progress() < 1 then
                         -- If, for whatever reason, the avatar is useing the networking API elsewhere and the packet queue is full, refuse to start the song.
@@ -321,22 +304,15 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         -- TODO: Fix the UI looseing track of songs that are in the packet queue, but not playing yet.
                         print("The packet queue is already bussy. Are there multiple music players useing the network?")
                     else
-                        playing_song_transfer_id = processed_songs_and_players[target_song.id].transfer_song_id
+                        playing_song_controller = processed_songs_and_players[target_song.id].net_player_controller
                         playing_song_library_id = target_song.id
-                        networking_api.ping_packets(processed_songs_and_players[target_song.id].packets)
-
-                        -- Ensure we wait for at least 3 packets' worth of time
-                        -- before we allow playing_watcher to assume the song has ended.
-                        time_when_playing_watcher_grace_ends =
-                            client:getSystemTime()
-                            + 3 -- ALT: wait for up to half of packets: `+ math.max(3, math.ceil(processed_songs_and_players[target_song.id].packets/2))`
-                            * networking_api.get_target_milis_between_packets()
+                        playing_song_controller.play()
 
                         events.TICK:register(playing_watcher)   -- TODO: Make this run on the _next_ tick??? it might be running before ping_packets starts it's loop.
                     end
                 else
-                    networking_api.stop_transfered_song(playing_song_transfer_id)
-                    playing_song_transfer_id = nil
+                    playing_song_controller.stop()
+                    playing_song_controller = nil
                     playing_song_library_id = nil
                     events.TICK:remove(playing_watcher)
                 end
@@ -489,7 +465,10 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         :item("minecraft:written_book")
         :onLeftClick(function (_)
             config_cahe_api.write_song_config(config_page_state.targeted_song.id, config_page_state.targeted_song_config)
-            apply_song_configs_and_save_to_processed_list(config_page_state.targeted_song)
+
+            add_ui_speciffic_config_fields(config_page_state.targeted_song_config)
+            processed_songs_and_players[config_page_state.targeted_song.id].net_player_controller.set_new_config(config_page_state.targeted_song_config)
+
             action_wheel:setPage(music_player_action_wheel_page)
             config_page_state = nil
         end)

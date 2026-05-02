@@ -547,7 +547,6 @@ end
 
 ---@class SongNetworkingApi
 ---@field new_network_song_player fun(processed_song:Song, player_config:SongPlayerConfig):SongPlayerController
----@field song_to_packets       fun(processed_song:Song, player_config:SongPlayerConfig):BundledPacket[]
 ---@field local_receive_packet  fun(packed_packet_data:PacketDataString)
 ---@field ping_packets          fun(outgoing_packed_packets:PacketDataString[])
 ---@field outgoing_packet_queue_progress    fun():number
@@ -559,7 +558,7 @@ end
 ---@field get_target_milis_between_packets fun():integer                Returns `target_milis_between_packets`, so that we can make time-estemations from packet rate.
 return {
     new_network_song_player = new_network_song_player,
-    song_to_packets = song_to_packets,
+    -- song_to_packets = song_to_packets,       -- @field song_to_packets       fun(processed_song:Song, player_config:SongPlayerConfig):BundledPacket[]
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
