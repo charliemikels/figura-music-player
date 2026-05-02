@@ -212,22 +212,6 @@ local function local_receive_packet(transfered_song_id, packet_type, packet_data
     end
 end
 
---- primary ping function. It receives a packet and sends it off for processing
---- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
----@param transfer_id integer
----@param packet_type PacketTypeIDs
----@param incoming_packet PacketDataString
-function pings.TL_FMP_receive_packet(transfer_id, packet_type, incoming_packet)
-    local_receive_packet(transfer_id, packet_type, incoming_packet)
-end
-
----@param transfer_id integer
----@param packet_type PacketTypeIDs
----@param outgoing_packed_packet PacketDataString
-local function ping_packet_immediatly(transfer_id, packet_type, outgoing_packed_packet)
-    pings.TL_FMP_receive_packet(transfer_id, packet_type, outgoing_packed_packet)
-end
-
 --- Just like local_receive_packet, but skips the processor loop.
 ---
 --- Should be host-only. The processor loop in important to make sure we're not overrunning resource limits on the viewer
@@ -236,6 +220,31 @@ end
 ---@param packet_data_string PacketDataString
 local function local_receive_packet_immediately(transfer_id, packet_type, packet_data_string)
     packet_receiving_functions[packet_type](transfer_id, packet_data_string)
+end
+
+--- primary ping function. It receives a packet and sends it off for processing
+--- On the off chance that pings need to be unique (idk at the moment): `TL_FMP` → Tanner Limes Figura Mucic Player
+---
+--- if skip_queue is true, then skip the packet processing queue and processes the packet immediatly. Will use the unlisted PING event.
+--- Because packets are sometimes merged, actual instruction cost is unpredictable. Use spareingly, prefer tick events where possible.
+---@param transfer_id integer
+---@param packet_type PacketTypeIDs
+---@param incoming_packet PacketDataString
+---@param skip_queue boolean?
+function pings.TL_FMP_receive_packet(transfer_id, packet_type, incoming_packet, skip_queue)
+    if skip_queue then
+        local_receive_packet_immediately(transfer_id, packet_type, incoming_packet)
+    else
+        local_receive_packet(transfer_id, packet_type, incoming_packet)
+    end
+end
+
+---@param transfer_id integer
+---@param packet_type PacketTypeIDs
+---@param outgoing_packed_packet PacketDataString
+---@param skip_queue boolean?
+local function ping_packet_immediatly(transfer_id, packet_type, outgoing_packed_packet, skip_queue)
+    pings.TL_FMP_receive_packet(transfer_id, packet_type, outgoing_packed_packet, skip_queue)
 end
 
 ---@alias BundledPacket {transfered_song_id: integer, packet_type: PacketTypeIDs, packet_data_string: PacketDataString}    -- a light weight way to keep a packet tied to it's packet ID and transfer ID.
@@ -448,12 +457,14 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.header,
-                header_packet_data
+                header_packet_data,
+                true
             )
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.config,
-                config_packet_data
+                config_packet_data,
+                true
             )
 
             -- We've reset the player and stuff. Sanity-check that our… pointers… to the transfered song and controller stuff are still good
@@ -464,7 +475,8 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.control,
-                packet_encoder_api.make_control_packet(packet_enums_api.control_packet_codes.start)
+                packet_encoder_api.make_control_packet(packet_enums_api.control_packet_codes.start),
+                true
             )
 
             ping_packets(bundled_song_data_packets)
