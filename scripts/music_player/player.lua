@@ -774,15 +774,17 @@ local song_player_api = {
                         song_player.deprecated_instruments[key] = nil
                     end
 
-                    song_player.info_display_text_task:remove()
-                    song_player.info_display_mute_instructions_text_task:remove()
-                    song_player.info_display_billboard_part:remove()
-                    song_player.info_display_root_part:remove()
+                    if song_player.info_display_root_part then
+                        song_player.info_display_text_task:remove()
+                        song_player.info_display_mute_instructions_text_task:remove()
+                        song_player.info_display_billboard_part:remove()
+                        song_player.info_display_root_part:remove()
 
-                    song_player.info_display_text_task = nil
-                    song_player.info_display_mute_instructions_text_task = nil
-                    song_player.info_display_billboard_part = nil
-                    song_player.info_display_root_part = nil
+                        song_player.info_display_text_task = nil
+                        song_player.info_display_mute_instructions_text_task = nil
+                        song_player.info_display_billboard_part = nil
+                        song_player.info_display_root_part = nil
+                    end
 
                     models:removeTask()
                 end,
