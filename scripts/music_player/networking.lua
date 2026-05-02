@@ -441,6 +441,13 @@ local function new_network_song_player(outbound_song, outbound_player_config)
         config_packet_data
     )
 
+    local time_play_last_called = nil  ---@type number?    For use with is_playing. Hides some of the delay cause by going through ping
+    local time_stop_last_called = nil  ---@type number?    For use with is_playing. Hides some of the delay cause by going through ping
+    local durration_to_wait_before_assumeing_play_or_stop_failed = math.max(
+        outbound_song.duration / 4,
+        2 * 1000
+    )
+
     ---@type SongPlayerController
     local custom_song_controller
     custom_song_controller = {
@@ -451,9 +458,6 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 print_debug("The outgoing packet queue is already bussy. Playback might be delayed.")
             end
 
-            print("Playing song race test:")
-            print("pinging header packet. Should be pinged _and_ received immediatly")
-
             -- We have to re-initilize the song in case someone new has loaded us for the first time.
             ping_packet_immediatly(
                 transfered_song_id,
@@ -462,12 +466,8 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 true
             )
 
-            print("updateing local controller refrence. (are we doing this before header packet is received?)")
-
             -- Send the start signal. Buffer time is now based on when we receive the first data packet, so it's safe to start now, and send data later.
-            -- Pinging immediatly and receiveing immediatly should™ reduce (if not eliminate, to be tested) the need for a "grace" time to wait for the song to play.
 
-            print("Pinging start command. Should be pinged _and_ received immediatly")
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.control,
@@ -475,19 +475,16 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 true
             )
 
-            print("Pinging config packet. Should be pinged now, received next tick")
             ping_packet_immediatly(
                 transfered_song_id,
                 packet_enums_api.packet_type_ids.config,
                 config_packet_data
             )
 
-            print("queueing data packets to be pinged.")
             ping_packets(bundled_song_data_packets)
 
-            -- TODO: we've done a lot of pings in one tick.
-            -- This is fine on the receiving side since we have the incomeing packet dequeing system
-            -- But we need to make sure we're not running into the ping limits by sending 3-4 at once.
+            time_stop_last_called = nil
+            time_play_last_called = client:getSystemTime()
         end,
 
         stop = function()
@@ -500,6 +497,9 @@ local function new_network_song_player(outbound_song, outbound_player_config)
 
             -- Stop pinging new packets (we'll reset and restart with play)
             remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id)
+
+            time_play_last_called = nil
+            time_stop_last_called = client:getSystemTime()
         end,
 
         set_new_config = function(new_config)
@@ -509,6 +509,19 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 packet_enums_api.packet_type_ids.config,
                 config_packet_data
             )
+        end,
+
+        is_playing = function()
+            local local_player_is_playing = collected_incoming_songs[transfered_song_id].player.is_playing()
+            if local_player_is_playing then -- Local player is playing. Double check that we didn't just send a stop command.
+                local we_stopped_playing_recently = time_stop_last_called and (time_stop_last_called + durration_to_wait_before_assumeing_play_or_stop_failed > client:getSystemTime())
+                if we_stopped_playing_recently then return we_stopped_playing_recently end
+            else    -- local player is not playing, but maybe we sent the play command recently and it hasn't made it through.
+                local we_started_playing_recently = time_play_last_called and (time_play_last_called + durration_to_wait_before_assumeing_play_or_stop_failed > client:getSystemTime())
+                if we_started_playing_recently then return we_started_playing_recently end
+            end
+
+            return local_player_is_playing
         end,
     }
     for k, v in pairs(collected_incoming_songs[transfered_song_id].player) do -- loop through the functions of a known player. At this stage, this player will be the wrong player. But it holds the keys we need.
@@ -522,10 +535,6 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             end
         end
     end
-
-
-    -- TODO: Get the remote player build a controller arround it. For most set functions, we'll need to ping data over. But we can also look at ourself for most other actions.
-
 
     -- TODO: Remove play_immediatly as a config paramiter. We don't need to do magic to get things to play if we can just talk to the remote player with control codes.
 
