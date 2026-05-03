@@ -29,7 +29,7 @@ end)
 
 ---@class LocalDataSource
 ---@field type DataSourceTypes
----@field raw_data PacketDataString[]
+---@field script_path string
 
 ---@class SongHolder
 ---@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of speciffic instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)

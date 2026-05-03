@@ -96,7 +96,8 @@ end
 ---@param library Library
 local function add_local_songs(library)
     library.song_keys_are_sorted = false
-    local local_songs = require("./local_songs").get_local_song_holders()
+    local local_songs_api = require("./local_songs") ---@type LocalSongApi
+    local local_songs = local_songs_api.get_local_song_holders()
     for _, song in pairs(local_songs) do
         library.song_holders[song.id] = song
     end
