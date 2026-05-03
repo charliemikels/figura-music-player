@@ -1,26 +1,8 @@
 ---@module "../core"
 
--- Things player.lua needs to do:
--- - [x] Receive a ProcessedSong, or a ProcessedSongStream
--- - [x] Start an event loop to watch the current time. Auto-kill the song and loop after duration is met.
--- - [x] Every loop tick, check the list of instructions. If there are any new instructions, dispatch them to the relevent instrument.
--- - [x] Update each instrument. (They handle things like volume changes and pitch changes when nessesary)
--- - [x] Monitor the event loop (use another loop). Dynamicaly switch between high resolution (render) and high reliability (tick) when relevent.
--- - [ ] Be able to force-stop the song if no events are responding. This should use world tick. use very spearingly.
---    Does not nessesaraly need to stop the song (events might start up again), but it needs to stop currently playing notes.
--- - [ ] Expose controlls to the caller to start/pause/stop/end the song, and get progress.
-
--- TODO: As of writing this comment, UI is mostly calling the networking library in order to create a transfer song and create packets and stuff for the given song.
---       But I'm working on setting up local songs that won't need to do real networking stuff. Definitely none of the ping loop stuff.
---       We should update player.lua so that it is in charge of calling the network library. That way there's a single interface for the host to use to make songs.
---       the networking lib will still make temporary players for stuff it receives over pings, but move the responcibility to the host's main player.
---       New fields to consider:
---       - local only: tells player to not use any pings (and to possibly bypass buffer time.)
---       - processed_on_host: tells player if the song will not be available on the client (and so the song must be pinged.)
-
----@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
+---@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
 local fallback_normal_instrument_name = "MC/Harp"
----@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
+---@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
 local fallback_percussion_instrument_name = "Percussion"
 
 ---@type InstrumentName
