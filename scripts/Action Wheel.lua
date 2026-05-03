@@ -20,115 +20,12 @@ if host:isHost() then
         local song_config = config_api.load_song_config(song.id)
         song_config.source_entity = player
 
+        -- -- local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
+        -- local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
+        -- -- song_player_controller:play()
 
-
-        -- local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
-        local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
-        -- song_player_controller:play()
-
-
-
-
-        -- local bundled_packets = networking_api.song_to_packets(song.processed_song, song_config)
-        -- local packets = {}
-        -- for _, bp in ipairs(bundled_packets) do
-        --     table.insert(packets, bp.packet_data_string)
-        -- end
-
-        -- -- convert packets into one big long string, and wrap it in lua long quotes and a return statement so that we can load it later.
-
-        -- local packets_raw_file_name = "TL_song_exports/" .. song.name .. ".raw_packets.lua"
-        -- local packets_raw_base_path = packets_raw_file_name:gsub("/[^/]*$", "/")
-        -- file:mkdirs(packets_raw_base_path)
-
-
-        -- local raw_file_write_stream = file:openWriteStream(packets_raw_file_name)
-
-        -- local raw_file_string_table = {}
-
-        -- -- Add some human readable info as comments.
-        -- table.insert(raw_file_string_table, "-- " .. song.name .. "\n")
-        -- table.insert(raw_file_string_table,
-        --     "-- " .. tostring(#song.processed_song.instructions) .. " instructions" .. "\n")
-        -- table.insert(raw_file_string_table, "-- " .. tostring(#packets) .. " packets" .. "\n")
-        -- table.insert(raw_file_string_table, "\n")
-
-        -- -- Start of the packet strings table.
-        -- table.insert(raw_file_string_table, "local processed_song_data = {\n") -- return ".. '"'.. song.name ..'"'
-
-        -- --- long quotes use `[` and `]`. These are magic characters in string.match, so we'll need to escape them.
-        -- local function escape_match_magic_characters(str)
-        --     -- All non-alphanumeric characters can be escaped with %. If they weren't magic characters, they are still escaped as if they were.
-        --     -- Allows for future magic characters to be correctly escaped as well.
-        --     ---@see https://www.lua.org/manual/5.2/manual.html#pdf-package.searchers:~:text=Any%20punctuation%20character%20%28even%20the%20non%20magic%29%20can%20be%20preceded%20by%20a%20%27%25%27%20when%20used%20to%20represent%20itself%20in%20a%20pattern%2E
-
-        --     return (str:gsub(
-        --         "([^%w])", -- Gets all non-alpha-numeric characters
-        --         "%%%1")    -- appends a `%` to the capture.
-        --     )
-        -- end
-
-        -- local function safely_wrap_string_in_quotes(unquoted_string)
-        --     -- In order to write a string into a file in a way that lua can
-        --     -- `require()` it back into a string, we need to quote it.
-        --     -- Typicaly `"` and `'` would be good enough, but they can allow
-        --     -- for escape sequences, and as single characters they are pretty
-        --     -- frequent occurances anyways.
-        --     --
-        --     -- Instead, we can use long brackets. These ignore escape sequences
-        --     -- but still have a few exceptions:
-        --     --
-        --     -- - If a string begins with a new line, that newline it is ignored.    -- TODO: I think we can work accound this
-        --     -- - Sequences of new lines and carriage return are converted to a single new line.
-        --     --
-        --     -- (https://www.lua.org/manual/5.2/manual.html#:~:text=long%20brackets)
-
-        --     local required_long_quote_level = -1 -- first loop will bump this to `0` for us
-        --     local opening_long_quote
-        --     local closeing_long_quote
-        --     local string_includes_these_long_quotes
-        --     repeat
-        --         required_long_quote_level = required_long_quote_level + 1
-        --         opening_long_quote = "[" .. string.rep("=", required_long_quote_level) .. "["
-        --         closeing_long_quote = "]" .. string.rep("=", required_long_quote_level) .. "]"
-        --         string_includes_these_long_quotes =
-        --             string.match(unquoted_string, escape_match_magic_characters(closeing_long_quote))
-        --             or string.match(unquoted_string,
-        --                 escape_match_magic_characters(opening_long_quote))
-        --     until not string_includes_these_long_quotes
-
-        --     return opening_long_quote .. unquoted_string .. closeing_long_quote
-        -- end
-
-        -- -- Quote packets and add to table.
-        -- for _, packet in ipairs(packets) do
-        --     table.insert(raw_file_string_table, safely_wrap_string_in_quotes(packet) .. ",\n")
-        -- end
-
-        -- -- close processed_song_data table
-        -- table.insert(raw_file_string_table, "}\n\n")
-
-        -- -- return processed_song_data with some metadata
-        -- table.insert(raw_file_string_table,
-        --     "return {data = processed_song_data, name = " ..
-        --     safely_wrap_string_in_quotes(song.name) .. "}"
-        -- )
-
-        -- local final_string = table.concat(raw_file_string_table, "")
-
-        -- local bytes = table.pack(string.byte(final_string, 1, #final_string))
-        -- bytes.n = nil
-
-        -- for _, byte in ipairs(bytes) do
-        --     raw_file_write_stream:write(byte)
-        -- end
-
-        -- raw_file_write_stream:close()
-
-        -- -- local baptized_info = require("./music_player/file_processors/local/local_songs/starbound-atlas.mid.raw_packets")
-        -- -- printTable(baptized_info)
-
-
+        local localizer = require("scripts/music_player/local_song_builder")   ---@type LocalSongBuilderApi
+        -- localizer.export_song_to_local(song.processed_song, song_config)
 
     end)
 end

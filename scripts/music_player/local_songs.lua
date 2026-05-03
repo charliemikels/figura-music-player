@@ -5,15 +5,21 @@ local function escape_patern_matching_magic_characters(string_to_escape)
 end
 
 ---@class LocalSongScript
----@field data PacketDataString[]
 ---@field name string
+---@field durration number
+---@field num_instructions integer
+---@field header PacketDataString
+---@field config PacketDataString
+---@field data PacketDataString[]
 
 local song_script_returns = {}
 local local_song_holders = {}      ---@type SongHolder[]
 local local_song_processor_future_controllers = {}      ---@type TL_FutureController[]    -- inexes will be in sync with the local_songs list
 
+-- Find possible local songs
+
 local local_songs_directory_path = "./local_songs"
-local pattern_to_exclude = string.gsub(local_songs_directory_path, "%.%/(%a-)", "%1").."$"  -- Basicaly `"./thing"` → `"thing$"
+local pattern_to_exclude = string.gsub(local_songs_directory_path, "%.%/(%a-)", "%1").."$"  -- Basicaly `"./thing"` → `"thing$"`
 for _, script in pairs(listFiles(local_songs_directory_path, true)) do
     if not string.match(script, pattern_to_exclude) then
         local require_success, require_return = pcall(function() return require(script) end)
@@ -31,11 +37,10 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                 ---@type SongHolder
                 local detected_potential_song = {
                     uuid = client.intUUIDToString(client.generateUUID()),
-                    id = "",    -- TODO
+                    id = require_return.name,
                     name = require_return.name,
                     short_name = require_return.name,
                     start_or_get_data_processor = function()
-                        -- for local songs, start_data_processor is sorta a lie. The data procesor has already started on avatar init, but works slowly.
                         return return_future
                     end,
                     processed_song = nil,

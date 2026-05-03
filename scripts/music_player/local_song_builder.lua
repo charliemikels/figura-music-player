@@ -1,0 +1,178 @@
+
+-- Songs will be written useing the Figura files API to the figura data directory.
+-- You will need to move exported songs to the `local_songs` directory here inside your avatar for them to be useful.
+
+local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
+
+local exports_dir = "TL_local_song_exports/"
+local file_ext = ".local_song.lua"
+
+local do_debug_prints = true
+--- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
+---@param message string
+---@param is_warning boolean?
+---@param allways_log boolean?
+local function print_debug(message, is_warning, allways_log)
+    if do_debug_prints then print(message) end
+    if do_debug_prints or allways_log then
+        if is_warning then
+            host:warnToLog(message)
+        else
+            host:writeToLog(message)
+        end
+    end
+end
+local function printTable_debug(...) if do_debug_prints then printTable(...) end end
+local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
+
+--- Escapes all escapeable characters in a string.
+---
+--- A useful helper function when dealight with long quotes `[` and `]` are magic characters
+---@param str string
+---@return string
+local function escape_match_magic_characters(str)
+    -- All non-alphanumeric characters can be escaped with %. If they weren't magic characters, they are still escaped as if they were.
+    -- Allows for future magic characters to be correctly escaped as well.
+    ---@see https://www.lua.org/manual/5.2/manual.html#pdf-package.searchers:~:text=Any%20punctuation%20character%20%28even%20the%20non%20magic%29%20can%20be%20preceded%20by%20a%20%27%25%27%20when%20used%20to%20represent%20itself%20in%20a%20pattern%2E
+
+    return (str:gsub(
+        "([^%w])",  -- Gets all non-alpha-numeric characters
+        "%%%1"      -- prepends a `%` to the capture.
+    ))
+end
+
+local function safely_wrap_string_in_quotes(unquoted_string)
+    -- In order to write a string into a file in a way that lua can
+    -- `require()` it back into a string, we need to quote it.
+    -- Typicaly `"` and `'` would be good enough, but they can allow
+    -- for escape sequences, and as single characters they are pretty
+    -- frequent occurances anyways.
+    --
+    -- Instead, we can use long brackets. These ignore escape sequences
+    -- but still have a few exceptions:
+    --
+    -- - If a string begins with a new line, that newline it is ignored.
+    -- - Sequences of new lines and carriage return are converted to a single new line.
+    --
+    -- (https://www.lua.org/manual/5.2/manual.html#:~:text=long%20brackets)
+
+    local required_long_quote_level = -1 -- first loop will bump this to `0` for us
+    local opening_long_quote
+    local closeing_long_quote
+    local string_includes_these_long_quotes
+    repeat
+        required_long_quote_level = required_long_quote_level + 1
+        opening_long_quote = "[" .. string.rep("=", required_long_quote_level) .. "["
+        closeing_long_quote = "]" .. string.rep("=", required_long_quote_level) .. "]"
+        string_includes_these_long_quotes =
+            string.match(unquoted_string, escape_match_magic_characters(closeing_long_quote))
+            or string.match(unquoted_string,
+                escape_match_magic_characters(opening_long_quote))
+    until not string_includes_these_long_quotes
+
+    local return_quoted_string =
+        opening_long_quote
+        .. "\n" -- the very first new line is ignored in a long quote. If we add one ourself, we don't need to wory about accidentaly
+        .. unquoted_string
+        .. closeing_long_quote
+
+    return return_quoted_string
+end
+
+---Takes a Song and a config, converts them into packets,
+---@param song Song
+---@param config SongPlayerConfig?
+local function export_song_to_local(song, config)
+    print_debug("Starting export of song `"..song.name.."`")
+
+    config = config or {}
+
+    print_debug("Building packets…")
+    local config_packet = packet_encoder_api.build_config_packet(config)
+    local data_packets, _ = packet_encoder_api.build_data_packets_and_buffer_time(song)
+    local head_packet = packet_encoder_api.build_header_packets(song, nil)  -- TODO: nil? should this be 0?
+
+    print_debug("Generated "..tostring(#data_packets).." data packets.")
+
+    ---@type LocalSongScript
+    local tmp_layout_table = {
+        name = song.name,
+        durration = song.duration,
+        num_instructions = #song.instructions,
+        header = head_packet,
+        config = config_packet,
+        data = data_packets,
+    }
+
+    print_debug("Writing strings to string builder…")
+
+    ---@type string[]
+    local string_collector = {}
+
+    table.insert(string_collector, "\n")
+
+    -- Add some human readable info as comments.
+    table.insert(string_collector, "-- For use with Figura Music Player\n")
+    table.insert(string_collector, "-- https://github.com/charliemikels/figura-music-player\n")
+    table.insert(string_collector, "-- Song name: `" .. song.name .. "`\n")
+    table.insert(string_collector, "-- Runtime: " .. tostring(song.duration / 1000) .. "s\n")
+    table.insert(string_collector, "-- Instruction count: " .. tostring(#song.instructions) .. "\n")
+    table.insert(string_collector, "-- Data packet count: " .. tostring(#data_packets) .. "\n")
+    table.insert(string_collector, "\n")
+
+    table.insert(string_collector, "---@type LocalSongScript\n")
+    table.insert(string_collector, "local local_song = {\n")
+
+    -- it'd be really cool if we wrote a loop to convert from tmp_layout_table's keys and dump the values as strings,
+    -- but data is a list. and idk if there's a good way to distinguish between a list and normal key pair table.
+    table.insert(string_collector, "name = "..safely_wrap_string_in_quotes(tmp_layout_table.name)..",\n")
+    table.insert(string_collector, "durration = "..tmp_layout_table.durration..",\n")
+    table.insert(string_collector, "num_instructions = "..tmp_layout_table.num_instructions..",\n")
+    table.insert(string_collector, "header = "..safely_wrap_string_in_quotes(tmp_layout_table.header)..",\n")
+    table.insert(string_collector, "config = "..safely_wrap_string_in_quotes(tmp_layout_table.config)..",\n")
+
+    table.insert(string_collector, "data = {\n")
+
+    for i, packet in ipairs(tmp_layout_table.data) do
+        table.insert(string_collector, safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ","))
+    end
+
+    table.insert(string_collector, "}\n")
+    table.insert(string_collector, "\n")
+    table.insert(string_collector, "return local_song")
+
+
+
+
+
+    print_debug("Creating directory and write stream…")
+    local file_path = exports_dir .. song.name .. file_ext
+    local file_base_path = file_path:gsub("/[^/]*$", "/")
+    print_debug(file_path)
+    file:mkdirs(file_base_path)
+    local write_stream = file:openWriteStream(file_path)
+
+    print_debug("Creating file string…")
+    local final_string = table.concat(string_collector, "")
+
+    print_debug("Creating file bytes…")
+    local final_bytes_list = table.pack(string.byte(final_string, 1, #final_string))
+    final_bytes_list.n = nil
+
+    print_debug("Writing bytes to write stream…")
+    for _, byte in ipairs(final_bytes_list) do
+        write_stream:write(byte)
+    end
+
+    print_debug("Closeing write stream…")
+    write_stream:close()
+
+    print_debug("Export done.\nRemember to move the exported file into this avatar's `local_songs` folder.")
+end
+
+---@class LocalSongBuilderApi
+local song_to_local_api = {
+    export_song_to_local = export_song_to_local
+}
+
+return song_to_local_api
