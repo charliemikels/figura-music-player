@@ -137,11 +137,10 @@ local function export_song_to_local(song, config)
         table.insert(string_collector, safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ","))
     end
 
-    table.insert(string_collector, "}\n")
+    table.insert(string_collector, "}\n")   -- close data
+    table.insert(string_collector, "}\n")   -- close local_song
     table.insert(string_collector, "\n")
     table.insert(string_collector, "return local_song")
-
-
 
 
 
