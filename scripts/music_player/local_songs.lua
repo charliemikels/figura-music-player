@@ -26,7 +26,7 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
             else
                 print("Found local song:", require_return.name)
                 local tl_futures_api = require("./futures") ---@type TL_FuturesAPI
-                local future_controller, return_future = tl_futures_api.new_future("ProcessedSong")
+                local future_controller, return_future = tl_futures_api.new_future("Song")
 
                 ---@type SongHolder
                 local detected_potential_song = {
