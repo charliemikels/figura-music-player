@@ -1637,7 +1637,7 @@ local function midi_processor(song_holder)
     events.WORLD_RENDER:register(processor_loop)
 
     -- overwrite song's processor function to just return the existing future, instead of restarting the processor
-    song_holder.start_data_processor = function(_) return return_future end
+    song_holder.start_or_get_data_processor = function(_) return return_future end
 
     return return_future
 end
@@ -1663,7 +1663,7 @@ local midi_processor_api = {
                         name = file_paths.short_path,
                         short_name = file_paths.short_path:match("([^/]*)%."),
                         source = {type = "files", full_path = file_paths.full_path},
-                        start_data_processor = self.process_song
+                        start_or_get_data_processor = self.process_song
                     }
                     table.insert(midi_songs, new_song)
                     break

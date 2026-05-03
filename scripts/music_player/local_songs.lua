@@ -34,7 +34,7 @@ for _, script in pairs(listFiles(local_songs_directory_path, true)) do
                     id = "",    -- TODO
                     name = require_return.name,
                     short_name = require_return.name,
-                    start_data_processor = function()
+                    start_or_get_data_processor = function()
                         -- for local songs, start_data_processor is sorta a lie. The data procesor has already started on avatar init, but works slowly.
                         return return_future
                     end,

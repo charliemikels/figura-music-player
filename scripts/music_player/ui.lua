@@ -274,7 +274,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             if processed_songs_and_players[target_song.id].error then
                 print_host(processed_songs_and_players[target_song.id].error)
             elseif not processed_songs_and_players[target_song.id].processor_future then
-                processed_songs_and_players[target_song.id].processor_future = target_song:start_data_processor()
+                processed_songs_and_players[target_song.id].processor_future = target_song:start_or_get_data_processor()
                 processed_songs_and_players[target_song.id].processor_future:register_callback(function(finished_future)
                     if finished_future:has_error() then
                         processed_songs_and_players[target_song.id].error = finished_future:get_error()

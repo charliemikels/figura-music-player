@@ -5,7 +5,7 @@ action_wheel:setPage(root_action_wheel_page)
 if host:isHost() then
     local default_library = require("scripts/music_player/libraries"):build_default_library()
     local song = default_library:get_song_by_sorted_index(124) -- 10: rush e full. 14: Starbound Atlas
-    local song_processor_future = song:start_data_processor()
+    local song_processor_future = song:start_or_get_data_processor()
     song_processor_future:register_callback(function(_)
         -- print("Instruction test")
         -- local starting_ammount = avatar:getCurrentInstructions()
