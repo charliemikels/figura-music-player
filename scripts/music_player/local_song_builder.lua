@@ -72,6 +72,19 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     -- TODO: we actualy are useing a lot of arbitrary binary data, compared to raw strings, c-style escapes nearly doubled the file size of Keyboard cat (1.9 → 3.7ish)
     --       Double check that base64 is really a bad idea. would it save us more space?
 
+
+
+    -- BREAKING NEWS: Even though C-style escape strings are _way_ bigger on disk than raw or b64, in the upload it's actualy smaller than b64
+    -- From `/figura debug`:
+    --[[
+        "scripts.music_player.local_songs.Misc. - Keyboard Cat - b64": "943b",
+        "scripts.music_player.local_songs.Misc. - Keyboard Cat - CStyle with unicode.local_song": "856b",
+        "scripts.music_player.local_songs.Misc. - Keyboard Cat - CStyle.local_song": "844b",
+        "scripts.music_player.local_songs.Misc. - Keyboard Cat - Previous (broken).local_song": "709b",
+    --]]
+
+
+
     local string_builder = {}   ---@type string[]
     table.insert(string_builder, [["]])
 
