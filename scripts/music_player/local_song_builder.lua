@@ -85,6 +85,23 @@ end
 local function export_song_to_local(song, config)
     print_debug("Starting export of song `"..song.name.."`")
 
+    -- TODO: Reading from the file: there's a missmatch metween the real data in the file and what lua reads out of it.
+    -- Probably related to the raw binary tripping up the reader (we have crazy chars like `10000000` and others floating arround in there.)
+    -- Unicode non-sence?
+    --
+    -- This isn't a problem for networking. lua is actualy very happy to have arbitrary binary data in a string (networking has been working fine, after all),
+    -- it just can't seem to read it from a string in require.
+    --
+    -- Maybe there's some string processing magic we can do, but I suspect that we'll need to base64 encode the strings for local songs.
+    -- Might need an extra tick pass per packet to un base64 then do the real decode.
+    --
+    -- The issue with base 64 is we need to use instructions to process them. But we might be able to use c-style escape codes instead????
+    -- The lua interpreter will just load these for us without hassle, so long as we don't use long quotes. (therefore we'll also need to escape everything that looks like an escape code.)
+    -- https://www.lua.org/pil/2.4.html#:~:text=We%20can%20specify%20a%20character%20in%20a%20string%20also%20by%20its%20numeric%20value%20through%20the%20escape%20sequence%20%5Cddd%2C%20where%20ddd%20is%20a%20sequence%20of%20up%20to%20three%20decimal%20digits
+    -- luckily it looks like the list of things we might need to escape is lowish. https://www.lua.org/pil/2.4.html#:~:text=the%20following%20C%2Dlike%20escape%20sequences
+    --
+    -- C style strings have the problem that, in worse case, they'll easily tripple file size. But they'd have no additional instruction cost
+
     config = config or {}
 
     print_debug("Building packets…")
