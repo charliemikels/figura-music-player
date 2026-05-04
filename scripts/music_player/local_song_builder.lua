@@ -41,40 +41,69 @@ local function escape_match_magic_characters(str)
     ))
 end
 
+local characters_to_escape = {  -- TODO: make sure that these are all the characters we need to keep track of.
+    [ [["]] ] = true,
+    [ [[\]] ] = true
+}
+
+---Quote and add escape so that we can safely store arbitrary binary data into a file.
+---@param unquoted_string string
+---@return string
 local function safely_wrap_string_in_quotes(unquoted_string)
     -- In order to write a string into a file in a way that lua can
     -- `require()` it back into a string, we need to quote it.
-    -- Typicaly `"` and `'` would be good enough, but they can allow
-    -- for escape sequences, and as single characters they are pretty
-    -- frequent occurances anyways.
-    --
-    -- Instead, we can use long brackets. These ignore escape sequences
-    -- but still have a few exceptions:
-    --
-    -- - If a string begins with a new line, that newline it is ignored.
-    -- - Sequences of new lines and carriage return are converted to a single new line.
-    --
-    -- (https://www.lua.org/manual/5.2/manual.html#:~:text=long%20brackets)
 
-    local required_long_quote_level = -1 -- first loop will bump this to `0` for us
-    local opening_long_quote
-    local closeing_long_quote
-    local string_includes_these_long_quotes
-    repeat
-        required_long_quote_level = required_long_quote_level + 1
-        opening_long_quote = "[" .. string.rep("=", required_long_quote_level) .. "["
-        closeing_long_quote = "]" .. string.rep("=", required_long_quote_level) .. "]"
-        string_includes_these_long_quotes =
-            string.match(unquoted_string, escape_match_magic_characters(closeing_long_quote))
-            or string.match(unquoted_string,
-                escape_match_magic_characters(opening_long_quote))
-    until not string_includes_these_long_quotes
+    -- Although lua itself is very happy storeing arbitrary binary data in strings,
+    -- it seems to have a hard time loading arbitrary binary data from a require()ed file
+    --
+    -- This means that we need to encode our binary data in some string-safe format.
+    -- Two main options:
+    --
+    -- - Base64: Figura has some sort of built in functions with buffer that might be able
+    --   to efficiently read/write base64 data, but it's in the data and buffer global,
+    --   and docs are sparce. There's also some sort of limit to buffer size in the permission
+    --   settings. Just kinda too many unknowns.
+    --
+    -- - c-style escape sequences. See: https://www.lua.org/pil/2.4.html#:~:text=the%20escape%20sequence%20%5Cddd
+    --   the lua interpreter natively understands some c-style escape sequences, includeing
+    --   encodeing the char value in decimal. Worst case senario: this results in bigger files
+    --   than Base64, but it has fewer unknowns and should have no instruction cost.
 
-    local return_quoted_string =
-        opening_long_quote
-        .. "\n" -- the very first new line is ignored in a long quote. If we add one ourself, we don't need to wory about accidentaly
-        .. unquoted_string
-        .. closeing_long_quote
+    local string_builder = {}   ---@type string[]
+    table.insert(string_builder, [["]])
+
+    print(unquoted_string)
+
+    local unquoted_string_as_bytes = table.pack(unquoted_string:byte(1, #unquoted_string))
+    unquoted_string_as_bytes.n = nil
+    printTable(unquoted_string_as_bytes)
+
+
+    for i, byte in ipairs(unquoted_string_as_bytes) do
+        -- if  false --byte > 0
+            --and byte <= 126
+        if (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13 -- Character is ascii printable
+        then -- Character is ascii printable
+            local char = string.char(byte)
+            if characters_to_escape[char] then
+                table.insert(string_builder, [[\]]..char)
+            else
+                table.insert(string_builder, char)
+            end
+        else -- char is some unprintable binary byte and needs to be escaped.
+
+            if  unquoted_string_as_bytes[i+1] and (unquoted_string_as_bytes[i+1] >= 48 and unquoted_string_as_bytes[i+1] <= 57)
+            then    -- the next character is a ascii-printable number, so we need to take up the full space to avoid collisions with the next normal ascii number
+                table.insert(string_builder, string.format("\\%03d", byte))
+            else    -- insert this in the minimized form to save space.
+                table.insert(string_builder, string.format("\\%d", byte))
+            end
+        end
+    end
+
+    table.insert(string_builder, [["]])
+
+    local return_quoted_string = table.concat(string_builder, "")
 
     return return_quoted_string
 end
@@ -84,23 +113,6 @@ end
 ---@param config SongPlayerConfig?
 local function export_song_to_local(song, config)
     print_debug("Starting export of song `"..song.name.."`")
-
-    -- TODO: Reading from the file: there's a missmatch metween the real data in the file and what lua reads out of it.
-    -- Probably related to the raw binary tripping up the reader (we have crazy chars like `10000000` and others floating arround in there.)
-    -- Unicode non-sence?
-    --
-    -- This isn't a problem for networking. lua is actualy very happy to have arbitrary binary data in a string (networking has been working fine, after all),
-    -- it just can't seem to read it from a string in require.
-    --
-    -- Maybe there's some string processing magic we can do, but I suspect that we'll need to base64 encode the strings for local songs.
-    -- Might need an extra tick pass per packet to un base64 then do the real decode.
-    --
-    -- The issue with base 64 is we need to use instructions to process them. But we might be able to use c-style escape codes instead????
-    -- The lua interpreter will just load these for us without hassle, so long as we don't use long quotes. (therefore we'll also need to escape everything that looks like an escape code.)
-    -- https://www.lua.org/pil/2.4.html#:~:text=We%20can%20specify%20a%20character%20in%20a%20string%20also%20by%20its%20numeric%20value%20through%20the%20escape%20sequence%20%5Cddd%2C%20where%20ddd%20is%20a%20sequence%20of%20up%20to%20three%20decimal%20digits
-    -- luckily it looks like the list of things we might need to escape is lowish. https://www.lua.org/pil/2.4.html#:~:text=the%20following%20C%2Dlike%20escape%20sequences
-    --
-    -- C style strings have the problem that, in worse case, they'll easily tripple file size. But they'd have no additional instruction cost
 
     config = config or {}
 
@@ -151,7 +163,7 @@ local function export_song_to_local(song, config)
     table.insert(string_collector, "data = {\n")
 
     for i, packet in ipairs(tmp_layout_table.data) do
-        table.insert(string_collector, safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ","))
+        table.insert(string_collector, safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ",\n"))
     end
 
     table.insert(string_collector, "}\n")   -- close data
