@@ -37,6 +37,7 @@ local function vlq_to_int_from_reader(packet_reader)
     local byte
     repeat
         byte = bytes[packet_reader.index]
+        if not byte then error("vlq_to_int ran out of bytes to read.") end
         result = result * 128 + (byte % 128)
         packet_reader.index = packet_reader.index + 1
     until byte < 128
@@ -272,6 +273,17 @@ local function new_song_from_header_packet(packet_data_string)
     local tracks = {}
     for i, type in ipairs(track_type_id_flags) do
         tracks[i] = {instrument_type_id = type}
+    end
+
+    for i, v in ipairs(reader.bytes) do
+        -- TODO: Reading from the file: there's a missmatch metween the real data in the file and what lua reads out of it.
+        -- Probably related to the raw binary tripping up the reader (we have crazy chars like `10000000` and others floating arround in there.)
+        -- Unicode non-sence?
+        -- This isn't a problem for networking. lua is actualy very happy to have arbitrary binary data in a string (networking has been working fine, after all),
+        -- it just can't seem to read it from a string in require.
+        -- Maybe there's some string processing magic we can do, but I suspect that we'll need to base64 encode the strings for local songs.
+        -- Might need an extra tick pass per packet to un base64 then do the real decode.
+        print(i, v, string.format("%x", v))
     end
 
     local buffer_delay = vlq_to_int_from_reader(reader)
