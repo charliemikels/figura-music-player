@@ -69,9 +69,6 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     --   encodeing the char value in decimal. Worst case senario: this results in bigger files
     --   than Base64, but it has fewer unknowns and should have no instruction cost.
 
-    -- TODO: we actualy are useing a lot of arbitrary binary data, compared to raw strings, c-style escapes nearly doubled the file size of Keyboard cat (1.9 → 3.7ish)
-    --       Double check that base64 is really a bad idea. would it save us more space?
-
 
 
     -- BREAKING NEWS: Even though C-style escape strings are _way_ bigger on disk than raw or b64, in the upload it's actualy smaller than b64
