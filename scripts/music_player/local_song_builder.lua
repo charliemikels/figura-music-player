@@ -77,12 +77,47 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     local string_builder = {}   ---@type string[]
     table.insert(string_builder, [["]])
 
+    ---@type Byte[]
     local unquoted_string_as_bytes = table.pack(unquoted_string:byte(1, #unquoted_string))
     unquoted_string_as_bytes.n = nil
 
-    for i, byte in ipairs(unquoted_string_as_bytes) do
-        if
-            (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13    -- TODO: what's the actual range that we could encode as single bytes?
+    local byte_index = 1
+    while byte_index <= #unquoted_string_as_bytes do
+        local byte = unquoted_string_as_bytes[byte_index]
+
+        local num_extra_bytes = 0
+        if (byte >= 0xC0 and byte <= 0xDF)     then -- 110xxxxx - 2-byte sequence start
+            num_extra_bytes = 1
+        elseif (byte >= 0xE0 and byte <= 0xEF) then -- 1110xxxx - 3-byte sequence start
+            num_extra_bytes = 2
+        elseif (byte >= 0xF0 and byte <= 0xF7) then -- 11110xxx - 4-byte sequence start
+            num_extra_bytes = 3
+        end
+
+        local looks_like_a_good_utf8_character = num_extra_bytes > 0
+        if looks_like_a_good_utf8_character then
+
+            -- https://stackoverflow.com/a/44568131
+            for byte_index_to_test_if_its_unicode = byte_index+1, byte_index+num_extra_bytes do
+                local test_byte = unquoted_string_as_bytes[byte_index_to_test_if_its_unicode]
+                -- print_debug("test_byte: "..string.format("%x", test_byte), false, true)
+                if not (test_byte >= 0x80 and test_byte <= 0xBF) then   -- in binary range `10xxxxxx`
+                    -- print_debug("out of range", false, true)
+                    looks_like_a_good_utf8_character = false
+                    break
+                end
+            end
+        end
+
+        if looks_like_a_good_utf8_character then -- This and the next few bytes are a valid unicode character. Write the entire sequence and jump ahead in the loop.
+            table.insert(string_builder, string.char(byte))
+            for extra_byte_index_to_add = byte_index, byte_index+num_extra_bytes do
+                table.insert(string_builder, string.char(unquoted_string_as_bytes[extra_byte_index_to_add]))
+            end
+
+            byte_index = byte_index + num_extra_bytes   -- Skips the bytes we just wrote on the next loop.
+
+        elseif (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13    -- TODO: what's the actual range that we could encode as single bytes?
         then -- Character is ascii printable
             local char = string.char(byte)
             if characters_to_escape[char] then
@@ -90,17 +125,20 @@ local function safely_wrap_string_in_quotes(unquoted_string)
             else
                 table.insert(string_builder, char)
             end
+            byte_index = byte_index + 1
 
         else -- Character is some unprintable binary byte and needs to be escaped.
 
-            if unquoted_string_as_bytes[i+1] and (unquoted_string_as_bytes[i+1] >= 48 and unquoted_string_as_bytes[i+1] <= 57)
-
+            if
+                unquoted_string_as_bytes[byte_index+1] and (unquoted_string_as_bytes[byte_index+1] >= 48 and unquoted_string_as_bytes[byte_index+1] <= 57)
             then    -- the next character is a ascii-printable number, so we need to take up the full space to avoid collisions with the next normal ascii number
                 table.insert(string_builder, string.format("\\%03d", byte))
 
             else    -- insert this in a minimized form to possibly save space.
                 table.insert(string_builder, string.format("\\%d", byte))
             end
+
+            byte_index = byte_index + 1
         end
     end
 
