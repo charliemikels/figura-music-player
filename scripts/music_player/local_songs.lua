@@ -43,7 +43,8 @@ local local_song_template = {
 
 local possible_script_paths = {}             ---@type string[]
 local song_holders_by_script_path = {}       ---@type table<string, SongHolder>
-local future_controllers_by_script_path = {} ---@type table<string, TL_FutureController>
+local future_controllers_by_script_path = {}    ---@type table<string, TL_FutureController>
+local song_player_configs_by_script_path = {}   ---@type table<string, SongPlayerConfig>
 
 local song_holder_list = {}                  ---@type SongHolder[]
 
@@ -94,7 +95,7 @@ local function remove_script_from_loop_with_error(script_index, error_msg)
 end
 
 local script_index = 1
-local packet_index_for_script = 1
+local data_packet_index_for_script = 1
 local local_song_tick_loop_functions
 local_song_tick_loop_functions = {
     require_the_script_songs = function()
@@ -151,6 +152,7 @@ local_song_tick_loop_functions = {
         script_index = script_index + 1
     end,
 
+
     header_processing = function()
         print_debug("Header: index: "..script_index..", count: "..#possible_script_paths)
         if script_index > #possible_script_paths then
@@ -163,28 +165,40 @@ local_song_tick_loop_functions = {
         local script_path = possible_script_paths[script_index]
         local result_of_require = song_holders_by_script_path[script_path].source.result_of_require
 
-        local header_pcall_success, header_pcall_value = pcall(function() return decoder_api.new_song_from_header_packet(result_of_require.header) end)
+        local header_pcall_success, header_pcall_value = pcall(function()
+            return decoder_api.new_song_from_header_packet(result_of_require.header)
+        end)
         if not header_pcall_success then
             ---@cast header_pcall_value string
-            remove_script_from_loop_with_error(script_index, "header_to_song failed with error: `"..header_pcall_value.."`")
+            remove_script_from_loop_with_error(
+                script_index,
+                "header_to_song failed with error: `"..header_pcall_value.."`"
+            )
             return
         end
 
         if not header_pcall_value.duration == result_of_require.durration then
-            remove_script_from_loop_with_error(script_index, "Header durration `"..header_pcall_value.duration.."` does not match declared durration `"..result_of_require.durration.."`")
+            remove_script_from_loop_with_error(
+                script_index,
+                "Header durration `"..header_pcall_value.duration
+                    .."` does not match declared durration `"
+                    ..result_of_require.durration.."`"
+            )
             return
         end
 
         print_debug("`"..script_path.."` passed header checks", false, true)
-        print(header_pcall_value)
 
         song_holders_by_script_path[script_path].processed_song = header_pcall_value
+        future_controllers_by_script_path[script_path]:set_progress(0.15)
 
         script_index = script_index + 1
     end,
+
+
     config_processing = function()
         print_debug("Config: index: "..script_index..", count: "..#possible_script_paths)
-        -- TODO: we'll need some way to actualy store packets in the song, or at least a way to keep them together. (`song.default_config`?)
+
         if script_index > #possible_script_paths then
             script_index = 1
             events.TICK:remove(local_song_tick_loop_functions.config_processing)
@@ -195,18 +209,28 @@ local_song_tick_loop_functions = {
         local script_path = possible_script_paths[script_index]
         local result_of_require = song_holders_by_script_path[script_path].source.result_of_require
 
+        local config_pcall_success, config_pcall_value = pcall(function()
+            return decoder_api.new_config_from_packet(result_of_require.config)
+        end)
+        if not config_pcall_success then
+            ---@cast config_pcall_value string
+            remove_script_from_loop_with_error(
+                script_index,
+                "new_config_from_packet failed with error: `"..config_pcall_value.."`"
+            )
+            return
+        end
 
-
+        song_player_configs_by_script_path[script_path] = config_pcall_value
+        future_controllers_by_script_path[script_path]:set_progress(0.2)
 
         script_index = script_index + 1
     end,
+
+
     data_processing = function()
-        print_debug("Data: index: "..script_index..", count: "..#possible_script_paths)
-        -- TODO:
-        -- - get one packet from the current song and process it. Don't forget head and config packets. (should each packet type be diffrent state functions?)
-        -- - update song's future controller as we go through.
-        -- - once all packets read, check if final instruction count matches the count we expect. error if bad. (local_song_builder did something funky??)
-        -- - if all good set processor to done.
+
+        print_debug("Data: script_index: "..script_index.." of "..#possible_script_paths..". packet "..data_packet_index_for_script.."." )
 
         if script_index > #possible_script_paths then
             script_index = 1
@@ -215,7 +239,55 @@ local_song_tick_loop_functions = {
             return
         end
 
-        script_index = script_index + 1
+        local script_path = possible_script_paths[script_index]
+        local song_holder = song_holders_by_script_path[script_path]
+        local result_of_require = song_holder.source.result_of_require
+        local processed_song = song_holder.processed_song
+
+        if #result_of_require.data < data_packet_index_for_script then -- we're out of packets to process
+            if #processed_song.instructions == result_of_require.num_instructions then -- instruction count matched what we expected
+
+
+                print_debug("localy built "..processed_song.name.." was rebuilt successfuly", false, true)
+
+                future_controllers_by_script_path[script_path]:set_done_with_value(processed_song)
+            else    -- there's an instruction count mismatch.
+                remove_script_from_loop_with_error(
+                    script_index,
+                    "final instruction list does not match the expected number of instructions."
+                        .. " Expected: "..result_of_require.num_instructions
+                        ..", got: "..#processed_song.instructions
+                )
+            end
+            data_packet_index_for_script = 1
+            script_index = script_index + 1 -- move to next script
+            return
+        end
+
+
+        local data_pcall_success, data_pcall_value = pcall(function()
+            return decoder_api.add_instructions_to_song_from_packet(
+                processed_song,
+                result_of_require.data[data_packet_index_for_script]
+            )
+        end)
+        if not data_pcall_success then
+            ---@cast data_pcall_value string
+            remove_script_from_loop_with_error(
+                script_index,
+                "new_config_from_packet failed with error: `"..data_pcall_value.."`"
+            )
+            return
+        end
+
+        -- no need for an extra saveing step, add_instructions_to_song_from_packet will update song for us, even inside the pcall.
+
+        -- progress from [0 to 0.2] is reserved by header and config processors. we can go from (0.2, 1.0]  -- TODO: is that the right `()` / `[]` syntax for ranges?
+        local data_progress = math.map(data_packet_index_for_script, 0, #result_of_require.data, 0.2, 1.0)  -- TODO: Map was like strangely heavy in one spot. check that it's fine, or write our own logic. (I think we already did in midi processor.)
+
+        future_controllers_by_script_path[script_path]:set_progress(data_progress)
+
+        data_packet_index_for_script = data_packet_index_for_script +1
     end,
 }
 
@@ -224,9 +296,10 @@ events.TICK:register(local_song_tick_loop_functions.require_the_script_songs)
 
 ---@class LocalSongApi
 ---@field get_local_song_holders fun():SongHolder[]
----@field convert_song_to_local fun(song:SongHolder)
+---@field get_local_configs_by_script_id fun(script_path:string):SongPlayerConfig?
 local local_songs_api = {
     get_local_song_holders = function() return song_holder_list end,
+    get_local_configs_by_script_id = function(script_path) return song_player_configs_by_script_path[script_path] end,
 }
 
 return local_songs_api
