@@ -57,30 +57,20 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     -- it seems to have a hard time loading arbitrary binary data from a require()ed file
     --
     -- This means that we need to encode our binary data in some string-safe format.
-    -- Two main options:
     --
-    -- - Base64: Figura has some sort of built in functions with buffer that might be able
-    --   to efficiently read/write base64 data, but it's in the data and buffer global,
-    --   and docs are sparce. There's also some sort of limit to buffer size in the permission
-    --   settings. Just kinda too many unknowns.
+    -- Base 64 is a pretty good one. It's only a little larger on disk than the actual
+    -- raw byte stream, and Figura gives us data.buffer to easily convert to and from it.
     --
-    -- - c-style escape sequences. See: https://www.lua.org/pil/2.4.html#:~:text=the%20escape%20sequence%20%5Cddd
-    --   the lua interpreter natively understands some c-style escape sequences, includeing
-    --   encodeing the char value in decimal. Worst case senario: this results in bigger files
-    --   than Base64, but it has fewer unknowns and should have no instruction cost.
-
-
-
-    -- BREAKING NEWS: Even though C-style escape strings are _way_ bigger on disk than raw or b64, in the upload it's actualy smaller than b64
-    -- From `/figura debug`:
-    --[[
-        "scripts.music_player.local_songs.Misc. - Keyboard Cat - b64": "943b",
-        "scripts.music_player.local_songs.Misc. - Keyboard Cat - CStyle with unicode.local_song": "856b",
-        "scripts.music_player.local_songs.Misc. - Keyboard Cat - CStyle.local_song": "844b",
-        "scripts.music_player.local_songs.Misc. - Keyboard Cat - Previous (broken).local_song": "709b",
-    --]]
-
-
+    -- However we can also encode arbitrary binary bytes by useing c-style escape sequences.
+    -- On disk, it's much larger than base 64 encodeing. However Figura's default compression
+    -- system seems to actualy parse the file enough so that the escaped sequence returns to
+    -- a single character at upload time. Meaning it's actualy way more space efficient for
+    -- our needs.
+    --
+    -- See https://www.lua.org/pil/2.4.html#:~:text=the%20escape%20sequence%20%5Cddd
+    --
+    -- We do need to be careful about escapeing any problem chars in our existing byte stream
+    -- (mostly `"` and `\`, ), but that's about it.
 
     local string_builder = {}   ---@type string[]
     table.insert(string_builder, [["]])
