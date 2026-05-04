@@ -199,12 +199,20 @@ local_song_tick_loop_functions = {
         end)
         if not header_pcall_success then
             ---@cast header_pcall_value string
-            remove_script_from_loop_with_error(script_index, "header_to_song failed with error: `"..header_pcall_value.."`")
+            remove_script_from_loop_with_error(
+                script_index,
+                "header_to_song failed with error: `"..header_pcall_value.."`"
+            )
             return
         end
 
         if not header_pcall_value.duration == result_of_require.durration then
-            remove_script_from_loop_with_error(script_index, "Header durration `"..header_pcall_value.duration.."` does not match declared durration `"..result_of_require.durration.."`")
+            remove_script_from_loop_with_error(
+                script_index,
+                "Header durration `"..header_pcall_value.duration
+                    .."` does not match declared durration `"
+                    ..result_of_require.durration.."`"
+            )
             return
         end
 
