@@ -69,14 +69,16 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     --   encodeing the char value in decimal. Worst case senario: this results in bigger files
     --   than Base64, but it has fewer unknowns and should have no instruction cost.
 
+    -- TODO: we actualy are useing a lot of arbitrary binary data, compared to raw strings, c-style escapes nearly doubled the file size of Keyboard cat (1.9 → 3.7ish)
+    --       Double check that base64 is really a bad idea. would it save us more space?
+
+    -- TODO: check if this byte+next bytes are a valid unicode character, and insert that?? could save a good chunk of space does lua load in unicode strings (It but, I've been giveing it emojies and stuff)?
+
     local string_builder = {}   ---@type string[]
     table.insert(string_builder, [["]])
 
-    print(unquoted_string)
-
     local unquoted_string_as_bytes = table.pack(unquoted_string:byte(1, #unquoted_string))
     unquoted_string_as_bytes.n = nil
-    printTable(unquoted_string_as_bytes)
 
     for i, byte in ipairs(unquoted_string_as_bytes) do
         if
