@@ -72,8 +72,6 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     -- TODO: we actualy are useing a lot of arbitrary binary data, compared to raw strings, c-style escapes nearly doubled the file size of Keyboard cat (1.9 → 3.7ish)
     --       Double check that base64 is really a bad idea. would it save us more space?
 
-    -- TODO: check if this byte+next bytes are a valid unicode character, and insert that?? could save a good chunk of space does lua load in unicode strings (It but, I've been giveing it emojies and stuff)?
-
     local string_builder = {}   ---@type string[]
     table.insert(string_builder, [["]])
 
@@ -81,6 +79,9 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     unquoted_string_as_bytes.n = nil
 
     for i, byte in ipairs(unquoted_string_as_bytes) do
+        -- Checking for unicode characters added a lot of complexity but only saved like 3 bytes in `Rush E (full)`.
+        -- Way not worth it, but check out the `v5-local-songs-with-unicode` branch to see it. Maybe we can merge it back later.
+
         if
             (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13    -- TODO: what's the actual range that we could encode as single bytes?
         then -- Character is ascii printable
