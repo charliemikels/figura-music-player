@@ -78,11 +78,9 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     unquoted_string_as_bytes.n = nil
     printTable(unquoted_string_as_bytes)
 
-
     for i, byte in ipairs(unquoted_string_as_bytes) do
-        -- if  false --byte > 0
-            --and byte <= 126
-        if (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13 -- Character is ascii printable
+        if
+            (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13    -- TODO: what's the actual range that we could encode as single bytes?
         then -- Character is ascii printable
             local char = string.char(byte)
             if characters_to_escape[char] then
@@ -90,12 +88,15 @@ local function safely_wrap_string_in_quotes(unquoted_string)
             else
                 table.insert(string_builder, char)
             end
-        else -- char is some unprintable binary byte and needs to be escaped.
 
-            if  unquoted_string_as_bytes[i+1] and (unquoted_string_as_bytes[i+1] >= 48 and unquoted_string_as_bytes[i+1] <= 57)
+        else -- Character is some unprintable binary byte and needs to be escaped.
+
+            if unquoted_string_as_bytes[i+1] and (unquoted_string_as_bytes[i+1] >= 48 and unquoted_string_as_bytes[i+1] <= 57)
+
             then    -- the next character is a ascii-printable number, so we need to take up the full space to avoid collisions with the next normal ascii number
                 table.insert(string_builder, string.format("\\%03d", byte))
-            else    -- insert this in the minimized form to save space.
+
+            else    -- insert this in a minimized form to possibly save space.
                 table.insert(string_builder, string.format("\\%d", byte))
             end
         end
