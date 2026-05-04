@@ -76,6 +76,8 @@ local local_song_template = {
 local possible_script_paths = {}             ---@type string[]
 local song_holders_by_script_path = {}       ---@type table<string, SongHolder>
 local future_controllers_by_script_path = {} ---@type table<string, TL_FutureController>
+local song_player_configs_by_script_path = {} ---@type table<string, SongPlayerConfig>
+-- TODO: ↑ we're frequently keeping configs and songs in sync. Should we just make configs a part of SongHolder?
 
 local song_holder_list = {}                  ---@type SongHolder[]
 
@@ -239,8 +241,19 @@ local_song_tick_loop_functions = {
         local script_path = possible_script_paths[script_index]
         local result_of_require = song_holders_by_script_path[script_path].source.result_of_require
 
+        local config_pcall_success, config_pcall_value = pcall(function()
+            return decoder_api.new_config_from_packet(safe_base64_to_string(result_of_require.config))
+        end)
+        if not config_pcall_success then
+            ---@cast config_pcall_value string
+            remove_script_from_loop_with_error(
+                script_index,
+                "new_config_from_packet failed with error: `"..config_pcall_value.."`"
+            )
+            return
+        end
 
-
+        song_player_configs_by_script_path[script_path] = config_pcall_value
 
         script_index = script_index + 1
     end,
@@ -270,9 +283,10 @@ events.TICK:register(local_song_tick_loop_functions.require_the_script_songs)
 
 ---@class LocalSongApi
 ---@field get_local_song_holders fun():SongHolder[]
----@field convert_song_to_local fun(song:SongHolder)
+---@field get_config_for_local_song fun(script_path:string):SongPlayerConfig?   -- script_path should be the same as the songholder's ID in get_local_song_holders()
 local local_songs_api = {
     get_local_song_holders = function() return song_holder_list end,
+    get_config_for_local_song = function(script_path) return song_player_configs_by_script_path[script_path] end
 }
 
 return local_songs_api
