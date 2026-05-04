@@ -42,9 +42,10 @@ local function safe_base64_to_string(base64_string)
     local b64_start_instruction_count = avatar:getCurrentInstructions()
     local success, value = pcall(base64_to_string, base64_string)
     local after_pcall_instruction_count = avatar:getCurrentInstructions()
-    print_debug("base64 conversion used "..(after_pcall_instruction_count - b64_start_instruction_count) .." instructions", true, true)
-    if success then return value end
 
+    print_debug("base64 conversion used "..(after_pcall_instruction_count - b64_start_instruction_count) .." instructions", true, true)
+
+    if success then return value end
     return nil
 end
 
@@ -182,6 +183,7 @@ local_song_tick_loop_functions = {
         script_index = script_index + 1
     end,
 
+
     header_processing = function()
         print_debug("Header: index: "..script_index..", count: "..#possible_script_paths)
         if script_index > #possible_script_paths then
@@ -222,6 +224,8 @@ local_song_tick_loop_functions = {
 
         script_index = script_index + 1
     end,
+
+
     config_processing = function()
         print_debug("Config: index: "..script_index..", count: "..#possible_script_paths)
         -- TODO: we'll need some way to actualy store packets in the song, or at least a way to keep them together. (`song.default_config`?)
@@ -240,6 +244,8 @@ local_song_tick_loop_functions = {
 
         script_index = script_index + 1
     end,
+
+
     data_processing = function()
         print_debug("Data: index: "..script_index..", count: "..#possible_script_paths)
         -- TODO:
