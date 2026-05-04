@@ -71,32 +71,17 @@ local function string_to_base64_with_quotes(unquoted_string)
 
     local buffer = data:createBuffer(math.floor(packet_encoder_api.get_max_packet_length()*1.2))
 
-    local string_builder = {}   ---@type string[]
-    table.insert(string_builder, [["]])
-
     local unquoted_string_as_bytes = table.pack(unquoted_string:byte(1, #unquoted_string))
     unquoted_string_as_bytes.n = nil
 
     buffer:writeByteArray(unquoted_string)
 
     buffer:setPosition(0)   -- zero indexing? Well I guess this is the time for it.
+
     local base_64_string = buffer:readBase64(buffer:getLength())
-    -- print(base_64_string)
 
+    buffer:clear()
     buffer:close()
-
-    table.insert(string_builder, [["]])
-    table.insert(string_builder, [["]])
-
-    -- local receiving_buffer = data:createBuffer(#base_64_string)
-    -- receiving_buffer:writeBase64(base_64_string)
-    -- receiving_buffer:setPosition(0)
-    -- local baptized_string = receiving_buffer:readByteArray(#base_64_string)
-    -- print(baptized_string)
-    -- receiving_buffer:close()
-    -- error("GOTCHYA")
-
-
 
     local return_quoted_string = [["]]..base_64_string..[["]]
 
