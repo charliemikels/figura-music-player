@@ -158,23 +158,22 @@ local function export_song_to_local(song, config)
 
     -- it'd be really cool if we wrote a loop to convert from tmp_layout_table's keys and dump the values as strings,
     -- but data is a list. and idk if there's a good way to distinguish between a list and normal key pair table.
-    table.insert(string_collector, "name = "..safely_wrap_string_in_quotes(tmp_layout_table.name)..",\n")
-    table.insert(string_collector, "durration = "..tmp_layout_table.durration..",\n")
-    table.insert(string_collector, "num_instructions = "..tmp_layout_table.num_instructions..",\n")
-    table.insert(string_collector, "header = "..safely_wrap_string_in_quotes(tmp_layout_table.header)..",\n")
-    table.insert(string_collector, "config = "..safely_wrap_string_in_quotes(tmp_layout_table.config)..",\n")
+    table.insert(string_collector, "  name = "..safely_wrap_string_in_quotes(tmp_layout_table.name)..",\n")
+    table.insert(string_collector, "  durration = "..tmp_layout_table.durration..",\n")
+    table.insert(string_collector, "  num_instructions = "..tmp_layout_table.num_instructions..",\n")
+    table.insert(string_collector, "  header = "..safely_wrap_string_in_quotes(tmp_layout_table.header)..",\n")
+    table.insert(string_collector, "  config = "..safely_wrap_string_in_quotes(tmp_layout_table.config)..",\n")
 
-    table.insert(string_collector, "data = {\n")
+    table.insert(string_collector, "  data = {\n")
 
     for i, packet in ipairs(tmp_layout_table.data) do
-        table.insert(string_collector, safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ",\n"))
+        table.insert(string_collector, "    "..safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ",\n"))
     end
 
-    table.insert(string_collector, "}\n")   -- close data
-    table.insert(string_collector, "}\n")   -- close local_song
-    table.insert(string_collector, "\n")
+    table.insert(string_collector, "\n  }")   -- close data
+    table.insert(string_collector, "\n}")   -- close local_song
+    table.insert(string_collector, "\n\n")
     table.insert(string_collector, "return local_song")
-
 
 
     print_debug("Creating directory and write stream…")
