@@ -223,6 +223,7 @@ local_song_tick_loop_functions = {
         print_debug("`"..script_path.."` passed header checks", false, true)
 
         song_holders_by_script_path[script_path].processed_song = header_pcall_value
+        future_controllers_by_script_path[script_path]:set_progress(0.15)
 
         script_index = script_index + 1
     end,
@@ -254,6 +255,7 @@ local_song_tick_loop_functions = {
         end
 
         song_player_configs_by_script_path[script_path] = config_pcall_value
+        future_controllers_by_script_path[script_path]:set_progress(0.2)
 
         script_index = script_index + 1
     end,
