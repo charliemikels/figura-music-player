@@ -18,14 +18,45 @@ local function print_debug(message, is_warning, allways_log)
     end
 end
 
+---@alias Base64String string
+
+
+---@param base64_string Base64String
+---@return string?
+local function base64_to_string(base64_string)
+    -- buffers can injest all sorts of binary-ish data, and can output it to any other it supports
+    -- HOPEFULLY because it does something under the hood, we can dodge the usual instruction cost
+    -- from rolling our own base64 decoder/encoder system.
+    local converter_buffer = data:createBuffer(#base64_string)
+    converter_buffer:writeBase64(base64_string)
+    converter_buffer:setPosition(0)
+    local normal_string = converter_buffer:readByteArray(#base64_string)
+    converter_buffer:clear()
+    converter_buffer:close()
+    return normal_string
+end
+
+---@param base64_string Base64String
+---@return string?
+local function safe_base64_to_string(base64_string)
+    local b64_start_instruction_count = avatar:getCurrentInstructions()
+    local success, value = pcall(base64_to_string, base64_string)
+    local after_pcall_instruction_count = avatar:getCurrentInstructions()
+    print_debug("base64 conversion used "..(after_pcall_instruction_count - b64_start_instruction_count) .." instructions", true, true)
+    if success then return value end
+
+    return nil
+end
+
+
 
 ---@class LocalSongScript
 ---@field name string
 ---@field durration number
 ---@field num_instructions integer
----@field header PacketDataString
----@field config PacketDataString
----@field data PacketDataString[]
+---@field header Base64String
+---@field config Base64String
+---@field data Base64String[]
 
 -- Used to test the the requires if they have the needed keys and types.
 --
@@ -83,7 +114,7 @@ end
 
 -- at this point, all possible local songs have been added to the library
 
----comment
+---Standardized way to ignore scripts that have failed.
 ---@param script_index integer
 ---@param error_msg string
 local function remove_script_from_loop_with_error(script_index, error_msg)
@@ -143,7 +174,7 @@ local_song_tick_loop_functions = {
         print_debug("`"..script_path.."` passed require() checks", false, true)
 
         song_holders_by_script_path[script_path].source.result_of_require = require_result
-        song_holders_by_script_path[script_path].short_name = require_result.name
+        song_holders_by_script_path[script_path].short_name = safe_base64_to_string(require_result.name)
         future_controllers_by_script_path[script_path]:set_progress(0.1)
 
         -- advance to next song
@@ -163,7 +194,9 @@ local_song_tick_loop_functions = {
         local script_path = possible_script_paths[script_index]
         local result_of_require = song_holders_by_script_path[script_path].source.result_of_require
 
-        local header_pcall_success, header_pcall_value = pcall(function() return decoder_api.new_song_from_header_packet(result_of_require.header) end)
+        local header_pcall_success, header_pcall_value = pcall(function()
+            return decoder_api.new_song_from_header_packet(safe_base64_to_string(result_of_require.header))
+        end)
         if not header_pcall_success then
             ---@cast header_pcall_value string
             remove_script_from_loop_with_error(script_index, "header_to_song failed with error: `"..header_pcall_value.."`")
@@ -176,7 +209,6 @@ local_song_tick_loop_functions = {
         end
 
         print_debug("`"..script_path.."` passed header checks", false, true)
-        print(header_pcall_value)
 
         song_holders_by_script_path[script_path].processed_song = header_pcall_value
 

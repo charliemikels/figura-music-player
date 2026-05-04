@@ -5,7 +5,7 @@
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 
 local exports_dir = "TL_local_song_exports/"
-local file_ext = ".local_song.lua"
+local file_ext = ".lua"
 
 local do_debug_prints = true
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
@@ -49,7 +49,7 @@ local characters_to_escape = {  -- TODO: make sure that these are all the charac
 ---Quote and add escape so that we can safely store arbitrary binary data into a file.
 ---@param unquoted_string string
 ---@return string
-local function safely_wrap_string_in_quotes(unquoted_string)
+local function string_to_base64_with_quotes(unquoted_string)
     -- In order to write a string into a file in a way that lua can
     -- `require()` it back into a string, we need to quote it.
 
@@ -69,8 +69,7 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     --   encodeing the char value in decimal. Worst case senario: this results in bigger files
     --   than Base64, but it has fewer unknowns and should have no instruction cost.
 
-    -- TODO: we actualy are useing a lot of arbitrary binary data, compared to raw strings, c-style escapes nearly doubled the file size of Keyboard cat (1.9 → 3.7ish)
-    --       Double check that base64 is really a bad idea. would it save us more space?
+    local buffer = data:createBuffer(math.floor(packet_encoder_api.get_max_packet_length()*1.2))
 
     local string_builder = {}   ---@type string[]
     table.insert(string_builder, [["]])
@@ -78,36 +77,28 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     local unquoted_string_as_bytes = table.pack(unquoted_string:byte(1, #unquoted_string))
     unquoted_string_as_bytes.n = nil
 
-    for i, byte in ipairs(unquoted_string_as_bytes) do
-        -- Checking for unicode characters added a lot of complexity but only saved like 3 bytes in `Rush E (full)`.
-        -- Way not worth it, but check out the `v5-local-songs-with-unicode` branch to see it. Maybe we can merge it back later.
+    buffer:writeByteArray(unquoted_string)
 
-        if
-            (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13    -- TODO: what's the actual range that we could encode as single bytes?
-        then -- Character is ascii printable
-            local char = string.char(byte)
-            if characters_to_escape[char] then
-                table.insert(string_builder, [[\]]..char)
-            else
-                table.insert(string_builder, char)
-            end
+    buffer:setPosition(0)   -- zero indexing? Well I guess this is the time for it.
+    local base_64_string = buffer:readBase64(buffer:getLength())
+    -- print(base_64_string)
 
-        else -- Character is some unprintable binary byte and needs to be escaped.
-
-            if unquoted_string_as_bytes[i+1] and (unquoted_string_as_bytes[i+1] >= 48 and unquoted_string_as_bytes[i+1] <= 57)
-
-            then    -- the next character is a ascii-printable number, so we need to take up the full space to avoid collisions with the next normal ascii number
-                table.insert(string_builder, string.format("\\%03d", byte))
-
-            else    -- insert this in a minimized form to possibly save space.
-                table.insert(string_builder, string.format("\\%d", byte))
-            end
-        end
-    end
+    buffer:close()
 
     table.insert(string_builder, [["]])
+    table.insert(string_builder, [["]])
 
-    local return_quoted_string = table.concat(string_builder, "")
+    -- local receiving_buffer = data:createBuffer(#base_64_string)
+    -- receiving_buffer:writeBase64(base_64_string)
+    -- receiving_buffer:setPosition(0)
+    -- local baptized_string = receiving_buffer:readByteArray(#base_64_string)
+    -- print(baptized_string)
+    -- receiving_buffer:close()
+    -- error("GOTCHYA")
+
+
+
+    local return_quoted_string = [["]]..base_64_string..[["]]
 
     return return_quoted_string
 end
@@ -158,16 +149,16 @@ local function export_song_to_local(song, config)
 
     -- it'd be really cool if we wrote a loop to convert from tmp_layout_table's keys and dump the values as strings,
     -- but data is a list. and idk if there's a good way to distinguish between a list and normal key pair table.
-    table.insert(string_collector, "name = "..safely_wrap_string_in_quotes(tmp_layout_table.name)..",\n")
+    table.insert(string_collector, "name = "..string_to_base64_with_quotes(tmp_layout_table.name)..",\n")
     table.insert(string_collector, "durration = "..tmp_layout_table.durration..",\n")
     table.insert(string_collector, "num_instructions = "..tmp_layout_table.num_instructions..",\n")
-    table.insert(string_collector, "header = "..safely_wrap_string_in_quotes(tmp_layout_table.header)..",\n")
-    table.insert(string_collector, "config = "..safely_wrap_string_in_quotes(tmp_layout_table.config)..",\n")
+    table.insert(string_collector, "header = "..string_to_base64_with_quotes(tmp_layout_table.header)..",\n")
+    table.insert(string_collector, "config = "..string_to_base64_with_quotes(tmp_layout_table.config)..",\n")
 
     table.insert(string_collector, "data = {\n")
 
     for i, packet in ipairs(tmp_layout_table.data) do
-        table.insert(string_collector, safely_wrap_string_in_quotes(packet)..(i == #tmp_layout_table.data and "" or ",\n"))
+        table.insert(string_collector, string_to_base64_with_quotes(packet)..(i == #tmp_layout_table.data and "" or ",\n"))
     end
 
     table.insert(string_collector, "}\n")   -- close data
