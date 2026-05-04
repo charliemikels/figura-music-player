@@ -97,7 +97,7 @@ for _, script_path in pairs(listFiles(local_songs_directory_path, true)) do
         local detected_potential_song = {
             uuid = client.intUUIDToString(client.generateUUID()),
             id = script_path,
-            name = "TBD",       -- TODO: extract the name name from the script path. (we know the base directory from `local_songs_directory_path`, and I think we can know the file ext. (is ext nessesary?))
+            name = script_path, -- TODO: extract the name name from the script path. (we know the base directory from `local_songs_directory_path`, and I think we can know the file ext. (is ext nessesary?))
             short_name = "TBD", -- This can remain TDB, it'll be populated when we actualy require the script
             start_or_get_data_processor = function()
                 return return_future
@@ -128,7 +128,7 @@ local function remove_script_from_loop_with_error(script_index, error_msg)
 end
 
 local script_index = 1
-local packet_index_for_script = 1
+local data_packet_index_for_script = 1
 local local_song_tick_loop_functions
 local_song_tick_loop_functions = {
     require_the_script_songs = function()
@@ -231,7 +231,7 @@ local_song_tick_loop_functions = {
 
     config_processing = function()
         print_debug("Config: index: "..script_index..", count: "..#possible_script_paths)
-        -- TODO: we'll need some way to actualy store packets in the song, or at least a way to keep them together. (`song.default_config`?)
+
         if script_index > #possible_script_paths then
             script_index = 1
             events.TICK:remove(local_song_tick_loop_functions.config_processing)
@@ -262,12 +262,8 @@ local_song_tick_loop_functions = {
 
 
     data_processing = function()
-        print_debug("Data: index: "..script_index..", count: "..#possible_script_paths)
-        -- TODO:
-        -- - get one packet from the current song and process it. Don't forget head and config packets. (should each packet type be diffrent state functions?)
-        -- - update song's future controller as we go through.
-        -- - once all packets read, check if final instruction count matches the count we expect. error if bad. (local_song_builder did something funky??)
-        -- - if all good set processor to done.
+
+        print_debug("Data: script_index: "..script_index.." of "..#possible_script_paths..". packet "..data_packet_index_for_script.."." )
 
         if script_index > #possible_script_paths then
             script_index = 1
@@ -276,7 +272,55 @@ local_song_tick_loop_functions = {
             return
         end
 
-        script_index = script_index + 1
+        local script_path = possible_script_paths[script_index]
+        local song_holder = song_holders_by_script_path[script_path]
+        local result_of_require = song_holder.source.result_of_require
+        local processed_song = song_holder.processed_song
+
+        if #result_of_require.data < data_packet_index_for_script then -- we're out of packets to process
+            if #processed_song.instructions == result_of_require.num_instructions then -- instruction count matched what we expected
+
+
+                print_debug("localy built "..processed_song.name.." was rebuilt successfuly", false, true)
+
+                future_controllers_by_script_path[script_path]:set_done_with_value(processed_song)
+            else    -- there's an instruction count mismatch.
+                remove_script_from_loop_with_error(
+                    script_index,
+                    "final instruction list does not match the expected number of instructions."
+                        .. " Expected: "..result_of_require.num_instructions
+                        ..", got: "..#processed_song.instructions
+                )
+            end
+            data_packet_index_for_script = 1
+            script_index = script_index + 1 -- move to next script
+            return
+        end
+
+
+        local data_pcall_success, data_pcall_value = pcall(function()
+            return decoder_api.add_instructions_to_song_from_packet(
+                processed_song,
+                safe_base64_to_string(result_of_require.data[data_packet_index_for_script])
+            )
+        end)
+        if not data_pcall_success then
+            ---@cast data_pcall_value string
+            remove_script_from_loop_with_error(
+                script_index,
+                "new_config_from_packet failed with error: `"..data_pcall_value.."`"
+            )
+            return
+        end
+
+        -- no need for an extra saveing step, add_instructions_to_song_from_packet will update song for us, even inside the pcall.
+
+        -- progress from [0 to 0.2] is reserved by header and config processors. we can go from (0.2, 1.0]  -- TODO: is that the right `()` / `[]` syntax for ranges?
+        local data_progress = math.map(data_packet_index_for_script, 0, #result_of_require.data, 0.2, 1.0)  -- TODO: Map was like strangely heavy in one spot. check that it's fine, or write our own logic. (I think we already did in midi processor.)
+
+        future_controllers_by_script_path[script_path]:set_progress(data_progress)
+
+        data_packet_index_for_script = data_packet_index_for_script +1
     end,
 }
 
