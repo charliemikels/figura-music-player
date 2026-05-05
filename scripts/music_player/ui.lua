@@ -149,7 +149,39 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
             selector_title_string = selector_title_string .. "\n" .. this_row
         end
-        selector_title_string = selector_title_string .. "\n\n" .. "INFO ABOUT THIS SONG HERE"  -- TODO: ←
+        selector_title_string = selector_title_string .. "\n\n"
+
+        -- info on the hovered song
+
+        local selected_song_id = song_library:get_song_by_sorted_index(selected_song_index).id
+
+        if not song_processors_and_player_controllers[selected_song_id] then
+            selector_title_string = selector_title_string .. "Click to prepare this song"
+        else
+            local processor_error = song_processors_and_player_controllers[selected_song_id].error
+            local processor = song_processors_and_player_controllers[selected_song_id].processor_future
+            local player_controller = song_processors_and_player_controllers[selected_song_id].net_player_controller
+
+            if processor_error then
+                selector_title_string = selector_title_string .. "This song threw an error and cannot be played.\n"
+                    .. "Click to print error."
+            elseif processor and not processor:is_done() then
+                selector_title_string = selector_title_string .. "Song is being processed."
+                    -- .. "\n" .. progress_bar(25, processor:get_progress()) .. " " .. (math.floor(processor:get_progress()*1000)/10)
+                    -- TODO: Add a new watcher (or update the existing one) that ticks update_song_selector if there are any on-going processors (so that spinners and preogress bars can work.)
+
+            elseif processor and processor:is_done() and not (player_controller and player_controller:is_playing()) then
+                if playing_song_controller and playing_song_controller:is_playing() then
+                    selector_title_string = selector_title_string .. "Click to stop the currently playing song"
+                else
+                    selector_title_string = selector_title_string .. "Click to play song"
+                end
+            elseif player_controller and player_controller:is_playing() then
+                selector_title_string = selector_title_string .. "Playing. Click to stop song"
+            end
+        end
+
+        -- selector_title_string = selector_title_string .. "\nSong ID:\n" .. selected_song_id
 
         actions.select_song:title(selector_title_string)
     end
