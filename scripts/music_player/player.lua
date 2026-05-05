@@ -1,26 +1,8 @@
 ---@module "../core"
 
--- Things player.lua needs to do:
--- - [x] Receive a ProcessedSong, or a ProcessedSongStream
--- - [x] Start an event loop to watch the current time. Auto-kill the song and loop after duration is met.
--- - [x] Every loop tick, check the list of instructions. If there are any new instructions, dispatch them to the relevent instrument.
--- - [x] Update each instrument. (They handle things like volume changes and pitch changes when nessesary)
--- - [x] Monitor the event loop (use another loop). Dynamicaly switch between high resolution (render) and high reliability (tick) when relevent.
--- - [ ] Be able to force-stop the song if no events are responding. This should use world tick. use very spearingly.
---    Does not nessesaraly need to stop the song (events might start up again), but it needs to stop currently playing notes.
--- - [ ] Expose controlls to the caller to start/pause/stop/end the song, and get progress.
-
--- TODO: As of writing this comment, UI is mostly calling the networking library in order to create a transfer song and create packets and stuff for the given song.
---       But I'm working on setting up local songs that won't need to do real networking stuff. Definitely none of the ping loop stuff.
---       We should update player.lua so that it is in charge of calling the network library. That way there's a single interface for the host to use to make songs.
---       the networking lib will still make temporary players for stuff it receives over pings, but move the responcibility to the host's main player.
---       New fields to consider:
---       - local only: tells player to not use any pings (and to possibly bypass buffer time.)
---       - processed_on_host: tells player if the song will not be available on the client (and so the song must be pinged.)
-
----@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
+---@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
 local fallback_normal_instrument_name = "MC/Harp"
----@type InstrumentName An instrument that will allways exist so long as the avatar is loaded.
+---@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
 local fallback_percussion_instrument_name = "Percussion"
 
 ---@type InstrumentName
@@ -30,7 +12,20 @@ local default_percussion_instrument_name = "Percussion"
 
 local do_debug_prints = false
 
-local function print_debug(...) if do_debug_prints then print(...) end end
+--- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
+---@param message string
+---@param is_warning boolean?
+---@param allways_log boolean?
+local function print_debug(message, is_warning, allways_log)
+    if do_debug_prints then print(message) end
+    if do_debug_prints or allways_log then
+        if is_warning then
+            host:warnToLog(message)
+        else
+            host:writeToLog(message)
+        end
+    end
+end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
@@ -209,52 +204,54 @@ local function progress_bar(width, progress)
 	return progress_bar_string  -- As it turns out, Lua actualy optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
 end
 
----@param playing_song PlayingSong
+---@param song_player SongPlayer
 ---@return boolean
-local function client_is_looking_at_song_player(playing_song)
+local function client_is_looking_at_song_player(song_player)
     if host:isHost() then return true end   -- means that, for the host, the display is visible at all times (within the distance range), but no funky behaviors in 3rd person or paperdolls.
-    local source_pos_in_screen_space = vectors.worldToScreenSpace(playing_song.source_pos)
+    local source_pos_in_screen_space = vectors.worldToScreenSpace(song_player.source_pos)
     if source_pos_in_screen_space.z > 1 and source_pos_in_screen_space.xy:length() < 0.2 then return true end
     return false
 end
 
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
----@param playing_song PlayingSong
-local function update_info_display_text(playing_song)
-    local squared_distance = (client:getCameraPos() - playing_song.source_pos):lengthSquared()
+---@param song_player SongPlayer
+local function update_info_display_text(song_player)
+    local squared_distance = (client:getCameraPos() - song_player.source_pos):lengthSquared()
 
-    if squared_distance > 32 or not client_is_looking_at_song_player(playing_song) then
-        playing_song.info_display_root_part:setVisible(false)
+    if squared_distance > 32 or not client_is_looking_at_song_player(song_player) then
+        song_player.info_display_root_part:setVisible(false)
         return
     end
-    playing_song.info_display_root_part:setVisible(true)
+    song_player.info_display_root_part:setVisible(true)
 
 
     local info_text ---@type string?
 
-    if playing_song.controller.is_buffering() then
-        info_text = playing_song.info_display_base_string
-            .. "Buffering… " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_buffer_time() / 1000)) ) .. "s " .. get_spinner()
+    if song_player.controller.is_buffering_or_needs_to_buffer() then
+        info_text = song_player.info_display_base_string
+            .. "Buffering… " .. tostring(math.floor(1 + (song_player.controller.get_remaining_buffer_time() / 1000)) ) .. "s " .. get_spinner()
+            -- There's a moment where song_player.controller.get_remaining_buffer_time returns math.huge and this text just says "Buffering… infs"
+            -- We could add an extra state for this rare moment where it could say "Waiting for data…" instead.
     else
-        info_text = playing_song.info_display_base_string
-            .. progress_bar(20, playing_song.controller.get_progress())
-            .. " " .. tostring(math.floor(1 + (playing_song.controller.get_remaining_time() / 1000)) ) .. "s"
+        info_text = song_player.info_display_base_string
+            .. progress_bar(20, song_player.controller.get_progress())
+            .. " " .. tostring(math.floor(1 + (song_player.controller.get_remaining_time() / 1000)) ) .. "s"
     end
 
-    playing_song.info_display_text_task:setText(info_text)
+    song_player.info_display_text_task:setText(info_text)
 end
 
 
 
----Applies config to a PlayingSong
+---Applies config to a SongPlayer
 ---Used during init, and may be used during playback.
----@param playing_song PlayingSong
+---@param song_player SongPlayer
 ---@param config SongPlayerConfig
-local function apply_config(playing_song, config)
+local function apply_config(song_player, config)
     if not config then return end
 
     -- Update tracks instruments to match selected instruments.
-    for track_index, track_config in ipairs(playing_song.track_config) do
+    for track_index, track_config in ipairs(song_player.track_config) do
         local instrument_selection_to_use_instead = nil
         if config.instrument_selections and config.instrument_selections[track_index] then
             instrument_selection_to_use_instead = config.instrument_selections[track_index]
@@ -270,7 +267,7 @@ local function apply_config(playing_song, config)
                 known_instruments[instrument_selection_to_use_instead.name]
                 .new_instance(instrument_selection_to_use_instead.params)
             if not previous_instrument.is_finished() then
-                table.insert(playing_song.deprecated_instruments, previous_instrument)
+                table.insert(song_player.deprecated_instruments, previous_instrument)
             end
         end
     end
@@ -278,50 +275,50 @@ local function apply_config(playing_song, config)
     -- Update sound source position
 
     if config.source_pos then
-        playing_song.source_pos = config.source_pos
-        playing_song.source_entity = nil
+        song_player.source_pos = config.source_pos
+        song_player.source_entity = nil
     end
     if config.source_entity then
-        playing_song.source_entity = config.source_entity
+        song_player.source_entity = config.source_entity
         if config.source_entity.getPos and config.source_entity:getPos() then
-            playing_song.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight() ,0)
+            song_player.source_pos = config.source_entity:getPos(client:getFrameTime()) + vec(0, config.source_entity:getEyeHeight(), 0)
         end
     end
 
-    playing_song.info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \n\""..playing_song.name.."\"\n"
+    song_player.info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \n\""..song_player.name.."\"\n"
 
     -- Update info display offsets to match sound positions
-    if playing_song.source_entity then
-        if player:isLoaded() and playing_song.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
+    if song_player.source_entity then
+        if player:isLoaded() and song_player.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
             -- source entity is the host. We can use our avatar's atatchment points.
 
-            playing_song.info_display_root_part_parent_type = "Model"
-            playing_song.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
-            playing_song.info_display_text_pos_offset = vectors.vec3(-1 * player:getBoundingBox().x, 0.25, 0)
+            song_player.info_display_root_part_parent_type = "Model"
+            song_player.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
+            song_player.info_display_text_pos_offset = vectors.vec3(-1 * player:getBoundingBox().x, 0.25, 0)
 
-            playing_song.info_display_base_string = ("Playing \""..playing_song.name.."\"\n")   -- Shorter name if the host is right there.
+            song_player.info_display_base_string = ("Playing \""..song_player.name.."\"\n")   -- Shorter name if the host is right there.
         else
             -- entity is not the player, fallback to world positioning
 
-            playing_song.info_display_root_part_parent_type = "World"
-            playing_song.info_display_root_pos_offset = playing_song.source_pos     -- update_song should keep this case up to date
-            playing_song.info_display_text_pos_offset = vectors.vec3(-1 * playing_song.source_entity:getBoundingBox().x, 0.25, 0)
+            song_player.info_display_root_part_parent_type = "World"
+            song_player.info_display_root_pos_offset = song_player.source_pos     -- update_song should keep this case up to date
+            song_player.info_display_text_pos_offset = vectors.vec3(-1 * song_player.source_entity:getBoundingBox().x, 0.25, 0)
         end
     else
-        playing_song.info_display_root_part_parent_type = "World"
-        playing_song.info_display_root_pos_offset = playing_song.source_pos
-        playing_song.info_display_text_pos_offset = vectors.vec3(-0.75, 0.25, 0)
+        song_player.info_display_root_part_parent_type = "World"
+        song_player.info_display_root_pos_offset = song_player.source_pos
+        song_player.info_display_text_pos_offset = vectors.vec3(-0.75, 0.25, 0)
     end
 
-    if playing_song.controller.is_playing() then
+    if song_player.controller.is_playing() then
         -- The info screens have been created and need to be updated.
-        playing_song.info_display_root_part:setParentType(playing_song.info_display_root_part_parent_type)
-        playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset * 16)
-        playing_song.info_display_text_task:setPos(playing_song.info_display_text_pos_offset * 16)
+        song_player.info_display_root_part:setParentType(song_player.info_display_root_part_parent_type)
+        song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset * 16)
+        song_player.info_display_text_task:setPos(song_player.info_display_text_pos_offset * 16)
     end
 
     if config.play_immediately then
-        if not playing_song.controller.is_playing() then playing_song.controller.play() end
+        if not song_player.controller.is_playing() then song_player.controller.play() end
     end
 end
 
@@ -330,34 +327,34 @@ end
 
 ---Called by an event loop.
 ---Dispatches new instructions to instruments based on current system time, and updates all instruments (including deprecated).
----@param playing_song PlayingSong
-local function update_song(playing_song)
+---@param song_player SongPlayer
+local function update_song(song_player)
     local current_time = client.getSystemTime()
 
     -- Get sound position.
 
-    if playing_song.source_entity then
-        playing_song.source_pos =
-            playing_song.source_entity:getPos(client:getFrameTime())
-            + vec(0, (playing_song.source_entity:getBoundingBox().y * 0.5), 0)
+    if song_player.source_entity then
+        song_player.source_pos =
+            song_player.source_entity:getPos(client:getFrameTime())
+            + vec(0, (song_player.source_entity:getBoundingBox().y * 0.5), 0)
 
-        if playing_song.info_display_root_part_parent_type == "World" then
+        if song_player.info_display_root_part_parent_type == "World" then
             -- we're useing entity positioning, but our display is useing world space. Update it's positioning to match.
-            playing_song.info_display_root_pos_offset = playing_song.source_pos
-            playing_song.info_display_root_part:setPos(playing_song.info_display_root_pos_offset)
+            song_player.info_display_root_pos_offset = song_player.source_pos
+            song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset)
         end
     end
 
-    update_info_display_text(playing_song)
+    update_info_display_text(song_player)
 
-    -- During playing_song setup, we already assign a fallback instrument.
+    -- During song_player setup, we already assign a fallback instrument.
     -- This should ensure that all instruments are initilized to something.
 
-    while playing_song.next_instruction_index <= #playing_song.instructions do
-        local this_instruction = playing_song.instructions[playing_song.next_instruction_index]
+    while song_player.next_instruction_index <= #song_player.instructions do
+        local this_instruction = song_player.instructions[song_player.next_instruction_index]
         -- The amount of time between the current time, and the time this instruction should have been played.
         -- positive == the instruction is late. 0 == it's right on time. negative == it doesn't need to play yet. ignore if negative.
-        local time_since_due = (current_time - playing_song.start_time) - this_instruction.start_time
+        local time_since_due = (current_time - song_player.start_time) - this_instruction.start_time
         if time_since_due < 0 then
             -- instruction is not late, we'll take care of it later.
             -- (If all notes are slightly late, then none of the notes are slightly late.)
@@ -367,22 +364,23 @@ local function update_song(playing_song)
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
         else
             print_debug(
-                tostring(math.floor(playing_song.controller.get_progress() * 100)).."%",
-                "("..tostring(playing_song.next_instruction_index).." / ".. tostring(#playing_song.instructions)..")",
-                this_instruction )
-            playing_song
+                tostring(math.floor(song_player.controller.get_progress() * 100)).."%"
+                .. " ("..tostring(song_player.next_instruction_index).." / ".. tostring(#song_player.instructions)..") "
+                -- , this_instruction
+            )
+            song_player
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, playing_song.source_pos, time_since_due)
+                .play_instruction(this_instruction, song_player.source_pos, time_since_due)
         end
-        playing_song.next_instruction_index = playing_song.next_instruction_index + 1
+        song_player.next_instruction_index = song_player.next_instruction_index + 1
     end
 
     -- All new instructions dispatched. Updating instruments.
 
     local all_instruments_done = true
-    for _, track_config in ipairs(playing_song.track_config) do
-        track_config.selected_instrument.update_sounds(playing_song.source_pos)
+    for _, track_config in ipairs(song_player.track_config) do
+        track_config.selected_instrument.update_sounds(song_player.source_pos)
         if all_instruments_done then
             all_instruments_done = track_config.selected_instrument.is_finished()
             -- will either continue being true, or this instrument is not done.
@@ -390,10 +388,10 @@ local function update_song(playing_song)
     end
 
     -- Check and update deprecated instruments
-    if next(playing_song.deprecated_instruments) then
+    if next(song_player.deprecated_instruments) then
         local finished_deprecated_instrument_keys = {}
-        for deprecated_instrument_key, deprecated_instrument in pairs(playing_song.deprecated_instruments) do
-            deprecated_instrument.update_sounds(playing_song.source_pos)
+        for deprecated_instrument_key, deprecated_instrument in pairs(song_player.deprecated_instruments) do
+            deprecated_instrument.update_sounds(song_player.source_pos)
             if deprecated_instrument.is_finished() then
                 table.insert(finished_deprecated_instrument_keys, deprecated_instrument_key)
             else
@@ -406,14 +404,14 @@ local function update_song(playing_song)
         -- Honestly the likelyhood of this actualy mattering is extreamly low since the next time update_song() gets
         -- called, any missed instruments will be updated then.
         for _, key_to_remove in ipairs( finished_deprecated_instrument_keys ) do
-            playing_song.deprecated_instruments[key_to_remove] = nil
+            song_player.deprecated_instruments[key_to_remove] = nil
         end
     end
 
-    if playing_song.song_duration + playing_song.start_time < current_time then
+    if song_player.song_duration + song_player.start_time < current_time then
         print_debug("Song_dur + start_time is now less than current time.")
         if all_instruments_done then
-            playing_song.controller.stop()
+            song_player.controller.stop()
             return
         else
             print_debug("Song should stop, but not all instruments are done.")
@@ -421,14 +419,29 @@ local function update_song(playing_song)
     end
 end
 
+---Gets the earliest possible start time for this song. Will return client:getSystemTime() if past the minimum buffer time.
+---@param song_player SongPlayer
+---@return number get_earliest_possible_start_time
+local function get_earliest_possible_start_time(song_player)
+    local earliest_possible_start_time = (
+            song_player.buffer_delay
+        and song_player.buffer_start_time   -- might be math.huge if song has not received its first instruction.
+        and ( song_player.buffer_start_time + song_player.buffer_delay )
+        or  client:getSystemTime()
+    )
+    return (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
+end
 
 ---@class SongPlayerAPI
 local song_player_api = {
-    ---@type fun(song: ProcessedSong, config: SongPlayerConfig?): PlayingSongController
+    --- Create a new SongPlayer and return its SongPlayerController.
+    ---
+    --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responcible for one song.
+    ---@type fun(song: Song, config: SongPlayerConfig?): SongPlayerController
     new_player = function (song, config)
         if not config or (not next(config)) then config = {} end
-        print_debug("New player for", song.name)
-        local playing_song
+        print_debug("New player for `" .. song.name.."`")
+        local song_player
 
         local primary_event_checks_without_update = 0
         local fallback_event_checks_without_update = 0
@@ -447,7 +460,7 @@ local song_player_api = {
             else
                 primary_event_checks_without_update = 0
             end
-            update_song(playing_song)
+            update_song(song_player)
         end
 
         local watcher_state_key = "idle"
@@ -477,9 +490,9 @@ local song_player_api = {
             switch_to_fallback = function()
                 print_debug("switching to fallback event")
                 using_fallback_event = true
-                playing_song.primary_event:remove(update_this_song)
-                playing_song.primary_event:register(test_primary_loop)
-                playing_song.fallback_event:register(update_this_song)
+                song_player.primary_event:remove(update_this_song)
+                song_player.primary_event:register(test_primary_loop)
+                song_player.fallback_event:register(update_this_song)
                 watcher_state_key = "check_fallback"
             end,
             check_fallback = function()
@@ -503,23 +516,23 @@ local song_player_api = {
             switch_to_primary = function()
                 print_debug("switching to primary event")
                 using_fallback_event = false
-                playing_song.fallback_event:remove(update_this_song)
-                playing_song.primary_event:remove(test_primary_loop)
-                playing_song.primary_event:register(update_this_song)
+                song_player.fallback_event:remove(update_this_song)
+                song_player.primary_event:remove(test_primary_loop)
+                song_player.primary_event:register(update_this_song)
                 watcher_state_key = "check_primary"
             end,
             begin_emergency_stop = function()
-                print_debug("The primary and fallback events for song "..playing_song.name.." are not responding. Starting emergency stop.")
-                playing_song.fallback_event:remove(update_this_song)
-                playing_song.primary_event:remove(update_this_song)
-                playing_song.start_time = nil
-                playing_song.elapsed_time = nil
+                print_debug("The primary and fallback events for song "..song_player.name.." are not responding. Starting emergency stop.")
+                song_player.fallback_event:remove(update_this_song)
+                song_player.primary_event:remove(update_this_song)
+                song_player.start_time = nil
+                song_player.elapsed_time = nil
                 using_fallback_event = false
                 watcher_state_key = "emergency_stop_active_instruments"
             end,
             emergency_stop_active_instruments = function()
                 -- run through all tracks, kill running notes one at a time untill all are done.
-                local key, track = next(playing_song.track_config, emergency_stop_instrument_key_for_next)
+                local key, track = next(song_player.track_config, emergency_stop_instrument_key_for_next)
                 if key then
                     if track.selected_instrument.is_finished() then
                         -- advance the "next()" loop for next time.
@@ -535,7 +548,7 @@ local song_player_api = {
             end,
             emergency_stop_deprecated_instruments = function()
                 -- run through deprecated_instruments, kill running notes one at a time untill all are done.
-                local key, instrument = next(playing_song.deprecated_instruments, emergency_stop_instrument_key_for_next)
+                local key, instrument = next(song_player.deprecated_instruments, emergency_stop_instrument_key_for_next)
                 if key then
                     if instrument.is_finished() then
                         -- advance the "next()" loop for next time.
@@ -555,17 +568,23 @@ local song_player_api = {
 
         -- For playback, we don't need to store the names of the reccomended instruments.
 
-        ---@type table<number, PlayingSongTrackConfig>
+        ---@type table<number, SongPlayerTrackConfig>
         local track_configs = {}
         for track_index, track_data in ipairs(song.tracks) do
 
-            ---@class PlayingSongTrackConfig
+            ---@class SongPlayerTrackConfig
             local track_config = {
-                ---@type 0|1 The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
+
+                --- The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
+                ---
+                --- Whenever we implement dynamicly loading instruments (where the client and host might not have the same instruments)
+                --- this lets us know what instrument we should use instead.
+                ---@type 0|1
                 reccomended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
                 selected_instrument = known_instruments[
+                    -- This selects a reasonable default instrument. We'll overwride this soon when we apply the real song config.
                         (   track_data.instrument_type_id == 1
                             and (known_instruments[default_percussion_instrument_name] and default_percussion_instrument_name or fallback_percussion_instrument_name)
                             or  (known_instruments[default_normal_instrument_name] and default_normal_instrument_name or fallback_normal_instrument_name)
@@ -575,9 +594,10 @@ local song_player_api = {
             track_configs[track_index] = track_config
         end
 
-
-        ---@class PlayingSong
-        playing_song = {
+        --- SongPlayer is for internal use. It manages the data and state of a song while it's playing.
+        --- Check out SongPlayerController for API-ready functions to manage the song.
+        ---@class SongPlayer
+        song_player = {
             ---@type string The name of the song
             name = song.name,
             song_uuid = client.intUUIDToString(client.generateUUID()),  -- In case we need to create a key or something to address this song.
@@ -598,7 +618,7 @@ local song_player_api = {
             --- The client time when the song started buffering. Compare with current time and buffer_delay
             --- to see if we've received enough packets to play this song in full.
             ---@type number
-            buffer_start_time = (song.buffer_start_time or nil),
+            buffer_start_time = (song.buffer_start_time or (song.buffer_delay and math.huge) or nil),
 
             source_entity = nil,    ---@type Entity? If this is defined, overwrite source_pos every update()
             source_pos = vec(0,0,0),    ---@type Vector3
@@ -624,41 +644,38 @@ local song_player_api = {
             ---@type Instrument[]
             deprecated_instruments = {},
 
-            ---@type PlayingSongTrackConfig[]
-            track_config = track_configs, -- PlayingSongTrackConfig
+            ---@type SongPlayerTrackConfig[]
+            track_config = track_configs, -- SongPlayerTrackConfig
 
-            ---@class PlayingSongController
+            ---@class SongPlayerController
             controller = {
                 ---@type fun():boolean
-                is_playing = function() return (playing_song.start_time and true or false) end,
+                is_playing = function() return (song_player.start_time and true or false) end,
 
                 ---@type fun()
                 play = function()
                     print_host("Playing \"" .. tostring(song.name) .. "\"")
-                    if playing_song.start_time then
-                        -- song is already playing.
-                        return
-                    end
+                    if song_player.controller.is_playing() then return end
 
-                    playing_song.info_display_root_part = models:newPart("song_info_text_root_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_root_part
-                        :setParentType(playing_song.info_display_root_part_parent_type)
-                        :setPos(playing_song.info_display_root_pos_offset * 16)
+                    song_player.info_display_root_part = models:newPart("song_info_text_root_"..tostring(song_player.song_uuid))
+                    song_player.info_display_root_part
+                        :setParentType(song_player.info_display_root_part_parent_type)
+                        :setPos(song_player.info_display_root_pos_offset * 16)
 
-                    playing_song.info_display_billboard_part = playing_song.info_display_root_part:newPart("song_info_text_billboard_"..tostring(playing_song.song_uuid), "Camera")
+                    song_player.info_display_billboard_part = song_player.info_display_root_part:newPart("song_info_text_billboard_"..tostring(song_player.song_uuid), "Camera")
 
-                    playing_song.info_display_text_task = playing_song.info_display_billboard_part:newText("song_info_text_task_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_text_task
-                        :setPos(playing_song.info_display_text_pos_offset * 16)
-                        :setText(playing_song.info_display_base_string)
+                    song_player.info_display_text_task = song_player.info_display_billboard_part:newText("song_info_text_task_"..tostring(song_player.song_uuid))
+                    song_player.info_display_text_task
+                        :setPos(song_player.info_display_text_pos_offset * 16)
+                        :setText(song_player.info_display_base_string)
                         :setScale(0.33)
                         :setOpacity(0.8)
                         :setWidth(200)
                         :setSeeThrough(true)
 
-                    playing_song.info_display_mute_instructions_text_task = playing_song.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(playing_song.song_uuid))
-                    playing_song.info_display_mute_instructions_text_task
-                        :setPos((playing_song.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
+                    song_player.info_display_mute_instructions_text_task = song_player.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(song_player.song_uuid))
+                    song_player.info_display_mute_instructions_text_task
+                        :setPos((song_player.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
                         :setScale(0.2)
                         :setOpacity(0.5)
                         :setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
@@ -666,108 +683,118 @@ local song_player_api = {
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
-                    local earliest_possible_start_time = (
-                                playing_song.buffer_delay
-                            and playing_song.buffer_start_time
-                            and ( playing_song.buffer_start_time + playing_song.buffer_delay )
-                        or  client:getSystemTime()
-                    )
-
-                    playing_song.start_time = (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
+                    song_player.start_time = get_earliest_possible_start_time(song_player)
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
-                    playing_song.primary_event:register(update_this_song)
+                    song_player.primary_event:register(update_this_song)
                 end,
 
                 ---@type fun():boolean
-                is_buffering = function()
-                    return (playing_song.buffer_delay
-                        and playing_song.buffer_start_time
-                        and (playing_song.buffer_start_time + playing_song.buffer_delay > client:getSystemTime())
+                is_buffering_or_needs_to_buffer = function()
+                    return (song_player.buffer_delay
+                        and song_player.buffer_start_time
+                        and (song_player.buffer_start_time + song_player.buffer_delay > client:getSystemTime())
                     )
                 end,
 
                 ---@type fun():number
                 get_remaining_buffer_time = function()
-                    if not playing_song.buffer_delay or playing_song.buffer_delay == 0 then return 0 end
-                    if not playing_song.buffer_start_time then return math.huge end
-                    return playing_song.buffer_delay - (client:getSystemTime() - playing_song.buffer_start_time)
+                    if not song_player.buffer_delay or song_player.buffer_delay == 0 then return 0 end
+                    if not song_player.buffer_start_time then return math.huge end
+                    return song_player.buffer_delay - (client:getSystemTime() - song_player.buffer_start_time)
                 end,
 
                 ---@type fun():number?
                 get_buffer_progress = function()
-                    if not playing_song.buffer_delay or playing_song.buffer_start_time then return nil end
-                    return math.min(1, (client.getSystemTime() - playing_song.buffer_start_time) / playing_song.buffer_delay)
+                    if not song_player.buffer_delay or song_player.buffer_start_time then return nil end
+                    return math.min(1, (client.getSystemTime() - song_player.buffer_start_time) / song_player.buffer_delay)
                 end,
 
                 ---@type fun():number?
                 get_progress = function()
-                    if not playing_song.start_time then return nil end
-                    return (client.getSystemTime() - playing_song.start_time) / playing_song.song_duration
+                    if not song_player.start_time then return nil end
+                    return (client.getSystemTime() - song_player.start_time) / song_player.song_duration
                 end,
 
                 ---@type fun():number?
                 get_start_time = function()
-                    if not playing_song.start_time then return nil end
-                    return playing_song.start_time
+                    if not song_player.start_time then return nil end
+                    return song_player.start_time
                 end,
 
                 ---@type fun():number?
                 get_duration = function()
-                    if not playing_song.song_duration then return nil end
-                    return playing_song.song_duration
+                    if not song_player.song_duration then return nil end
+                    return song_player.song_duration
                 end,
 
                 ---@type fun():number?
                 get_remaining_time = function()
-                    if not playing_song.start_time then return nil end
-                    return playing_song.song_duration - (client:getSystemTime() - playing_song.start_time)
+                    if not song_player.start_time then return nil end
+                    return song_player.song_duration - (client:getSystemTime() - song_player.start_time)
                 end,
 
                 ---@type fun()
                 stop = function()
                     print_host("Stopping \"".. tostring(song.name) .."\"")
-                    -- playing_song.elapsed_time = client.getSystemTime() - playing_song.start_time
-                    playing_song.elapsed_time = nil
-                    playing_song.start_time = nil
+                    -- song_player.elapsed_time = client.getSystemTime() - song_player.start_time
+                    song_player.elapsed_time = nil
+                    song_player.start_time = nil
 
-                    playing_song.primary_event:remove(update_this_song)
-                    playing_song.fallback_event:remove(update_this_song)
+                    song_player.primary_event:remove(update_this_song)
+                    song_player.fallback_event:remove(update_this_song)
                     events.WORLD_TICK:remove(event_watcher_and_swapper)
                     watcher_state_key = "idle"
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
-                    for _, track in pairs(playing_song.track_config) do
+                    for _, track in pairs(song_player.track_config) do
                         track.selected_instrument.stop_all_sounds_immediatly()
                     end
-                    for key, deprecated_instruments in pairs(playing_song.deprecated_instruments) do
+                    for key, deprecated_instruments in pairs(song_player.deprecated_instruments) do
                         deprecated_instruments.stop_all_sounds_immediatly()
-                        playing_song.deprecated_instruments[key] = nil
+                        song_player.deprecated_instruments[key] = nil
                     end
 
-                    playing_song.info_display_text_task:remove()
-                    playing_song.info_display_mute_instructions_text_task:remove()
-                    playing_song.info_display_billboard_part:remove()
-                    playing_song.info_display_root_part:remove()
+                    if song_player.info_display_root_part then
+                        song_player.info_display_text_task:remove()
+                        song_player.info_display_mute_instructions_text_task:remove()
+                        song_player.info_display_billboard_part:remove()
+                        song_player.info_display_root_part:remove()
 
-                    playing_song.info_display_text_task = nil
-                    playing_song.info_display_mute_instructions_text_task = nil
-                    playing_song.info_display_billboard_part = nil
-                    playing_song.info_display_root_part = nil
+                        song_player.info_display_text_task = nil
+                        song_player.info_display_mute_instructions_text_task = nil
+                        song_player.info_display_billboard_part = nil
+                        song_player.info_display_root_part = nil
+                    end
 
-                    models:removeTask()
                 end,
 
                 ---@type fun(new_config: SongPlayerConfig)
                 set_new_config = function(new_config)
-                    apply_config(playing_song, new_config)
+                    apply_config(song_player, new_config)
                 end
             }
         }
-        apply_config(playing_song, config)
+        apply_config(song_player, config)
 
-        return playing_song.controller
+        if       song_player.buffer_delay
+            and (song_player.buffer_start_time == math.huge)
+            and (#song_player.instructions == 0)
+        then -- this song needs to buffer, but that not started yet. Add a metatable that updates buffer_start_time (and start_time) when we receive the first instruction.
+            setmetatable(song_player.instructions, {
+                __newindex = function(table, index, value)
+                    setmetatable(song_player.instructions, nil) -- Remove the metamethod after the first write. Technicaly this will burn all metamethods on `.instructions`, but this is the only one, so… probably fine.
+                    table[index] = value                        -- set the index _after_ removeing the metamethod so that this isn't recursive
+                    song_player.buffer_start_time = client:getSystemTime()
+                    if song_player.controller.is_playing() then
+                        song_player.start_time = get_earliest_possible_start_time(song_player)
+                    end
+                end
+            })
+        end
+
+        return song_player.controller
     end,
 
     --- Returns a list of instrument keys sorted alphabeticaly.

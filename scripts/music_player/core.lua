@@ -15,10 +15,13 @@ end)
 
 ---@alias Byte integer
 
----@alias DataSourceTypes "files"|"local"|"manual"
+---@alias DataSourceTypes "files"|"local" --|"manual"
+
+-- TODO: DataSource is a rat's nest. Especialy since we only have either FilesApi songs and Local songs
 
 ---@alias DataSource
 ---| FilesApiDataSource
+---| LocalDataSource
 
 ---@class FilesApiDataSource
 ---@field type DataSourceTypes
@@ -26,15 +29,17 @@ end)
 
 ---@class LocalDataSource
 ---@field type DataSourceTypes
----@field raw_data Byte[]
+---@field script_path string
+---@field result_of_require LocalSongScript?
 
----@class Song
----@field id string A unique identifier for this song. Usualy the same as truepath, except for manually created songs.
----@field name string The name used in the displayed song list
+---@class SongHolder
+---@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of speciffic instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)
+---@field id string     A unique ID for this song in this library. Usualy the same as fuul_path.
+---@field name string   The name used in the displayed song list
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
----@field processed_data ProcessedSong? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
----@field start_data_processor fun(self:Song): TL_Future
+---@field processed_song Song? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
+---@field start_or_get_data_processor fun(self:SongHolder): TL_Future<Song>
 
 
 
@@ -45,13 +50,15 @@ end)
 ---
 ---Stores enough data to apply settings about the song (number of tracks / assigned instruments / disabled tracks),
 ---and instructions ready to turn into packets.
----@class ProcessedSong
+---@class Song
 ---@field instructions Instruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
 ---@field name string
 ---@field duration number
 ---@field tracks Track[]
 ---@field buffer_start_time number?  The time when the song started buffering
 ---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.
+---@field is_local boolean?          Is true if song data does not need to be pinged.
+---@field packet_decoder_info PacketDecoderInfo?    Temporary space for Packet Decoder to track ongoing information.
 
 ---Tracks ProcessedSong are the step immediatly before PlayingSong.
 ---@class Track

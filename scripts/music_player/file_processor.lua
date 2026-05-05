@@ -7,8 +7,8 @@
 --       library script.
 
 ---@class FileProcessor
----@field song_list_from_paths fun( self:FileProcessor, full_and_short_path_pair:FullAndShortPathPair[]):Song[]
----@field process_song fun(song:Song)
+---@field song_list_from_paths fun( self:FileProcessor, full_and_short_path_pair:FullAndShortPathPair[]):SongHolder[]
+---@field process_song fun(song:SongHolder)
 
 ---A cannonical list of `FileProcessor`s
 ---@type FileProcessor[]
@@ -37,10 +37,10 @@ end
 
 ---Abstracts the file processing logic. Figures out which processor to use for you.
 ---@class FileProcessorApi
----@field song_list_from_paths fun(full_and_short_path_pair:FullAndShortPathPair):Song[]
+---@field song_list_from_paths fun(full_and_short_path_pair:FullAndShortPathPair):SongHolder[]
 local file_processor_api = {
     song_list_from_paths = function(full_and_short_path_pair)
-        local merged_song_list = {} ---@type Song[]
+        local merged_song_list = {} ---@type SongHolder[]
         for _, processor in ipairs(file_processors) do
             local song_list = processor:song_list_from_paths(full_and_short_path_pair)
             for _, song in pairs(song_list) do
