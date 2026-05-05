@@ -237,7 +237,7 @@ local function add_or_update_display_text(piano_id, new_timeout_time)
     local this_piano_camera = this_piano_root:newPart(piano_id.."_billboard", "Camera")
 
     local this_piano_text_task = this_piano_camera:newText( tostring(piano_id).."_info_text")
-    this_piano_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume" )
+    this_piano_text_task:setText("Annoyed? Set "..(nameplate.ENTITY:getText() or avatar:getEntityName()).."'s permissions to `Low`" )
     this_piano_text_task:setScale(0.2)
     this_piano_text_task:setOpacity(0.75)
     this_piano_text_task:setAlignment("CENTER")

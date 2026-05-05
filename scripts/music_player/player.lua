@@ -362,16 +362,23 @@ local function update_song(song_player)
         end
         if this_instruction.track_index == 0 then
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
-        else
+        else    -- note is playable. let's pass it to its instrument and play it.
+
             print_debug(
                 tostring(math.floor(song_player.controller.get_progress() * 100)).."%"
                 .. " ("..tostring(song_player.next_instruction_index).." / ".. tostring(#song_player.instructions)..") "
                 -- , this_instruction
             )
-            song_player
-                .track_config[this_instruction.track_index]
-                .selected_instrument
-                .play_instruction(this_instruction, song_player.source_pos, time_since_due)
+            if avatar:getPermissionLevel() ~= "LOW" then
+                -- Comfort feature. It's a pain to go all the way into advanced features to turn the sound down.
+                -- (and "set to low" is much simpler to say quickly.)
+                -- At time of this commit however, this avatar works perfectly fine at low permissions.
+
+                song_player
+                    .track_config[this_instruction.track_index]
+                    .selected_instrument
+                    .play_instruction(this_instruction, song_player.source_pos, time_since_due)
+            end
         end
         song_player.next_instruction_index = song_player.next_instruction_index + 1
     end
@@ -678,7 +685,7 @@ local song_player_api = {
                         :setPos((song_player.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
                         :setScale(0.2)
                         :setOpacity(0.5)
-                        :setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
+                        :setText("Annoyed? Set "..(nameplate.ENTITY:getText() or avatar:getEntityName()).."'s permissions to `Low`") -- ", :mute:"
 
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
