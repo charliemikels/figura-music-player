@@ -191,6 +191,8 @@ local_song_tick_loop_functions = {
 
         print_debug("`"..script_path.."` passed header checks")
 
+        header_pcall_value.is_local = true
+
         song_holders_by_script_path[script_path].processed_song = header_pcall_value
         future_controllers_by_script_path[script_path]:set_progress(0.15)
 
