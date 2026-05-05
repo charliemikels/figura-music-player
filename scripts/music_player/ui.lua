@@ -284,8 +284,16 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         return
                     end
 
-                    local song_player_config = config_cahe_api.load_song_config(target_song.id)
+                    local song_player_config = target_song.included_config
+                    local cached_config = config_cahe_api.load_song_config(target_song.id)
+                    if not song_player_config or next(cached_config) ~= nil then
+                        -- Prioritize cached config if there is something in the cache.
+                        -- config_cahe_api.load_song_config always returns some sort of valid config, even if there's nothing in the cache.
+                        song_player_config = cached_config
+                    end
+
                     add_ui_speciffic_config_fields(song_player_config)
+
                     processed_songs_and_players[target_song.id].net_player_controller = networking_api.new_network_player(target_song.processed_song, song_player_config)
                     update_main_page_ui()
                 end)

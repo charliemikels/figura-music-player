@@ -228,6 +228,7 @@ local_song_tick_loop_functions = {
         print_debug("`"..script_path.."` passed config checks")
 
         song_player_configs_by_script_path[script_path] = config_pcall_value
+        song_holders_by_script_path[script_path].included_config = config_pcall_value
         future_controllers_by_script_path[script_path]:set_progress(0.2)
 
         script_index = script_index + 1
@@ -301,10 +302,8 @@ events.TICK:register(local_song_tick_loop_functions.require_the_script_songs)
 
 ---@class LocalSongApi
 ---@field get_local_song_holders fun():SongHolder[]
----@field get_local_configs_by_script_id fun(script_path:string):SongPlayerConfig?
 local local_songs_api = {
     get_local_song_holders = function() return song_holder_list end,
-    get_local_configs_by_script_id = function(script_path) return song_player_configs_by_script_path[script_path] end,
 }
 
 return local_songs_api

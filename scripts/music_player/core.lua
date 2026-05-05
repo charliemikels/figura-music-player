@@ -40,6 +40,7 @@ end)
 ---@field source DataSource
 ---@field processed_song Song? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
 ---@field start_or_get_data_processor fun(self:SongHolder): TL_Future<Song>
+---@field included_config SongPlayerConfig? Config data provided by the data_processor
 
 
 
