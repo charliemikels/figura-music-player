@@ -99,7 +99,7 @@ local tl_futures_api = {
 
             register_callback = function(self, fn)
                 table.insert(up__callback_fns, fn)
-                if up__is_done and #up__callback_fns == up__completed_callbacks then
+                if up__is_done and #up__callback_fns == up__completed_callbacks+1 then  -- +1 because we just added a new item to the list.
                     -- The future is done, and all previous callbacks have been ran. Restart a new callback cycle
                     -- TODO: Sanity check this. Does it actualy work with late callbacks? multiple late callbacks?
                     while #up__callback_fns > up__completed_callbacks do
