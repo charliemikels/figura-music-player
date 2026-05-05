@@ -21,6 +21,23 @@ local function get_spinner()
     return spinner_states[spinner_State]
 end
 
+local progress_bar_character = "▊"  -- the same width as a space in Minecraft's font
+if client.compareVersions("1.20", client.getVersion() ) > 0 then
+	progress_bar_character = "▍"	-- 1.20 updated a lot of Minecraft's fonts. Use this character instead if we are on a pre-1.20 version of Minecraft
+end
+
+---Returns a progress bar with a spinner
+---@param width integer     -- Width in number of characters
+---@param progress number   -- Will be clamped to between 0 and 1.
+---@return string
+local function progress_bar(width, progress)
+    if progress < 0 then progress = 0 elseif progress > 1 then progress = 1 end
+
+	local num_bars = math.floor((width+1) * progress)
+	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
+	return progress_bar_string  -- As it turns out, Lua actualy optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
+end
+
 ---Creates an actionwheel
 ---@param song_library Library? The Library used for this UI. Defaults to `song_library_api:build_default_library()`.
 ---@param enter_songbook_title string? The title of the enter songbook action. Defaults to `"Songbook"`
@@ -88,7 +105,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             if playing_song_controller and playing_song_controller.get_progress() then
                 selector_title_string = selector_title_string .. "\n"
 
-                if playing_song_controller.get_progress() < 0 then
+                if playing_song_controller.get_progress() < 0 then  -- TODO: since ading this logic, song_player_controllers now have get_buffer_progress and other useful functions for moments like this. Upgrade?
                     -- Song is buffering and has not started
                     selector_title_string = selector_title_string
                         .. "Buffering: Ready in "
