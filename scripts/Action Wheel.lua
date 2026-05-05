@@ -35,7 +35,7 @@ end
 -- - [x] Ping Networking
 -- - [x] UI
 --   - [x] Store song configs with config API
--- - [ ] Use commands to save a processed song so that it can be uploaded with the avatar
+-- - [x] Use commands to save a processed song so that it can be uploaded with the avatar
 -- - [ ] Port the ABC player to a new processor
 -- - [x] Minecraft Note Block instruments
 -- - [x] Figura Piano instrument
