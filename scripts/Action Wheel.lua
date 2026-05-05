@@ -25,7 +25,7 @@ if host:isHost() then
         -- -- song_player_controller:play()
 
         local localizer = require("scripts/music_player/local_song_builder")   ---@type LocalSongBuilderApi
-        localizer.export_song_to_local(song.processed_song, song_config)
+        -- localizer.export_song_to_local(song.processed_song, song_config)
 
     end)
 end
