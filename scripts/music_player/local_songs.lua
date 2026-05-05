@@ -2,7 +2,7 @@
 local tl_futures_api = require("./futures") ---@type TL_FuturesAPI
 local decoder_api = require("./packet_decoder") ---@type PacketDecoderApi
 
-local do_debug_prints = true
+local do_debug_prints = false
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
@@ -51,7 +51,9 @@ local song_holder_list = {}                  ---@type SongHolder[]
 -- Find possible local songs
 
 local local_songs_directory_path = "./local_songs"
-local pattern_to_exclude = local_songs_directory_path:gsub("%.%/(%a-)", "%1").."$"  -- Basicaly `"./thing"` → `"thing$"`
+local local_songs_directory_path_but_just_what_is_after_the_slash = local_songs_directory_path:gsub(".*%.%/(%a-)", "%1")
+local pattern_to_exclude = local_songs_directory_path_but_just_what_is_after_the_slash.."$"  -- tests if local song is the last thing in the list (the found path is a path to ourself)
+
 for _, script_path in pairs(listFiles(local_songs_directory_path, true)) do
     if not string.match(script_path, pattern_to_exclude) then
         table.insert(possible_script_paths, script_path)
@@ -64,7 +66,7 @@ for _, script_path in pairs(listFiles(local_songs_directory_path, true)) do
         local detected_potential_song = {
             uuid = client.intUUIDToString(client.generateUUID()),
             id = script_path,
-            name = "TBD",       -- TODO: extract the name name from the script path. (we know the base directory from `local_songs_directory_path`, and I think we can know the file ext. (is ext nessesary?))
+            name = "⌂/"..script_path:gsub(".-"..local_songs_directory_path_but_just_what_is_after_the_slash:gsub("([^%w])","%%%1").."%.", ""),
             short_name = "TBD", -- This can remain TDB, it'll be populated when we actualy require the script
             start_or_get_data_processor = function()
                 return return_future
@@ -99,9 +101,9 @@ local data_packet_index_for_script = 1
 local local_song_tick_loop_functions
 local_song_tick_loop_functions = {
     require_the_script_songs = function()
-        print_debug("require: index: "..script_index..", count: "..#possible_script_paths)
+        -- print_debug("require: index: "..script_index..", count: "..#possible_script_paths)
         if script_index > #possible_script_paths then   -- There are no more scripts to require, we can move to next function
-            print_debug("Local Processor: continueing to header_processing", false, true)
+            print_debug("Local Processor: Require step done", false, true)
             script_index = 1
             events.TICK:remove(local_song_tick_loop_functions.require_the_script_songs)
             events.TICK:register(local_song_tick_loop_functions.header_processing)
@@ -110,7 +112,7 @@ local_song_tick_loop_functions = {
 
         local script_path = possible_script_paths[script_index]
 
-        print_debug("Attempting to require() `"..script_path.."`…", false, true)
+        print_debug("Attempting to require() `"..script_path.."`…")
 
         local require_success, require_result = pcall(function()
             return require(script_path) ---@type LocalSongScript
@@ -141,7 +143,7 @@ local_song_tick_loop_functions = {
             end
         end
 
-        print_debug("`"..script_path.."` passed require() checks", false, true)
+        print_debug("`"..script_path.."` passed require() checks")
 
         song_holders_by_script_path[script_path].source.result_of_require = require_result
         song_holders_by_script_path[script_path].short_name = require_result.name
@@ -154,7 +156,7 @@ local_song_tick_loop_functions = {
 
 
     header_processing = function()
-        print_debug("Header: index: "..script_index..", count: "..#possible_script_paths)
+        -- print_debug("Header: index: "..script_index..", count: "..#possible_script_paths)
         if script_index > #possible_script_paths then
             script_index = 1
             events.TICK:remove(local_song_tick_loop_functions.header_processing)
@@ -187,7 +189,7 @@ local_song_tick_loop_functions = {
             return
         end
 
-        print_debug("`"..script_path.."` passed header checks", false, true)
+        print_debug("`"..script_path.."` passed header checks")
 
         song_holders_by_script_path[script_path].processed_song = header_pcall_value
         future_controllers_by_script_path[script_path]:set_progress(0.15)
@@ -197,7 +199,7 @@ local_song_tick_loop_functions = {
 
 
     config_processing = function()
-        print_debug("Config: index: "..script_index..", count: "..#possible_script_paths)
+        -- print_debug("Config: index: "..script_index..", count: "..#possible_script_paths)
 
         if script_index > #possible_script_paths then
             script_index = 1
@@ -221,6 +223,8 @@ local_song_tick_loop_functions = {
             return
         end
 
+        print_debug("`"..script_path.."` passed config checks")
+
         song_player_configs_by_script_path[script_path] = config_pcall_value
         future_controllers_by_script_path[script_path]:set_progress(0.2)
 
@@ -230,12 +234,12 @@ local_song_tick_loop_functions = {
 
     data_processing = function()
 
-        print_debug("Data: script_index: "..script_index.." of "..#possible_script_paths..". packet "..data_packet_index_for_script.."." )
+        -- print_debug("Data: script_index: "..script_index.." of "..#possible_script_paths..". packet "..data_packet_index_for_script.."." )
 
         if script_index > #possible_script_paths then
             script_index = 1
             events.TICK:remove(local_song_tick_loop_functions.data_processing)
-            print("done")
+            print_debug("Local song processor loop has finished.")
             return
         end
 
@@ -247,8 +251,7 @@ local_song_tick_loop_functions = {
         if #result_of_require.data < data_packet_index_for_script then -- we're out of packets to process
             if #processed_song.instructions == result_of_require.num_instructions then -- instruction count matched what we expected
 
-
-                print_debug("localy built "..processed_song.name.." was rebuilt successfuly", false, true)
+                print_debug("Localy song `"..processed_song.name.."` was built successfuly", false, true)
 
                 future_controllers_by_script_path[script_path]:set_done_with_value(processed_song)
             else    -- there's an instruction count mismatch.
