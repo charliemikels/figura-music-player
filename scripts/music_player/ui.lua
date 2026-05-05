@@ -59,7 +59,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
     local selected_song_index = 1           -- Matches a song in song_library. Library is sorted in alphabetical order.
     local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
-    local playing_song_controller = nil    ---@type SongPlayerController? -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
+    local playing_song_controller = nil     ---@type SongPlayerController? -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
 
     --- Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
