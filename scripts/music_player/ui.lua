@@ -53,7 +53,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     local actions = {}
 
     ---@type table<string, {processor_future: TL_Future?, error: string?, net_player_controller: SongPlayerController}>
-    local processed_songs_and_players = {}
+    local song_processors_and_player_controllers = {}
 
     local num_songs_to_display_in_selector = 16
 
@@ -126,16 +126,16 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             this_row = this_row .. (index == selected_song_index and "→" or "  ")
 
             -- Status
-            if      processed_songs_and_players[this_row_song.id]
-                and processed_songs_and_players[this_row_song.id].net_player_controller
-                and processed_songs_and_players[this_row_song.id].net_player_controller.is_playing()
+            if      song_processors_and_player_controllers[this_row_song.id]
+                and song_processors_and_player_controllers[this_row_song.id].net_player_controller
+                and song_processors_and_player_controllers[this_row_song.id].net_player_controller.is_playing()
             then
                 -- song is playing
                 this_row = this_row .. "♬"
-            elseif processed_songs_and_players[this_row_song.id] then
-                if processed_songs_and_players[this_row_song.id].error then
+            elseif song_processors_and_player_controllers[this_row_song.id] then
+                if song_processors_and_player_controllers[this_row_song.id].error then
                     this_row = this_row .. "🚫"
-                elseif not processed_songs_and_players[this_row_song.id].net_player_controller then
+                elseif not song_processors_and_player_controllers[this_row_song.id].net_player_controller then
                     -- Song is in the midle of being processed.
                     -- (We know because the player has not been built yet, but an entry in this table was created)
                     this_row = this_row .. "⏳"
@@ -162,13 +162,13 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         if not target_song then
             return false, "No selected song"
         end
-        if not processed_songs_and_players[target_song.id] or not next(processed_songs_and_players[target_song.id]) then
+        if not song_processors_and_player_controllers[target_song.id] or not next(song_processors_and_player_controllers[target_song.id]) then
             return false, "Unable to configure unprocessed songs. Processed songs have a check (✓) in the song list."
         end
-        if processed_songs_and_players[target_song.id].error then
+        if song_processors_and_player_controllers[target_song.id].error then
             return false, "This song had an error durring processing and cannot be configured."
         end
-        if not processed_songs_and_players[target_song.id].processor_future:is_done() then
+        if not song_processors_and_player_controllers[target_song.id].processor_future:is_done() then
             return false, "This song is still being processed and cannot be configured yet."
         end
         -- networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
@@ -270,16 +270,16 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         end)
         :onLeftClick(function(_)
             local target_song = song_library:get_song_by_sorted_index(selected_song_index)
-            if not processed_songs_and_players[target_song.id] then processed_songs_and_players[target_song.id] = {} end
-            if processed_songs_and_players[target_song.id].error then
-                print_host(processed_songs_and_players[target_song.id].error)
-            elseif not processed_songs_and_players[target_song.id].processor_future then
-                processed_songs_and_players[target_song.id].processor_future = target_song:start_or_get_data_processor()
-                processed_songs_and_players[target_song.id].processor_future:register_callback(function(finished_future)
+            if not song_processors_and_player_controllers[target_song.id] then song_processors_and_player_controllers[target_song.id] = {} end
+            if song_processors_and_player_controllers[target_song.id].error then
+                print_host(song_processors_and_player_controllers[target_song.id].error)
+            elseif not song_processors_and_player_controllers[target_song.id].processor_future then
+                song_processors_and_player_controllers[target_song.id].processor_future = target_song:start_or_get_data_processor()
+                song_processors_and_player_controllers[target_song.id].processor_future:register_callback(function(finished_future)
                     if finished_future:has_error() then
-                        processed_songs_and_players[target_song.id].error = finished_future:get_error()
+                        song_processors_and_player_controllers[target_song.id].error = finished_future:get_error()
                         print_host("Filed to process song `"..tostring(target_song.id) .."`.")
-                        print_host(processed_songs_and_players[target_song.id].error)
+                        print_host(song_processors_and_player_controllers[target_song.id].error)
                         update_main_page_ui()
                         return
                     end
@@ -294,13 +294,13 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
                     add_ui_speciffic_config_fields(song_player_config)
 
-                    processed_songs_and_players[target_song.id].net_player_controller = networking_api.new_network_player(target_song.processed_song, song_player_config)
+                    song_processors_and_player_controllers[target_song.id].net_player_controller = networking_api.new_network_player(target_song.processed_song, song_player_config)
                     update_main_page_ui()
                 end)
-            elseif processed_songs_and_players[target_song.id].net_player_controller then
+            elseif song_processors_and_player_controllers[target_song.id].net_player_controller then
                 -- song is ready to play, but we should only play one song at a time using this UI.
                 if not playing_song_controller
-                    and not processed_songs_and_players[target_song.id].net_player_controller.is_playing()
+                    and not song_processors_and_player_controllers[target_song.id].net_player_controller.is_playing()
                 then
                     if networking_api.outgoing_packet_queue_progress() < 1 then
                         -- If, for whatever reason, the avatar is useing the networking API elsewhere and the packet queue is full, refuse to start the song.
@@ -312,7 +312,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         -- TODO: Fix the UI looseing track of songs that are in the packet queue, but not playing yet.
                         print("The packet queue is already bussy. Are there multiple music players useing the network?")
                     else
-                        playing_song_controller = processed_songs_and_players[target_song.id].net_player_controller
+                        playing_song_controller = song_processors_and_player_controllers[target_song.id].net_player_controller
                         playing_song_library_id = target_song.id
                         playing_song_controller.play()
 
@@ -475,7 +475,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             config_cahe_api.write_song_config(config_page_state.targeted_song.id, config_page_state.targeted_song_config)
 
             add_ui_speciffic_config_fields(config_page_state.targeted_song_config)
-            processed_songs_and_players[config_page_state.targeted_song.id].net_player_controller.set_new_config(config_page_state.targeted_song_config)
+            song_processors_and_player_controllers[config_page_state.targeted_song.id].net_player_controller.set_new_config(config_page_state.targeted_song_config)
 
             action_wheel:setPage(music_player_action_wheel_page)
             config_page_state = nil
