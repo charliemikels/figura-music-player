@@ -408,6 +408,21 @@ local function update_song(song_player)
         end
     end
 
+    -- Run any on-update callback functions
+    local function_index = 1
+    while function_index <= #song_player.on_update_callback_functions do
+        local fn = song_player.on_update_callback_functions[function_index]
+        local success, value = pcall(fn, song_player.controller)
+        if not success then
+            ---@cast value string
+            print_debug("on_update_callback function "..function_index.." ("..tostring(fn)..") errored.\n"..value, true, true)
+            print_debug("Removeing this function from update list.")
+            table.remove(song_player.on_update_callback_functions, function_index)
+        else
+            function_index = function_index + 1
+        end
+    end
+
     if song_player.song_duration + song_player.start_time < current_time then
         print_debug("Song_dur + start_time is now less than current time.")
         if all_instruments_done then
@@ -465,6 +480,8 @@ local song_player_api = {
 
         local watcher_state_key = "idle"
         local emergency_stop_instrument_key_for_next = nil
+        local emergency_stop_callback_function_key_for_next = nil
+
         local event_watcher_and_swapper_state_machine
         -- this watcher might be running at very low permission. we need to make sure it's doing as little per update as possible.
         local function event_watcher_and_swapper()
@@ -521,6 +538,8 @@ local song_player_api = {
                 song_player.primary_event:register(update_this_song)
                 watcher_state_key = "check_primary"
             end,
+
+
             begin_emergency_stop = function()
                 print_debug("The primary and fallback events for song "..song_player.name.." are not responding. Starting emergency stop.")
                 song_player.fallback_event:remove(update_this_song)
@@ -541,7 +560,7 @@ local song_player_api = {
                         track.selected_instrument.stop_one_sound_immediatly()
                     end
                 else
-                    -- key is nill, we've reached the end of the list
+                    -- key is nil, we've reached the end of the list
                     emergency_stop_instrument_key_for_next = nil
                     watcher_state_key = "emergency_stop_deprecated_instruments"
                 end
@@ -557,8 +576,28 @@ local song_player_api = {
                         instrument.stop_one_sound_immediatly()
                     end
                 else
-                    -- key is nill, we've reached the end of the list
+                    -- key is nil, we've reached the end of the list
                     emergency_stop_instrument_key_for_next = nil
+                    watcher_state_key = "emergency_run_stop_functions"
+                end
+            end,
+
+            emergency_clean_up_text_rendering = function()
+                -- TODO: !!!
+
+            end,
+
+            emergency_run_stop_functions = function()
+                local key, fn = next(song_player.on_stop_callback_functions, emergency_stop_callback_function_key_for_next)
+                -- There's like a really good chance the script will crash for going over the resource limits unless the callback supplier is very careful to keep their functions minimal.
+                if key then
+                    fn("emergency")
+                    emergency_stop_instrument_key_for_next = key
+                else
+                    -- key is nil, we've reached the end of the list
+                    emergency_stop_instrument_key_for_next = nil
+
+                    -- finaly at the end of the emergency functions
                     watcher_state_key = "idle"
                     -- TODO: Is there any extra clean up that needs to be done?
                     events.WORLD_TICK:remove(event_watcher_and_swapper)
@@ -598,8 +637,7 @@ local song_player_api = {
         --- Check out SongPlayerController for API-ready functions to manage the song.
         ---@class SongPlayer
         song_player = {
-            ---@type string The name of the song
-            name = song.name,
+            name = song.name,   ---@type string The name of the song
             song_uuid = client.intUUIDToString(client.generateUUID()),  -- In case we need to create a key or something to address this song.
                     -- TODO: is a full UUID the right choice for this? could we get away with a simple sequence number, then we could send it ?
 
@@ -646,6 +684,9 @@ local song_player_api = {
 
             ---@type SongPlayerTrackConfig[]
             track_config = track_configs, -- SongPlayerTrackConfig
+
+            on_update_callback_functions = {},  ---@type fun()[]
+            on_stop_callback_functions = {},    ---@type fun(stop_reason:SongPlayerStopReason)[]
 
             ---@class SongPlayerController
             controller = {
@@ -768,11 +809,26 @@ local song_player_api = {
                         song_player.info_display_root_part = nil
                     end
 
+                    for _, fn in ipairs(song_player.on_stop_callback_functions) do
+                        fn("normal")
+                    end
+
                 end,
 
                 ---@type fun(new_config: SongPlayerConfig)
                 set_new_config = function(new_config)
                     apply_config(song_player, new_config)
+                end,
+
+                ---@type fun(call_back: fun(stop_reason:SongPlayerStopReason))
+                register_stop_callback = function(call_back)
+                    ---@alias SongPlayerStopReason "emergency"|"normal"
+                    table.insert(song_player.on_stop_callback_functions, call_back)
+                end,
+
+                ---@type fun(call_back: fun()))
+                register_update_callback = function(call_back)
+                    table.insert(song_player.on_update_callback_functions, call_back)
                 end
             }
         }
