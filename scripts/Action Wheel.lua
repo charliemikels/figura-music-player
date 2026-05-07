@@ -36,7 +36,9 @@ if host:isHost() then
             print("Let's go again keyboard cat")
             song_player_controller.remove_stop_callback(play_once_more)
             print("But only once more")
-            song_player_controller.play()   -- TODO: hold up. that didn't play again.
+            song_player_controller.play()
+            error("Real quick, manual error so I see this for real next time")  -- Got a little distracted with meta events and callback stuff, but recalling song_player_controller.play() immediatly seems to not work?
+            -- I think it's just the instructions failed to get reset. The info display and "play" "Stop" messages are correct, but there's just no instructions going through
         end
 
         song_player_controller.register_stop_callback(play_once_more)
