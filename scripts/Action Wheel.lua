@@ -23,12 +23,23 @@ if host:isHost() then
         local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
         -- local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
         song_player_controller.play()
-        song_player_controller.register_update_callback(function()
-                print(song_player_controller:get_progress())
-        end)
-        song_player_controller.register_stop_callback(function(stop_reason)
-            print("stopped with reason: "..stop_reason)
-        end)
+
+        local function update_callback()
+            print(song_player_controller:get_progress())
+            print("STOP")
+            song_player_controller.remove_update_callback(update_callback)
+        end
+
+        song_player_controller.register_update_callback(update_callback)
+
+        local function play_once_more(_)
+            print("Let's go again keyboard cat")
+            song_player_controller.remove_stop_callback(play_once_more)
+            print("But only once more")
+            song_player_controller.play()   -- TODO: hold up. that didn't play again.
+        end
+
+        song_player_controller.register_stop_callback(play_once_more)
 
         -- local localizer = require("scripts/music_player/local_song_builder")   ---@type LocalSongBuilderApi
         -- localizer.export_song_to_local(song.processed_song, song_config)

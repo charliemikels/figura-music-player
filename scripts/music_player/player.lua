@@ -855,7 +855,29 @@ local song_player_api = {
                 ---@type fun(call_back: fun()))
                 register_update_callback = function(call_back)
                     table.insert(song_player.on_update_callback_functions, call_back)
-                end
+                end,
+
+                ---@type fun(call_back: fun(stop_reason:SongPlayerStopReason))
+                remove_stop_callback = function(call_back_to_remove)
+                    for k, fn in pairs(song_player.on_stop_callback_functions) do
+                        if fn == call_back_to_remove then
+                            table.remove(song_player.on_stop_callback_functions, k)
+                            return
+                        end
+                    end
+                    print_debug("Callback "..tostring(call_back_to_remove).." not found in stop_callbacks list", true, true)
+                end,
+
+                ---@type fun(call_back: fun()))
+                remove_update_callback = function(call_back_to_remove)
+                    for k, fn in pairs(song_player.on_update_callback_functions) do
+                        if fn == call_back_to_remove then
+                            table.remove(song_player.on_update_callback_functions, k)
+                            return
+                        end
+                    end
+                    print_debug("Callback "..tostring(call_back_to_remove).." not found in update_callbacks list", true, true)
+                end,
             }
         }
         apply_config(song_player, config)
