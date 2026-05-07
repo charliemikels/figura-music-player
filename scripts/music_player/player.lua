@@ -44,7 +44,7 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@field duration number           The amount of time this instruction is active for. May be 0.
 ---@field note number               The note to play, or ID of a meta event
 ---@field modifiers InstructionModifier[]
----@field meta_event_data table<string, number>? Only for use with track 0 meta instructions.
+---@field meta_event_data table<string, integer>? Only for use with track 0 meta instructions.
 
 ---@class InstructionModifier
 ---@field start_time number     an absolute time in ms from the start of the song. (not start of instruction)
@@ -373,6 +373,23 @@ local function update_song(song_player)
         end
         if this_instruction.track_index == 0 then
             -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
+            --
+
+            print("Meta event detected", this_instruction.note, this_instruction.meta_event_data)
+
+            --
+            -- -- ---@enum MetaEventTypeCodes
+            -- local meta_event_key_to_number = {
+            --     time_signature = 0x58,
+            --     set_tempo = 0x51,
+            --     -- lyric = 0x05,
+            -- }
+            -- -- --- Reverse of meta_event_key_to_number for reverse lookups
+            -- -- ---@type table<MetaEventTypeCodes, string>
+            -- local meta_event_number_to_key = {}
+            -- for name, id in pairs(modifier_key_to_number) do
+            --     meta_event_number_to_key[id] = name
+            -- end
         else
             print_debug(
                 tostring(math.floor(song_player.controller.get_progress() * 100)).."%"

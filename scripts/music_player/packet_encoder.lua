@@ -293,6 +293,8 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
 end
 
+
+
 --- Encodes a song instruction into PartialPacketDataBytes.
 ---
 --- It also splits any recognized modifiers into their own list of PartialPacketDataBytes, and makes sure their IDs are synced to the root instruction
@@ -309,12 +311,11 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
     union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.track_index))
     union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.duration)))
     union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.note))
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.start_velocity))
+    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.start_velocity)) -- This is a normal instruction.
 
-    if not (instruction.modifiers and next(instruction.modifiers)) then
-        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(nil))  -- no modifiers.
-    else
-        -- this instruction has modifiers
+    if not (instruction.modifiers and next(instruction.modifiers)) then -- This instruction has no modifiers.
+        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(nil))
+    else    -- this instruction has modifiers.
         -- Assign a unique note modifier tracker ID
 
         local instruction_modifier_list_id = modifiers_tracker.id_counter
@@ -406,6 +407,21 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
             end
         end
     end
+
+    if instruction.track_index == 0 then -- This instruction is a song-level meta event
+        -- we'll need to add in any extra data from instruction.meta_event_data
+        local count = 0
+        for _, _ in pairs(instruction.meta_event_data) do
+            count = count + 1
+        end
+        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(count))
+
+        for key, val in pairs(instruction.meta_event_data) do
+            union_tables(instruction_packet_part_and_start.packet_part, string_to_bytes_with_len(key))
+            union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(val))
+        end
+    end
+
     return {instruction_part_and_start = instruction_packet_part_and_start, modifier_parts_and_starts = modifier_packet_parts}
 end
 

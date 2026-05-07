@@ -143,6 +143,16 @@ local function add_instructions_to_song_from_packet(song, packet_data)
                 modifiable_instructions[assigned_instruction_modifier_id] = instruction
             end
 
+            if track_index == 0 then -- this instruction is a song-level meta event. Let's populate the meta data field
+                instruction.meta_event_data = {}
+                local num_fields_to_get = vlq_to_int_from_reader(reader)
+                for i = 1, num_fields_to_get do
+                    local meta_key = bytes_with_len_to_string_from_reader(reader)
+                    local meta_val = vlq_to_int_from_reader(reader)
+                    instruction.meta_event_data[meta_key] = meta_val
+                end
+            end
+
             table.insert(song.instructions, instruction)
 
         else -- Track index is nil, this is a modifier for an instruction we have (probably) already seen.

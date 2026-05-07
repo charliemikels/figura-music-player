@@ -646,8 +646,8 @@ midi_meta_event_functions = {
             note = 0x51,
             modifiers = {},
             meta_event_data = {
-                tempo = microseconds_per_midi_quarter_note,
-                bpm = 60000000 / microseconds_per_midi_quarter_note
+                t = microseconds_per_midi_quarter_note,
+                -- bpm = 60000000 / microseconds_per_midi_quarter_note
             }
         }
         table.insert(state.complete_instructions, instruction)
@@ -679,7 +679,7 @@ midi_meta_event_functions = {
             note = 0x58,
             modifiers = {},
             meta_event_data = {
-                numerator = numerator, denominator = denominator
+                n = numerator, d = denominator
             }
         }
         table.insert(state.complete_instructions, instruction)
