@@ -364,7 +364,7 @@ local patch_name_lookup = {
 local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
     ---@type integer, Instruction
     for _, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
-        ---@type NoteModifier
+        ---@type InstructionModifier
         local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
         table.insert(
             note_data.modifiers,
@@ -644,7 +644,8 @@ midi_meta_event_functions = {
             start_time = start_time,
             start_velocity = 0,
             note = 0x51,
-            modifiers = {
+            modifiers = {},
+            meta_event_data = {
                 tempo = microseconds_per_midi_quarter_note,
                 bpm = 60000000 / microseconds_per_midi_quarter_note
             }
@@ -676,7 +677,10 @@ midi_meta_event_functions = {
             start_time = start_time,
             start_velocity = 0,
             note = 0x58,
-            modifiers = { numerator = numerator, denominator = denominator }
+            modifiers = {},
+            meta_event_data = {
+                numerator = numerator, denominator = denominator
+            }
         }
         table.insert(state.complete_instructions, instruction)
     end,
@@ -695,7 +699,8 @@ midi_meta_event_functions = {
         --     duration = 0,
         --     start_time = start_time,
         --     note = 0x59,
-        --     modifiers = {
+        --     modifiers = {},
+        --     meta_event_data = {
         --         sharps_or_flats = sharps_or_flats,
         --         major_or_minor = major_or_minor,
         --     }
@@ -811,7 +816,7 @@ midi_message_functions = {
 
         -- import current channel state. not all values may be set
         for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state) do
-            ---@type NoteModifier
+            ---@type InstructionModifier
             local new_modifier = { start_time = start_time, type = key, value = value }
             table.insert(new_note_data.modifiers, new_modifier)
         end

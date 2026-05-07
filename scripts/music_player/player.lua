@@ -31,14 +31,25 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 
 
 ---@class Instruction
----@field track_index integer       Used by instruments system. Track 0 is a "meta track" and applies song-level changes like tempo and time signature changes
----@field start_time number
+---
+--- All instructions belong to a track. Tracks connect an instruction and its modifiers to an instrument. The song_player config system lets us select what instrument to use for each track.
+---
+--- There are some special exceptions
+---
+--- - Track `0` is for song-level meta events, like tempo change. When track == 0, the note number and modifiers table might have other exceptions.
+--- - Track `nil` is reserved for packet encodeing/decodeing. This allows not modifiers to be stored sepperately from their instructions, and recognized as modifiers. It should not appear as a real track.
+---@field track_index integer
+---@field start_time number         An absolute time in ms from the start of the song.
 ---@field start_velocity number     The initial velocity (volume) of the note.
----@field duration number           May be 0
----@field note number               The note to play, or ID of meta event
----@field modifiers NoteModifier[]  TODO: Modify note during playback, or if end_time is 0 used for metadata
+---@field duration number           The amount of time this instruction is active for. May be 0.
+---@field note number               The note to play, or ID of a meta event
+---@field modifiers InstructionModifier[]
+---@field meta_event_data table<string, number>? Only for use with track 0 meta instructions.
 
----@alias NoteModifier {start_time: number, type: string, value: number}
+---@class InstructionModifier
+---@field start_time number     an absolute time in ms from the start of the song. (not start of instruction)
+---@field type string           a string like "pitch", "volume", "pan", that tells us what this modifier controlls.
+---@field value number          the strength of this modifier
 
 
 ---A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.

@@ -277,7 +277,7 @@ end
 --- For use with song_instruction_to_packet_parts()
 ---
 --- A simple wraper so that I can reuse the "add modifier" code
----@param modifier NoteModifier                 The modifier to add
+---@param modifier InstructionModifier                 The modifier to add
 ---@param instruction_modifier_list_id integer  The note ID to add this modifier to.
 ---@return {start_time: number, packet_part: PartialPacketDataBytes}
 local function modifier_to_packet_part(modifier, instruction_start_time, instruction_modifier_list_id)
@@ -323,7 +323,7 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
 
 
         -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
-        ---@type table<string, {first_start_time: integer, total_added: integer, last_added: NoteModifier?, last_seen: NoteModifier}>
+        ---@type table<string, {first_start_time: integer, total_added: integer, last_added: InstructionModifier?, last_seen: InstructionModifier}>
         local modifier_subset_tracker = {}
 
         -- make new packet parts for each modifier

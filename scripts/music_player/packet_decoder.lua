@@ -157,7 +157,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
                 local un_deltaed_start_time = instruction_start_delta + packet_start_time + modifiable_instructions[assigned_instruction_modifier_id].start_time
 
-                ---@type NoteModifier
+                ---@type InstructionModifier
                 local modifier = {
                     start_time = un_deltaed_start_time,
                     type = modifier_type,
