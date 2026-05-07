@@ -371,25 +371,19 @@ local function update_song(song_player)
             -- (If all notes are slightly late, then none of the notes are slightly late.)
             break
         end
-        if this_instruction.track_index == 0 then
-            -- TODO: Track 0 is reserved for meta events like tempo and time signature info.
-            --
+        if this_instruction.track_index == 0 then   -- this instruction actualy holds song meta data
+            -- This meta_data does not impact song playback. But it might hold, for example,
+            -- time signature data that other parts of the avatar could sync up to.
 
-            print("Meta event detected", this_instruction.note, this_instruction.meta_event_data)
+            for _, fn in pairs(song_player.on_meta_callback_functions) do
+                -- we're just going to trust that whoever wrote this callback function has figured out the meta codes and what they do.
+                fn(this_instruction.note, this_instruction.meta_event_data)
+            end
 
-            --
-            -- -- ---@enum MetaEventTypeCodes
-            -- local meta_event_key_to_number = {
-            --     time_signature = 0x58,
-            --     set_tempo = 0x51,
-            --     -- lyric = 0x05,
-            -- }
-            -- -- --- Reverse of meta_event_key_to_number for reverse lookups
-            -- -- ---@type table<MetaEventTypeCodes, string>
-            -- local meta_event_number_to_key = {}
-            -- for name, id in pairs(modifier_key_to_number) do
-            --     meta_event_number_to_key[id] = name
-            -- end
+            -- Refer to the midi file processor for diffrent note codes and whatever. EG:
+            -- - set_tempo = 0x51 → { T = microseconds_per_midi_quarter_note }
+            -- - time_signature = 0x58 → { n = numerator, d = denominator }
+            -- - -- lyric = 0x05, …
         else
             print_debug(
                 tostring(math.floor(song_player.controller.get_progress() * 100)).."%"
@@ -741,6 +735,7 @@ local song_player_api = {
 
             on_update_callback_functions = {},  ---@type fun()[]
             on_stop_callback_functions = {},    ---@type fun(stop_reason:SongPlayerStopReason)[]
+            on_meta_callback_functions = {},    ---@type fun(event_code:integer, meta_event_data:table<string, integer>)[]
 
             ---@class SongPlayerController
             controller = {
@@ -880,11 +875,6 @@ local song_player_api = {
                     table.insert(song_player.on_stop_callback_functions, call_back)
                 end,
 
-                ---@type fun(call_back: fun()))
-                register_update_callback = function(call_back)
-                    table.insert(song_player.on_update_callback_functions, call_back)
-                end,
-
                 ---@type fun(call_back: fun(stop_reason:SongPlayerStopReason))
                 remove_stop_callback = function(call_back_to_remove)
                     for k, fn in pairs(song_player.on_stop_callback_functions) do
@@ -896,6 +886,12 @@ local song_player_api = {
                     print_debug("Callback "..tostring(call_back_to_remove).." not found in stop_callbacks list", true, true)
                 end,
 
+
+                ---@type fun(call_back: fun()))
+                register_update_callback = function(call_back)
+                    table.insert(song_player.on_update_callback_functions, call_back)
+                end,
+
                 ---@type fun(call_back: fun()))
                 remove_update_callback = function(call_back_to_remove)
                     for k, fn in pairs(song_player.on_update_callback_functions) do
@@ -905,6 +901,23 @@ local song_player_api = {
                         end
                     end
                     print_debug("Callback "..tostring(call_back_to_remove).." not found in update_callbacks list", true, true)
+                end,
+
+
+                ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>)))
+                register_meta_event_callback = function(call_back)
+                    table.insert(song_player.on_meta_callback_functions, call_back)
+                end,
+
+                ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>)))
+                remove_meta_event_callback = function(call_back_to_remove)
+                    for k, fn in pairs(song_player.on_meta_callback_functions) do
+                        if fn == call_back_to_remove then
+                            table.remove(song_player.on_meta_callback_functions, k)
+                            return
+                        end
+                    end
+                    print_debug("Callback "..tostring(call_back_to_remove).." not found in meta_event_callbacks list", true, true)
                 end,
             }
         }
