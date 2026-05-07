@@ -56,7 +56,7 @@ end
 -- - [ ] Port the ABC player to a new processor
 -- - [x] Minecraft Note Block instruments
 -- - [x] Figura Piano instrument
--- - [ ] Load instruments from other avatars
+-- ~~- [ ] Load instruments from other avatars~~: Non goal: Finding dynamicly discoverable instruments, and makeing sure the clients see the same thing is going to be really rough. Let's just use wrappers like the Chloespaced out instrument.
 -- - [ ] test if I can force the viewer to load an offline avatar by making them render a player head
 --   - See also: Chloe Piano 2.0 → https://github.com/ChloeSpacedOut/figura-midi-player/blob/3c2888209ac75b1c0ec57c7ea4ca0b49aee291bb/ChloesMidiPlayerClientExample/midiPlayerClient.lua#L85-L90
 -- - [x] Register callback functions through song controller for song end / meta event received / etc.
