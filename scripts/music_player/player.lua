@@ -578,24 +578,50 @@ local song_player_api = {
                 else
                     -- key is nil, we've reached the end of the list
                     emergency_stop_instrument_key_for_next = nil
-                    watcher_state_key = "emergency_run_stop_functions"
+                    watcher_state_key = "emergency_info_display_remove_parts"
                 end
             end,
 
-            emergency_clean_up_text_rendering = function()
-                -- TODO: !!!
+            emergency_info_display_remove_parts = function()
+                -- I'm pretty sure that the info display is one of the few things that,
+                -- if we crash, will be left behind. So we need to clean it up carefully.
 
+                if song_player.info_display_root_part then
+                    -- song_player.info_display_text_task:remove()
+                    -- song_player.info_display_mute_instructions_text_task:remove()
+                    -- song_player.info_display_billboard_part:remove()
+                    song_player.info_display_root_part:remove()     -- pretty sure that removeing the root part cascades to its children. We can save a bunch of instructions by just removeing root.
+
+                else    -- huh. info display root is nil. Maybe it was never set? Either way we can skip all the way to the stop functions part.
+                    watcher_state_key = "emergency_run_stop_functions"
+                    return
+                end
+                watcher_state_key = "emergency_info_display_nil_parts"
+            end,
+
+            emergency_info_display_nil_parts = function()
+                if song_player.info_display_root_part then
+                    song_player.info_display_text_task = nil
+                    song_player.info_display_mute_instructions_text_task = nil
+                    song_player.info_display_billboard_part = nil
+                    song_player.info_display_root_part = nil
+                end
+                watcher_state_key = "emergency_run_stop_functions"
             end,
 
             emergency_run_stop_functions = function()
+                -- there's a really good chance that calling these stop functions will over run the resource limits (we're useing the world tick event to do these after all.)
+                -- But since we're passing the stop reason to the caller, I think it's safe to just let them deal with not crashing.
+
                 local key, fn = next(song_player.on_stop_callback_functions, emergency_stop_callback_function_key_for_next)
-                -- There's like a really good chance the script will crash for going over the resource limits unless the callback supplier is very careful to keep their functions minimal.
                 if key then
                     fn("emergency")
                     emergency_stop_instrument_key_for_next = key
                 else
                     -- key is nil, we've reached the end of the list
                     emergency_stop_instrument_key_for_next = nil
+
+
 
                     -- finaly at the end of the emergency functions
                     watcher_state_key = "idle"
