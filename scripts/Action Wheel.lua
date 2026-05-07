@@ -4,7 +4,7 @@ action_wheel:setPage(root_action_wheel_page)
 
 if host:isHost() then
     local default_library = require("scripts/music_player/libraries"):build_default_library()
-    local song = default_library:get_song_by_sorted_index(124) -- 10: rush e full. 14: Starbound Atlas. 124: keyboard cat
+    local song = default_library:get_song_by_sorted_index(124+5) -- 10: rush e full. 14: Starbound Atlas. 124: keyboard cat
     local song_processor_future = song:start_or_get_data_processor()
     song_processor_future:register_callback(function(_)
         -- print("Instruction test")
@@ -14,17 +14,23 @@ if host:isHost() then
         -- local post_tojson = avatar:getCurrentInstructions()
         -- print("instructions after toJson", post_tojson - starting_ammount)  -- OK: going to and from json is actualy extreamly cheep instruction-wise. Space-wise it's pretty rough.
 
-        local networking_api = require("scripts/music_player/networking")   ---@type SongNetworkingApi
+        -- local networking_api = require("scripts/music_player/networking")   ---@type SongNetworkingApi
         local config_api = require("scripts/music_player/config_cache")     ---@type ConfigCacheAPI
         local music_player_api = require("scripts/music_player/player")     ---@type SongPlayerAPI
         local song_config = config_api.load_song_config(song.id)
         song_config.source_entity = player
 
-        -- -- local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
+        local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
         -- local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
-        -- -- song_player_controller:play()
+        song_player_controller.play()
+        song_player_controller.register_update_callback(function()
+                print(song_player_controller:get_progress())
+        end)
+        song_player_controller.register_stop_callback(function(stop_reason)
+            print("stopped with reason: "..stop_reason)
+        end)
 
-        local localizer = require("scripts/music_player/local_song_builder")   ---@type LocalSongBuilderApi
+        -- local localizer = require("scripts/music_player/local_song_builder")   ---@type LocalSongBuilderApi
         -- localizer.export_song_to_local(song.processed_song, song_config)
 
     end)
