@@ -127,7 +127,7 @@ local function instrument_is_available()
 end
 
 
-local all_piano_info_display_roots = nil ---@type ModelPart?
+local all_drum_info_display_roots = nil ---@type ModelPart?
 
 ---@type table<ChloeInstrumentID, {time:number, part:ModelPart}>
 local drum_time_to_info_text_timeout = {}
@@ -135,12 +135,12 @@ local info_text_clear_time_padding = 2*1000
 
 local previous_key_for_drum_time_to_info_text_timeout = nil
 local function display_text_timeouts_watcher()
-    local this_piano_id, this_timeout_value = next(drum_time_to_info_text_timeout, previous_key_for_drum_time_to_info_text_timeout)
-    if not this_piano_id then
+    local this_drum_id, this_timeout_value = next(drum_time_to_info_text_timeout, previous_key_for_drum_time_to_info_text_timeout)
+    if not this_drum_id then
         -- key is nil. We might just be at the end of the list.
         if not previous_key_for_drum_time_to_info_text_timeout then
             -- the previous key was also nil. This means the list is empty. Clean up.
-            all_piano_info_display_roots:remove()
+            all_drum_info_display_roots:remove()
             events.world_tick:remove(display_text_timeouts_watcher)
             return
         end
@@ -148,21 +148,21 @@ local function display_text_timeouts_watcher()
         if this_timeout_value.time < client:getSystemTime() then
             -- This value has expired and we may remove it.
             this_timeout_value.part:remove()
-            drum_time_to_info_text_timeout[this_piano_id] = nil
+            drum_time_to_info_text_timeout[this_drum_id] = nil
         end
     end
 
-    previous_key_for_drum_time_to_info_text_timeout = this_piano_id -- Step down the list. If nil, we check the start of list next loop.
+    previous_key_for_drum_time_to_info_text_timeout = this_drum_id -- Step down the list. If nil, we check the start of list next loop.
 end
 
 local function start_display_text_timeouts_watcher()
-    all_piano_info_display_roots = models:newPart("piano_info_display_super_parrent", "World")
+    all_drum_info_display_roots = models:newPart("piano_info_display_super_parrent", "World")
     events.world_tick:register(display_text_timeouts_watcher)
 end
 
-local function add_or_update_display_text(piano_id, new_timeout_time)
-    if drum_time_to_info_text_timeout[piano_id] then   -- We know about this piano already. Let's just update the time.
-        drum_time_to_info_text_timeout[piano_id].time = math.max(drum_time_to_info_text_timeout[piano_id].time, new_timeout_time)
+local function add_or_update_display_text(drum_id, new_timeout_time)
+    if drum_time_to_info_text_timeout[drum_id] then   -- We know about this piano already. Let's just update the time.
+        drum_time_to_info_text_timeout[drum_id].time = math.max(drum_time_to_info_text_timeout[drum_id].time, new_timeout_time)
         return
     end
 
@@ -170,18 +170,18 @@ local function add_or_update_display_text(piano_id, new_timeout_time)
         start_display_text_timeouts_watcher()   -- initilizes some things for us
     end
 
-    local this_piano_root = all_piano_info_display_roots:newPart(piano_id, "World")
-    this_piano_root:setPos((drum_id_to_vec(piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
+    local this_drum_root = all_drum_info_display_roots:newPart(drum_id, "World")
+    this_drum_root:setPos((drum_id_to_vec(drum_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
 
-    local this_piano_camera = this_piano_root:newPart(piano_id.."_billboard", "Camera")
+    local this_drum_camera = this_drum_root:newPart(drum_id.."_billboard", "Camera")
 
-    local this_piano_text_task = this_piano_camera:newText( tostring(piano_id).."_info_text")
-    this_piano_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume" )
-    this_piano_text_task:setScale(0.2)
-    this_piano_text_task:setOpacity(0.75)
-    this_piano_text_task:setAlignment("CENTER")
+    local this_drum_text_task = this_drum_camera:newText( tostring(drum_id).."_info_text")
+    this_drum_text_task:setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume" )
+    this_drum_text_task:setScale(0.2)
+    this_drum_text_task:setOpacity(0.75)
+    this_drum_text_task:setAlignment("CENTER")
 
-    drum_time_to_info_text_timeout[piano_id] = {time = new_timeout_time, part = this_piano_root}
+    drum_time_to_info_text_timeout[drum_id] = {time = new_timeout_time, part = this_drum_root}
 end
 
 
