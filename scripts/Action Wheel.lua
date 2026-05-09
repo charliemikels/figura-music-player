@@ -8,6 +8,8 @@ if host:isHost() then
     local song_processor_future = song:start_or_get_data_processor()
     song_processor_future:register_callback(function(_)
 
+        error("Alright, by my count there is one last significant bug:") -- TODO: network player's advice text is, for whatever reason, not aligned with the normal player's text (Specifficaly the steps to mute the avatar.)
+
         -- local networking_api = require("scripts/music_player/networking")   ---@type SongNetworkingApi
         local config_api = require("scripts/music_player/config_cache")     ---@type ConfigCacheAPI
         local music_player_api = require("scripts/music_player/player")     ---@type SongPlayerAPI
