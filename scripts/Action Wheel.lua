@@ -17,7 +17,7 @@ if host:isHost() then
         local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
         -- local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
 
-        song_player_controller.play()
+        -- song_player_controller.play()
 
         -- local function update_callback()
         --     print(song_player_controller:get_progress())
