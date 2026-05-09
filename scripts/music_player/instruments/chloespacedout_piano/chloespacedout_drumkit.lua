@@ -14,25 +14,41 @@
 --- - 1.20:     /give @p minecraft:player_head{SkullOwner:{Id:[I;1039887675,1961051688,-1756947787,-2031944347]}}
 
 ---@type UUID[]
-local piano_lib_uuids = {
+local drumkit_lib_uuids = {
     "3dfb6d3b-74e3-4628-9747-1ab586e2fd65",     -- Imortilized Drumkit avatar
+}
+
+---@type UUID[]
+local piano_lib_uuids = {
     "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized Piano avatar
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
-
     -- You can add your own UUID to this list if you or a friend has uploaded their own copy of the drumkit avatar.
 }
 
 
---- Returns a list of pianos indexed by piano_lib_uuid, then piano_ID.
+
+--- Returns a list of drum kits
 ---
---- filters out drums, pianos that play drum sounds, and libraries where piano_lib.getPianos() is empty.
----
---- Coincidentaly, it also checks if piano and MidiCloud are at max settings, since the piano libs kinda do that for us.
----@return table<UUID, table<ChloeInstrumentID, ChloePiano>>
+--- This includes the imortilized "1.0" drumkits, as well as Piano 2.0s in drumkit mode
+---@return table<UUID, ChloeInstrumentID[]>
 local function get_all_known_drums()
 
-    ---@type table<UUID, table<ChloeInstrumentID, ChloePiano>>
-    local all_known_pianos = {}
+
+    ---@type table<UUID, ChloeInstrumentID[]>
+    local all_known_drums = {}
+
+    -- find all drum kits
+
+    for _, lib_uuid in pairs(drumkit_lib_uuids) do
+        local drumkit_lib = world.avatarVars()[lib_uuid]    ---@type ChloeDrumkitLib
+        if drumkit_lib and drumkit_lib.getDrumIDs then
+            for _, drumkit_id in pairs(drumkit_lib.getDrumIDs()) do
+                table.insert(all_known_drums[lib_uuid], drumkit_id)
+            end
+        end
+    end
+
+    -- Look for all pianos in drumkit mode
 
     for _, lib_uuid in pairs(piano_lib_uuids) do
         local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
@@ -42,19 +58,21 @@ local function get_all_known_drums()
             if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then
                 for piano_id, piano in pairs(known_pianos_in_this_lib) do
                     if      piano
-                        and piano.model ~= 4 and piano_lib.getInstrumentOverride(piano_id) ~= 128
+                        and piano.model == 4 or piano_lib.getInstrumentOverride(piano_id) == 128   -- in the drumkit model or useing percussion sounds
+                            -- TODO: This doesn't check for drumkit models set to play non-drum sounds
+
                             -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
                             -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
                     then
-                        if not all_known_pianos[lib_uuid] then all_known_pianos[lib_uuid] = {} end
-                        all_known_pianos[lib_uuid][piano_id] = piano
+                        if not all_known_drums[lib_uuid] then all_known_drums[lib_uuid] = {} end
+                        table.insert(all_known_drums[lib_uuid], piano_id)
                     end
                 end
             end
         end
     end
 
-    return all_known_pianos
+    return all_known_drums
 end
 
 
