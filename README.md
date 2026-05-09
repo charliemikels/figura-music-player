@@ -3,7 +3,7 @@
 Version 5 is very close to being complete, so I'll be working on a new readme soon. Here's a rough outline of additions
 
 - Rewritten from scratch.
-- Native MIDI file suppor.t
+- Native MIDI file support.
   - ABC support has been deprecated for the time being.
 - Songs can now be included with avatar upload. 
 - fewer instructions during playback. Most songs play on Low permissions.
