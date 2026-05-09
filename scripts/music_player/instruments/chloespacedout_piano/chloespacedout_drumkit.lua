@@ -60,9 +60,6 @@ local function get_all_known_drums()
                     if      piano
                         and piano.model == 4 or piano_lib.getInstrumentOverride(piano_id) == 128   -- in the drumkit model or useing percussion sounds
                             -- TODO: This doesn't check for drumkit models set to play non-drum sounds
-
-                            -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
-                            -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
                     then
                         if not all_known_drums[lib_uuid] then all_known_drums[lib_uuid] = {} end
                         table.insert(all_known_drums[lib_uuid], piano_id)
@@ -185,6 +182,40 @@ local function add_or_update_display_text(drum_id, new_timeout_time)
 end
 
 
+--#region
+-- Build a lookup table to go from Midi numbers to
+-- Essentialy a reversed version of the string→number lookup in Piano 2.0: https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L38-L56
+
+---@type table<integer, ChloeKeyID>
+local base_note_name_lookup = {
+    [0] = "C",
+    [1] = "C#",
+    [2] = "D",
+    [3] = "D#",
+    [4] = "E",
+    [5] = "F",
+    [6] = "F#",
+    [7] = "G",
+    [8] = "G#",
+    [9] = "A",
+    [10] = "A#",
+    [11] = "B",
+}
+
+---@type table<integer, ChloeKeyID>
+local note_number_to_string = {}
+for i = 21, 95 do
+    note_number_to_string[i] = (base_note_name_lookup[i % 12] .. math.floor(i/12) - 1)
+end
+
+--#endregion
+
+---@param midi_note integer
+---@return ChloeKeyID?
+local function midi_note_to_string(midi_note)
+    return note_number_to_string[midi_note]
+end
+
 ---@type InstrumentBuilder
 local piano_builder = {
     name = "ChloeSpacedOut Drumkit",
@@ -248,27 +279,27 @@ local piano_builder = {
             play_instruction = function (instruction, position, time_since_due)
                 if not instrument_is_available() then   -- something in the drum system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_drum_info(nil, nil)
-                elseif not instance_drum_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
+                elseif not instance_drum_id then       -- Drum is available, but instance_drum_id is not set. Let's reset it.
                     local nearest_uuid, nearest_drum_id = get_nearest_drum_uuid_and_id(position)
                     if nearest_drum_id then
                         set_instance_drum_info(nearest_uuid, nearest_drum_id)
                     end
                 end
 
-                if not instance_drum_id then   -- piano is still invalid. use the fallback instrument.
+                local note_to_string = midi_note_to_string(instruction.note)
+
+                if not instance_drum_id or not note_to_string then   -- drum is still invalid (or the note is out of range). use the fallback instrument.
                     fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
                 else -- play drum note as usual
                     instance_drum_lib.playNote(
                         instance_drum_id,
-                        "B2",  -- rim shot -- TODO: replace with instruction.note converted from midi
+                        note_to_string,
                         true,
                         nil,
                         instruction.start_velocity
-                            * 0.5                           -- Piano is a little loud by default reletive to the other instruments.
+                            * 0.5                           -- Drum is a little loud by default reletive to the other instruments.
                             * (avatar:getVolume() / 100)    -- Respect if viewer has muted the host.
-                    )
-
-                    -- Info graphics
+                    )   -- playNote is kinda a legacy function for Piano 2.0, but it's the same signature for old and new drums.
 
                     add_or_update_display_text(instance_drum_id, (client.getSystemTime() + info_text_clear_time_padding))
 
