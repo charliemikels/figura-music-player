@@ -694,6 +694,7 @@ local song_player_api = {
             start_time = nil,   ---@type number? Compare with duration. If start time + duration <= current time, then song has ended
             elapsed_time = 0,   ---@type number? Might allow us to pause a song.
                                 -- When resuming a song, get current time, subtract elapsed, and that should give a new start time.
+
             instructions = song.instructions,
             next_instruction_index = 1,
 
@@ -747,6 +748,8 @@ local song_player_api = {
                     print_host("Playing \"" .. tostring(song.name) .. "\"")
                     if song_player.controller.is_playing() then return end
 
+                    -- Info display building and setup
+
                     song_player.info_display_root_part = models:newPart("song_info_text_root_"..tostring(song_player.song_uuid))
                     song_player.info_display_root_part
                         :setParentType(song_player.info_display_root_part_parent_type)
@@ -770,10 +773,17 @@ local song_player_api = {
                         :setOpacity(0.5)
                         :setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
+
+                    -- Initilize "playing" state
+
+                    song_player.start_time = get_earliest_possible_start_time(song_player)
+                    song_player.next_instruction_index = 1
+
+                    -- Kick off update loops
+
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
-                    song_player.start_time = get_earliest_possible_start_time(song_player)
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
                     song_player.primary_event:register(update_this_song)
@@ -827,9 +837,14 @@ local song_player_api = {
                 ---@type fun()
                 stop = function()
                     print_host("Stopping \"".. tostring(song.name) .."\"")
+
+                    -- Shut down player.
+
                     -- song_player.elapsed_time = client.getSystemTime() - song_player.start_time
                     song_player.elapsed_time = nil
                     song_player.start_time = nil
+
+                    -- REmove events and reset the watcher to initial state.
 
                     song_player.primary_event:remove(update_this_song)
                     song_player.fallback_event:remove(update_this_song)
@@ -838,6 +853,8 @@ local song_player_api = {
                     primary_event_checks_without_update = 0
                     fallback_event_checks_without_update = 0
 
+                    -- Instrument Cleanup. If stop() called by update loop, then all instruments should already be done.
+
                     for _, track in pairs(song_player.track_config) do
                         track.selected_instrument.stop_all_sounds_immediatly()
                     end
@@ -845,6 +862,8 @@ local song_player_api = {
                         deprecated_instruments.stop_all_sounds_immediatly()
                         song_player.deprecated_instruments[key] = nil
                     end
+
+                    -- Reset the info display.
 
                     if song_player.info_display_root_part then
                         song_player.info_display_text_task:remove()
@@ -856,7 +875,11 @@ local song_player_api = {
                         song_player.info_display_mute_instructions_text_task = nil
                         song_player.info_display_billboard_part = nil
                         song_player.info_display_root_part = nil
+
+                        -- TODO: surely there's a more compressed way to build/store/deconstruct all of this
                     end
+
+                    -- Call stop functions
 
                     for _, fn in ipairs(song_player.on_stop_callback_functions) do
                         fn("normal")
