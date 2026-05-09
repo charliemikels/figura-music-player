@@ -198,31 +198,27 @@ local piano_builder = {
         local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
         local fallback_instrument_instance   = fallback_instrument_builder.new_instance({})
 
-        local instance_piano_id             ---@type ChloeInstrumentID?
-        local instance_piano_lib            ---@type ChloePianoLib?
-        local instance_piano                ---@type ChloePiano
-        local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
+        local instance_drum_id             ---@type ChloeInstrumentID?
+        local instance_drum_lib            ---@type (ChloePianoLib|ChloeDrumkitLib)?
+        -- local instance_piano                ---@type ChloePiano
+        -- local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
-        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
+        local known_drum_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
 
         ---@param lib_uuid UUID
-        ---@param piano_id string
-        local function set_instance_piano_info(lib_uuid, piano_id)
-            local previous_piano_id = instance_piano_id
-            if not (lib_uuid and piano_id) then
-                instance_piano_id = nil
-                instance_piano_lib = nil
-                instance_piano = nil
-                instance_piano_midi_note_api = nil
+        ---@param drum_id ChloeInstrumentID
+        local function set_instance_drum_info(lib_uuid, drum_id)
+            local previous_drum_id = instance_drum_id
+            if not (lib_uuid and drum_id) then
+                instance_drum_id = nil
+                instance_drum_lib = nil
                 return
             end
-            instance_piano_id = piano_id
-            instance_piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-            instance_piano = instance_piano_lib.getPiano(piano_id)
-            instance_piano_midi_note_api = instance_piano.instance.midi.note
+            instance_drum_id = drum_id
+            instance_drum_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
 
-            if #known_piano_notes > 0 then
-                add_or_update_display_text(piano_id, drum_time_to_info_text_timeout[previous_piano_id])
+            if #known_drum_notes > 0 then
+                add_or_update_display_text(drum_id, drum_time_to_info_text_timeout[previous_drum_id])
             end
         end
 
@@ -232,18 +228,26 @@ local piano_builder = {
                 local targeted_block_state = player:getTargetedBlock(true, nil)
                 local targeted_block_pos = targeted_block_state:getPos()
                 local targeted_block_pos_string = tostring(targeted_block_pos)
-                for lib_uuid, pianos_by_id in pairs(get_all_known_drums()) do
-                    if pianos_by_id[targeted_block_pos_string] then
-                        set_instance_piano_info(lib_uuid, targeted_block_pos_string)
+
+                local host_is_looking_at_a_drumkit = false
+                for lib_uuid, drum_ids in pairs(get_all_known_drums()) do
+                    for _, drum_id in pairs(drum_ids) do
+                        if drum_id == targeted_block_pos_string then
+                            host_is_looking_at_a_drumkit = true
+                            break
+                        end
+                    end
+                    if host_is_looking_at_a_drumkit then
+                        set_instance_drum_info(lib_uuid, targeted_block_pos_string)
                         break
                     end
                 end
             end
 
-            if not instance_piano_id then   -- just get the nearest piano
-                local nearest_uuid, nearest_piano_id = get_nearest_drum_uuid_and_id(player:getPos())
-                if nearest_piano_id then
-                    set_instance_piano_info(nearest_uuid, nearest_piano_id)
+            if not instance_drum_id then   -- just get the nearest piano
+                local nearest_uuid, nearest_drum_id = get_nearest_drum_uuid_and_id(player:getPos())
+                if nearest_drum_id then
+                    set_instance_drum_info(nearest_uuid, nearest_drum_id)
                 end
             end
         end
@@ -252,103 +256,64 @@ local piano_builder = {
 
         -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
         local function stop_one_sound_immediatly()
-            local note_to_stop = table.remove(known_piano_notes)
+            local note_to_stop = table.remove(known_drum_notes)
             if note_to_stop then note_to_stop:stop() end
             fallback_instrument_instance.stop_one_sound_immediatly()
         end
 
         ---@type Instrument
-        local piano_instrument = {
+        local drum_instrument = {
             play_instruction = function (instruction, position, time_since_due)
-                if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
-                    set_instance_piano_info(nil, nil)
-                elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
-                    local nearest_uuid, nearest_piano_id = get_nearest_drum_uuid_and_id(position)
-                    if nearest_piano_id then
-                        set_instance_piano_info(nearest_uuid, nearest_piano_id)
+                if not instrument_is_available() then   -- something in the drum system is not available. Reset everything so that we use the fallback instrument.
+                    set_instance_drum_info(nil, nil)
+                elseif not instance_drum_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
+                    local nearest_uuid, nearest_drum_id = get_nearest_drum_uuid_and_id(position)
+                    if nearest_drum_id then
+                        set_instance_drum_info(nearest_uuid, nearest_drum_id)
                     end
                 end
 
-                if not instance_piano_id then   -- piano is still invalid. use the fallback instrument.
+                if not instance_drum_id then   -- piano is still invalid. use the fallback instrument.
                     fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
-                else -- play piano note as usual
-                    local new_note = instance_piano_midi_note_api:play(
-                        instance_piano.instance,
-                        instruction.note,
+                else -- play drum note as usual
+                    instance_drum_lib.playNote(
+                        instance_drum_id,
+                        "B2",  -- rim shot -- TODO: replace with instruction.note converted from midi
+                        true,
+                        nil,
                         instruction.start_velocity
                             * 0.5                           -- Piano is a little loud by default reletive to the other instruments.
-                            * (avatar:getVolume() / 100),   -- Respect if viewer has muted the host.
-
-                        instruction.track_index,--1,           -- Channel ID 1 is shared with the piano itself.
-                        1,-- instruction.track_index,
-                            -- TODO: There's an issue where tracks are initilized with channel ID instead of their track ID.
-                            --       My system doesn't care if I send to channel or track, but piano has special rules for channels (piano itself uses channel 1)
-                            --       and it's kinda silly to use instruction.track_index as channels.
-                            --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
-                        (client.getSystemTime() - time_since_due)
+                            * (avatar:getVolume() / 100)    -- Respect if viewer has muted the host.
                     )
-                    local note_release_time = (client.getSystemTime() - time_since_due) + instruction.duration
-                    new_note:release(note_release_time)
 
-                    table.insert(known_piano_notes, new_note)
+                    -- Info graphics
 
-
-                    -- Visual updates
-
-                    add_or_update_display_text(instance_piano_id, (note_release_time + info_text_clear_time_padding))
-
-                    -- TODO: Trick piano into moveing it's keys.
+                    add_or_update_display_text(instance_drum_id, (client.getSystemTime() + info_text_clear_time_padding))
 
                 end
             end,
 
             update_sounds = function (position)
-                -- Figura Midi Cloud takes care of stopping the notes for us. But we still need to clean up our own trackers.
-
-                -- Item removal logic based on https://stackoverflow.com/a/53038524
-                -- See also networking.lua → remove_packets_from_outgoing_queue_by_transfer_id()
-
-                local size_of_hole = 0
-                for search_index = 1, #known_piano_notes do
-
-                    local current_time_is_after_total_note_duration_and_so_we_should_remove_this_note =
-                        known_piano_notes[search_index].releaseTime + known_piano_notes[search_index].duration < client:getSystemTime()
-
-                    if current_time_is_after_total_note_duration_and_so_we_should_remove_this_note then
-                        known_piano_notes[search_index] = nil
-                        size_of_hole = size_of_hole + 1
-                    else
-                        if (size_of_hole > 0) then
-                            -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
-                            known_piano_notes[search_index - size_of_hole] = known_piano_notes[search_index]
-                            known_piano_notes[search_index] = nil
-                        end
-                    end
-                end
-
-                -- clean up fallback instrument too
+                -- Drum kit is only impulses. no need to keep track of notes
                 fallback_instrument_instance.update_sounds(position)
             end,
 
-            stop_one_sound_immediatly = stop_one_sound_immediatly,
+            stop_one_sound_immediatly = function()
+                -- Drum kit is only impulses. All sounds will naturaly stop
+                fallback_instrument_instance.stop_one_sound_immediatly()
+            end,
 
             stop_all_sounds_immediatly = function ()
-                repeat
-                    stop_one_sound_immediatly()
-                until not known_piano_notes or #known_piano_notes <= 0
-                known_piano_notes = {}
-
+                -- Drum kit is only impulses. All sounds will naturaly stop
                 fallback_instrument_instance.stop_all_sounds_immediatly()
             end,
 
             is_finished = function ()
-                local fallback_is_done = fallback_instrument_instance.is_finished()
-                local piano_is_done = next(known_piano_notes, nil) == nil
-
-                return fallback_is_done and piano_is_done
+                -- Drum kit is only impulses. We are allways (effectively) finished. Defer to fallback, just in case it's not finished.
+                return fallback_instrument_instance.is_finished()
             end
         }
-        return piano_instrument
+        return drum_instrument
     end,
 }
 
