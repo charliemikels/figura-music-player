@@ -10,7 +10,7 @@ Version 5 is very close to being complete, so I'll be working on a new readme so
   - (Although, Low's restricteve number of sounds really limits possible complexity)
 - A script can play multiple songs at once.
 - Songs can have multiple configurable instruments.
-- Supports [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) and [Figura Drumkit](https://github.com/ChloeSpacedOut/figura-drum) by [ChloeSpacedOut](https://github.com/ChloeSpacedOut)
+- Supports [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) (both in piano and drumkit mode) by [ChloeSpacedOut](https://github.com/ChloeSpacedOut)
 - Volume and Pitch effects.
 - A deep API for use in other scripts.
 - Very modular archetecture. Some scripts can be removed to reduce upload size at the cost of features. 

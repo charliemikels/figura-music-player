@@ -1,4 +1,24 @@
 
+--- Note: as of writing this commit, the Imortalized Drumkit that you'd find on this post:
+--- https://discord.com/channels/1129805506354085959/1340798228165300224/1340798228165300224
+--- does not work with this script. It doesn't expose the getDrumIDs function and so we are unable to
+--- (quickly and efficiently) find this kind of drumkit.
+---
+--- (In theory we could do some sort of search algorithm to find nearby drums in a tick loop,
+--- but that's certainly the dictionary definition of overenginering. I'll just ask someone
+--- in the discord about it)
+---
+--- The current version of the avatar in the [Figura Drum github page](https://github.com/ChloeSpacedOut/figura-drum)
+--- should work just fine, it's just the imortalized one seems to not be useing it.
+---
+---
+---
+--- The below script assumes the imortilized drumkit actualy does work.
+
+
+-- ----------------------------------------------------------------------------------------------
+
+
 --- This instrument script lets the Music Player drive ChloeSpacedOut's Figura Drums (and v2 pianos in drum mode)
 --- In order to use this instrument, you (and your viewers) may need to either
 ---
@@ -13,16 +33,19 @@
 --- - 1.21+:    /give @p minecraft:player_head[minecraft:profile={id:[I;1039887675,1961051688,-1756947787,-2031944347],name:"Drum"}]
 --- - 1.20:     /give @p minecraft:player_head{SkullOwner:{Id:[I;1039887675,1961051688,-1756947787,-2031944347]}}
 
+
+
+---UUIDs that have [Figura Drum](https://github.com/ChloeSpacedOut/figura-drum) equipped as their avatar.
 ---@type UUID[]
 local drumkit_lib_uuids = {
     "3dfb6d3b-74e3-4628-9747-1ab586e2fd65",     -- Imortilized Drumkit avatar
 }
 
+---UUIDs that have [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) equipped as their avatar.
 ---@type UUID[]
 local piano_lib_uuids = {
     "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized Piano avatar
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
-    -- You can add your own UUID to this list if you or a friend has uploaded their own copy of the drumkit avatar.
 }
 
 
@@ -41,6 +64,8 @@ local function get_all_known_drums()
 
     for _, lib_uuid in pairs(drumkit_lib_uuids) do
         local drumkit_lib = world.avatarVars()[lib_uuid]    ---@type ChloeDrumkitLib
+
+        -- printTable(drumkit_lib)  -- to check if getDrumIDs exists.
         if drumkit_lib and drumkit_lib.getDrumIDs then
             for _, drumkit_id in pairs(drumkit_lib.getDrumIDs()) do
                 table.insert(all_known_drums[lib_uuid], drumkit_id)
