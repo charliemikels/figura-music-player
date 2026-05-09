@@ -200,26 +200,17 @@ local piano_builder = {
 
         local instance_drum_id             ---@type ChloeInstrumentID?
         local instance_drum_lib            ---@type (ChloePianoLib|ChloeDrumkitLib)?
-        -- local instance_piano                ---@type ChloePiano
-        -- local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
-
-        local known_drum_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
 
         ---@param lib_uuid UUID
         ---@param drum_id ChloeInstrumentID
         local function set_instance_drum_info(lib_uuid, drum_id)
-            local previous_drum_id = instance_drum_id
             if not (lib_uuid and drum_id) then
                 instance_drum_id = nil
                 instance_drum_lib = nil
                 return
             end
             instance_drum_id = drum_id
-            instance_drum_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-
-            if #known_drum_notes > 0 then
-                add_or_update_display_text(drum_id, drum_time_to_info_text_timeout[previous_drum_id])
-            end
+            instance_drum_lib = world.avatarVars()[lib_uuid]  ---@type (ChloePianoLib|ChloeDrumkitLib)?
         end
 
         -- Assume the host player entity is playing the song. Let's figure out which piano they want to use.
@@ -250,15 +241,6 @@ local piano_builder = {
                     set_instance_drum_info(nearest_uuid, nearest_drum_id)
                 end
             end
-        end
-        -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
-
-
-        -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
-        local function stop_one_sound_immediatly()
-            local note_to_stop = table.remove(known_drum_notes)
-            if note_to_stop then note_to_stop:stop() end
-            fallback_instrument_instance.stop_one_sound_immediatly()
         end
 
         ---@type Instrument
