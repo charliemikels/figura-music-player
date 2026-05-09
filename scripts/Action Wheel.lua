@@ -7,12 +7,6 @@ if host:isHost() then
     local song = default_library:get_song_by_sorted_index(124+5) -- 10: rush e full. 14: Starbound Atlas. 124: keyboard cat
     local song_processor_future = song:start_or_get_data_processor()
     song_processor_future:register_callback(function(_)
-        -- print("Instruction test")
-        -- local starting_ammount = avatar:getCurrentInstructions()
-        -- print("starting_ammount:", starting_ammount)
-        -- local exported_json = toJson(song.processed_data)
-        -- local post_tojson = avatar:getCurrentInstructions()
-        -- print("instructions after toJson", post_tojson - starting_ammount)  -- OK: going to and from json is actualy extreamly cheep instruction-wise. Space-wise it's pretty rough.
 
         -- local networking_api = require("scripts/music_player/networking")   ---@type SongNetworkingApi
         local config_api = require("scripts/music_player/config_cache")     ---@type ConfigCacheAPI
@@ -22,25 +16,26 @@ if host:isHost() then
 
         local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
         -- local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
+
         song_player_controller.play()
 
-        local function update_callback()
-            print(song_player_controller:get_progress())
-            print("STOP Update callbacks")
-            song_player_controller.remove_update_callback(update_callback)
-        end
+        -- local function update_callback()
+        --     print(song_player_controller:get_progress())
+        --     print("STOP Update callbacks")
+        --     song_player_controller.remove_update_callback(update_callback)
+        -- end
 
-        song_player_controller.register_update_callback(update_callback)
+        -- song_player_controller.register_update_callback(update_callback)
 
-        local function play_once_more(_)
-            print("Let's go again keyboard cat")
-            song_player_controller.remove_stop_callback(play_once_more)
-            print("But only once more")
-            song_player_controller.play()
+        -- local function play_once_more(_)
+        --     print("Let's go again keyboard cat")
+        --     song_player_controller.remove_stop_callback(play_once_more)
+        --     print("But only once more")
+        --     song_player_controller.play()
 
-        end
+        -- end
 
-        song_player_controller.register_stop_callback(play_once_more)
+        -- song_player_controller.register_stop_callback(play_once_more)
 
         -- local localizer = require("scripts/music_player/local_song_builder")   ---@type LocalSongBuilderApi
         -- localizer.export_song_to_local(song.processed_song, song_config)
