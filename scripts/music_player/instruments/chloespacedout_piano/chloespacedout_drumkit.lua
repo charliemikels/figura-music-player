@@ -90,32 +90,32 @@ local max_search_radius_from_host = 32      ---@type number     -- distance in b
 ---@param target_pos Vector3
 ---@return UUID?
 ---@return ChloeInstrumentID?
-local function get_nearest_piano_uuid_and_id(target_pos)
-    local all_known_pianos = get_all_known_drums()
-    if not next(all_known_pianos, nil) then return nil, nil end
+local function get_nearest_drum_uuid_and_id(target_pos)
+    local all_known_drums = get_all_known_drums()
+    if not next(all_known_drums, nil) then return nil, nil end
 
     local nearest_distance_squared = (max_search_radius_from_host * max_search_radius_from_host)    -- pre-squared to use the cheaper :lengthSquared() for comparisons.
-    local nearest_piano_id          ---@type ChloeInstrumentID
-    local nearest_piano_lib_uuid    ---@type UUID
+    local nearest_drum_id          ---@type ChloeInstrumentID
+    local nearest_drum_lib_uuid    ---@type UUID
 
     local shift_to_center_of_block = vectors.vec3(0.5, 0.5, 0.5)
 
-    for lib_uuid, pianos_by_id in pairs(all_known_pianos) do
-        local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-        if piano_lib.getPianos then -- This piano Library is still good.
-            for piano_id, _ in pairs(pianos_by_id) do
-                local piano_position = drum_id_to_vec(piano_id)
-                local piano_distance_squared = ((piano_position + shift_to_center_of_block) - target_pos):lengthSquared()
-                if piano_distance_squared < nearest_distance_squared then
-                    nearest_distance_squared = piano_distance_squared
-                    nearest_piano_id = piano_id
-                    nearest_piano_lib_uuid = lib_uuid
+    for lib_uuid, drum_ids in pairs(all_known_drums) do
+        local drum_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib|ChloeDrumkitLib
+        if drum_lib.playNote then -- This library is still good.
+            for _, drum_id in pairs(drum_ids) do
+                local drum_position = drum_id_to_vec(drum_id)
+                local drum_distance_squared = ((drum_position + shift_to_center_of_block) - target_pos):lengthSquared()
+                if drum_distance_squared < nearest_distance_squared then
+                    nearest_distance_squared = drum_distance_squared
+                    nearest_drum_id = drum_id
+                    nearest_drum_lib_uuid = lib_uuid
                 end
             end
         end
     end
 
-    return nearest_piano_lib_uuid, nearest_piano_id
+    return nearest_drum_lib_uuid, nearest_drum_id
 end
 
 ---@return boolean
@@ -241,7 +241,7 @@ local piano_builder = {
             end
 
             if not instance_piano_id then   -- just get the nearest piano
-                local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(player:getPos())
+                local nearest_uuid, nearest_piano_id = get_nearest_drum_uuid_and_id(player:getPos())
                 if nearest_piano_id then
                     set_instance_piano_info(nearest_uuid, nearest_piano_id)
                 end
@@ -263,7 +263,7 @@ local piano_builder = {
                 if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_piano_info(nil, nil)
                 elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
-                    local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(position)
+                    local nearest_uuid, nearest_piano_id = get_nearest_drum_uuid_and_id(position)
                     if nearest_piano_id then
                         set_instance_piano_info(nearest_uuid, nearest_piano_id)
                     end
