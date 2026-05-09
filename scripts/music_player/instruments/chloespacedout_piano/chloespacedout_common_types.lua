@@ -59,6 +59,10 @@
 ---@field setInstrumentOverride fun(ChloePianoID, integer)
 ---@field getInstrumentOverride fun(ChloePianoID)
 ---@field getItem fun(table):ItemStack
+---
+---@field playNote fun(pianoID:ChloeInstrumentID, keyID:ChloeKeyID, doesPlaySound:boolean, notePos:Vector3?, noteVolume:number?) -- Fallback for Piano v1 scripts
+---@field validPos fun(pianoID:ChloeInstrumentID):boolean       -- Fallback for Piano v1 scripts
+---@field getPlayingKeys fun(pianoID:ChloeInstrumentID):table?  -- Fallback for Piano v1 scripts
 
 ---@alias ChloeInstrumentID string   -- PianoIDs are the same as tostring( vec3position )
 
