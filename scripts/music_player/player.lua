@@ -97,16 +97,18 @@ local function get_all_instruments()
             found_instrument_builder_list = require(script)
         end)
         if not success then
-            print_debug("Error: Failed to require the script `"
-                ..script
-                .."` found in the `instruments` folder. Full error below:\n\n"
-                ..tostring(value)
+            print_debug(
+                "Error: Failed to require the script `"
+                    ..script
+                    .."` found in the `instruments` folder. Full error below:\n\n"
+                    ..tostring(value),
+                true
             )
             break
         end
 
         if type(found_instrument_builder_list) ~= "table" then
-            print_debug("The `"..script.."` script did not return a list of instruments.")
+            print_debug("The `"..script.."` script did not return a list of instruments.", true)
             break
         end
 
@@ -117,25 +119,31 @@ local function get_all_instruments()
                     and found_instrument_builder.new_instance
                 )
             then
-                print_debug("An instrument was found in the `"
-                    .. tostring(script)
-                    .."` script, but it doesn't look like an instrument."
+                print_debug(
+                    "An instrument was found in the `"
+                        .. tostring(script)
+                        .."` script, but it doesn't look like an instrument.",
+                    true
                 )
                 break
             end
 
             if known_instruments[found_instrument_builder.name] then
-                print_debug("Instrument `"
-                    .. tostring(found_instrument_builder.name)
-                    .. "` is already in known_instruments list"
+                print_debug(
+                    "Instrument `"
+                        .. tostring(found_instrument_builder.name)
+                        .. "` is already in known_instruments list",
+                    true
                 )
                 break
             end
 
             if reserved_instrument_names[string.lower(found_instrument_builder.name)] then
-                print_debug("Instrument `"
-                    .. tostring(found_instrument_builder.name)
-                    .. "` is useing a reserved name instrument name"
+                print_debug(
+                    "Instrument `"
+                        .. tostring(found_instrument_builder.name)
+                        .. "` is useing a reserved name instrument name"
+                    , true
                 )
                 break
             end
