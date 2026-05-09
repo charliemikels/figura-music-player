@@ -1,15 +1,18 @@
 # Version 5
 
-Version 5 is still in development, and I'm not going to update the entire readme untill it's somewhat finalized. In the meantime, here's some expected new features:
+Version 5 is very close to being complete, so I'll be working on a new readme soon. Here's a rough outline of additions
 
-- Rewritten from scratch
-- Native MIDI file support
-- fewer instructions
+- Rewritten from scratch.
+- Native MIDI file suppor.t
+  - ABC support has been deprecated for the time being.
+- Songs can now be included with avatar upload. 
+- fewer instructions during playback. Most songs play on Low permissions.
+  - (Although, Low's restricteve number of sounds really limits possible complexity)
 - A script can play multiple songs at once.
 - Songs can have multiple configurable instruments.
-- Volume and Pitch effects
-- An API for use in other scripts
-- (ABC support is not guaranteed.)
+- Volume and Pitch effects.
+- A deep API for use in other scripts.
+- Very modular archetecture. Some scripts can be removed to reduce upload size at the cost of features. 
 
 Here's a quick audio and preformance comparison between v4 and v5 beta as of 2025-10-21. (remember to unmute the video audio.)
 
@@ -23,7 +26,7 @@ The following is the readme for v4
 
 # Tanner Limes' Music Player for Figura
 
-[Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models and Lua scripts.
+[Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models, sounds, animations, and Lua scripts.
 
 This repo is a Figura avatar that lets you play ABC music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
 
