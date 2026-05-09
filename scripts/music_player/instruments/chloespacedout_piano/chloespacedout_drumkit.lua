@@ -1,28 +1,26 @@
 
 --- This instrument script lets the Music Player drive ChloeSpacedOut's Figura Drums (and v2 pianos in drum mode)
---- In order to use this instrument, you may need to first follow "basic usage steps" in
---- the piano's README, then place one nearby. The instrument should
---- become "available" afterwards. Your listeners will also need to follow
---- these settings.
----@see https://github.com/ChloeSpacedOut/figura-piano-2.0
+--- In order to use this instrument, you (and your viewers) may need to either
+---
+--- - follow the "basic usage steps" in Piano 2.0's README      https://github.com/ChloeSpacedOut/figura-piano-2.0
+--- - follow the "How to use" section of Piano v1's README (matches current imortilized drumkit usage)      https://github.com/ChloeSpacedOut/figura-piano
+---
+--- Then place one nearby. The instrument should become "available" afterwards.
+---
+--- BTW, Drumkit's documentation is a little sparse. It's probably being phased out by Piano 2.0. But you can
+--- still summon the imortilized drumkit avatar with these commands.
+---
+--- - 1.21+:    /give @p minecraft:player_head[minecraft:profile={id:[I;1039887675,1961051688,-1756947787,-2031944347],name:"Drum"}]
+--- - 1.20:     /give @p minecraft:player_head{SkullOwner:{Id:[I;1039887675,1961051688,-1756947787,-2031944347]}}
 
 ---@type UUID[]
 local piano_lib_uuids = {
-    "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized piano avatar
+    "3dfb6d3b-74e3-4628-9747-1ab586e2fd65",     -- Imortilized Drumkit avatar
+    "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized Piano avatar
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
 
-    -- Dear end user: If you or a loved one has equipped the piano 2.0 avatar, you
-    -- can add your UUID to this list, and it should appear as an available Chloe Piano.
-    -- You can find your UUID by running `player:getUUID()`
+    -- You can add your own UUID to this list if you or a friend has uploaded their own copy of the drumkit avatar. 
 }
-
--- ---@type UUID[]         -- Backends for the possible piano avatars.
--- local figura_midi_cloud_uuids = {
---     "c0cfded1-a213-47d5-8054-94437f4fb906"
--- }
-
-
-
 
 
 --- Returns a list of pianos indexed by piano_lib_uuid, then piano_ID.
@@ -31,7 +29,7 @@ local piano_lib_uuids = {
 ---
 --- Coincidentaly, it also checks if piano and MidiCloud are at max settings, since the piano libs kinda do that for us.
 ---@return table<UUID, table<ChloePianoID, ChloePiano>>
-local function get_all_known_pianos()
+local function get_all_known_drums()
 
     ---@type table<UUID, table<ChloePianoID, ChloePiano>>
     local all_known_pianos = {}
@@ -75,7 +73,7 @@ local max_search_radius_from_host = 32      ---@type number     -- distance in b
 ---@return UUID?
 ---@return ChloePianoID?
 local function get_nearest_piano_uuid_and_id(target_pos)
-    local all_known_pianos = get_all_known_pianos()
+    local all_known_pianos = get_all_known_drums()
     if not next(all_known_pianos, nil) then return nil, nil end
 
     local nearest_distance_squared = (max_search_radius_from_host * max_search_radius_from_host)    -- pre-squared to use the cheaper :lengthSquared() for comparisons.
@@ -106,7 +104,7 @@ end
 local function instrument_is_available()
     -- TODO: should we limit this to a radius arround the host?
 
-    local there_is_at_least_one_known_piano = (next(get_all_known_pianos(), nil) and true or false)
+    local there_is_at_least_one_known_piano = (next(get_all_known_drums(), nil) and true or false)
     return there_is_at_least_one_known_piano
 end
 
@@ -171,14 +169,14 @@ end
 
 ---@type InstrumentBuilder
 local piano_builder = {
-    name = "ChloeSpacedOut Piano",
+    name = "ChloeSpacedOut Drumkit",
     is_available = instrument_is_available,
     features = {
         sustain = true
     },
     new_instance = function( _ )
 
-        local fallback_instrument_builders   = require("../triangle_sine/triangle_sine")    ---@type InstrumentBuilder[]
+        local fallback_instrument_builders   = require("../percussion/percussion")    ---@type InstrumentBuilder[]
         local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
         local fallback_instrument_instance   = fallback_instrument_builder.new_instance({})
 
@@ -216,7 +214,7 @@ local piano_builder = {
                 local targeted_block_state = player:getTargetedBlock(true, nil)
                 local targeted_block_pos = targeted_block_state:getPos()
                 local targeted_block_pos_string = tostring(targeted_block_pos)
-                for lib_uuid, pianos_by_id in pairs(get_all_known_pianos()) do
+                for lib_uuid, pianos_by_id in pairs(get_all_known_drums()) do
                     if pianos_by_id[targeted_block_pos_string] then
                         set_instance_piano_info(lib_uuid, targeted_block_pos_string)
                         break
