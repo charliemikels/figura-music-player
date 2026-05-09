@@ -130,15 +130,15 @@ end
 local all_piano_info_display_roots = nil ---@type ModelPart?
 
 ---@type table<ChloeInstrumentID, {time:number, part:ModelPart}>
-local piano_time_to_info_text_timeout = {}
+local drum_time_to_info_text_timeout = {}
 local info_text_clear_time_padding = 2*1000
 
-local previous_key_for_piano_time_to_info_text_timeout = nil
+local previous_key_for_drum_time_to_info_text_timeout = nil
 local function display_text_timeouts_watcher()
-    local this_piano_id, this_timeout_value = next(piano_time_to_info_text_timeout, previous_key_for_piano_time_to_info_text_timeout)
+    local this_piano_id, this_timeout_value = next(drum_time_to_info_text_timeout, previous_key_for_drum_time_to_info_text_timeout)
     if not this_piano_id then
         -- key is nil. We might just be at the end of the list.
-        if not previous_key_for_piano_time_to_info_text_timeout then
+        if not previous_key_for_drum_time_to_info_text_timeout then
             -- the previous key was also nil. This means the list is empty. Clean up.
             all_piano_info_display_roots:remove()
             events.world_tick:remove(display_text_timeouts_watcher)
@@ -148,11 +148,11 @@ local function display_text_timeouts_watcher()
         if this_timeout_value.time < client:getSystemTime() then
             -- This value has expired and we may remove it.
             this_timeout_value.part:remove()
-            piano_time_to_info_text_timeout[this_piano_id] = nil
+            drum_time_to_info_text_timeout[this_piano_id] = nil
         end
     end
 
-    previous_key_for_piano_time_to_info_text_timeout = this_piano_id -- Step down the list. If nil, we check the start of list next loop.
+    previous_key_for_drum_time_to_info_text_timeout = this_piano_id -- Step down the list. If nil, we check the start of list next loop.
 end
 
 local function start_display_text_timeouts_watcher()
@@ -161,12 +161,12 @@ local function start_display_text_timeouts_watcher()
 end
 
 local function add_or_update_display_text(piano_id, new_timeout_time)
-    if piano_time_to_info_text_timeout[piano_id] then   -- We know about this piano already. Let's just update the time.
-        piano_time_to_info_text_timeout[piano_id].time = math.max(piano_time_to_info_text_timeout[piano_id].time, new_timeout_time)
+    if drum_time_to_info_text_timeout[piano_id] then   -- We know about this piano already. Let's just update the time.
+        drum_time_to_info_text_timeout[piano_id].time = math.max(drum_time_to_info_text_timeout[piano_id].time, new_timeout_time)
         return
     end
 
-    if not next(piano_time_to_info_text_timeout) then   -- this is the first piano and the watcher is not running
+    if not next(drum_time_to_info_text_timeout) then   -- this is the first piano and the watcher is not running
         start_display_text_timeouts_watcher()   -- initilizes some things for us
     end
 
@@ -181,7 +181,7 @@ local function add_or_update_display_text(piano_id, new_timeout_time)
     this_piano_text_task:setOpacity(0.75)
     this_piano_text_task:setAlignment("CENTER")
 
-    piano_time_to_info_text_timeout[piano_id] = {time = new_timeout_time, part = this_piano_root}
+    drum_time_to_info_text_timeout[piano_id] = {time = new_timeout_time, part = this_piano_root}
 end
 
 
@@ -222,7 +222,7 @@ local piano_builder = {
             instance_piano_midi_note_api = instance_piano.instance.midi.note
 
             if #known_piano_notes > 0 then
-                add_or_update_display_text(piano_id, piano_time_to_info_text_timeout[previous_piano_id])
+                add_or_update_display_text(piano_id, drum_time_to_info_text_timeout[previous_piano_id])
             end
         end
 
