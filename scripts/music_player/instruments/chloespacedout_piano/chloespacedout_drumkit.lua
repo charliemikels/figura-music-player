@@ -122,8 +122,8 @@ end
 local function instrument_is_available()
     -- TODO: should we limit this to a radius arround the host?
 
-    local there_is_at_least_one_known_piano = (next(get_all_known_drums(), nil) and true or false)
-    return there_is_at_least_one_known_piano
+    local there_is_at_least_one_known_drum = (next(get_all_known_drums(), nil) and true or false)
+    return there_is_at_least_one_known_drum
 end
 
 
