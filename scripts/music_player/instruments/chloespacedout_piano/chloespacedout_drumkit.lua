@@ -1,13 +1,10 @@
 
---- This instrument script lets the Music Player drive ChloeSpacedOut's Figura Pianos
---- In order to use this instrument, first follow "basic usage steps" in
+--- This instrument script lets the Music Player drive ChloeSpacedOut's Figura Drums (and v2 pianos in drum mode)
+--- In order to use this instrument, you may need to first follow "basic usage steps" in
 --- the piano's README, then place one nearby. The instrument should
 --- become "available" afterwards. Your listeners will also need to follow
 --- these settings.
 ---@see https://github.com/ChloeSpacedOut/figura-piano-2.0
-
---- Note: this script is specifficaly built for Piano 2.0. The older versions of the piano will not be detected
-
 
 ---@type UUID[]
 local piano_lib_uuids = {
@@ -23,6 +20,8 @@ local piano_lib_uuids = {
 -- local figura_midi_cloud_uuids = {
 --     "c0cfded1-a213-47d5-8054-94437f4fb906"
 -- }
+
+
 
 
 
