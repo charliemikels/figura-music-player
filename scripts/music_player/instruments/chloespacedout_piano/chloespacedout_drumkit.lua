@@ -19,7 +19,7 @@ local piano_lib_uuids = {
     "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized Piano avatar
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
 
-    -- You can add your own UUID to this list if you or a friend has uploaded their own copy of the drumkit avatar. 
+    -- You can add your own UUID to this list if you or a friend has uploaded their own copy of the drumkit avatar.
 }
 
 
@@ -28,10 +28,10 @@ local piano_lib_uuids = {
 --- filters out drums, pianos that play drum sounds, and libraries where piano_lib.getPianos() is empty.
 ---
 --- Coincidentaly, it also checks if piano and MidiCloud are at max settings, since the piano libs kinda do that for us.
----@return table<UUID, table<ChloePianoID, ChloePiano>>
+---@return table<UUID, table<ChloeInstrumentID, ChloePiano>>
 local function get_all_known_drums()
 
-    ---@type table<UUID, table<ChloePianoID, ChloePiano>>
+    ---@type table<UUID, table<ChloeInstrumentID, ChloePiano>>
     local all_known_pianos = {}
 
     for _, lib_uuid in pairs(piano_lib_uuids) do
@@ -58,7 +58,7 @@ local function get_all_known_drums()
 end
 
 
----@param piano_id ChloePianoID
+---@param piano_id ChloeInstrumentID
 ---@return Vector3
 local function piano_id_to_vec(piano_id)
     ---@type string, string, string
@@ -71,13 +71,13 @@ local max_search_radius_from_host = 32      ---@type number     -- distance in b
 
 ---@param target_pos Vector3
 ---@return UUID?
----@return ChloePianoID?
+---@return ChloeInstrumentID?
 local function get_nearest_piano_uuid_and_id(target_pos)
     local all_known_pianos = get_all_known_drums()
     if not next(all_known_pianos, nil) then return nil, nil end
 
     local nearest_distance_squared = (max_search_radius_from_host * max_search_radius_from_host)    -- pre-squared to use the cheaper :lengthSquared() for comparisons.
-    local nearest_piano_id          ---@type ChloePianoID
+    local nearest_piano_id          ---@type ChloeInstrumentID
     local nearest_piano_lib_uuid    ---@type UUID
 
     local shift_to_center_of_block = vectors.vec3(0.5, 0.5, 0.5)
@@ -111,7 +111,7 @@ end
 
 local all_piano_info_display_roots = nil ---@type ModelPart?
 
----@type table<ChloePianoID, {time:number, part:ModelPart}>
+---@type table<ChloeInstrumentID, {time:number, part:ModelPart}>
 local piano_time_to_info_text_timeout = {}
 local info_text_clear_time_padding = 2*1000
 
@@ -180,7 +180,7 @@ local piano_builder = {
         local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
         local fallback_instrument_instance   = fallback_instrument_builder.new_instance({})
 
-        local instance_piano_id             ---@type ChloePianoID?
+        local instance_piano_id             ---@type ChloeInstrumentID?
         local instance_piano_lib            ---@type ChloePianoLib?
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote

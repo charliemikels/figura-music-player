@@ -54,18 +54,18 @@
 ---@class ChloeFiguraMidiCloudSoundfontAPI
 
 ---@class ChloePianoLib
----@field getPianos fun():table<ChloePianoID, ChloePiano>
+---@field getPianos fun():table<ChloeInstrumentID, ChloePiano>
 ---@field getPiano fun(ChloePianoID):ChloePiano
----@field playMidiNote fun(pianoID:ChloePianoID, note:integer, velocity:number, type:("PRESS"|"SPAM_HOLD"|"MANUAL_RELEASE")?, playerEntity:Entity?, notePos:Vector3?)   -- if playerEntity is included, crouching will sustain the piano.
+---@field playMidiNote fun(pianoID:ChloeInstrumentID, note:integer, velocity:number, type:("PRESS"|"SPAM_HOLD"|"MANUAL_RELEASE")?, playerEntity:Entity?, notePos:Vector3?)   -- if playerEntity is included, crouching will sustain the piano.
 ---@field releaseMidiNote fun(ChloePianoID, integer)
 ---@field setInstrumentOverride fun(ChloePianoID, integer)
 ---@field getInstrumentOverride fun(ChloePianoID)
 ---@field getItem fun(table):ItemStack
 
----@alias ChloePianoID string   -- PianoIDs are the same as tostring( vec3position )
+---@alias ChloeInstrumentID string   -- PianoIDs are the same as tostring( vec3position )
 
 ---@class ChloePiano    -- This is a subset of what is in the actual piano. we should primaraly just use IDs and the built-in helper functions.
----@field ID ChloePianoID
+---@field ID ChloeInstrumentID
 ---@field lastInstrument integer
 ---@field model 1|2|3|4                     -- 1-3 == pianos. 4 == drum kit
 ---@field playingKeys table<integer, table> -- List of keys being held down.
