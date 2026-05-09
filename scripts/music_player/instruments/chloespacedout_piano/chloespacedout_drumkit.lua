@@ -76,11 +76,11 @@ local function get_all_known_drums()
 end
 
 
----@param piano_id ChloeInstrumentID
+---@param drum_id ChloeInstrumentID
 ---@return Vector3
-local function piano_id_to_vec(piano_id)
+local function drum_id_to_vec(drum_id)
     ---@type string, string, string
-    local x_str, y_str, z_str = piano_id:match("{%s*(-?%d+),%s*(-?%d+),%s*(-?%d+)%s*}")
+    local x_str, y_str, z_str = drum_id:match("{%s*(-?%d+),%s*(-?%d+),%s*(-?%d+)%s*}")
     return vectors.vec3(tonumber(x_str), tonumber(y_str), tonumber(z_str))
 end
 
@@ -104,7 +104,7 @@ local function get_nearest_piano_uuid_and_id(target_pos)
         local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
         if piano_lib.getPianos then -- This piano Library is still good.
             for piano_id, _ in pairs(pianos_by_id) do
-                local piano_position = piano_id_to_vec(piano_id)
+                local piano_position = drum_id_to_vec(piano_id)
                 local piano_distance_squared = ((piano_position + shift_to_center_of_block) - target_pos):lengthSquared()
                 if piano_distance_squared < nearest_distance_squared then
                     nearest_distance_squared = piano_distance_squared
@@ -171,7 +171,7 @@ local function add_or_update_display_text(piano_id, new_timeout_time)
     end
 
     local this_piano_root = all_piano_info_display_roots:newPart(piano_id, "World")
-    this_piano_root:setPos((piano_id_to_vec(piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
+    this_piano_root:setPos((drum_id_to_vec(piano_id) * 16) + vectors.vec3(0.5*16, 2.25*16, 0.5*16))
 
     local this_piano_camera = this_piano_root:newPart(piano_id.."_billboard", "Camera")
 
