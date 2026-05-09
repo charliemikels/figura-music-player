@@ -232,9 +232,11 @@ local piano_builder = {
         local instance_drum_id             ---@type ChloeInstrumentID?
         local instance_drum_lib            ---@type (ChloePianoLib|ChloeDrumkitLib)?
 
-        ---@param lib_uuid UUID
-        ---@param drum_id ChloeInstrumentID
+        ---@param lib_uuid UUID?
+        ---@param drum_id ChloeInstrumentID?
         local function set_instance_drum_info(lib_uuid, drum_id)
+            -- may be nil, nil to essentialy un-find a drum kit
+
             if not (lib_uuid and drum_id) then
                 instance_drum_id = nil
                 instance_drum_lib = nil
