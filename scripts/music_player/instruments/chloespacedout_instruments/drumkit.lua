@@ -324,7 +324,7 @@ local piano_builder = {
                         true,
                         nil,
                         instruction.start_velocity
-                            * 0.5                           -- Drum is a little loud by default reletive to the other instruments.
+                            * 0.02                         -- Drum is a little loud by default reletive to the other instruments.
                             * (avatar:getVolume() / 100)    -- Respect if viewer has muted the host.
                     )   -- playNote is kinda a legacy function for Piano 2.0, but it's the same signature for old and new drums.
 
