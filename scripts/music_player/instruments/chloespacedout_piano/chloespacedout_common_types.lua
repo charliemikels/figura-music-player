@@ -1,8 +1,6 @@
 
 ---@alias UUID string
 
---#region   ChloePiano and ChloeFiguraMidi type definitions
-
 ---@class ChloeFiguraMidiCloudInstance
 ---@field ID string
 ---@field activeSong nil
@@ -72,7 +70,19 @@
 ---@field instance ChloeFiguraMidiCloudInstance
 ---@field midi table
 
---#endregion
+-- Drum speciffic
+
+---@alias ChloeKeyID string -- Piano v1 and drumkit (and Piano 2.0 in fallback mode) use strings like "A#4", "C2", "G#5" to identify what notes to play.
+
+---@class ChloeDrumkitLib
+---@field playNote          fun(drumID:ChloeInstrumentID, keyID:ChloeKeyID, doesPlaySound:boolean, notePos:Vector3?, noteVolume:number?)
+---@field playSound         fun(keyID:ChloeKeyID, notePos:Vector3, noteVolume:number)
+---@field validPos          fun(drumID:ChloeInstrumentID):boolean
+---@field getPlayingKeys    fun(drumID:ChloeInstrumentID):table<ChloeKeyID,number>
+---@field getDrumIDs        fun():ChloeInstrumentID[]
+---@field getDrumPositions  fun():Vector3[]
+---@field getNearestDrumID  fun(Vector3):ChloeInstrumentID?, Vector3?
+
 
 
 
