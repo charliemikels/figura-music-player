@@ -190,7 +190,7 @@ local piano_builder = {
     name = "ChloeSpacedOut Drumkit",
     is_available = instrument_is_available,
     features = {
-        sustain = true
+        percussion = true,
     },
     new_instance = function( _ )
 
