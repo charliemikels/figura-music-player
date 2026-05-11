@@ -364,7 +364,6 @@ end
 ---@param outbound_player_config SongPlayerConfig
 ---@return SongPlayerController
 local function new_network_song_player(outbound_song, outbound_player_config)
-    local song_player_api = require("./player")      ---@type SongPlayerAPI
     if not host:isHost() then -- The caller is a viewer.
         -- To avoid double-playback issues (where host makes a player, and also the viewer happens to make a player), this function will throw our own error
         error("new_network_song_player was called, but caller is not Host. Use the normal song_player instead to let the viewer play songs.")
