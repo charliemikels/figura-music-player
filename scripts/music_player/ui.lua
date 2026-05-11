@@ -51,7 +51,18 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         error("Please use `.` instead of `:` when calling `new_action_wheel_ui()`")
     end
 
-    if not song_library then song_library = host:isHost() and song_library_api:build_default_library() or song_library_api:build_library() end
+    if not song_library then song_library = song_library_api:build_default_library() end
+
+    if not host:isHost() then
+        -- Listen, the viewer probably can't access the Action wheel anyways
+        -- (it would certenly not be visible at least), and any automation the host
+        -- might want to do should be done with the API functions anyways.
+        -- So let's… just return an empty action.
+        --
+        -- Saves us from burning a whole bunch of instructions for something
+        -- we can't/shouldn't really use.
+        return action_wheel:newAction()
+    end
 
     if not keybinds:getKeybinds()["Scroll song list faster"] then
         keybinds:newKeybind(
