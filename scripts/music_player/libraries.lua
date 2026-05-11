@@ -6,6 +6,18 @@
 ---@field full_path string?     The full path used by the files api.
 ---@field short_path string     The shorter "display path" any UI might prefer to display.
 
+
+---@class SongHolder
+---@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of speciffic instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)
+---@field id string     A unique ID for this song in this library. Usualy the same as full_path.
+---@field name string   The name used in the displayed song list
+---@field short_name string The name used when displayed to others
+---@field source DataSource
+---@field processed_song Song? The instructions produced after processing raw_data. May be nil. data_processors are expected to populate this field.
+---@field start_or_get_data_processor fun(self:SongHolder): TL_Future<Song>
+---@field included_config SongPlayerConfig? Config data provided by the data_processor
+
+
 ---Recursively searches for files in a directory.
 ---@param start_path string
 ---@return FullAndShortPathPair[]

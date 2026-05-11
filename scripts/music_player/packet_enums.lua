@@ -1,6 +1,8 @@
 
 -- Shared enums and type definitions between the various packet-processing scripts.
 
+---@alias Byte integer  -- Should be between 0x00 and 0xFF
+
 ---@alias PartialPacketDataBytes Byte[] Can represent an instruction, or a modifier for an earlier instruction
 
 ---@alias PacketDataBytes Byte[]
