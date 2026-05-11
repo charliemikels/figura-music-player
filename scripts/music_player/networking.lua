@@ -73,6 +73,13 @@ local function receive_config_packet(transfered_song_id, packet_data_string)
     collected_incoming_songs[transfered_song_id].player.set_new_config(new_config)
 end
 
+-- A set of functions to call if we receive a header packet.
+--
+-- Allows us to do some host-only initilization. Technicaly a viewer script may also try to call these, but it's intended to just finish some inits for host-side network player
+--
+-- Indexed by transfer ID.
+local on_header_received_functions = {}    ---@type table<integer, fun(new_song_controller:SongPlayerController)>
+
 --- Creates and stores a new song and player in collected_incoming_songs.
 --- Will discard old songs if the same transfer_id is used multiple times.
 ---@param transfered_song_id integer
@@ -81,11 +88,18 @@ local function receive_header_packet(transfered_song_id, packet_data_string)
     -- This is a header packet. Even if the song with this ID already exists, the host is clearly sending a new one. Purge this data.
     collected_incoming_songs[transfered_song_id] = {}
     local new_song = packet_decoder_api.new_song_from_header_packet(packet_data_string)
+
     local player_api = require("./player")  ---@type SongPlayerAPI
+    local new_player_controller = player_api.new_player(new_song, nil)
     collected_incoming_songs[transfered_song_id] = {
         song   = new_song,
-        player = player_api.new_player(new_song, nil)
+        player = new_player_controller
     }
+    local callback = on_header_received_functions[transfered_song_id]
+    if callback then
+        callback(new_player_controller)
+        on_header_received_functions[transfered_song_id] = nil
+    end
     return new_song
 end
 
@@ -413,6 +427,24 @@ local function new_network_song_player(outbound_song, outbound_player_config)
         )
     )
 
+    local update_callbacks = {}     ---@type fun()[]
+    local meta_callbacks = {}       ---@type fun(event_code:integer, meta_event_data:table<string, integer>)[]
+    local stop_callbacks = {}       ---@type fun(stop_reason:SongPlayerStopReason)[]
+
+    ---@param stop_reason SongPlayerStopReason
+    local function call_stop_callbacks(stop_reason)
+        for _, stop_callback in ipairs(stop_callbacks) do stop_callback(stop_reason) end
+    end
+
+    local function call_update_callbacks()
+        for _, update_callback in ipairs(update_callbacks) do update_callback() end
+    end
+
+    ---@param event_code integer
+    ---@param meta_event_data table<string, integer>
+    local function call_meta_callbacks(event_code, meta_event_data)
+        for _, meta_callback in ipairs(meta_callbacks) do meta_callback(event_code, meta_event_data) end
+    end
 
     ---@type SongPlayerController
     local custom_song_controller
@@ -431,6 +463,15 @@ local function new_network_song_player(outbound_song, outbound_player_config)
                 header_packet_data,
                 true
             )
+
+            -- This header packet won't arrive for a tick or two (even on host, so long as it goes through the ping layer.)
+            -- queue up some last-remaining init things.
+
+            on_header_received_functions[transfered_song_id] = function (new_song_controller)
+                new_song_controller.register_stop_callback(call_stop_callbacks)
+                new_song_controller.register_meta_event_callback(call_meta_callbacks)
+                new_song_controller.register_update_callback(call_update_callbacks)
+            end
 
             -- Send the start signal. Buffer time is now based on when we receive the first data packet, so it's safe to start now, and send data later.
 
@@ -488,6 +529,52 @@ local function new_network_song_player(outbound_song, outbound_player_config)
             end
 
             return local_player_is_playing
+        end,
+
+
+        ---@type fun(callback: fun()))
+        register_update_callback = function(callback)
+            table.insert(update_callbacks, callback)
+        end,
+
+        ---@type fun(callback: fun(event_code:integer, meta_event_data:table<string, integer>)))
+        register_meta_event_callback = function(callback)
+            table.insert(meta_callbacks, callback)
+        end,
+
+        ---@type fun(callback: fun(stop_reason:SongPlayerStopReason))
+        register_stop_callback = function(callback)
+            table.insert(stop_callbacks, callback)
+        end,
+
+        ---@type fun(callback: fun()))
+        remove_update_callback = function(callback_to_remove)
+            for k, fn in pairs(update_callbacks) do
+                if fn == callback_to_remove then
+                    table.remove(update_callbacks, k)
+                    return
+                end
+            end
+        end,
+
+        ---@type fun(callback: fun(event_code:integer, meta_event_data:table<string, integer>)))
+        remove_meta_event_callback = function(callback_to_remove)
+            for k, fn in pairs(meta_callbacks) do
+                if fn == callback_to_remove then
+                    table.remove(meta_callbacks, k)
+                    return
+                end
+            end
+        end,
+
+        ---@type fun(callback: fun(stop_reason:SongPlayerStopReason))
+        remove_stop_callback = function(callback_to_remove)
+            for k, fn in pairs(stop_callbacks) do
+                if fn == callback_to_remove then
+                    table.remove(stop_callbacks, k)
+                    return
+                end
+            end
         end,
     }
     for k, v in pairs(collected_incoming_songs[transfered_song_id].player) do -- loop through the functions of a known player. At this stage, this player will be the wrong player. But it holds the keys we need.

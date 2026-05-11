@@ -8,18 +8,32 @@ if host:isHost() then
     local song_processor_future = song:start_or_get_data_processor()
     song_processor_future:register_callback(function(_)
 
-        error("Alright, by my count there is one last significant bug:") -- TODO: network player's advice text is, for whatever reason, not aligned with the normal player's text (Specifficaly the steps to mute the avatar.)
+        -- error("Alright, by my count there is one last significant bug:")    -- TODO: network player's advice text is, for whatever reason, not aligned with the normal player's text (Specifficaly the steps to mute the avatar.)
 
-        -- local networking_api = require("scripts/music_player/networking")   ---@type SongNetworkingApi
+        local networking_api = require("scripts/music_player/networking")
         local config_api = require("scripts/music_player/config_cache")     ---@type ConfigCacheAPI
         local music_player_api = require("scripts/music_player/player")     ---@type SongPlayerAPI
         local song_config = config_api.load_song_config(song.id)
         song_config.source_entity = player
 
-        local song_player_controller = music_player_api.new_player(song.processed_song, song_config)
-        -- local song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
+        local local_song_player_controller = music_player_api.new_player(song.processed_song, song_config)
+        local remote_song_player_controller = networking_api.new_network_player(song.processed_song, song_config)
 
-        -- song_player_controller.play()
+        local_song_player_controller.register_stop_callback(
+            function(_)
+                print("to remote")
+                remote_song_player_controller.play()
+            end
+        )
+
+        remote_song_player_controller.register_stop_callback(
+            function(_)
+                print("to local")
+                local_song_player_controller.play()
+            end
+        )
+
+        local_song_player_controller.play()
 
         -- local function update_callback()
         --     print(song_player_controller:get_progress())
