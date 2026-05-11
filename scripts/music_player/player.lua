@@ -257,7 +257,42 @@ local function update_info_display_text(song_player)
     song_player.info_display_text_task:setText(info_text)
 end
 
+local instrument_applyer_loop_is_running = false
 
+local configed_instruments_to_apply = {} ---@type {song_player: SongPlayer, track_config:SongPlayerTrackConfig, new_selection:InstrumentSelection}[]
+
+local function configured_instrument_applyer_loop()
+    if #configed_instruments_to_apply < 1 then
+        instrument_applyer_loop_is_running = false
+        events.TICK:remove(configured_instrument_applyer_loop)
+        return
+    end
+
+    local to_apply_this_time = table.remove(configed_instruments_to_apply)
+    local previous_instrument = to_apply_this_time.track_config.selected_instrument
+    to_apply_this_time.track_config.selected_instrument =
+        known_instruments[to_apply_this_time.new_selection.name]
+        .new_instance(to_apply_this_time.new_selection.params)
+    if not previous_instrument.is_finished() then
+        table.insert(to_apply_this_time.song_player.deprecated_instruments, previous_instrument)
+    end
+end
+
+---Allows us to apply instruments to a config over time (mitigates overran instruction limits on low.)
+---@param song_player SongPlayer
+---@param track_config SongPlayerTrackConfig
+---@param new_selection InstrumentSelection
+local function eventualy_apply_configed_instrument(song_player, track_config, new_selection)
+    table.insert(configed_instruments_to_apply, {
+        song_player = song_player,
+        track_config = track_config,
+        new_selection = new_selection
+    })
+    if not instrument_applyer_loop_is_running then
+        instrument_applyer_loop_is_running = true
+        events.TICK:register(configured_instrument_applyer_loop)
+    end
+end
 
 ---Applies config to a SongPlayer
 ---Used during init, and may be used during playback.
@@ -278,13 +313,9 @@ local function apply_config(song_player, config)
         end
 
         if instrument_selection_to_use_instead then
-            local previous_instrument = track_config.selected_instrument
-            track_config.selected_instrument =
-                known_instruments[instrument_selection_to_use_instead.name]
-                .new_instance(instrument_selection_to_use_instead.params)
-            if not previous_instrument.is_finished() then
-                table.insert(song_player.deprecated_instruments, previous_instrument)
-            end
+            -- Turns out, calling new_instance() gets very expensive if you have a lot of heavy instruments.
+            -- See SSB4 Menu: where there are 3 percussion tracks. if each are set to ChloeSpacedOut Drumkit, then it gets heavy really fast.
+            eventualy_apply_configed_instrument(song_player, track_config, instrument_selection_to_use_instead)
         end
     end
 
