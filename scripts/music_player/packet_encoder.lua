@@ -8,13 +8,17 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 --  1. Fit into the ping requirements
 --  2. Be processable by the lowest supported permission level (more + small > few + big)
 --  3. Not monopolize the ping budget from the rest of the avatar
+--  4. Dodge Figura's ping "batching"
+--     If figura has many pings to send at once, it might batch them and send many at one time.
+--     Annoyingly, as far as the ping limits are concerned, this counts as one big ping.
+--     So our pings need to be small enough and infrequent enough to also avoid stacking up
 
 -- Ping limits (see https://figura-wiki.pages.dev/tutorials/Pings#ping-rate-limiting )
 -- Fewer than 32 pings in one second (~32 milis between packets min)
 -- Fewer than 1024 bytes per second (~1 byte/mili)
 
 local pings_per_second = 6
-local bytes_per_second = 500
+local bytes_per_second = 400
 
 -- In bytes. (-2 because storing data as a string adds 2 bytes to encode the string's length)
 local max_packet_length = math.floor(bytes_per_second / pings_per_second) - 2
