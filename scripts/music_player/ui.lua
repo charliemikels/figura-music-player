@@ -641,6 +641,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 end
 
 
+---@class MusicPlayerUiAPI
 local music_player_ui_api = {
     new_action_wheel_ui = new_action_wheel_ui
 }
