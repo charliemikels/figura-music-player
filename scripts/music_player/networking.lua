@@ -196,10 +196,14 @@ function pings.TL_FMP_receive_packet(transfer_id, packet_type, incoming_packet, 
     end
 end
 
+--- Essentialy a wrapper for pings.TL_FMP_receive_packet
+---
+--- Bypasses the outbound backet queue. Good for control codes, bad for bulk data.
+---
 ---@param transfer_id integer
 ---@param packet_type PacketTypeIDs
 ---@param outgoing_packed_packet PacketDataString
----@param skip_queue boolean?
+---@param skip_queue boolean?   -- Skip the viewer-side dequeue process and ensures it's processed immediatly by the viewer. Typicaly not ideal.
 local function ping_packet_immediatly(transfer_id, packet_type, outgoing_packed_packet, skip_queue)
     pings.TL_FMP_receive_packet(transfer_id, packet_type, outgoing_packed_packet, skip_queue)
 end
@@ -505,21 +509,13 @@ local function new_network_song_player(outbound_song, outbound_player_config)
 end
 
 ---@class SongNetworkingApi
----@field new_network_player fun(processed_song:Song, player_config:SongPlayerConfig):SongPlayerController
----@field local_receive_packet  fun(packed_packet_data:PacketDataString)
----@field ping_packets          fun(outgoing_packed_packets:PacketDataString[])
----@field outgoing_packet_queue_progress    fun():number
----@field play_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to play the selected song.
----@field stop_transfered_song  fun(transfered_song_id:integer)         Sends a controll packet to stop the selected song, and removes any remaining queued packets for the song.
----@field remove_transfered_song  fun(transfered_song_id:integer)       Sends a controll packet to delete the selected song. This simply removes the song from the transfered_songs list. A player playing this song may still hold onto it.
----@field cancel_all_pings fun()        Deletes all pings in the queued pings list and stops the update loop.
----@field get_player_for_transfered_song fun(transfered_song_id:integer):SongPlayerController  Treat this as read-only. Edits to this player will only be seen by the host.
----@field get_target_milis_between_packets fun():integer                Returns `target_milis_between_packets`, so that we can make time-estemations from packet rate.
-return {
+local api = {
     new_network_player = new_network_song_player,
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
+
+    ---@param transfered_song_id integer
     play_transfered_song = function(transfered_song_id)
         ping_packet_immediatly(
             transfered_song_id,
@@ -527,23 +523,43 @@ return {
             packet_encoder_api.make_control_packet(control_packet_codes.start)
         )
     end,
+
+    ---@param transfered_song_id integer
     stop_transfered_song = function(transfered_song_id)
         ping_packet_immediatly(
             transfered_song_id,
             packet_enums_api.packet_type_ids.control,
             packet_encoder_api.make_control_packet(control_packet_codes.stop)
         )
-        remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id) -- Does not cancel the above packet, since ping_packet_immediatly bypasses the packet queue
+        remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id) -- Does not cancel the above packet, since ping_packet_immediatly bypasses the outgoing packet queue
     end,
+
+    --- Efectively deletes a transfered song on all viewers.
+    ---
+    --- To reuse this song, a new header packet will need to be sent.
+    ---@param transfered_song_id integer
     remove_transfered_song = function(transfered_song_id)
         ping_packet_immediatly(
             transfered_song_id,
             packet_enums_api.packet_type_ids.control,
             packet_encoder_api.make_control_packet(control_packet_codes.remove)
         )
-        -- TODO: keep?
+        remove_packets_from_outgoing_queue_by_transfer_id(transfered_song_id)
     end,
-    cancel_all_pings       = function() stop_and_cleanup_packet_ping_loop() end,
+
+    cancel_all_outgoing_pings       = function() stop_and_cleanup_packet_ping_loop() end,
+
+    --- Header packets create SongPlayers. This function can be used to get that player's controller for a given transfer ID.
+    ---
+    --- This is a local song player, so changes to it will not sync with viewers
+    ---
+    --- You might want to check out new_network_player() to create a syncing player to begin with.
+    ---@param transfered_song_id integer
+    ---@return SongPlayerController?
     get_player_for_transfered_song = function(transfered_song_id) return collected_incoming_songs[transfered_song_id] and collected_incoming_songs[transfered_song_id].player or nil end,
+
+    ---@return number get_target_milis_between_packets
     get_target_milis_between_packets = function() return packet_encoder_api.get_target_milis_between_packets() end,
 }
+
+return api
