@@ -1,179 +1,182 @@
-# Version 5
 
-Version 5 is very close to being complete, so I'll be working on a new readme soon. Here's a rough outline of additions
+# Tanner Limes' Music Player for Figura
 
-- Rewritten from scratch.
+[Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models, sounds, animations, and Lua scripts.
+
+This repo is a Figura avatar that lets you play MIDI music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
+
+<!-- TODO: v5 Video -->
+
+(↑ If there's no sound, be sure the video player is unmuted. ↑)
+
+## Installation
+
+This version of this script was built for Figura 0.1.5b. Check the Github releases for versions compatable with older versions of Figura. 
+
+This repo is a complete, ready to go, Figura avatar, but the good stuff is all in the `scripts/music_player` directory. You can download this entire repo and just use it as your avatar, or extract the scripts and merge them with your existing avatar. 
+
+Download this avatar from [the releases page](https://github.com/charliemikels/figura-music-player/releases) or by useing the green `code` button at the top of this repo. Then you can drop it into your Avatars folder. (You can actualy drag-and-drop the entire zip file into the Figura Wardrobe screen in-game and it should work.)
+
+### Existing avatars
+
+If you're looking to add the music player to an existing avatar, then you'll only need the `scripts/music_player` folder. Copy it into your existing avatar. Then take a look at `action_wheel.lua` to see how you can integrate it into your action wheel. 
+
+### Getting music
+
+Once It's downloaded, you'll need to populate your library with music. 
+
+After equipping the avatar for the first time, you should see a new `[Figura root dir]/data/TL_Songbook` directory. 
+
+<details>
+<summary>If you don't know where the Figura root directory is, you can get to it from within Minecraft.</summary>
+<ol>
+    <li>Open Minecraft and load into a world.</li>
+    <li>In the pause menu, open the Figura menu.</li>
+    <li>Click the folder icon in the upper left.<br>This should bring up the `Avatars` folder in your file browser.</li>
+    <li>Navigate up one folder.<br>This should be Figura's root folder. You should be able to see your <code>avatars</code> folder and the <code>data</code> here.</li>
+</ol>
+</details>
+
+You can then place any `.midi` or `.mid` file in that folder, then reload the avatar. your songs should be available to play. 
+
+<details>
+<summary>Your file structure should look something like this.</summary>
+<pre>
+[[ Figura root ]]
+├ avatars
+│ └ Music Player   ← This folder can have any name
+│   ├ avatar.json
+│   ├ scripts
+│   │ ├ music_player
+│   │ │ ├ file_processors…
+│   │ │ ├ instruments…
+│   │ │ ├ core.lua
+│   │ │ ├ file_processors.lua
+│   │ │ ├ ui.lua
+│   │ │ └ …
+│   │ └ Action Wheel.lua
+│   └ …
+├ data
+│ ├ TL_Songbook
+│ │ ├ optional_sub_dir
+│ │ │ └ organized_song.midi
+│ │ ├ song2.midi
+│ │ └ song*.midi
+│ └ …
+└ …
+</pre>
+</details>
+
+## Default In-Game Usage
+
+The controls for this avatar are in their own Action Wheel page. Open the Action Wheel and click the jukebox to access the song player controls. You should new see 3 buttons:
+
+### Top right: Back
+
+Left click sends you back to the previous Action Wheel page
+
+### Left: Song selector
+
+While hovering over the song selector action, use your scroll wheel and left click buttons to select and play songs. 
+
+Songs need to be prepared before they can be played. Left click to process a song, and then click again once it's done to play it. 
+
+   mark   | meaning
+:--------:|:-------------------
+(no mark) | song is unprocessed
+    ⏳    | Song is currently being processed
+    ✓     | Song is processed and ready to be played
+    ♬     | Song is playing
+    🚫    | There was an error during processing
+
+To stop playback, click the playing song, or click on any processed song. The UI will prevent you from playing two songs at once.
+
+There's some info above and below the song selection list to help you understand what's going on.
+
+You can also hold down your Sprint key to scroll the list faster (rebindable in the Figura settings menu).
+
+## Bottom right: Configure
+
+Songs that are processed but are not playing can be configured with this button. 
+
+This opens up a new menu menu that lets you pick what instruments you want to use to play your song
+
+### Right: Save / Cancel
+
+Both of these will take you back to the main Music Player action wheel, but the save button will apply and remember your configuration, but cancel will discard your changes.
+
+### Bottom left: Track selector
+
+Lets you pick what track your editing. No need to click, moveing the arrow is enough to select it. 
+
+The first row of each track says the name of the track, or the reccomended instrument to use for the track. These are provided by your midi file. 
+
+The row below it shows your currently selected instrument. 
+
+### Top left: Instrument picker
+
+This is a list of instruments available to your script and it lets you pick one for the track you selected in the Track Selector (see above).
+
+Use the scroll wheel and left click to select an instrument.
+
+Some instruments have special features marked with extra icons.
+
+mark | meaning
+:---:|:-------------------
+🥁   | Percussion instrument, not intended for normal playback
+🗘    | Instrument can hold/sustain a note. 
+🛝   | Instrument supports pitch bending. A somewhat rare effect in midi files. 
+
+If an instrument name is grayed out, then it is currently not available. You can still choose it, but it might fall back to a default instrument during playback untill it becomes available.
+
+
+#### ChloeSpacedOut instruments
+
+This script includes extra wrappers that let it use [ChloeSpacedOut](https://github.com/ChloeSpacedOut)'s [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) as an instrument (both in piano and drumkit mode).
+
+In order to use them, you will need to stand near one, and you and your listeners will need to follow the [Basic Usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage) so that they can be heard by everyone propperly. 
+
+![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
+
+<!-- TODO: Video of the piano and drumkit in action. _Bad Apple_ maybe? -->
+
+
+
+
+
+
+
+## FAQ
+
+### How can I get the piano?
+
+You'll want to follow the [piano's basic usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage). If you can't use commands, but can get player heads, you can instead
+
+1. Equip the Piano avatar to an account you controll. 
+  - It may be possible to merge it with this Music Playing script and use just one avatar
+2. Get your player head
+3. Get the UUID of the account with the piano equipped. (You can do that from within Figura by going to permissions, right click the avatar, copy UUID)
+4. Add the UUID to the lists in `scripts/music_player/instruments/chloespacedout_instruments/piano.lua` and `…/drumkit.lua`. 
+5. Reload the music player avatar. 
+
+But if you're going through this much effort, you might as well check out [ChloeSpacedOut's Figura Midi Player](https://github.com/ChloeSpacedOut/figura-midi-player). It's basicaly the same kind of script as mine, but has more dirrect access to the Piano's extensive instrument library.
+
+### Who's Charlie? I thought you were Tanner? (and vice versa)
+
+Tanner_Limes is my Minecraft username. Hi Discord people!
+
+## Changes in v5
+
+Version 5 comes with significant changes 
+
 - Native MIDI file support.
-  - ABC support has been deprecated for the time being.
+  - ABC support has been deprecated. However, you should be able to convert most ABC files back to MIDI without any loss. 
 - Songs can now be included with avatar upload. 
 - fewer instructions during playback. Most songs play on Low permissions.
   - (Although, Low's restricteve number of sounds really limits possible complexity)
 - A script can play multiple songs at once.
 - Songs can have multiple configurable instruments.
 - Supports [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) (both in piano and drumkit mode) by [ChloeSpacedOut](https://github.com/ChloeSpacedOut)
+  - Does not support the older piano. 
 - Volume and Pitch effects.
-- A deep API for use in other scripts.
-- Very modular archetecture. Some scripts can be removed to reduce upload size at the cost of features. 
-
-Here's a quick audio and preformance comparison between v4 and v5 beta as of 2025-10-21. (remember to unmute the video audio.)
-
-https://github.com/user-attachments/assets/5ab2c4f7-c5f4-4fcd-a8e2-96794c51d958
-
-------
-
-The following is the readme for v4
-
-----------
-
-# Tanner Limes' Music Player for Figura
-
-[Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models, sounds, animations, and Lua scripts.
-
-This repo is a Figura avatar that lets you play ABC music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
-
-<!-- ↓ demo video of the avatar playing the chorus to "Revenge" by Captainsparklez ↓ -->
-[figura-music-player-v4-demo_Bonetrousle_Undertale.webm](https://github.com/user-attachments/assets/dcb32c71-464a-4639-8fee-2f42a362cd76)
-
-(↑ If there's no sound, be sure the video player is unmuted. ↑)
-
-## Installation
-
-This version of this script was built for Figura 0.1.4 and makes use of the new files api. Check the Github releases for versions compatable with older versions of Figura. 
-
-Use the green `code` button to download this repo as a zip file. Then navigate to your Figura avatars folder, make a sub-folder there for this avatar, and then extract the zip into that folder. 
-
-The file structure should look like this:
-
-```
-[[ Figura root ]]
-├ avatars
-│ └ Music Player   ← This folder can have any name
-│   ├ avatar.json
-│   ├ scripts
-│   │ ├ abc_player
-│   │ │ ├ abc_player.lua
-│   │ │ ├ anchor.bbmodel
-│   │ │ └ triangle_sin.ogg
-│   │ └ Action Wheel.lua
-│   └ …
-│
-└ data
-  ├ TL_Songbook
-  │ ├ optional_sub_dir
-  │ │ └ organized_song.abc
-  │ ├ song2.abc
-  │ └ song*.abc
-  └ …
-```
-
-<details>
-<summary>If you don't know where the root Figura folder is, you can get to it through Minecraft</summary>
-<ol>
-    <li>Open Minecraft.</li>
-    <li>Open the Figura menu.</li>
-    <li>Click the folder icon in the upper left.<br>This should open your file browser.</li>
-    <li>Navigate up one folder.<br>You should see your <code>avatar</code> folder here.</li>
-    <li>Open or create the <code>data</code> folder.</li>
-    <li>Your destination is on the left.</li>
-</ol>
-</details>
-
-## Adding Songs
-
-After you've added the avatar, launch minecraft and load the avatar at least once. The avatar will atempt to create a songbook folder for you in Figura's `data` directory. 
-
-The default songbook location is in `[figura_root]/data/TL_Songbook`, but you can change the path by editing `songbook_root_file_path` at the top of the `abc_player.lua` file.
-
-After finding the songbook folder, place your .abc files into this folder. You can also use sub-folders to help organize your files. 
-
-### ABC Files
-
-Currently, this avatar **only supports songs written in the [ABC music format](https://abcnotation.com/)**. You can find ABC files online, (they're used frequently in the _Starbound_ and _Lord of the Rings Online_ communities.) or you can convert more common Midi files to ABC if you have the tools. 
-
-If you plan on converting your own ABC files from Midi tracks, I recommend [Starbound Composer](http://www.starboundcomposer.com/), if you happen to have [Starbound](https://store.steampowered.com/app/211820/Starbound/) installed. But you don't need to have Starbound installed to use SBC. Starbound Composer will ask you to point to your Starbound install folder, but you can actually trick it pretty easily by pointing it to a folder with this structure:
-
-```
-target folder
-├ assets
-│ └ packed.pak     ← renamed empty file
-└ win32
-  └ starbound.exe  ← renamed empty file
-```
-
-Without the actual Starbound assets, you won't be able to preview your songs, but you will still be able to convert them from Midi to ABC, and you'll even be able to merge multiple tracks/files into a single ABC file. 
-
-1. Select all tracks. (Deselect track 10, it's allways percussion.)
-2. Click the blue merge button.
-3. Delete the old tracks.
-4. Save the new merged track to abc.
-5. If you have a percussion track, save it as a seperate file, and append ` - Drums` to the end of the filename (immediatly before the `.abc` file extension). (Include the leading space in ` - Drums`.)
-
-If SBC won't work for you, you can try your hand at [this mega list of software for ABC files](https://abcnotation.com/software), some of them say they can convert ABC files to and from Midi files, however a lot of them just point to dead links. I haven't found one I really like yet. Your mileage may vary. <!-- However, [MidiZyx2abc](http://www.midicond.de/Freeware/index_en.html#MidiZyx2abc) might be pretty reasonable? -->
-
-Note that this script is **not fully compatable** with the .abc spec. It's close, but there are some abc features that will confuse it. This script was primaraly created with Starbound Composer in mind, and has pretty good compatability with this specific editor. 
-
-## In Game Usage
-
-The controls for this avatar are in their own Action Wheel page. Open the Action Wheel and click the jukebox to access the song player controls. You should new see 3 buttons:
-
-### Back
-
-- Left click sends you back to the previous Action Wheel page
-
-### Select Chloe Piano
-
-ChloeSpacedOut made [this awesome piano avatar](https://github.com/ChloeSpacedOut/figura-piano). You can punch the keys to play notes, but you can also play songs through the piano with this script.
-
-- Left click while looking at a piano to target the piano. Future notes will play through the piano instead of this avatar's built in instrument.
-  - Be sure to aim at the player head of the piano. It's much smaller than the piano itself, near the peddles.
-- Left click while not looking at a piano will deselect the current piano. Future notes will go back to the built in instrument.
-
-![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
-
-Due note that piano support is not fully stable yet. There are a few edge cases that still need to be checked. If you encounter a crash, reload your avatar and the piano.
-
-### Song list
-
-This is where all the important magic happens
-
-The text window for this button displays some important info:
-
-```
-+-----------------------------------------+
-| Songlist 9/30 Currently Playing: Song 6 |   ← Selected Song index
-|     Song 5                              |   ↑ Currently playing song name
-| ♬   Song 6                              |   ← Playing song marked by ♬
-|     Song 7                              |
-|   → Song 8                              |   ← Selected song marked by →
-| •   Song 9                              |   ← Queued song marked by •
-|     Song 10                             |   
-|     Song 11                             |
-| Click to queue selected song            |   ← Left click action hint
-| Queued song starts in 2 seconds         |   ← Queued song's buffer time
-+-----------------------------------------+
-```
-
-- Scroll to navigate the song list
-- Shift+Scroll to navigate the list faster
-- Left click a song to queue it.
-  - "Queuing" a song will load it from disk, chop it up into instructions, and will turn the instructions into packets, ready to be sent to the listener.
-- Left click a queued song to start playing it.
-- Left click on a queued song while another song is playing to stop the currently playing song.
-  - (This also works if the queued song is also the playing song.)
-- Right click when not playing a song to enter Slow Mode. The script is tuned to stay under the ping limit at all times. But there are several cases where the actual ping limit is lower than expected. Slow Mode significantly reduces ping size and ping rate to stay under more restrictive ping limits. 
-
-## FAQ
-
-### How can I get the piano?
-
-You can give yourself one of Chloe's pianos using this command: `/give @s player_head{SkullOwner:{Id:[I;-1808656131,1539063829,-1082155612,-209998759]}}`. But make sure you increase it's permission level in your Figura settings. (You will need to show disconnected avatars to find it.)
-
-Check out the [Piano's github page](https://github.com/ChloeSpacedOut/figura-piano) for the actual avatar files. 
-
-### Who's Charlie? I thought you were Tanner? (and vice versa)
-
-Tanner_Limes is my Minecraft username. Hi Discord people!
-
-### Why do some songs make me wait a very long time before they play?
-
-There are two main cases where this can happen. Very large songs take a long time to parce into instructions. This usualy makes minecraft freeze and has a chance to make your client "time out" in singleplayer. Very fast songs can out-pace the ping-limit, so they need time to buffer first.
+- Rewritten from scratch to make the script more modular. Some scripts may be removed if you don't need certin features.
