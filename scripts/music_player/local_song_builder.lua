@@ -5,7 +5,7 @@
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 
 local exports_dir = "TL_local_song_exports/"
-local file_ext = ".local_song.lua"
+local file_ext = ".lua"
 
 local do_debug_prints = true
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
