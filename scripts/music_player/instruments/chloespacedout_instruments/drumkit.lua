@@ -242,7 +242,7 @@ local function midi_note_to_string(midi_note)
 end
 
 ---@type InstrumentBuilder
-local piano_builder = {
+local drumkit_builder = {
     name = "ChloeSpacedOut Drumkit",
     is_available = instrument_is_available,
     features = {
@@ -357,4 +357,4 @@ local piano_builder = {
     end,
 }
 
-return { piano_builder }
+return { drumkit_builder }
