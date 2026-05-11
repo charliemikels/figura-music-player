@@ -1,7 +1,7 @@
 local packet_decoder_api = require("./packet_decoder")  ---@type PacketDecoderApi
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 local packet_enums_api   = require("./packet_enums")    ---@type PacketEnumsAPI
-
+-- Also requires player.lua
 
 local do_debug_prints = false
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
