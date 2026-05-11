@@ -81,6 +81,7 @@ instrument_builder = {
                 if not instrument_builder.is_available() then
                     if fallback_instrument_instance then
                         fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                        return
                     end
                 end
 
