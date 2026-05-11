@@ -331,6 +331,7 @@ local function apply_config(song_player, config)
         song_player.info_display_root_part:setParentType(song_player.info_display_root_part_parent_type)
         song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset * 16)
         song_player.info_display_text_task:setPos(song_player.info_display_text_pos_offset * 16)
+        song_player.info_display_mute_instructions_text_task:setPos(song_player.info_display_text_task:getPos() + song_player.info_display_mute_instructions_text_pos_offset)
     end
 end
 
@@ -718,6 +719,7 @@ local song_player_api = {
 
             info_display_root_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
             info_display_text_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
+            info_display_mute_instructions_text_pos_offset = vectors.vec3(0, 1.75, 0),  -- Just enough vertical offset for the mute info text to appear above them main text.
             info_display_root_part_parent_type = "World",   ---@type ModelPart.parentType
             info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \""..song.name.."\"\n",    ---@type string   -- A base name to reduce the amount of things we need to update when rendering the info text
 
@@ -769,9 +771,10 @@ local song_player_api = {
 
                     song_player.info_display_mute_instructions_text_task = song_player.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(song_player.song_uuid))
                     song_player.info_display_mute_instructions_text_task
-                        :setPos((song_player.info_display_text_pos_offset * 16) + vectors.vec3(0, 1.75, 0))
+                        :setPos(song_player.info_display_text_task:getPos() + song_player.info_display_mute_instructions_text_pos_offset)
                         :setScale(0.2)
                         :setOpacity(0.5)
+                        :setSeeThrough(true)
                         :setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
 
