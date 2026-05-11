@@ -996,6 +996,12 @@ local song_player_api = {
         end
         return features
     end,
+
+    ---@param instrument_key string
+    ---@return InstrumentBuilder?
+    get_instrument_builder = function(instrument_key)
+        return known_instruments[instrument_key]
+    end
 }
 
 

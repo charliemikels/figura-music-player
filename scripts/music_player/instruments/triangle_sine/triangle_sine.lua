@@ -48,8 +48,9 @@ local function update_modifiers(active_instruction, instrument_config)
     end
 end
 
+local instrument_builder
 ---@type InstrumentBuilder
-local instrument_builder = {
+instrument_builder = {
     name = "Triangle Sine",         -- Also used when making unique identifiers
     is_available = function() return triangle_sine_sound_key and avatar:canUseCustomSounds() end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
     features = {            -- Displayed to users so that they know what features this instrument supports.
@@ -59,6 +60,11 @@ local instrument_builder = {
     },
 
     new_instance = function(params)
+
+        local song_player_api = require("../../player")  ---@type SongPlayerAPI
+
+        local fallback_instrument_builder = song_player_api.get_instrument_builder("MC/Harp")
+        local fallback_instrument_instance   = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
 
         ---@type {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
@@ -71,6 +77,12 @@ local instrument_builder = {
         local new_instance = {
             play_instruction = function(instruction, position, time_since_due)
                 -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+
+                if not instrument_builder.is_available() then
+                    if fallback_instrument_instance then
+                        fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                    end
+                end
 
                 local detune_amount = (instrument_config.do_detune and ((math.random()-0.5) * 0.1) or 0)
 
