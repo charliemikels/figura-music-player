@@ -75,7 +75,7 @@ return {
         load_run_and_unload_our_config(write_song_config, song_id, song_config)
     end,
 
-    --- Caches an entire song_config. All items, including entity data, play_immediatly, etc are stored
+    --- Caches an entire song_config. All items, including entity data, are stored
     ---
     --- see also write_song_config() for a typicaly more usefull config storage function.
     force_write_song_config = function(song_id, song_config)

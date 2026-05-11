@@ -234,10 +234,10 @@ local function build_config_packet(player_config)
 
     -- boolean-based-configs
 
-    local boolean_configs = {
-        (player_config.play_immediately and true or false),
-    }
-    union_tables(config_packet_body, int_to_vlq(bool_list_to_number(boolean_configs)))
+    -- local boolean_configs = {
+    --     (player_config.play_immediately and true or false),
+    -- }
+    -- union_tables(config_packet_body, int_to_vlq(bool_list_to_number(boolean_configs)))
 
     return packet_data_bytes_to_string(config_packet_body)
 end
