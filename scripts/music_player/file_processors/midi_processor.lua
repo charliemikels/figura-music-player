@@ -1208,7 +1208,7 @@ local midi_processor_loop_stage_functions = {
 
                         if state.midi_header_info.format == "2" then
                             error("MIDI format 2 not yet supported."
-                                .." Send this MIDI file (".. song_holder.name ..") to the script author for testing.")
+                                .." Send this MIDI file (".. song_holder.name ..") to https://github.com/charliemikels/figura-music-player/issues/new.")
                         end
 
                         -- Number of tracks
@@ -1236,7 +1236,7 @@ local midi_processor_loop_stage_functions = {
                             -- TODO
 
                             error("MIDI time division type 1 (SMPTE / time codes / whatever) is not implemented."
-                                .." Send this MIDI file (".. song_holder.name ..") to the script author for testing.")
+                                .." Send this MIDI file (".. song_holder.name ..") to https://github.com/charliemikels/figura-music-player/issues/new.")
                         else
                             --first bit of first byte of timing data is 0. Use normal ticks-per-quarter-note method
                             local ticks_per_quarter_note_fist_byte = bit32.band(first_byte_of_timing_data, everything_but_first_bit_mask)
