@@ -89,7 +89,7 @@ local function receive_header_packet(transfered_song_id, packet_data_string)
     collected_incoming_songs[transfered_song_id] = {}
     local new_song = packet_decoder_api.new_song_from_header_packet(packet_data_string)
 
-    local player_api = require("./player")  ---@type SongPlayerAPI
+    local player_api = require("./song_player")  ---@type SongPlayerAPI
     local new_player_controller = player_api.new_player(new_song, nil)
     collected_incoming_songs[transfered_song_id] = {
         song   = new_song,

@@ -3,7 +3,7 @@
 local song_library_api = require("./libraries")     ---@type LibrariesApi
 local config_cahe_api = require("./config_cache")   ---@type ConfigCacheAPI
 local networking_api = require("./networking")      ---@type SongNetworkingApi
-local song_player_api = require("./player")         ---@type SongPlayerAPI
+local song_player_api = require("./song_player")         ---@type SongPlayerAPI  -- TODO: This is only used to gather instrument information. Is there a way to split player and instrument info?
 
 local do_debug_prints = false
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end

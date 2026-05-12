@@ -1,4 +1,4 @@
----@module "../player"
+---@module "../song_player"
 
 ---@type InstrumentBuilder
 local print_instrument_factory = {

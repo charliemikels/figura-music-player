@@ -1,4 +1,4 @@
----@module "../player"
+---@module "../song_player"
 
 -- local a4_frequency = 440    -- in hz
 local a4_id = 69

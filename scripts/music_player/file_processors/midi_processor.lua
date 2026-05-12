@@ -1,5 +1,5 @@
 ---@module "../core"
----@module "../player"
+---@module "../song_player"
 
 -- see: https://www.freqsound.com/SIRA/MIDI%20Specification.pdf
 
