@@ -386,8 +386,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                     end
                 else
                     playing_song_controller.stop()
-                    playing_song_controller = nil
-                    playing_song_library_id = nil
+                    -- playing_song_controller and playing_song_library_id will be set to `nil` by the stop_callback function
                 end
             end
 
