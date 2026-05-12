@@ -81,13 +81,13 @@ While hovering over the song selector action, use your scroll wheel and left cli
 
 Songs need to be prepared before they can be played. Left click to process a song, and then click again once it's done to play it. 
 
-   mark   | meaning
-:--------:|:-------------------
-(no mark) | song is unprocessed
-    ⏳    | Song is currently being processed
-    ✓     | Song is processed and ready to be played
-    ♬     | Song is playing
-    🚫    | There was an error during processing
+|    mark   | meaning |
+|-----------|--------------------|
+| (no mark) | song is unprocessed |
+|     ⏳    | Song is currently being processed |
+|     ✓     | Song is processed and ready to be played |
+|     ♬     | Song is playing |
+|     🚫    | There was an error during processing |
 
 To stop playback, click the playing song, or click on any processed song. The UI will prevent you from playing two songs at once.
 
@@ -121,11 +121,11 @@ Use the scroll wheel and left click to select an instrument.
 
 Some instruments have special features marked with extra icons.
 
-mark | meaning
-:---:|:-------------------
-🥁   | Percussion instrument, not intended for normal playback
-🗘    | Instrument can hold/sustain a note. 
-🛝   | Instrument supports pitch bending. A somewhat rare effect in midi files. 
+|mark | meaning|
+|---- | -------------------|
+|🥁   | Percussion instrument, not intended for normal playback.|
+|🗘   | Instrument can hold/sustain a note. |
+|🛝   | Instrument supports pitch bending. A somewhat rare effect in midi files. |
 
 If an instrument name is grayed out, then it is currently not available. You can still choose it, but it might fall back to a default instrument during playback untill it becomes available.
 
