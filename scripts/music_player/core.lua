@@ -32,7 +32,7 @@ local core_api = {
         local library_api = require("./libraries") ---@type LibrariesApi
         local library = library_api:build_default_library()
 
-        local ui_api = require("./ui")  ---@type MusicPlayerUiAPI
+        local ui_api = require("./ui")  ---@type SongPlayerUiAPI
         local action = ui_api.new_action_wheel_ui(library)
 
         return action
