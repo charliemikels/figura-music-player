@@ -1,6 +1,13 @@
 
+-- This script creates a UI built out of Action Wheel parts that makes it easy for end users to find, select, and play songs.
+--
+-- Under the hood it uses Network's network_song_player to automaticaly sync up what the host does with all the clients.
+--
+-- Note that at this time, Local songs are detected by this script, but still use the pings and the network scripts
+-- to send them to clients.
 
-local song_library_api = require("./libraries")     ---@type LibrariesApi
+
+local song_library_api = require("./libraries")     ---@type LibrariesApi   -- TODO: Only used to fallback to a default library. Shouldn't this be core's job to bind it all? we could drop this requirement.
 local config_cahe_api = require("./config_cache")   ---@type ConfigCacheAPI
 local networking_api = require("./networking")      ---@type SongNetworkingApi
 local song_player_api = require("./song_player")         ---@type SongPlayerAPI  -- TODO: This is only used to gather instrument information. Is there a way to split player and instrument info?
@@ -38,7 +45,9 @@ local function progress_bar(width, progress)
 	return progress_bar_string  -- As it turns out, Lua actualy optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
 end
 
----Creates an actionwheel
+--- Creates an action wheel UI
+---
+--- This function spits out an Action. The caller will need to place this action into an active action wheel before the User can call it.
 ---@param song_library Library? The Library used for this UI. Defaults to `song_library_api:build_default_library()`.
 ---@param enter_songbook_title string? The title of the enter songbook action. Defaults to `"Songbook"`
 ---@return Action enter_songbook_action The action used to enter the songbook. Place this action into your actionwheel.
@@ -91,6 +100,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
     --- Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
+        -- TODO: This, and a few other functions could be methods that take in `self`. we can then initilize them at init time, instead of building them every instance.
+        -- However, since at this point everything is host-only, and host is likely to only call it once, it's not a high priority fix.
+
         if not host:isHost() then return "Song list" end
         if not next(song_library.song_holders) then
             return "Song list\nNo songs found. Check the `[figura root]/data/TL_Songbook` directory."

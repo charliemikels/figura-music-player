@@ -1,4 +1,19 @@
----@module "../core"
+
+-- SongPlayers are responcible for actualy playing the Song. Specificaly, they are in charge of
+--
+-- 1. Managing various event loops
+-- 2. Dispatching instructions to instruments
+-- 3. Detecting when playback has failed
+--    This is done by running a minimal World-Tick event loop just to see if the primary events have stopped responding.
+-- 4. Managing and detecting instruments
+-- 5. Displaying info text about playback
+--
+-- When creating a song player, you are actualy given a SongPlayerController.
+-- This keeps the internal functions and data safe and, but still gives you plenty of control.
+
+
+
+-- TODO: A good chunk of this file is just for gathering instruments. Can that be its own script?
 
 ---@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
 local fallback_normal_instrument_name = "MC/Harp"

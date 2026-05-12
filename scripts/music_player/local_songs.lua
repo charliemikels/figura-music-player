@@ -1,4 +1,12 @@
 
+-- Essentialy a special version of file_processor.lua, but specifficaly for local song files.
+-- Local songs are songs that are uploaded with the avatar and don't need pings for viewers
+-- to play them.
+--
+---@see local_song_builder.lua
+
+
+
 local tl_futures_api = require("./futures") ---@type TL_FuturesAPI
 local decoder_api = require("./packet_decoder") ---@type PacketDecoderApi
 

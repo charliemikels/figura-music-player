@@ -1,4 +1,8 @@
 
+-- A set of functions that build packet data out of songs, headers, and config info.
+
+
+
 local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 
 -- Packets are used both for pings and local song storage.

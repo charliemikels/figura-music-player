@@ -1,3 +1,11 @@
+
+-- The flagship feature of this script is the network_song_player. It is essentialy a wrapper arround SongPlayer,
+-- but it ensures all controll functions are synced over pings to viewers and the host.
+--
+-- Not all things are synced. notably the register/remove callback functions are not synced, you'll need to put
+-- your own ping logic inside of the callbacks if you want to do something like that.
+
+
 local packet_decoder_api = require("./packet_decoder")  ---@type PacketDecoderApi
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 local packet_enums_api   = require("./packet_enums")    ---@type PacketEnumsAPI

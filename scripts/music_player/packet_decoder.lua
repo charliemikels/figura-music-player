@@ -1,3 +1,10 @@
+
+-- A set of functions that builds songs, headers, and config info out of streams of characters.
+--
+-- This is primaraly used by the Networking system, but also by the local song importer.
+
+
+
 local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 
 -- decoder creates processed songs and configs for those songs.

@@ -1,6 +1,15 @@
 
--- Songs will be written useing the Figura files API to the figura data directory.
--- You will need to move exported songs to the `local_songs` directory here inside your avatar for them to be useful.
+-- Can convert a Song into a "local song" format.
+--
+-- Local songs are essentialy the same as a stream of data packets, just stored as a
+-- lua file, and uploaded with the avatar instead of loaded by the filder api.
+--
+-- This script exports its songs to a folder inside `[figura_root]/data/`. You'll
+-- need to move them from there and into the local_songs folder.
+--
+-- You may notice that exported songs use a lot of c-style escaped characters.
+-- On your computer, this will make songs very large, but Figura will compress
+-- these files at upload time, so they won't actualy take up that much space.
 
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 

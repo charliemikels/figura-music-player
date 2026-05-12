@@ -1,10 +1,12 @@
 
--- "TL" futures to avoid name collisions with the built-in futures.
-
--- This script lets other scripts create and use `TL_Futures`, and makes sure each future has an `TL_FutureController` to go with it.
+-- In order to make the music player work at low permission levels, much of its logic, needs to be spread out over time.
 --
--- When using futures, create the future using `require("path/to/futures"):new_future()`,
--- then return the un_finished future to your customer, and give the controller to the async process.
+-- Futures help us keep track of these long-running opperations, and let the caller use callback-style asyncronous programming.
+--
+-- (That callback feature is also why we defined a new `TL_Futures` type. Figura already has a built in `Future` type.)
+--
+-- The new_future function returns a TL_FutureController and a TL_Future. When writing a function that returns a future,
+-- keep a hold of the controller for internal use, and give the TL_Future to your consumer.
 
 ---@generic T
 ---@class TL_FuturesAPI

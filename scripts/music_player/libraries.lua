@@ -1,6 +1,8 @@
 
 -- Logic related to managing song libraries, including registering new songs, and finding songs by ID or other search types.
 
+-- TODO: This is one of the earliest parts of the v5 rewrite. Do we need this to be its own script? Should it be merged with core.lua? what else can we put in here?
+
 ---Used to organize and talk about paths.
 ---@class FullAndShortPathPair
 ---@field full_path string?     The full path used by the files api.

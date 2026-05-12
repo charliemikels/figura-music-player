@@ -1,4 +1,9 @@
 
+-- Tiny little standard entry point for the music player script for most use cases.
+--
+-- check the doc comment for core_api.build_default_ui_action for example useage.
+
+
 
 ---@class CoreApi
 local core_api = {

@@ -1,6 +1,13 @@
 
--- An abstraction for handeling different file processor scripts in the file processors dir. (Midi, ABC, etc)
+-- This script searches throught the file_processors directory and tries to require a FileProcessor out of them
+-- It then works with the Libray script to create song holders bound to their processing functions.
 --
+-- This archetecture should make adding support for new file types trivial but just dropping in a new processor.
+--
+-- Local Songs work similarly to file processors, but are a special edge case, and so they're handled in local_songs.lua
+
+
+
 -- TODO: Circle back to this speciffic script. Song tables are assigned a data_processor when they're created.
 --       Library is (at time of writing) the only other script that uses this script specifficaly, and it's only
 --       doing one thing (file_processor_api.song_list_from_paths). We could instead move this script into the

@@ -1,4 +1,19 @@
 
+-- A wrapper arround Figura's Config api that allows us to easily save SongPlayerConfig data for future use.
+--
+-- While you give the ConfigCacheAPI a full song config, it only actualy stores keys in the `approved_keys_to_save` table.
+--
+-- Mostly it only stores instrument selections.
+
+
+
+
+local approved_keys_to_save = {
+    default_normal_instrument = true,
+    default_percussion_instrument = true,
+    instrument_selections = true
+}
+
 local config_path = "TL_music_player_saved_configs"
 
 ---Wrapper function to ensure we allways open and close the config file.
@@ -13,13 +28,6 @@ local function load_run_and_unload_our_config(fn, ...)
     config:setName(original_name)
     return return_data
 end
-
--- For use with write_song_config
-local approved_keys_to_save = {
-    default_normal_instrument = true,
-    default_percussion_instrument = true,
-    instrument_selections = true
-}
 
 ---@param song_id string            A unique identifier for a song.
 ---@param song_config SongPlayerConfig

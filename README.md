@@ -141,10 +141,13 @@ In order to use them, you will need to stand near one, and you and your listener
 <!-- TODO: Video of the piano and drumkit in action. _Bad Apple_ maybe? -->
 
 
+## Modularity
 
+One of the major goals of this rewrite was to make this project much more usable as a library for other avatars. The project is now made up of several semi-modular scripts, and has [LuaLS](https://github.com/LuaLS/lua-language-server) type comments all over the place. 
 
+Take a look at the tops of each script to get an overview of the script's needs, responsibilities, and what it does, and check out the very bottom to see the functions they export.
 
-
+Note that if you use LuaLS, removeing scripts might cause it to throw type errors, but lua at runtime (probably) won't care. 
 
 ## FAQ
 
