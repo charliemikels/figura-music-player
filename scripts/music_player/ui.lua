@@ -279,28 +279,19 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     end
 
 
-    -- TODO: One The whole playing_watcher is here to check when the song is done,
-    -- but maybe we could have let the song tell us when it is done. (some sort of
-    -- callback on either song or transfer system.) This would avoid issues like
-    -- here where we want to know if a song failed to start, or ended normaly.
-    --
-    -- We'll still need the watcher anyways to keep the UI updated when a song is playing.
-
-    -- monitors the status of the playing song.
-    -- Keeps UI updated while action wheel is open and song is playing.
-    -- When the song ends, also clears out playing_song_transfer_id and playing_song_library_id
-    local function playing_watcher()
-        if playing_song_controller and not playing_song_controller.is_playing() then
-            playing_song_controller = nil
-            playing_song_library_id = nil
-            events.TICK:remove(playing_watcher)
-
+    --- Will be passed to song players so they can help us clean up when they are done playing.
+    ---@param stop_reason SongPlayerStopReason
+    local function stop_callback(stop_reason)
+        playing_song_controller = nil
+        playing_song_library_id = nil
+        if stop_reason ~= "emergency" then
             update_main_page_ui()
         end
+    end
 
-        if not action_wheel:isEnabled() then return end
-
-        update_main_page_ui()
+    --- Will be passed to song players so we can piggyback off of their update loop instead of managing our own
+    local function update_callback()
+        if action_wheel:isEnabled() then update_main_page_ui() end
     end
 
 
@@ -366,7 +357,12 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
                     add_ui_speciffic_config_fields(song_player_config)
 
-                    song_processors_and_player_controllers[target_song.id].net_player_controller = networking_api.new_network_player(target_song.processed_song, song_player_config)
+                    local networked_player = networking_api.new_network_player(target_song.processed_song, song_player_config)
+
+                    networked_player.register_stop_callback(stop_callback)
+                    networked_player.register_update_callback(update_callback)
+
+                    song_processors_and_player_controllers[target_song.id].net_player_controller = networked_player
                     update_main_page_ui()
                 end)
             elseif song_processors_and_player_controllers[target_song.id].net_player_controller then
@@ -387,14 +383,11 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                         playing_song_controller = song_processors_and_player_controllers[target_song.id].net_player_controller
                         playing_song_library_id = target_song.id
                         playing_song_controller.play()
-
-                        events.TICK:register(playing_watcher)   -- TODO: Make this run on the _next_ tick??? it might be running before ping_packets starts it's loop.
                     end
                 else
                     playing_song_controller.stop()
                     playing_song_controller = nil
                     playing_song_library_id = nil
-                    events.TICK:remove(playing_watcher)
                 end
             end
 
