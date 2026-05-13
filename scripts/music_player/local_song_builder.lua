@@ -92,7 +92,7 @@ local function safely_wrap_string_in_quotes(unquoted_string)
         -- Way not worth it, but check out the `v5-local-songs-with-unicode` branch to see it. Maybe we can merge it back later.
 
         if
-            (byte >= 32 and byte <= 126) or byte == 9 or byte == 10 or byte == 13    -- TODO: what's the actual range that we could encode as single bytes?
+            (byte >= 32 and byte <= 126)
         then -- Character is ascii printable
             local char = string.char(byte)
             if characters_to_escape[char] then
