@@ -392,6 +392,54 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
             update_main_page_ui()
         end)
+        :onRightClick(function (_)  -- Export to local song.
+
+
+            local require_success, local_song_builder = pcall(function()
+                return require("./local_song_builder") ---@type LocalSongBuilderApi
+            end)
+            if not require_success then
+                host:warnToLog("User tried to use ui.lua to export a song to a LocalSong, but we faild to require `local_song_builder.lua`. It might not be installed. Silently ignoreing the user.")
+                return
+            end
+
+            print_host("Exporting Song to a LocalSong…")
+
+            local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+
+            if  not (   song_processors_and_player_controllers[target_song.id]
+                    and song_processors_and_player_controllers[target_song.id].processor_future
+                )
+            then
+                print_host("Please process this song first by left clicking.")
+                return
+            end
+
+            if song_processors_and_player_controllers[target_song.id].error then -- There was some error, just print the error again
+                print_host("Song cannot be exported. There was an error with the processor\n"..song_processors_and_player_controllers[target_song.id].error)
+                return
+            end
+
+            local song_player_config = target_song.included_config
+            local cached_config = config_cahe_api.load_song_config(target_song.id)
+            if not song_player_config or next(cached_config) ~= nil then
+                -- Prioritize cached config if there is something in the cache.
+                -- config_cahe_api.load_song_config always returns some sort of valid config, even if there's nothing in the cache.
+                song_player_config = cached_config
+            end
+            add_ui_speciffic_config_fields(song_player_config)
+
+            local export_pcall_success, value = pcall(function()
+                local_song_builder.export_song_to_local(target_song.processed_song, song_player_config)
+            end)
+
+            if export_pcall_success then
+                print_host("Export successful.")
+            else
+                print_host("`local_song_builder.export_song_to_local` errored:\n"..tostring(value))
+            end
+
+        end)
     update_song_selector_title()
 
 
