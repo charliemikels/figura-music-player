@@ -1,7 +1,7 @@
 
-![Figura Music Player banner](readme_assets/banner.png)
+# Tanner Limes' Figura Music Player
 
-# Tanner Limes' Music Player for Figura
+![Figura Music Player banner](readme_assets/banner.png)
 
 [Figura](https://github.com/FiguraMC/Figura) is a Minecraft mod that lets you completely customize your avatar with custom models, sounds, animations, and Lua scripts.
 
