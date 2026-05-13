@@ -6,9 +6,11 @@
 
 This repo is a Figura avatar that lets you play MIDI music in Minecraft for you and others to hear. It's inspired by [Starbound](https://store.steampowered.com/app/211820/Starbound/)'s instrument items.
 
-<!-- TODO: v5 Video -->
+
+[Tanner_Limes_configures_and_plays_Bad_Apple__half_song_720_30fps.webm](https://github.com/user-attachments/assets/24ba8306-e10a-4143-b75f-c45c9df47924)
 
 (↑ If there's no sound, be sure the video player is not muted. ↑)
+
 
 ## Installation
 
