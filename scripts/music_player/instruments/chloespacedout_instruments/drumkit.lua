@@ -198,7 +198,7 @@ local function add_or_update_display_text(drum_id, new_timeout_time)
     local this_drum_camera = this_drum_root:newPart(drum_id.."_billboard", "Camera")
 
     local this_drum_text_task = this_drum_camera:newText( tostring(drum_id).."_info_text")
-    this_drum_text_task:setText("Controlled by "..(nameplate.ENTITY:getText() or avatar:getEntityName()))
+    this_drum_text_task:setText("Controlled by "..avatar:getEntityName())
     this_drum_text_task:setScale(0.2)
     this_drum_text_task:setOpacity(0.75)
     this_drum_text_task:setAlignment("CENTER")

@@ -347,7 +347,7 @@ local function apply_config(song_player, config)
         end
     end
 
-    song_player.info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \n\""..song_player.name.."\"\n"
+    song_player.info_display_base_string = avatar:getEntityName().." is playing \n\""..song_player.name.."\"\n"
 
     -- Update info display offsets to match sound positions
     if song_player.source_entity then
@@ -767,7 +767,7 @@ local song_player_api = {
             info_display_text_pos_offset = vec(0,0,0),      ---@type Vector3        -- in block space. Divide by 16 to get model space.
             info_display_mute_instructions_text_pos_offset = vectors.vec3(0, 1.75, 0),  -- Just enough vertical offset for the mute info text to appear above them main text.
             info_display_root_part_parent_type = "World",   ---@type ModelPart.parentType
-            info_display_base_string = (nameplate.ENTITY:getText() or avatar:getEntityName()).." is playing \""..song.name.."\"\n",    ---@type string   -- A base name to reduce the amount of things we need to update when rendering the info text
+            info_display_base_string = avatar:getEntityName().." is playing \""..song.name.."\"\n",    ---@type string   -- A base name to reduce the amount of things we need to update when rendering the info text
 
             ---@type Event
             primary_event = events:getEvents()[(config.primary_update_event_key or "RENDER")],
@@ -821,7 +821,7 @@ local song_player_api = {
                         :setScale(0.2)
                         :setOpacity(0.5)
                         :setSeeThrough(true)
-                        :setText("Annoyed? Permissions, "..(nameplate.ENTITY:getText() or avatar:getEntityName())..", ∧, Avatar Sounds Volume") -- ", :mute:"
+                        :setText("Annoyed? Permissions, "..avatar:getEntityName()..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
 
                     -- Initilize "playing" state
