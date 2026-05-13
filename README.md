@@ -8,15 +8,15 @@ This repo is a Figura avatar that lets you play MIDI music in Minecraft for you 
 
 <!-- TODO: v5 Video -->
 
-(↑ If there's no sound, be sure the video player is unmuted. ↑)
+(↑ If there's no sound, be sure the video player is not muted. ↑)
 
 ## Installation
 
-This version of this script was built for Figura 0.1.5b. Check the Github releases for versions compatable with older versions of Figura.
+This version of this script was built for Figura 0.1.5b. Check the Github releases for versions compatible with older versions of Figura.
 
 This repo is a complete, ready to go, Figura avatar, but the good stuff is all in the `scripts/music_player` directory. You can download this entire repo and just use it as your avatar, or extract the scripts and merge them with your existing avatar.
 
-Download this avatar from [the releases page](https://github.com/charliemikels/figura-music-player/releases) or by useing the green `code` button at the top of this repo. Then you can drop it into your Avatars folder. (You can actualy drag-and-drop the entire zip file into the Figura Wardrobe screen in-game and it should work.)
+Download this avatar from [the releases page](https://github.com/charliemikels/figura-music-player/releases) or by using the green `code` button at the top of this repo. Then you can drop it into your Avatars folder. (You can actually drag-and-drop the entire zip file into the Figura Wardrobe screen in-game and it should work.)
 
 ### Existing avatars
 
@@ -108,9 +108,9 @@ Both of these will take you back to the main Music Player action wheel, but the 
 
 ### Bottom left: Track selector
 
-Lets you pick what track your editing. No need to click, moveing the arrow is enough to select it.
+Lets you pick what track your editing. No need to click, moving the arrow is enough to select it.
 
-The first row of each track says the name of the track, or the reccomended instrument to use for the track. These are provided by your midi file.
+The first row of each track says the name of the track, or the recommended instrument to use for the track. These are provided by your midi file.
 
 The row below it shows your currently selected instrument.
 
@@ -128,13 +128,13 @@ Some instruments have special features marked with extra icons.
 | 🗘    | Instrument can hold/sustain a note.                                      |
 | 🛝   | Instrument supports pitch bending. A somewhat rare effect in midi files. |
 
-If an instrument name is grayed out, then it is currently not available. You can still choose it, but it might fall back to a default instrument during playback untill it becomes available.
+If an instrument name is grayed out, then it is currently not available. You can still choose it, but it might fall back to a default instrument during playback until it becomes available.
 
 #### ChloeSpacedOut instruments
 
 This script includes extra wrappers that let it use [ChloeSpacedOut](https://github.com/ChloeSpacedOut)'s [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) as an instrument (both in piano and drumkit mode).
 
-In order to use them, you will need to stand near one, and you and your listeners will need to follow the [Basic Usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage) so that they can be heard by everyone propperly.
+In order to use them, you will need to stand near one, and you and your listeners will need to follow the [Basic Usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage) so that they can be heard by everyone properly.
 
 ![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
 
@@ -146,7 +146,7 @@ One of the major goals of this rewrite was to make this project much more usable
 
 Take a look at the `scripts/README.md` file, to get an overview of the project. Each script should also have a comment at the top describing what it does, and all its returns should be at the bottom.
 
-Note that if you use LuaLS, removeing scripts might cause it to throw type errors, but lua at runtime (probably) won't care.
+Note that if you use LuaLS, removing scripts might cause it to throw type errors, but Lua at runtime (probably) won't care.
 
 ## FAQ
 
@@ -154,7 +154,7 @@ Note that if you use LuaLS, removeing scripts might cause it to throw type error
 
 You'll want to follow the [piano's basic usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage). If you can't use commands, but can get player heads, you can instead
 
-1. Equip the Piano avatar to an account you controll. (It may be possible to merge it with this Music Playing script and use just one avatar)
+1. Equip the Piano avatar to an account you control. (It may be possible to merge it with this Music Playing script and use just one avatar)
 2. Get your player head
 3. Get the UUID of the account with the piano equipped. (You can do that from within Figura by going to permissions, right click the avatar, copy UUID)
 4. Add the UUID to the lists in `scripts/music_player/instruments/chloespacedout_instruments/piano.lua` and `…/drumkit.lua`.
@@ -174,10 +174,10 @@ Version 5 comes with significant changes
   - ABC support has been deprecated. However, you should be able to convert most ABC files back to MIDI without any loss.
 - Songs can now be included with avatar upload.
 - fewer instructions during playback. Most songs play on Low permissions.
-  - (Although, Low's restricteve number of sounds really limits possible complexity)
+  - (Although, Low's restrictive number of sounds really limits possible complexity)
 - A script can play multiple songs at once.
 - Songs can have multiple configurable instruments.
 - Supports [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) (both in piano and drumkit mode) by [ChloeSpacedOut](https://github.com/ChloeSpacedOut)
   - Does not support the older piano.
 - Volume and Pitch effects.
-- Rewritten from scratch to make the script more modular. Some scripts may be removed if you don't need certin features.
+- Rewritten from scratch to make the script more modular. Some scripts may be removed if you don't need certain features.
