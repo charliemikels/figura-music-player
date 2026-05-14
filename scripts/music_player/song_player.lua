@@ -412,7 +412,7 @@ local function update_song(song_player)
         end
     end
 
-    if song_player.info_display_root_part:getVisible() then
+    if song_player.info_should_be_visible then
         update_info_display_text(song_player)
     end
 
