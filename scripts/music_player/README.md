@@ -138,6 +138,8 @@ Check out the definition for SongPlayerController to see what you can do with it
   - `update`: Is called every time the song is updated.
   - `meta`: some instructions are meta instructions. They don't impact the playback audio, but it can be useful to sync certen events in the song. This callback will be given the event ID and its data when it is called.
 
+In addition to managing the song itself, `SongPlayer`s are also reponcible for displaying the in-world info text for the playing song. That includeds the progress bar, song title, and mute instructions.
+
 Song players actually use multiple event loops to manage themselves.
 
 The Main loop steps through the Song, finds instructions that need to be played, and dispatches said Instructions to the correct instrument. It then ticks every active instrument, updates in-world GUIs, calls update callbacks, and checks if the song is done. When it's done, it just calls controller.stop() to finish cleanup.
@@ -148,9 +150,7 @@ By default the main loop uses the Render event to get better temporal resolution
 
 But there are still cases where both the main and fallback event loops stop running. (Maybe the Host has gone through a Nether portal, unloading their entity.) More than likely this will leave behind sounds that cannot be updated. So the watcher's second job is to preform an emergency stop when both the main and fallback events fail.
 
-This process will run on the viewers, and the WorldTick limit is really tight at default and low permissions. So we need to keep the process slow.
-
-The emergency stop runs through a few different steps.
+This process will run on the viewers, and the WorldTick limit is really tight at default and low permissions. So we need to keep the process slow. The emergency stop runs through a few different steps over multiple ticks.
 
 - `begin_emergency_stop`: Tells the SongPlayer to stop playing, in the event that either event loops come back online. This is enough for the SongPlayer to think it's stopped.
 - `emergency_stop_active_instruments`: One instrument per tick, disable one note in one instrument, until all instruments say they are finished.
