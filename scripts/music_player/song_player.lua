@@ -839,6 +839,7 @@ local song_player_api = {
                         :setOpacity(0.8)
                         :setWidth(200)
                         :setSeeThrough(true)
+                        :setShadow(true)
 
                     song_player.info_display_mute_instructions_text_task = song_player.info_display_billboard_part:newText("song_info_mute_instructions_text_task_"..tostring(song_player.song_uuid))
                     song_player.info_display_mute_instructions_text_task
