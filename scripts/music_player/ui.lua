@@ -174,16 +174,16 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 this_row = this_row .. "♬"
             elseif song_processors_and_player_controllers[this_row_song.id] then
                 if song_processors_and_player_controllers[this_row_song.id].error then
-                    this_row = this_row .. "🚫"
+                    this_row = this_row .. "🚫"  -- "No" sign
                 elseif not song_processors_and_player_controllers[this_row_song.id].net_player_controller then
                     -- Song is in the midle of being processed.
                     -- (We know because the player has not been built yet, but an entry in this table was created)
-                    this_row = this_row .. "⏳"
+                    this_row = this_row .. get_spinner() -- hour glass
                 else
                     this_row = this_row .. "✓ "
                 end
             else
-                this_row = this_row .. "  "
+                this_row = this_row .. "  " -- just two spaces
             end
             this_row = this_row .. this_row_song.name
 
@@ -207,8 +207,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                     .. "Click to print error."
             elseif processor and not processor:is_done() then
                 selector_title_string = selector_title_string .. "Song is being processed."
-                    -- .. "\n" .. progress_bar(25, processor:get_progress()) .. " " .. (math.floor(processor:get_progress()*1000)/10)
-                    -- TODO: Add a new watcher (or update the existing one) that ticks update_song_selector if there are any on-going processors (so that spinners and preogress bars can work.)
+                    .. "\n" .. progress_bar(25, processor:get_progress()) .. " " .. (math.floor(processor:get_progress()*1000)/10).."%"
 
             elseif processor and processor:is_done() and not (player_controller and player_controller:is_playing()) then
                 if playing_song_controller and playing_song_controller:is_playing() then
@@ -338,7 +337,10 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 print_host(song_processors_and_player_controllers[target_song.id].error)
             elseif not song_processors_and_player_controllers[target_song.id].processor_future then
                 song_processors_and_player_controllers[target_song.id].processor_future = target_song:start_or_get_data_processor()
-                song_processors_and_player_controllers[target_song.id].processor_future:register_callback(function(finished_future)
+                song_processors_and_player_controllers[target_song.id].processor_future:register_on_progress_callback(function(_)
+                    update_main_page_ui()
+                end)
+                song_processors_and_player_controllers[target_song.id].processor_future:register_on_done_callback(function(finished_future)
                     if finished_future:has_error() then
                         song_processors_and_player_controllers[target_song.id].error = finished_future:get_error()
                         print_host("Filed to process song `"..tostring(target_song.id) .."`.")

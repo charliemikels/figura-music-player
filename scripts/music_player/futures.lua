@@ -25,8 +25,9 @@ local tl_futures_api = {
         local up__error             ---@type string?    Error messages belonging to a failed the future
         local up__value             ---@type any?       The value of a successfull future.
         local up__progress = 0      ---@type number      a number from 0 to 1 to represent a future's progress.
-        local up__callback_fns = {} ---@type fun(future:TL_Future)[]    a collection of functions to be called after a future has finished.
-        local up__completed_callbacks = 0 ---@type integer  a tracker for completed callbacks. Used to keep track of ran callbacks, so that they are guarrentied to run in order.
+        local up__on_done_callback_fns = {} ---@type fun(future:TL_Future)[]    a collection of functions to be called after a future has finished.
+        local up__on_progress_callback_fns = {} ---@type fun(future:TL_Future)[]    a collection of functions to be called every time progress is updated
+        local up__completed_done_callbacks = 0 ---@type integer  a tracker for completed callbacks. Used to keep track of ran callbacks, so that they are guarrentied to run in order.
 
         local function up__done_or_error()
             if not up__is_done then error("Future is not done") end
@@ -51,7 +52,8 @@ local tl_futures_api = {
         ---@field get_expected_value_type fun(self:TL_Future): string   Returns the expected type of the value. Can be ran before future is done.
         ---@field get_value_or_get_error fun(self:TL_Future): T|string  If no errors, return the value. Otherwise, return error as the value.
         ---@field get_value_or_throw_error fun(self:TL_Future): T?  If no errors, return the value. Otherwise, throw the error.
-        ---@field register_callback fun(self:TL_Future<T>, fn:fun(future:TL_Future<T>)):TL_Future<T>   Register a function to run after the future is done.
+        ---@field register_on_done_callback fun(self:TL_Future<T>, fn:fun(future:TL_Future<T>)):TL_Future<T>   Register a function to run after the future is done.
+        ---@field register_on_progress_callback fun(self:TL_Future<T>, fn:fun(future:TL_Future<T>)):TL_Future<T>   Register a function to run after the future is done.
         local future = {
             is_done = function(self)
                 return up__is_done
@@ -99,17 +101,21 @@ local tl_futures_api = {
                 self:throw_error()
             end,
 
-            register_callback = function(self, fn)
-                table.insert(up__callback_fns, fn)
-                if up__is_done and #up__callback_fns == up__completed_callbacks+1 then  -- +1 because we just added a new item to the list.
+            register_on_done_callback = function(self, fn)
+                table.insert(up__on_done_callback_fns, fn)
+                if up__is_done and #up__on_done_callback_fns == up__completed_done_callbacks+1 then  -- +1 because we just added a new item to the list.
                     -- The future is done, and all previous callbacks have been ran. Restart a new callback cycle
-                    -- TODO: Sanity check this. Does it actualy work with late callbacks? multiple late callbacks?
-                    while #up__callback_fns > up__completed_callbacks do
-                        local callback_fn = up__callback_fns[up__completed_callbacks + 1]
+                    while #up__on_done_callback_fns > up__completed_done_callbacks do
+                        local callback_fn = up__on_done_callback_fns[up__completed_done_callbacks + 1]
                         callback_fn(self)
-                        up__completed_callbacks = up__completed_callbacks +1
+                        up__completed_done_callbacks = up__completed_done_callbacks +1
                     end
                 end
+                return self
+            end,
+
+            register_on_progress_callback = function(self, fn)
+                table.insert(up__on_progress_callback_fns, fn)
                 return self
             end,
         }
@@ -118,10 +124,10 @@ local tl_futures_api = {
         local function up__set_done()
             if up__is_done then return end
             up__is_done = true
-            while #up__callback_fns > up__completed_callbacks do
-                local callback_fn = up__callback_fns[up__completed_callbacks + 1]
+            while #up__on_done_callback_fns > up__completed_done_callbacks do
+                local callback_fn = up__on_done_callback_fns[up__completed_done_callbacks + 1]
                 callback_fn(future)
-                up__completed_callbacks = up__completed_callbacks +1
+                up__completed_done_callbacks = up__completed_done_callbacks +1
             end
         end
 
@@ -138,7 +144,12 @@ local tl_futures_api = {
             is_done = function(self) return up__is_done end,
             set_done_with_value = function(self, value) up__value = value; up__set_done(); end,
             set_done_with_error = function(self, error) up__error = error; up__set_done(); end,
-            set_progress = function(self, progress) up__progress = progress end,
+            set_progress = function(self, progress)
+                up__progress = progress
+                for _, fn in ipairs(up__on_progress_callback_fns) do
+                    fn(future)
+                end
+            end,
             get_future = function(self) return future end
         }
 
