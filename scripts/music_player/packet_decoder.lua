@@ -269,8 +269,8 @@ local function new_config_from_packet(packet_data)
     config_data.primary_update_event_key = bytes_with_len_to_string_from_reader(reader)
     config_data.fallback_update_event_key = bytes_with_len_to_string_from_reader(reader)
 
-    -- local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
-    -- config_data.play_immediately = boolean_configs[1]
+    local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
+    config_data.hide_in_world_info = boolean_configs[1]
 
     return config_data
 end

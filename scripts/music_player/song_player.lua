@@ -193,7 +193,7 @@ get_all_instruments()
 ---@field instrument_selections? table<TrackID, InstrumentSelection>
 ---@field source_pos Vector3?           The location where sound comes from. Setting source_pos will unset source_entity if one was set earlier.
 ---@field source_entity Entity?   When set, player will update source_pos to match the entitty's position.
----@field info_display_type string?      Configures if/how song info should be displayed in the world.
+---@field hide_in_world_info boolean?           Configures if song info should be displayed in the world.
 ---@field primary_update_event_key string?      See `events:getEvents()`. Defaults to "RENDER." Usefull for playing a song with a player_skull instead of the real avatar.
 ---@field fallback_update_event_key string?     See `events:getEvents()`. Defaults to "TICK."
 ---
@@ -372,12 +372,20 @@ local function apply_config(song_player, config)
         song_player.info_display_text_pos_offset = vectors.vec3(-0.75, 0.25, 0)
     end
 
+    song_player.info_should_be_visible = not config.hide_in_world_info
+
     if song_player.controller.is_playing() then
         -- The info screens have been created and need to be updated.
         song_player.info_display_root_part:setParentType(song_player.info_display_root_part_parent_type)
         song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset * 16)
         song_player.info_display_text_task:setPos(song_player.info_display_text_pos_offset * 16)
         song_player.info_display_mute_instructions_text_task:setPos(song_player.info_display_text_task:getPos() + song_player.info_display_mute_instructions_text_pos_offset)
+
+        if config.hide_in_world_info then
+            song_player.info_display_root_part:setVisible(false)
+        else
+            song_player.info_display_root_part:setVisible(true)
+        end
     end
 end
 
@@ -404,7 +412,10 @@ local function update_song(song_player)
         end
     end
 
-    update_info_display_text(song_player)
+    if song_player.info_display_root_part:getVisible() then
+        update_info_display_text(song_player)
+    end
+
 
     -- During song_player setup, we already assign a fallback instrument.
     -- This should ensure that all instruments are initilized to something.
@@ -769,6 +780,8 @@ local song_player_api = {
             info_display_root_part_parent_type = "World",   ---@type ModelPart.parentType
             info_display_base_string = avatar:getEntityName().." is playing \""..song.name.."\"\n",    ---@type string   -- A base name to reduce the amount of things we need to update when rendering the info text
 
+            info_should_be_visible = true,
+
             ---@type Event
             primary_event = events:getEvents()[(config.primary_update_event_key or "RENDER")],
 
@@ -803,6 +816,7 @@ local song_player_api = {
                     song_player.info_display_root_part
                         :setParentType(song_player.info_display_root_part_parent_type)
                         :setPos(song_player.info_display_root_pos_offset * 16)
+                        :setVisible(song_player.info_should_be_visible)
 
                     song_player.info_display_billboard_part = song_player.info_display_root_part:newPart("song_info_text_billboard_"..tostring(song_player.song_uuid), "Camera")
 
