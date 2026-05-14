@@ -39,7 +39,8 @@ local function get_all_known_pianos()
             if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then
                 for piano_id, piano in pairs(known_pianos_in_this_lib) do
                     if      piano
-                        and piano.model ~= 4 and piano_lib.getInstrumentOverride(piano_id) ~= 128
+                        and piano.model ~= 4
+                        and piano_lib.getInstrumentOverride(piano_id) ~= 128
                             -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
                             -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
                     then
@@ -64,7 +65,7 @@ local function piano_id_to_vec(piano_id)
 end
 
 
-local max_search_radius_from_host = 32      ---@type number     -- distance in blocks for Near piano calculations
+local max_search_radius_from_host = 10      ---@type number     -- distance in blocks for Near piano calculations
 
 ---@param target_pos Vector3
 ---@return UUID?

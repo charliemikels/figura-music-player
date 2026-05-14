@@ -107,7 +107,7 @@ local function drum_id_to_vec(drum_id)
 end
 
 
-local max_search_radius_from_host = 32      ---@type number     -- distance in blocks for Near piano calculations
+local max_search_radius_from_host = 10      ---@type number     -- distance in blocks for Near piano calculations
 
 ---@param target_pos Vector3
 ---@return UUID?
