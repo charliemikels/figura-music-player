@@ -106,6 +106,12 @@ end
 
 local script_index = 1
 local data_packet_index_for_script = 1
+
+local local_song_tick_loop_function_key = "require_the_script_songs"   ---@type string?
+
+local local_song_tick_loop_main_function    ---@type fun()?
+local local_song_tick_loop_max_perms_function    ---@type fun()?
+
 local local_song_tick_loop_functions
 local_song_tick_loop_functions = {
     require_the_script_songs = function()
@@ -113,8 +119,7 @@ local_song_tick_loop_functions = {
         if script_index > #possible_script_paths then   -- There are no more scripts to require, we can move to next function
             print_debug("Local Processor: Require step done", false, true)
             script_index = 1
-            events.TICK:remove(local_song_tick_loop_functions.require_the_script_songs)
-            events.TICK:register(local_song_tick_loop_functions.header_processing)
+            local_song_tick_loop_function_key = "header_processing"
             return
         end
 
@@ -167,8 +172,7 @@ local_song_tick_loop_functions = {
         -- print_debug("Header: index: "..script_index..", count: "..#possible_script_paths)
         if script_index > #possible_script_paths then
             script_index = 1
-            events.TICK:remove(local_song_tick_loop_functions.header_processing)
-            events.TICK:register(local_song_tick_loop_functions.config_processing)
+            local_song_tick_loop_function_key = "config_processing"
             return
         end
 
@@ -213,8 +217,7 @@ local_song_tick_loop_functions = {
 
         if script_index > #possible_script_paths then
             script_index = 1
-            events.TICK:remove(local_song_tick_loop_functions.config_processing)
-            events.TICK:register(local_song_tick_loop_functions.data_processing)
+            local_song_tick_loop_function_key = "data_processing"
             return
         end
 
@@ -249,7 +252,8 @@ local_song_tick_loop_functions = {
 
         if script_index > #possible_script_paths then
             script_index = 1
-            events.TICK:remove(local_song_tick_loop_functions.data_processing)
+            events.TICK:remove(local_song_tick_loop_main_function)
+            events.WORLD_TICK:remove(local_song_tick_loop_max_perms_function)
             print_debug("Local song processor loop has finished.")
             return
         end
@@ -305,8 +309,24 @@ local_song_tick_loop_functions = {
     end,
 }
 
-print_debug("Starting local song TICK loop…", false, true)
-events.TICK:register(local_song_tick_loop_functions.require_the_script_songs)
+
+local_song_tick_loop_main_function = function()
+    if local_song_tick_loop_function_key then
+        local_song_tick_loop_functions[local_song_tick_loop_function_key]()
+    end
+end
+
+local_song_tick_loop_max_perms_function = function()
+    if avatar:getPermissionLevel() == "MAX" then
+        local_song_tick_loop_main_function()
+        -- take another stab at the main loop, but in the world tick.
+        -- Will also run if TICK isn't running (avatar is disconected)
+    end
+end
+
+print_debug("Starting local song loop(s)…", false, true)
+events.TICK:register(local_song_tick_loop_main_function)
+events.WORLD_TICK:register(local_song_tick_loop_max_perms_function)
 
 ---@class LocalSongApi
 ---@field get_local_song_holders fun():SongHolder[]
