@@ -282,24 +282,25 @@ local function update_info_display_text(song_player)
     song_player.info_display_text_task:setText(info_text)
 end
 
-local instrument_applyer_loop_is_running = false
+local configed_instruments_to_apply = {} ---@type table<SongPlayer, {track_config:SongPlayerTrackConfig, new_selection:InstrumentSelection}[]>
 
-local configed_instruments_to_apply = {} ---@type {song_player: SongPlayer, track_config:SongPlayerTrackConfig, new_selection:InstrumentSelection}[]
-
-local function configured_instrument_applyer_loop()
-    if #configed_instruments_to_apply < 1 then
-        instrument_applyer_loop_is_running = false
-        events.TICK:remove(configured_instrument_applyer_loop)
-        return
+--- Use with the `apply_config_update_loop_for_this_player` functions inside `eventualy_apply_configed_instrument`.
+---@return boolean? is_done
+local function apply_config_instrument_update_loop(song_player)
+    if #configed_instruments_to_apply[song_player] <= 0 then
+        configed_instruments_to_apply[song_player] = nil
+        return true
+        -- song_player.controller.remove_update_callback(apply_config_update_loop_for_this_player)
     end
 
-    local to_apply_this_time = table.remove(configed_instruments_to_apply)
+    local list_of_instruments_we_need_to_apply = configed_instruments_to_apply[song_player]
+    local to_apply_this_time = table.remove(list_of_instruments_we_need_to_apply)
     local previous_instrument = to_apply_this_time.track_config.selected_instrument
     to_apply_this_time.track_config.selected_instrument =
         known_instruments[to_apply_this_time.new_selection.name]
         .new_instance(to_apply_this_time.new_selection.params)
     if not previous_instrument.is_finished() then
-        table.insert(to_apply_this_time.song_player.deprecated_instruments, previous_instrument)
+        table.insert(song_player.deprecated_instruments, previous_instrument)
     end
 end
 
@@ -308,14 +309,28 @@ end
 ---@param track_config SongPlayerTrackConfig
 ---@param new_selection InstrumentSelection
 local function eventualy_apply_configed_instrument(song_player, track_config, new_selection)
-    table.insert(configed_instruments_to_apply, {
-        song_player = song_player,
+    local config_bundle = {
         track_config = track_config,
         new_selection = new_selection
-    })
-    if not instrument_applyer_loop_is_running then
-        instrument_applyer_loop_is_running = true
-        events.TICK:register(configured_instrument_applyer_loop)
+    }
+
+    if configed_instruments_to_apply[song_player] then -- loop is already running
+        table.insert(configed_instruments_to_apply[song_player], config_bundle)
+    else
+        configed_instruments_to_apply[song_player] = {}
+        table.insert(configed_instruments_to_apply[song_player], config_bundle)
+
+        local function apply_config_instrument_loop_for_this_player()
+            local is_done = apply_config_instrument_update_loop(song_player)
+
+            if is_done then
+                song_player.controller.remove_update_callback(apply_config_instrument_loop_for_this_player)
+            end
+        end
+
+        apply_config_instrument_loop_for_this_player()  -- manualy call first time
+
+        song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)
     end
 end
 
