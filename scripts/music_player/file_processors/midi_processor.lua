@@ -1292,8 +1292,11 @@ local midi_processor_loop_stage_functions = {
         end
         return {
             progress = state.reader and (
-                ((state.reader.total_file_size - state.reader.file_stream:available()) / state.reader.total_file_size)
-                * 0.1
+                math.map(
+                    ((state.reader.total_file_size - state.reader.file_stream:available()) / state.reader.total_file_size),
+                    0, 1,
+                    0, 0.1
+                )
             ) or 0.1
         }
     end,
@@ -1327,7 +1330,7 @@ local midi_processor_loop_stage_functions = {
                 print_debug("All tracks ended")
                 print_debug("process done" , false, true)
                 state.stage = "done"
-                return { progress = 0.9 }
+                return { progress = 0.99 }
             end
 
             -- calculate the absolute time of this message
@@ -1401,8 +1404,11 @@ local midi_processor_loop_stage_functions = {
         end
 
         return {progress = (
-            -- Target range: 0.1 to 0.9 (width of 0.8)
-            ((total_data_processed / total_data) * 0.8) + 0.2
+            math.map(
+                (total_data_processed / total_data),
+                0, 1,
+                0.1, 0.99
+            )
         )}
     end,
 
