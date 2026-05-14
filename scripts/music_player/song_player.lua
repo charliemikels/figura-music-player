@@ -622,7 +622,7 @@ local song_player_api = {
 
 
             begin_emergency_stop = function()
-                print_debug("The primary and fallback events for song "..song_player.name.." are not responding. Starting emergency stop.")
+                print_debug("The primary and fallback events for song `"..song_player.name.."` are not responding. Starting emergency stop.", true, true)
                 song_player.fallback_event:remove(update_this_song)
                 song_player.primary_event:remove(update_this_song)
                 song_player.start_time = nil
@@ -708,6 +708,7 @@ local song_player_api = {
                     watcher_state_key = "idle"
                     -- TODO: Is there any extra clean up that needs to be done?
                     events.WORLD_TICK:remove(event_watcher_and_swapper)
+                    print_debug("Emergency stop for `"..song_player.name.."` complete.", true, true)
                 end
             end,
         }
