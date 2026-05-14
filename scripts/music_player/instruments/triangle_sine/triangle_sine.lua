@@ -92,7 +92,7 @@ instrument_builder = {
                     :setVolume((instruction.start_velocity/127))
                     :setLoop(true)
                     :setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
-                    :setSubtitle("Music from "..player:getName())
+                    :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
 
                 local active_instruction = {
                     time_started = client.getSystemTime() - time_since_due,
