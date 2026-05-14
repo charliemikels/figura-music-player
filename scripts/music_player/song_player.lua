@@ -239,8 +239,18 @@ end
 ---@return boolean
 local function client_is_looking_at_song_player(song_player)
     if host:isHost() then return true end   -- means that, for the host, the display is visible at all times (within the distance range), but no funky behaviors in 3rd person or paperdolls.
+    if song_player.source_entity and client:getViewer() then
+        local viewer_targeted_entity = client:getViewer():getTargetedEntity()
+        if viewer_targeted_entity then
+            return viewer_targeted_entity:getUUID() == song_player.source_entity:getUUID()
+        end
+    end
     local source_pos_in_screen_space = vectors.worldToScreenSpace(song_player.source_pos)
-    if source_pos_in_screen_space.z > 1 and source_pos_in_screen_space.xy:length() < 0.2 then return true end
+    if      source_pos_in_screen_space.z > 1                -- pos is not behind screen
+        and source_pos_in_screen_space.xy:length() < 0.2    -- pos is near center of screen
+    then
+        return true
+    end
     return false
 end
 
