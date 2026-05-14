@@ -320,17 +320,20 @@ local function eventualy_apply_configed_instrument(song_player, track_config, ne
         configed_instruments_to_apply[song_player] = {}
         table.insert(configed_instruments_to_apply[song_player], config_bundle)
 
+        local background_process_event = song_player.primary_event
+
         local function apply_config_instrument_loop_for_this_player()
             local is_done = apply_config_instrument_update_loop(song_player)
 
             if is_done then
+                background_process_event:remove(apply_config_instrument_loop_for_this_player)
                 song_player.controller.remove_update_callback(apply_config_instrument_loop_for_this_player)
             end
         end
 
-        apply_config_instrument_loop_for_this_player()  -- manualy call first time
-
-        song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)
+        apply_config_instrument_loop_for_this_player()  -- manualy call first time. Prevents the start_time=0 notes from useing the wrong instrument.
+        background_process_event:register(apply_config_instrument_loop_for_this_player) -- make sure we can continue processing even in background
+        song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)   -- make sure we'll eventualy process it. (if song plays, we can step.)
     end
 end
 
