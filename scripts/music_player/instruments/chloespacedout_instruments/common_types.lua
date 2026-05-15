@@ -53,11 +53,11 @@
 
 ---@class ChloePianoLib
 ---@field getPianos fun():table<ChloeInstrumentID, ChloePiano>
----@field getPiano fun(ChloePianoID):ChloePiano
----@field playMidiNote fun(pianoID:ChloeInstrumentID, note:integer, velocity:number, type:("PRESS"|"SPAM_HOLD"|"MANUAL_RELEASE")?, playerEntity:Entity?, notePos:Vector3?)   -- if playerEntity is included, crouching will sustain the piano.
----@field releaseMidiNote fun(ChloePianoID, integer)
----@field setInstrumentOverride fun(ChloePianoID, integer)
----@field getInstrumentOverride fun(ChloePianoID)
+---@field getPiano fun(piano_id:ChloeInstrumentID):ChloePiano
+---@field playMidiNote fun(piano_id:ChloeInstrumentID, note:integer, velocity:number, type:("PRESS"|"SPAM_HOLD"|"MANUAL_RELEASE")?, playerEntity:Entity?, notePos:Vector3?)   -- if playerEntity is included, crouching will sustain the piano.
+---@field releaseMidiNote fun(piano_id:ChloeInstrumentID, note:integer)
+---@field setInstrumentOverride fun(piano_id:ChloeInstrumentID, override_id:integer)
+---@field getInstrumentOverride fun(piano_id:ChloeInstrumentID):integer?
 ---@field getItem fun(table):ItemStack
 ---
 ---@field playNote fun(pianoID:ChloeInstrumentID, keyID:ChloeKeyID, doesPlaySound:boolean, notePos:Vector3?, noteVolume:number?) -- Fallback for Piano v1 scripts
