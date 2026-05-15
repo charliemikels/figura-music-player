@@ -206,28 +206,7 @@ local piano_builder = {
             end
         end
 
-        -- Assume the host player entity is playing the song. Let's figure out which piano they want to use.
-        if player:isLoaded() then
-            do  -- Try to get the piano the Host is looking at.
-                local targeted_block_state = player:getTargetedBlock(true, nil)
-                local targeted_block_pos = targeted_block_state:getPos()
-                local targeted_block_pos_string = tostring(targeted_block_pos)
-                for lib_uuid, pianos_by_id in pairs(get_all_known_pianos()) do
-                    if pianos_by_id[targeted_block_pos_string] then
-                        set_instance_piano_info(lib_uuid, targeted_block_pos_string)
-                        break
-                    end
-                end
-            end
-
-            if not instance_piano_id then   -- just get the nearest piano
-                local nearest_uuid, nearest_piano_id = get_nearest_piano_uuid_and_id(player:getPos())
-                if nearest_piano_id then
-                    set_instance_piano_info(nearest_uuid, nearest_piano_id)
-                end
-            end
-        end
-        -- instance_piano information might still be `nil.` If it is, wait until we get a position from piano_instrument.play_instruction, then re-attempt nearest piano detection.
+        -- piano is initilized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
 
         -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too

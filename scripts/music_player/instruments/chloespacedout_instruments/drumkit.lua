@@ -271,35 +271,7 @@ local drumkit_builder = {
             instance_drum_lib = world.avatarVars()[lib_uuid]  ---@type (ChloePianoLib|ChloeDrumkitLib)?
         end
 
-        -- Assume the host player entity is playing the song. Let's figure out which piano they want to use.
-        if player:isLoaded() then
-            do  -- Try to get the piano the Host is looking at.
-                local targeted_block_state = player:getTargetedBlock(true, nil)
-                local targeted_block_pos = targeted_block_state:getPos()
-                local targeted_block_pos_string = tostring(targeted_block_pos)
-
-                local host_is_looking_at_a_drumkit = false
-                for lib_uuid, drum_ids in pairs(get_all_known_drums()) do
-                    for _, drum_id in pairs(drum_ids) do
-                        if drum_id == targeted_block_pos_string then
-                            host_is_looking_at_a_drumkit = true
-                            break
-                        end
-                    end
-                    if host_is_looking_at_a_drumkit then
-                        set_instance_drum_info(lib_uuid, targeted_block_pos_string)
-                        break
-                    end
-                end
-            end
-
-            if not instance_drum_id then   -- just get the nearest piano
-                local nearest_uuid, nearest_drum_id = get_nearest_drum_uuid_and_id(player:getPos())
-                if nearest_drum_id then
-                    set_instance_drum_info(nearest_uuid, nearest_drum_id)
-                end
-            end
-        end
+        -- piano is initilized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
         ---@type Instrument
         local drum_instrument = {
