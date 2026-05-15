@@ -285,9 +285,12 @@ end
 local configed_instruments_to_apply = {} ---@type table<SongPlayer, {track_config:SongPlayerTrackConfig, new_selection:InstrumentSelection}[]>
 
 --- Use with the `apply_config_update_loop_for_this_player` functions inside `eventualy_apply_configed_instrument`.
+---@param song_player SongPlayer
 ---@return boolean? is_done
 local function apply_config_instrument_update_loop(song_player)
-    if #configed_instruments_to_apply[song_player] <= 0 then
+    if (not configed_instruments_to_apply[song_player])
+        or #configed_instruments_to_apply[song_player] <= 0
+    then    -- List is empty or we already deleted the list in a previous itteration.
         configed_instruments_to_apply[song_player] = nil
         return true
         -- song_player.controller.remove_update_callback(apply_config_update_loop_for_this_player)
@@ -322,18 +325,24 @@ local function eventualy_apply_configed_instrument(song_player, track_config, ne
 
         local background_process_event = song_player.primary_event
 
-        local function apply_config_instrument_loop_for_this_player()
-            local is_done = apply_config_instrument_update_loop(song_player)
+        local done_applying = nil   ---@type boolean?
 
-            if is_done then
+        ---@return boolean?
+        local function apply_config_instrument_loop_for_this_player()
+            if done_applying then
                 background_process_event:remove(apply_config_instrument_loop_for_this_player)
                 song_player.controller.remove_update_callback(apply_config_instrument_loop_for_this_player)
+                return
             end
+
+            done_applying = apply_config_instrument_update_loop(song_player)
         end
 
-        apply_config_instrument_loop_for_this_player()  -- manualy call first time. Prevents the start_time=0 notes from useing the wrong instrument.
+
         background_process_event:register(apply_config_instrument_loop_for_this_player) -- make sure we can continue processing even in background
         song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)   -- make sure we'll eventualy process it. (if song plays, we can step.)
+
+        apply_config_instrument_loop_for_this_player()  -- manualy call first time. Prevents the start_time=0 notes from useing the wrong instrument.
     end
 end
 
