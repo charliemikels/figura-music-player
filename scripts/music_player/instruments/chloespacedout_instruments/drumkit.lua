@@ -49,55 +49,6 @@ local piano_lib_uuids = {
 }
 
 
-
---- Returns a list of drum kits
----
---- This includes the imortilized "1.0" drumkits, as well as Piano 2.0s in drumkit mode
----@return table<UUID, ChloeInstrumentID[]>
-local function get_all_known_drums()
-
-
-    ---@type table<UUID, ChloeInstrumentID[]>
-    local all_known_drums = {}
-
-    -- find all drum kits
-
-    for _, lib_uuid in pairs(drumkit_lib_uuids) do
-        local drumkit_lib = world.avatarVars()[lib_uuid]    ---@type ChloeDrumkitLib
-
-        -- printTable(drumkit_lib)  -- to check if getDrumIDs exists.
-        if drumkit_lib and drumkit_lib.getDrumIDs then
-            for _, drumkit_id in pairs(drumkit_lib.getDrumIDs()) do
-                table.insert(all_known_drums[lib_uuid], drumkit_id)
-            end
-        end
-    end
-
-    -- Look for all pianos in drumkit mode
-
-    for _, lib_uuid in pairs(piano_lib_uuids) do
-        local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-
-        if piano_lib and piano_lib.getPianos then
-            local known_pianos_in_this_lib = piano_lib.getPianos()
-            if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then
-                for piano_id, piano in pairs(known_pianos_in_this_lib) do
-                    if      piano
-                        and piano.model == 4 or piano_lib.getInstrumentOverride(piano_id) == 128   -- in the drumkit model or useing percussion sounds
-                            -- TODO: This doesn't check for drumkit models set to play non-drum sounds
-                    then
-                        if not all_known_drums[lib_uuid] then all_known_drums[lib_uuid] = {} end
-                        table.insert(all_known_drums[lib_uuid], piano_id)
-                    end
-                end
-            end
-        end
-    end
-
-    return all_known_drums
-end
-
-
 ---@param drum_id ChloeInstrumentID
 ---@return Vector3
 local function drum_id_to_vec(drum_id)
@@ -107,26 +58,96 @@ local function drum_id_to_vec(drum_id)
 end
 
 
+---@type table<UUID, table<ChloeInstrumentID, Vector3?>>
+local known_instruments = {}
+for _, uuid in pairs(drumkit_lib_uuids) do known_instruments[uuid] = {} end
+for _, uuid in pairs(piano_lib_uuids) do known_instruments[uuid] = {} end
+
+local instrument_search_state = "search_piano_drums"
+local search_uuid_key = nil ---@type integer?
+local search_uuid = nil     ---@type UUID?
+
+---@type table<string, fun()>
+local instrument_search_functions = {
+    search_piano_drums = function()
+        search_uuid_key, search_uuid = next(piano_lib_uuids, search_uuid_key)
+        if not search_uuid_key then -- search_uuid_key is nil. we've hit the end of the list. move on.
+            instrument_search_state = "search_clasic_drums"
+            return
+        end
+
+        local valid_drums = {}  ---@type table<ChloeInstrumentID, Vector3>
+        local piano_lib = world.avatarVars()[search_uuid]  ---@type ChloePianoLib
+        if piano_lib and piano_lib.getPianos then
+            local known_pianos_in_this_lib = piano_lib.getPianos()
+            if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then -- there are pianos, we just need to filter for pianos in drumkit mode
+                for piano_id, piano in pairs(known_pianos_in_this_lib) do
+                    if piano
+                        and (piano.model == 4 or piano_lib.getInstrumentOverride(piano_id) == 128)   -- in the drumkit model or useing percussion sounds
+                        -- TODO: This doesn't check for drumkit models set to play non-drum sounds
+                    then
+                        valid_drums[piano_id] = drum_id_to_vec(piano_id)
+                    end
+                end
+            end
+        end
+        known_instruments[search_uuid] = valid_drums
+    end,
+
+    search_clasic_drums = function()
+        search_uuid_key, search_uuid = next(drumkit_lib_uuids, search_uuid_key)
+        if not search_uuid_key then -- search_uuid_key is nil. we've hit the end of the list. move on.
+            instrument_search_state = "search_piano_drums"
+            return
+        end
+        local valid_drums = {}  ---@type table<ChloeInstrumentID, Vector3>
+        local drumkit_lib = world.avatarVars()[search_uuid]    ---@type ChloeDrumkitLib
+        if drumkit_lib and drumkit_lib.getDrumIDs then
+            for _, drumkit_id in pairs(drumkit_lib.getDrumIDs()) do
+                valid_drums[drumkit_id] = drum_id_to_vec(drumkit_id)
+            end
+        end
+        known_instruments[search_uuid] = valid_drums
+    end,
+
+    -- purge_old = function() end,
+}
+
+local last_update_check_gametime = world.getTime()
+local function step_update_known_instruments()
+    if last_update_check_gametime ~= world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+        last_update_check_gametime = world.getTime()
+        instrument_search_functions[instrument_search_state]()
+    end
+end
+
+
+
 local max_search_radius_from_host = 10      ---@type number     -- distance in blocks for Near piano calculations
+local last_nearest_check_gametime = world.getTime()
 
 ---@param target_pos Vector3
 ---@return UUID?
 ---@return ChloeInstrumentID?
 local function get_nearest_drum_uuid_and_id(target_pos)
-    local all_known_drums = get_all_known_drums()
-    if not next(all_known_drums, nil) then return nil, nil end
+    if last_nearest_check_gametime == world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+        return
+    else
+        last_nearest_check_gametime = world.getTime()
+    end
+
+    step_update_known_instruments()
 
     local nearest_distance_squared = (max_search_radius_from_host * max_search_radius_from_host)    -- pre-squared to use the cheaper :lengthSquared() for comparisons.
-    local nearest_drum_id          ---@type ChloeInstrumentID
-    local nearest_drum_lib_uuid    ---@type UUID
+    local nearest_drum_id          ---@type ChloeInstrumentID?
+    local nearest_drum_lib_uuid    ---@type UUID?
 
     local shift_to_center_of_block = vectors.vec3(0.5, 0.5, 0.5)
 
-    for lib_uuid, drum_ids in pairs(all_known_drums) do
+    for lib_uuid, drum_ids_and_positions in pairs(known_instruments) do
         local drum_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib|ChloeDrumkitLib
         if drum_lib.playNote then -- This library is still good.
-            for _, drum_id in pairs(drum_ids) do
-                local drum_position = drum_id_to_vec(drum_id)
+            for drum_id, drum_position in pairs(drum_ids_and_positions) do
                 local drum_distance_squared = ((drum_position + shift_to_center_of_block) - target_pos):lengthSquared()
                 if drum_distance_squared < nearest_distance_squared then
                     nearest_distance_squared = drum_distance_squared
@@ -142,10 +163,14 @@ end
 
 ---@return boolean
 local function instrument_is_available()
+    step_update_known_instruments()
     -- TODO: should we limit this to a radius arround the host?
-
-    local there_is_at_least_one_known_drum = (next(get_all_known_drums(), nil) and true or false)
-    return there_is_at_least_one_known_drum
+    for _, drum_ids_and_positions in pairs(known_instruments) do
+        if next(drum_ids_and_positions) then -- there is at least one drum in the list
+            return true
+        end
+    end
+    return false
 end
 
 
