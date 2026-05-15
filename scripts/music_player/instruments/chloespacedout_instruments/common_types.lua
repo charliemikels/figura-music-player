@@ -58,7 +58,7 @@
 ---@field releaseMidiNote fun(piano_id:ChloeInstrumentID, note:integer)
 ---@field setInstrumentOverride fun(piano_id:ChloeInstrumentID, override_id:integer)
 ---@field getInstrumentOverride fun(piano_id:ChloeInstrumentID):integer?
----@field getItem fun(table):ItemStack
+---@field getItem fun(data:table):ItemStack
 ---
 ---@field playNote fun(pianoID:ChloeInstrumentID, keyID:ChloeKeyID, doesPlaySound:boolean, notePos:Vector3?, noteVolume:number?) -- Fallback for Piano v1 scripts
 ---@field validPos fun(pianoID:ChloeInstrumentID):boolean       -- Fallback for Piano v1 scripts
