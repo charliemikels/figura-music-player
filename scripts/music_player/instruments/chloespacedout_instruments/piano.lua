@@ -20,42 +20,6 @@ local piano_lib_uuids = {
 }
 
 
---- Returns a list of pianos indexed by piano_lib_uuid, then piano_ID.
----
---- filters out drums, pianos that play drum sounds, and libraries where piano_lib.getPianos() is empty.
----
---- Coincidentaly, it also checks if piano and MidiCloud are at max settings, since the piano libs kinda do that for us.
----@return table<UUID, table<ChloeInstrumentID, ChloePiano>>
-local function get_all_known_pianos()
-
-    ---@type table<UUID, table<ChloeInstrumentID, ChloePiano>>
-    local all_known_pianos = {}
-
-    for _, lib_uuid in pairs(piano_lib_uuids) do
-        local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-
-        if piano_lib and piano_lib.getPianos then
-            local known_pianos_in_this_lib = piano_lib.getPianos()
-            if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then
-                for piano_id, piano in pairs(known_pianos_in_this_lib) do
-                    if      piano
-                        and piano.model ~= 4
-                        and piano_lib.getInstrumentOverride(piano_id) ~= 128
-                            -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
-                            -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
-                    then
-                        if not all_known_pianos[lib_uuid] then all_known_pianos[lib_uuid] = {} end
-                        all_known_pianos[lib_uuid][piano_id] = piano
-                    end
-                end
-            end
-        end
-    end
-
-    return all_known_pianos
-end
-
-
 ---@param piano_id ChloeInstrumentID
 ---@return Vector3
 local function piano_id_to_vec(piano_id)
@@ -64,27 +28,83 @@ local function piano_id_to_vec(piano_id)
     return vectors.vec3(tonumber(x_str), tonumber(y_str), tonumber(z_str))
 end
 
+---@type table<UUID, table<ChloeInstrumentID, Vector3?>>
+local known_instruments = {}
+for _, uuid in pairs(piano_lib_uuids) do known_instruments[uuid] = {} end
+
+local instrument_search_state = "search_pianos"
+local search_uuid_key = nil ---@type integer?
+local search_uuid = nil     ---@type UUID?
+
+---@type table<string, fun()>
+local instrument_search_functions = {
+    search_pianos = function()
+        search_uuid_key, search_uuid = next(piano_lib_uuids, search_uuid_key)
+        if not search_uuid_key then -- search_uuid_key is nil. we've hit the end of the list. move on.
+            -- instrument_search_state = "search_pianos"    -- we actualy don't have anywhere to go at this time
+            return
+        end
+
+        local valid_drums = {}  ---@type table<ChloeInstrumentID, Vector3>
+        local piano_lib = world.avatarVars()[search_uuid]  ---@type ChloePianoLib
+        if piano_lib and piano_lib.getPianos then
+            local known_pianos_in_this_lib = piano_lib.getPianos()
+            if known_pianos_in_this_lib and next(known_pianos_in_this_lib, nil) then -- there are pianos, we just need to filter out pianos in drumkit mode
+                for piano_id, piano in pairs(known_pianos_in_this_lib) do
+                    if      piano
+                        and piano.model ~= 4
+                        and piano_lib.getInstrumentOverride(piano_id) ~= 128
+                            -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
+                            -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
+                    then
+                        valid_drums[piano_id] = piano_id_to_vec(piano_id)
+                    end
+                end
+            end
+        end
+        known_instruments[search_uuid] = valid_drums
+    end,
+
+    -- purge_old = function() end,
+}
+
+local last_update_check_gametime = world.getTime()
+local function step_update_known_instruments()
+    if last_update_check_gametime ~= world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+        last_update_check_gametime = world.getTime()
+        instrument_search_functions[instrument_search_state]()
+    end
+end
+
+
+
 
 local max_search_radius_from_host = 10      ---@type number     -- distance in blocks for Near piano calculations
+local last_nearest_check_gametime = world.getTime()
+
 
 ---@param target_pos Vector3
 ---@return UUID?
 ---@return ChloeInstrumentID?
 local function get_nearest_piano_uuid_and_id(target_pos)
-    local all_known_pianos = get_all_known_pianos()
-    if not next(all_known_pianos, nil) then return nil, nil end
+    if last_nearest_check_gametime == world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+        return
+    else
+        last_nearest_check_gametime = world.getTime()
+    end
+
+    step_update_known_instruments()
 
     local nearest_distance_squared = (max_search_radius_from_host * max_search_radius_from_host)    -- pre-squared to use the cheaper :lengthSquared() for comparisons.
-    local nearest_piano_id          ---@type ChloeInstrumentID
-    local nearest_piano_lib_uuid    ---@type UUID
+    local nearest_piano_id          ---@type ChloeInstrumentID?
+    local nearest_piano_lib_uuid    ---@type UUID?
 
     local shift_to_center_of_block = vectors.vec3(0.5, 0.5, 0.5)
 
-    for lib_uuid, pianos_by_id in pairs(all_known_pianos) do
+    for lib_uuid, piano_ids_and_positions in pairs(known_instruments) do
         local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
         if piano_lib.getPianos then -- This piano Library is still good.
-            for piano_id, _ in pairs(pianos_by_id) do
-                local piano_position = piano_id_to_vec(piano_id)
+            for piano_id, piano_position in pairs(piano_ids_and_positions) do
                 local piano_distance_squared = ((piano_position + shift_to_center_of_block) - target_pos):lengthSquared()
                 if piano_distance_squared < nearest_distance_squared then
                     nearest_distance_squared = piano_distance_squared
@@ -100,10 +120,15 @@ end
 
 ---@return boolean
 local function instrument_is_available()
+    step_update_known_instruments()
     -- TODO: should we limit this to a radius arround the host?
 
-    local there_is_at_least_one_known_piano = (next(get_all_known_pianos(), nil) and true or false)
-    return there_is_at_least_one_known_piano
+    for _, piano_ids_and_positions in pairs(known_instruments) do
+        if next(piano_ids_and_positions) then -- there is at least one drum in the list
+            return true
+        end
+    end
+    return false
 end
 
 
