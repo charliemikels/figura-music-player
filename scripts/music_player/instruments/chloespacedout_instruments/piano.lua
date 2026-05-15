@@ -208,7 +208,7 @@ local piano_builder = {
         local instance_piano                ---@type ChloePiano
         local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
 
-        local known_piano_notes = {}    ---@type ChloeFiguraMidiCloudMidiNote[]
+        local time_this_piano_will_be_done = client:getSystemTime()
 
         ---@param lib_uuid UUID
         ---@param piano_id string
@@ -226,20 +226,12 @@ local piano_builder = {
             instance_piano = instance_piano_lib.getPiano(piano_id)
             instance_piano_midi_note_api = instance_piano.instance.midi.note
 
-            if #known_piano_notes > 0 then
+            if time_this_piano_will_be_done > client:getSystemTime() then
                 add_or_update_display_text(piano_id, piano_time_to_info_text_timeout[previous_piano_id])
             end
         end
 
         -- piano is initilized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
-
-
-        -- Split off into it's own function so that piano_instrument.stop_all_sounds_immediatly can use it too
-        local function stop_one_sound_immediatly()
-            local note_to_stop = table.remove(known_piano_notes)
-            if note_to_stop then note_to_stop:stop() end
-            fallback_instrument_instance.stop_one_sound_immediatly()
-        end
 
         ---@type Instrument
         local piano_instrument = {
@@ -274,8 +266,7 @@ local piano_builder = {
                     local note_release_time = (client.getSystemTime() - time_since_due) + instruction.duration
                     new_note:release(note_release_time)
 
-                    table.insert(known_piano_notes, new_note)
-
+                    if note_release_time > time_this_piano_will_be_done then time_this_piano_will_be_done = note_release_time end
 
                     -- Visual updates
 
@@ -287,47 +278,24 @@ local piano_builder = {
             end,
 
             update_sounds = function (position)
-                -- Figura Midi Cloud takes care of stopping the notes for us. But we still need to clean up our own trackers.
+                -- We can trust the piano to take care of its own notes
 
-                -- Item removal logic based on https://stackoverflow.com/a/53038524
-                -- See also networking.lua → remove_packets_from_outgoing_queue_by_transfer_id()
-
-                local size_of_hole = 0
-                for search_index = 1, #known_piano_notes do
-
-                    local current_time_is_after_total_note_duration_and_so_we_should_remove_this_note =
-                        known_piano_notes[search_index].releaseTime + known_piano_notes[search_index].duration < client:getSystemTime()
-
-                    if current_time_is_after_total_note_duration_and_so_we_should_remove_this_note then
-                        known_piano_notes[search_index] = nil
-                        size_of_hole = size_of_hole + 1
-                    else
-                        if (size_of_hole > 0) then
-                            -- We want to keep this value, but there's a hole in the list. Slide the value so that we fill the hole.
-                            known_piano_notes[search_index - size_of_hole] = known_piano_notes[search_index]
-                            known_piano_notes[search_index] = nil
-                        end
-                    end
-                end
-
-                -- clean up fallback instrument too
                 fallback_instrument_instance.update_sounds(position)
             end,
 
-            stop_one_sound_immediatly = stop_one_sound_immediatly,
+            stop_one_sound_immediatly = function()
+                -- we can trust the piano to stop its own notes
+                fallback_instrument_instance.stop_one_sound_immediatly()
+            end,
 
             stop_all_sounds_immediatly = function ()
-                repeat
-                    stop_one_sound_immediatly()
-                until not known_piano_notes or #known_piano_notes <= 0
-                known_piano_notes = {}
-
+                -- we can trust the piano to stop its own notes
                 fallback_instrument_instance.stop_all_sounds_immediatly()
             end,
 
             is_finished = function ()
                 local fallback_is_done = fallback_instrument_instance.is_finished()
-                local piano_is_done = next(known_piano_notes, nil) == nil
+                local piano_is_done = time_this_piano_will_be_done < client:getSystemTime()
 
                 return fallback_is_done and piano_is_done
             end
