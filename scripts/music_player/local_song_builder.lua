@@ -34,21 +34,6 @@ end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
---- Escapes all escapeable characters in a string.
----
---- A useful helper function when dealight with long quotes `[` and `]` are magic characters
----@param str string
----@return string
-local function escape_match_magic_characters(str)
-    -- All non-alphanumeric characters can be escaped with %. If they weren't magic characters, they are still escaped as if they were.
-    -- Allows for future magic characters to be correctly escaped as well.
-    ---@see https://www.lua.org/manual/5.2/manual.html#pdf-package.searchers:~:text=Any%20punctuation%20character%20%28even%20the%20non%20magic%29%20can%20be%20preceded%20by%20a%20%27%25%27%20when%20used%20to%20represent%20itself%20in%20a%20pattern%2E
-
-    return (str:gsub(
-        "([^%w])",  -- Gets all non-alpha-numeric characters
-        "%%%1"      -- prepends a `%` to the capture.
-    ))
-end
 
 local characters_to_escape = {
     [ [["]] ] = true,
