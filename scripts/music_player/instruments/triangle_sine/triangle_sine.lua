@@ -66,7 +66,7 @@ instrument_builder = {
         local fallback_instrument_builder = song_player_api.get_instrument_builder("MC/Harp")
         local fallback_instrument_instance   = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
 
-        ---@type {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
+        ---@type {time_started: number, stop_time: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
         local instrument_config = {
             pitch_bend_sensitivity = 2,
@@ -94,8 +94,11 @@ instrument_builder = {
                     :setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
 
+                local start_time = client.getSystemTime() - time_since_due
+
                 local active_instruction = {
-                    time_started = client.getSystemTime() - time_since_due,
+                    time_started = start_time,
+                    stop_time = start_time + instruction.duration,
                     instruction = instruction,
                     detune_amount = detune_amount,
                     modifier_index = 1,
@@ -107,8 +110,12 @@ instrument_builder = {
                 table.insert(active_instructions, active_instruction)
             end,
             update_sounds = function(position)
+                -- I'd like to do something clever that would save us from touching every active note,
+                -- like indexing/sorting by stop time so that we can ignore notes that aren't due yet.
+                -- But we actualy do need to touch every note anyways to update it's position.
+
                 for active_instruction_key, active_instruction in pairs(active_instructions) do
-                    if (active_instruction.time_started + active_instruction.instruction.duration) <= client.getSystemTime() then
+                    if (active_instruction.stop_time) <= client.getSystemTime() then
                         -- Stop this instruction
                         active_instruction.sound:stop()
                         active_instruction.sound = nil
