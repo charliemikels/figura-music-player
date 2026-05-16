@@ -16,22 +16,26 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 --     If figura has many pings to send at once, it might batch them and send many at one time.
 --     Annoyingly, as far as the ping limits are concerned, this counts as one big ping.
 --     So our pings need to be small enough and infrequent enough to also avoid stacking up
+--
+--     This is by far the most common reason you'll see the "packet is too big" toast
+--     -- TODO: If figura is miscounting ping information, could this be a bug in Figura?
 
 -- Ping limits (see https://figura-wiki.pages.dev/tutorials/Pings#ping-rate-limiting )
 -- Fewer than 32 pings in one second (~32ms between packets min)
 -- Fewer than 1024 bytes per second (~1 byte/mili)
 
-local pings_per_second = 6
-local bytes_per_second = 400
+local pings_per_second = 6      -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer (on tick event) might lag behind.
+local bytes_per_second = 400    -- 400 is about as high as you can get without dropping too many packets. If it's a good day, you can get away with something much higher, but 400 is a safe default. 
+
+local do_debug_prints = false
+
+
 
 -- In bytes. (-2 because storing data as a string adds 2 bytes to encode the string's length)
 local max_packet_length = math.floor(bytes_per_second / pings_per_second) - 2
 -- How long the ping system should try to wait before sending another packet.
 -- (Tick event adds 50ms (1/20th of a second) of possible drift to account for.)
 local target_milliseconds_between_packets = math.ceil(1000 / pings_per_second)
-
-
-local do_debug_prints = false
 
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
