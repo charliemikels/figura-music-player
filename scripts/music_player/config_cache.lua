@@ -53,7 +53,6 @@ end
 ---@param song_id string
 ---@return SongPlayerConfig
 local function load_song_config(song_id)
-    local loaded_config = config:load(song_id)
     return (config:load(song_id) or {})
 end
 
