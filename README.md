@@ -138,7 +138,8 @@ This script includes extra wrappers that let it use [ChloeSpacedOut](https://git
 
 In order to use them, you will need to stand near one, and you and your listeners will need to follow the [Basic Usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage) so that they can be heard by everyone properly.
 
-![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
+<img width="2560" height="1440" alt="2026-05-16_17 49 14" src="https://github.com/user-attachments/assets/ad95d6e9-ebb3-4a53-8121-78264c1e8757" />
+
 
 ## Modularity
 
