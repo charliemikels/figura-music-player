@@ -161,7 +161,7 @@ end
 --- Receives a packet and passes it to the TICK event loop.
 ---
 --- Pings appear to have their own instruction limits sepperate from TICK or RENDER or whatever, but this limit isn't displayed anywhere.
---- Furehtermore, if we send pings too quickly, it seems that pings may get bundled and processed on the same tick, meaning the instruction
+--- Furthermore, if we send pings too quickly, it seems that pings may get bundled and processed on the same tick, meaning the instruction
 --- cost of pings can occasionaly double without warning.
 ---
 --- Dispatch to our own TICK loop, so that we can control when we process these pings, and prevent doubleing up.
