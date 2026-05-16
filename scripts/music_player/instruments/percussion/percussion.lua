@@ -193,7 +193,7 @@ local print_instrument_factory = {
                 local new_sound = drumkit_sound_lookup(instruction.note)
                     :setPos(position)
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
-                new_sound:setVolume( new_sound:getVolume() * (instruction.start_velocity/127))  -- TODO: :setVolume(… * instruction.modifiers.(now).volume)
+                new_sound:setVolume( new_sound:getVolume() * (instruction.start_velocity/127))
 
                 new_sound:play()
             end,

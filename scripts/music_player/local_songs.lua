@@ -300,8 +300,8 @@ local_song_tick_loop_functions = {
 
         -- no need for an extra saveing step, add_instructions_to_song_from_packet will update song for us, even inside the pcall.
 
-        -- progress from [0 to 0.2] is reserved by header and config processors. we can go from (0.2, 1.0]  -- TODO: is that the right `()` / `[]` syntax for ranges?
-        local data_progress = math.map(data_packet_index_for_script, 0, #result_of_require.data, 0.2, 1.0)  -- TODO: Map was like strangely heavy in one spot. check that it's fine, or write our own logic. (I think we already did in midi processor.)
+        -- progress from [0 to 0.2] is reserved by header and config processors. we can go from (0.2, 1.0]
+        local data_progress = math.map(data_packet_index_for_script, 0, #result_of_require.data, 0.2, 1.0)
 
         future_controllers_by_script_path[script_path]:set_progress(data_progress)
 

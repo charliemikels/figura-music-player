@@ -87,7 +87,7 @@ instrument_builder = {
 
                 local detune_amount = (instrument_config.do_detune and ((math.random()-0.5) * 0.1) or 0)
 
-                local new_sound = sounds[triangle_sine_sound_key]    -- TODO: Make reletive using sounds:getCustomSounds whatver and then substring search
+                local new_sound = sounds[triangle_sine_sound_key]
                     :setPos(position)
                     :setVolume((instruction.start_velocity/127))
                     :setLoop(true)

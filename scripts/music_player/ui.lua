@@ -373,13 +373,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                     and not song_processors_and_player_controllers[target_song.id].net_player_controller.is_playing()
                 then
                     if networking_api.outgoing_packet_queue_progress() < 1 then
-                        -- If, for whatever reason, the avatar is useing the networking API elsewhere and the packet queue is full, refuse to start the song.
-                        -- This is a sort of bandaid fix as the current logic will correctly enqueue the song and the networking library does eventualy play it,
-                        -- but the UI looses track of the enqueued song before it plays.
-                        --
-                        -- However, any user that is attempting to play two songs at once over the network probably knowss what they're doing.
-                        --
-                        -- TODO: Fix the UI looseing track of songs that are in the packet queue, but not playing yet.
                         print("The packet queue is already bussy. Are there multiple music players useing the network?")
                     else
                         playing_song_controller = song_processors_and_player_controllers[target_song.id].net_player_controller
@@ -487,7 +480,6 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             and config_page_state.targeted_song_config.instrument_selections[config_page_state.selected_track_index]
             and config_page_state.targeted_song_config.instrument_selections[config_page_state.selected_track_index].name
             or  default_instrument_name
-                -- TODO: I remember wanting to rework instrument fallbacks. Each instrument probably should be in charge of their own, so that if an instrument comes back, it can recover.
         )
 
         local bell_emoji = "🔔"  -- my code editor at the moment can't display this. Might need to debug my fonts or something.

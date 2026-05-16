@@ -140,8 +140,6 @@ In order to use them, you will need to stand near one, and you and your listener
 
 ![Piano](https://github.com/charliemikels/figura-music-player/assets/20339866/6faf6149-af74-4816-b3d1-93efe11bdb24)
 
-<!-- TODO: Video of the piano and drumkit in action. _Bad Apple_ maybe? -->
-
 ## Modularity
 
 One of the major goals of this rewrite was to make this project much more usable as a library for other avatars. The project is now made up of several semi-modular scripts, and has [LuaLS](https://github.com/LuaLS/lua-language-server) type comments all over the place.

@@ -50,7 +50,7 @@ local function escape_match_magic_characters(str)
     ))
 end
 
-local characters_to_escape = {  -- TODO: make sure that these are all the characters we need to keep track of.
+local characters_to_escape = {
     [ [["]] ] = true,
     [ [[\]] ] = true
 }
