@@ -146,7 +146,7 @@ local function get_nearest_drum_uuid_and_id(target_pos)
 
     for lib_uuid, drum_ids_and_positions in pairs(known_instruments) do
         local drum_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib|ChloeDrumkitLib
-        if drum_lib.playNote then -- This library is still good.
+        if drum_lib and drum_lib.playNote then -- This library is still good.
             for drum_id, drum_position in pairs(drum_ids_and_positions) do
                 local drum_distance_squared = ((drum_position + shift_to_center_of_block) - target_pos):lengthSquared()
                 if drum_distance_squared < nearest_distance_squared then

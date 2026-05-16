@@ -103,7 +103,7 @@ local function get_nearest_piano_uuid_and_id(target_pos)
 
     for lib_uuid, piano_ids_and_positions in pairs(known_instruments) do
         local piano_lib = world.avatarVars()[lib_uuid]  ---@type ChloePianoLib
-        if piano_lib.getPianos then -- This piano Library is still good.
+        if piano_lib and piano_lib.getPianos then -- This piano Library is still good.
             for piano_id, piano_position in pairs(piano_ids_and_positions) do
                 local piano_distance_squared = ((piano_position + shift_to_center_of_block) - target_pos):lengthSquared()
                 if piano_distance_squared < nearest_distance_squared then
