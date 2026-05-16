@@ -898,6 +898,11 @@ local song_player_api = {
                 end,
 
                 ---@type fun():number
+                get_buffer_delay = function()
+                    return song_player.buffer_delay or 0
+                end,
+
+                ---@type fun():number
                 get_remaining_buffer_time = function()
                     if not song_player.buffer_delay or song_player.buffer_delay == 0 then return 0 end
                     if not song_player.buffer_start_time then return math.huge end

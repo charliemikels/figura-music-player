@@ -215,6 +215,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 else
                     selector_title_string = selector_title_string .. "Click to play song"
                 end
+                selector_title_string = selector_title_string
+                    .. "\nRun time: " .. math.floor(player_controller.get_duration()/1000) .."s"
+                    .. (player_controller.get_buffer_delay() > 2000 and ("\nBuffer time: " .. math.floor(player_controller.get_buffer_delay()/1000) .."s") or "")
             elseif player_controller and player_controller:is_playing() then
                 selector_title_string = selector_title_string .. "Playing. Click to stop song"
             end
