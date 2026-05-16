@@ -160,7 +160,7 @@ You'll want to follow the [piano's basic usage instructions](https://github.com/
 4. Add the UUID to the lists in `scripts/music_player/instruments/chloespacedout_instruments/piano.lua` and `…/drumkit.lua`.
 5. Reload the music player avatar.
 
-But if you're going through this much effort, you might as well check out [ChloeSpacedOut's Figura Midi Player](https://github.com/ChloeSpacedOut/figura-midi-player). It's basicaly the same kind of script as mine, but has more direct access to the Piano's extensive instrument library.
+But if you're going through this much effort, you might as well check out [ChloeSpacedOut's Figura Midi Player](https://github.com/ChloeSpacedOut/figura-midi-player). It's basically the same kind of script as mine, but has more direct access to the Piano's extensive instrument library.
 
 ### Who's Charlie? I thought you were Tanner? (and vice versa)
 
@@ -174,14 +174,14 @@ Here's Rush E, in multiplayer, where the viewer has set this script to LOW permi
 
 https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
 
-(Appologies for the 240p demo video. Github's 10MB limit is pretty tight.)
+(Apologies for the 240p demo video. Github's 10MB limit is pretty tight.)
 
 <details>
 <summary>Some caveats about this demo</summary>
 <ul>
-    <li>It takes an impracticaly long time to buffer. (~11 minutes at current settings)</li>
-    <li>To actualy hear anything meaningful, the viewer would need to enable the Unlimited Sounds advanced setting. However it eventualy runs into Minecraft's internal 247 sound limit. </li>
-    <li>Unfortunantly the default Triangle Sine instrument hits a resource limit arround the 113s mark. However, the Noteblock instruments and using ChloeSpacedOut's piano are able to complete the song.</li>
+    <li>It takes an impractically long time to buffer. (~11 minutes at current settings)</li>
+    <li>To actually hear anything meaningful, the viewer would need to enable the Unlimited Sounds advanced setting. However it eventually runs into Minecraft's internal 247 sound limit. </li>
+    <li>Unfortunate the default Triangle Sine instrument hits a resource limit around the 113s mark. However, the Noteblock instruments and using ChloeSpacedOut's piano are able to complete the song.</li>
 </ul>
 </details>
 
