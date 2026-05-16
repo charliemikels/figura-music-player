@@ -45,7 +45,7 @@ local instrument_search_functions = {
             return
         end
 
-        local valid_drums = {}  ---@type table<ChloeInstrumentID, Vector3>
+        local valid_piano = {}  ---@type table<ChloeInstrumentID, Vector3>
         local piano_lib = world.avatarVars()[search_uuid]  ---@type ChloePianoLib
         if piano_lib and piano_lib.getPianos then
             local known_pianos_in_this_lib = piano_lib.getPianos()
@@ -57,12 +57,12 @@ local instrument_search_functions = {
                             -- see https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L564
                             -- getInstrumentOverride(test_piano_id) only applies to the piano's first channel 1, but that should be ok.
                     then
-                        valid_drums[piano_id] = piano_id_to_vec(piano_id)
+                        valid_piano[piano_id] = piano_id_to_vec(piano_id)
                     end
                 end
             end
         end
-        known_instruments[search_uuid] = valid_drums
+        known_instruments[search_uuid] = valid_piano
     end,
 
     -- purge_old = function() end,
