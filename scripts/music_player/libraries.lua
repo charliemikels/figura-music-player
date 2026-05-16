@@ -10,8 +10,8 @@
 
 
 ---@class SongHolder
----@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of speciffic instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)
----@field id string     A unique ID for this song in this library. Usualy the same as full_path.
+---@field uuid string   A 100% unique ID. See client.intUUIDToString(client.generateUUID()). Allows us to keep track of specific instances of a song, even if there are in multiple libraries. (and so full_path IDs are not unique)
+---@field id string     A unique ID for this song in this library. Usually the same as full_path.
 ---@field name string   The name used in the displayed song list
 ---@field short_name string The name used when displayed to others
 ---@field source DataSource
@@ -56,7 +56,7 @@ local function list_files_in_path_recursively(start_path)
 end
 
 ---Defining this function outside of the public library functions because,
----if done right, we should never need the user to sort the library manualy.
+---if done right, we should never need the user to sort the library manually.
 ---@param library Library
 local function sort_library(library)
     if library.song_keys_are_sorted then return end

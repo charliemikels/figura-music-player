@@ -17,16 +17,16 @@
 ---@enum PacketTypeIDs
 local packet_type_ids = {
     control = 0,    -- A very tiny packet to send a few simple control codes.
-    header = 1,     -- Includeds initial like name, duration, track_types
+    header = 1,     -- Includes initial like name, duration, track_types
     data = 2,       -- Bulk of the packet stream
     config = 3,     -- A packet that might appear to update a song's configuration
 }
 
 ---@enum ControlPacketCode
 local control_packet_codes = {
-    stop = 0,       -- Stop a song by it's transfered ID
-    start = 1,      -- Play a song by it's transfered ID
-    remove = 2,     -- Delete a song from the transfered song list
+    stop = 0,       -- Stop a song by it's transferred ID
+    start = 1,      -- Play a song by it's transferred ID
+    remove = 2,     -- Delete a song from the transferred song list
 }
 
 ---@enum ModifierTypeCodes
@@ -36,7 +36,7 @@ local modifier_key_to_number = {
     -- pan = 3,
 }
 
---- Reverse of modifier_type_codes for reverse lookups
+--- Reverse of modifier_type_codes for reverse lookup
 ---@type table<ModifierTypeCodes, string>
 local modifier_number_to_key = {}
 for name, id in pairs(modifier_key_to_number) do

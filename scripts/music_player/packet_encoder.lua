@@ -18,7 +18,7 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 --     So our pings need to be small enough and infrequent enough to also avoid stacking up
 
 -- Ping limits (see https://figura-wiki.pages.dev/tutorials/Pings#ping-rate-limiting )
--- Fewer than 32 pings in one second (~32 milis between packets min)
+-- Fewer than 32 pings in one second (~32ms between packets min)
 -- Fewer than 1024 bytes per second (~1 byte/mili)
 
 local pings_per_second = 6
@@ -27,8 +27,8 @@ local bytes_per_second = 400
 -- In bytes. (-2 because storing data as a string adds 2 bytes to encode the string's length)
 local max_packet_length = math.floor(bytes_per_second / pings_per_second) - 2
 -- How long the ping system should try to wait before sending another packet.
--- (Tick event adds 50 milis (1/20th of a second) of possible drift to account for.)
-local target_milis_between_packets = math.ceil(1000 / pings_per_second)
+-- (Tick event adds 50ms (1/20th of a second) of possible drift to account for.)
+local target_milliseconds_between_packets = math.ceil(1000 / pings_per_second)
 
 
 local do_debug_prints = false
@@ -36,10 +36,10 @@ local do_debug_prints = false
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
----@param allways_log boolean?
-local function print_debug(message, is_warning, allways_log)
+---@param always_log boolean?
+local function print_debug(message, is_warning, always_log)
     if do_debug_prints then print(message) end
-    if do_debug_prints or allways_log then
+    if do_debug_prints or always_log then
         if is_warning then
             host:warnToLog(message)
         else
@@ -90,10 +90,10 @@ end
 ---@return Byte[]
 local function string_to_bytes_with_len(str)
     if str == nil then return int_to_vlq(nil) end
-    local tableized_string = table.pack( string.byte(str, 1, -1) )
-    local tableized_length = int_to_vlq(tableized_string.n)
-    tableized_string.n = nil
-    return union_tables(tableized_length, tableized_string)
+    local tabulated_string = table.pack( string.byte(str, 1, -1) )
+    local tabulated_length = int_to_vlq(tabulated_string.n)
+    tabulated_string.n = nil
+    return union_tables(tabulated_length, tabulated_string)
 end
 
 --- Effectively converts {true, false, true} → `101` → 5
@@ -267,7 +267,7 @@ local function build_header_packets(song, buffer_delay)
     union_tables(packet, string_to_bytes_with_len(song.name))
 
     union_tables(packet, int_to_vlq(
-        math.ceil(song.duration) -- At 144FPS, the player can only update every 5ms. math.ceil to drop sub-milisecond precission.
+        math.ceil(song.duration) -- Even if the render event is running at 144FPS, the player only update every 5ms. Drop sub-millisecond precision.
     ))
 
     local track_type_bits = {}
@@ -284,7 +284,7 @@ end
 
 --- For use with song_instruction_to_packet_parts()
 ---
---- A simple wraper so that I can reuse the "add modifier" code
+--- A simple wrapper so that I can reuse the "add modifier" code
 ---@param modifier InstructionModifier                 The modifier to add
 ---@param instruction_modifier_list_id integer  The note ID to add this modifier to.
 ---@return {start_time: number, packet_part: PartialPacketDataBytes}
@@ -343,11 +343,13 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
                     print_debug(
                         "song_instruction_to_packet_parts: unrecognized modifier type: `"
                             ..tostring(modifier.type)
-                            .."`.\ninstruction.start_time: "
+                            .."`.\n"
+                            .."instruction.start_time: "
                             ..tostring(instruction.start_time)
                             ..", instruction.note: "
                             ..tostring(instruction.note)
-                            .."`.\n This warning will be suppressed for the rest of this song."
+                            .."`.\n"
+                            .."This warning will be suppressed for the rest of this song."
                         , true
                     )
                 else
@@ -437,7 +439,7 @@ end
 ---@see song_to_packets
 ---@param song Song
 ---@return PacketDataString[] data_packets        -- Fully formed packets ready to be bundled and shipped.
----@return integer buffer_delay_in_milis
+---@return integer buffer_delay_in_milliseconds
 local function build_data_packets_and_buffer_time(song)
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
@@ -449,7 +451,7 @@ local function build_data_packets_and_buffer_time(song)
 
     ---@type PacketDataBytes[]
     local data_packets = {}
-    local required_buffer_delay_in_milis = 0
+    local required_buffer_delay_in_milliseconds = 0
 
     local current_packet_builder = {}
     ---@type {start_time: number, packet_part: PartialPacketDataBytes}[]
@@ -473,11 +475,11 @@ local function build_data_packets_and_buffer_time(song)
             current_packet_builder = {}
             union_tables(current_packet_builder, int_to_vlq(math.floor(new_start_time)))
 
-            if ((#data_packets) * target_milis_between_packets) - required_buffer_delay_in_milis > proposed_packet_start_part_pair.start_time then
+            if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > proposed_packet_start_part_pair.start_time then
                 -- Too much time has passed for us to play this instruction on time.
-                -- Bump required_buffer_delay_in_milis so that the song starts later, giving us more time to send packets.
-                required_buffer_delay_in_milis = ((#data_packets) * target_milis_between_packets) - proposed_packet_start_part_pair.start_time
-                print_debug("buffer time changed: "..tostring(required_buffer_delay_in_milis / 1000).."s")
+                -- Bump required_buffer_delay_in_milliseconds so that the song starts later, giving us more time to send packets.
+                required_buffer_delay_in_milliseconds = ((#data_packets) * target_milliseconds_between_packets) - proposed_packet_start_part_pair.start_time
+                print_debug("buffer time changed: "..tostring(required_buffer_delay_in_milliseconds / 1000).."s")
             end
 
             instruction_packet_should_be_rebuilt = true
@@ -488,7 +490,7 @@ local function build_data_packets_and_buffer_time(song)
     for _, instruction in ipairs(song.instructions) do
         local instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
         local instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-        local modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+        local modifier_start_part_pairs_from_this_instruction = instruction_and_modifier_packet_parts.modifier_parts_and_starts
 
         -- insert any modifiers that go before this instruction
 
@@ -503,7 +505,7 @@ local function build_data_packets_and_buffer_time(song)
                 if should_use_the_new_packet_start_time then
                     instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
                     instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-                    modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+                    modifier_start_part_pairs_from_this_instruction = instruction_and_modifier_packet_parts.modifier_parts_and_starts
                 end
                 union_tables(current_packet_builder, unhandled_modifier_start_part_pair.packet_part)
 
@@ -516,27 +518,27 @@ local function build_data_packets_and_buffer_time(song)
             unhandled_modifiers_start_part_pairs[index_to_remove] = nil
         end
 
-        -- Actualy add the current instruction
+        -- Actually add the current instruction
 
         local should_rebuild = check_and_make_room(instruction_packet_part_with_start_time, instruction.start_time)
         if should_rebuild then
             instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
             instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-            modifier_start_part_pairs_from_this_instrucion = instruction_and_modifier_packet_parts.modifier_parts_and_starts
+            modifier_start_part_pairs_from_this_instruction = instruction_and_modifier_packet_parts.modifier_parts_and_starts
         end
         union_tables(current_packet_builder, instruction_packet_part_with_start_time.packet_part)
 
-        -- Add modifiers for current instruction to the unhandled list. They will be handeled in the next loop
+        -- Add modifiers for current instruction to the unhandled list. They will be handled in the next loop
 
-        union_tables(unhandled_modifiers_start_part_pairs, modifier_start_part_pairs_from_this_instrucion)
+        union_tables(unhandled_modifiers_start_part_pairs, modifier_start_part_pairs_from_this_instruction)
 
         -- clean up / resort unhandled modifiers table.
 
-        local unhandeld_modifiers_list_requires_resort = (
+        local unhandled_modifiers_list_requires_resort = (
             #previously_unhandled_modifiers_indexes_to_remove > 0
-            or #modifier_start_part_pairs_from_this_instrucion > 0
+            or #modifier_start_part_pairs_from_this_instruction > 0
         )
-        if unhandeld_modifiers_list_requires_resort and #unhandled_modifiers_start_part_pairs > 1 then
+        if unhandled_modifiers_list_requires_resort and #unhandled_modifiers_start_part_pairs > 1 then
             table.sort(unhandled_modifiers_start_part_pairs, function (a, b)
                 if a and b then return a.start_time < b.start_time end
                 return (a and true or false)
@@ -565,7 +567,7 @@ local function build_data_packets_and_buffer_time(song)
         table.insert(data_packets_as_strings, packet_data_bytes_to_string(data_packet_in_bytes))
     end
 
-    return data_packets_as_strings, required_buffer_delay_in_milis + (1 * target_milis_between_packets)
+    return data_packets_as_strings, required_buffer_delay_in_milliseconds + (1 * target_milliseconds_between_packets)
 end
 
 ---@param control_code ControlPacketCode
@@ -591,7 +593,7 @@ local packet_builder_api = {
     get_pings_per_second             = function() return pings_per_second end,
     get_bytes_per_second             = function() return bytes_per_second end,
     get_max_packet_length            = function() return max_packet_length end,
-    get_target_milis_between_packets = function() return target_milis_between_packets end,
+    get_target_ms_between_packets = function() return target_milliseconds_between_packets end,
 }
 
 return packet_builder_api

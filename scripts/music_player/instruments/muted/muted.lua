@@ -17,8 +17,8 @@ local muted_instrument_factory = {
         new_instance = {
             play_instruction = function(_, _, _) end,
             update_sounds = function(_) end,
-            stop_one_sound_immediatly = function() end,
-            stop_all_sounds_immediatly = function() end,
+            stop_one_sound_immediately = function() end,
+            stop_all_sounds_immediately = function() end,
             is_finished = function() return true end
         }
         return new_instance

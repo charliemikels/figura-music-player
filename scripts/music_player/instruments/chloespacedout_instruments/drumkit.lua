@@ -1,19 +1,19 @@
 
---- Note: as of writing this commit, the Imortalized Drumkit that you'd find on this post:
+--- Note: as of writing this commit, the Immortalized Drumkit that you'd find on this post:
 --- https://discord.com/channels/1129805506354085959/1340798228165300224/1340798228165300224
 --- does not work with this script. It doesn't expose the getDrumIDs function and so we are unable to
 --- (quickly and efficiently) find this kind of drumkit.
 ---
 --- (In theory we could do some sort of search algorithm to find nearby drums in a tick loop,
---- but that's certainly the dictionary definition of overenginering. I'll just ask someone
+--- but that's certainly the dictionary definition of over-engineering. I'll just ask someone
 --- in the discord about it)
 ---
 --- The current version of the avatar in the [Figura Drum github page](https://github.com/ChloeSpacedOut/figura-drum)
---- should work just fine, it's just the imortalized one seems to not be useing it.
+--- should work just fine, it's just the immortalized one seems to not be using it.
 ---
 ---
 ---
---- The below script assumes the imortilized drumkit actualy does work.
+--- The below script assumes the immortalized drumkit actually does work.
 
 
 -- ----------------------------------------------------------------------------------------------
@@ -23,28 +23,28 @@
 --- In order to use this instrument, you (and your viewers) may need to either
 ---
 --- - follow the "basic usage steps" in Piano 2.0's README      https://github.com/ChloeSpacedOut/figura-piano-2.0
---- - follow the "How to use" section of Piano v1's README (matches current imortilized drumkit usage)      https://github.com/ChloeSpacedOut/figura-piano
+--- - follow the "How to use" section of Piano v1's README (matches current immortalized drumkit usage)      https://github.com/ChloeSpacedOut/figura-piano
 ---
 --- Then place one nearby. The instrument should become "available" afterwards.
 ---
 --- BTW, Drumkit's documentation is a little sparse. It's probably being phased out by Piano 2.0. But you can
---- still summon the imortilized drumkit avatar with these commands.
+--- still summon the immortalized drumkit avatar with these commands.
 ---
 --- - 1.21+:    /give @p minecraft:player_head[minecraft:profile={id:[I;1039887675,1961051688,-1756947787,-2031944347],name:"Drum"}]
 --- - 1.20:     /give @p minecraft:player_head{SkullOwner:{Id:[I;1039887675,1961051688,-1756947787,-2031944347]}}
 
 
 
----UUIDs that have [Figura Drum](https://github.com/ChloeSpacedOut/figura-drum) equipped as their avatar.
+---uuids that have [Figura Drum](https://github.com/ChloeSpacedOut/figura-drum) equipped as their avatar.
 ---@type UUID[]
 local drumkit_lib_uuids = {
-    "3dfb6d3b-74e3-4628-9747-1ab586e2fd65",     -- Imortilized Drumkit avatar
+    "3dfb6d3b-74e3-4628-9747-1ab586e2fd65",     -- Immortalized Drumkit avatar
 }
 
----UUIDs that have [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) equipped as their avatar.
+---uuids that have [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) equipped as their avatar.
 ---@type UUID[]
 local piano_lib_uuids = {
-    "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized Piano avatar
+    "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Immortalized Piano avatar
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
 }
 
@@ -72,7 +72,7 @@ local instrument_search_functions = {
     search_piano_drums = function()
         search_uuid_key, search_uuid = next(piano_lib_uuids, search_uuid_key)
         if not search_uuid_key then -- search_uuid_key is nil. we've hit the end of the list. move on.
-            instrument_search_state = "search_clasic_drums"
+            instrument_search_state = "search_classic_drums"
             return
         end
 
@@ -94,7 +94,7 @@ local instrument_search_functions = {
         known_instruments[search_uuid] = valid_drums
     end,
 
-    search_clasic_drums = function()
+    search_classic_drums = function()
         search_uuid_key, search_uuid = next(drumkit_lib_uuids, search_uuid_key)
         if not search_uuid_key then -- search_uuid_key is nil. we've hit the end of the list. move on.
             instrument_search_state = "search_piano_drums"
@@ -113,10 +113,10 @@ local instrument_search_functions = {
     -- purge_old = function() end,
 }
 
-local last_update_check_gametime = world.getTime()
+local last_update_check_world_time = world.getTime()
 local function step_update_known_instruments()
-    if last_update_check_gametime ~= world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
-        last_update_check_gametime = world.getTime()
+    if last_update_check_world_time ~= world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+        last_update_check_world_time = world.getTime()
         instrument_search_functions[instrument_search_state]()
     end
 end
@@ -124,16 +124,16 @@ end
 
 
 local max_search_radius_from_host = 10      ---@type number     -- distance in blocks for Near piano calculations
-local last_nearest_check_gametime = world.getTime()
+local last_nearest_check_world_time = world.getTime()
 
 ---@param target_pos Vector3
 ---@return UUID?
 ---@return ChloeInstrumentID?
 local function get_nearest_drum_uuid_and_id(target_pos)
-    if last_nearest_check_gametime == world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+    if last_nearest_check_world_time == world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
         return
     else
-        last_nearest_check_gametime = world.getTime()
+        last_nearest_check_world_time = world.getTime()
     end
 
     step_update_known_instruments()
@@ -164,7 +164,7 @@ end
 ---@return boolean
 local function instrument_is_available()
     step_update_known_instruments()
-    -- TODO: should we limit this to a radius arround the host?
+    -- TODO: should we limit this to a radius around the host?
     for _, drum_ids_and_positions in pairs(known_instruments) do
         if next(drum_ids_and_positions) then -- there is at least one drum in the list
             return true
@@ -203,7 +203,7 @@ local function display_text_timeouts_watcher()
 end
 
 local function start_display_text_timeouts_watcher()
-    all_drum_info_display_roots = models:newPart("piano_info_display_super_parrent", "World")
+    all_drum_info_display_roots = models:newPart("piano_info_display_super_parent", "World")
     events.world_tick:register(display_text_timeouts_watcher)
 end
 
@@ -214,7 +214,7 @@ local function add_or_update_display_text(drum_id, new_timeout_time)
     end
 
     if not next(drum_time_to_info_text_timeout) then   -- this is the first piano and the watcher is not running
-        start_display_text_timeouts_watcher()   -- initilizes some things for us
+        start_display_text_timeouts_watcher()   -- initializes some things for us
     end
 
     local this_drum_root = all_drum_info_display_roots:newPart(drum_id, "World")
@@ -234,7 +234,7 @@ end
 
 --#region
 -- Build a lookup table to go from Midi numbers to
--- Essentialy a reversed version of the string→number lookup in Piano 2.0: https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L38-L56
+-- Essentially a reversed version of the string→number lookup in Piano 2.0: https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L38-L56
 
 ---@type table<integer, ChloeKeyID>
 local base_note_name_lookup = {
@@ -285,7 +285,7 @@ local drumkit_builder = {
         ---@param lib_uuid UUID?
         ---@param drum_id ChloeInstrumentID?
         local function set_instance_drum_info(lib_uuid, drum_id)
-            -- may be nil, nil to essentialy un-find a drum kit
+            -- may be nil, nil to essentially un-find a drum kit
 
             if not (lib_uuid and drum_id) then
                 instance_drum_id = nil
@@ -296,7 +296,7 @@ local drumkit_builder = {
             instance_drum_lib = world.avatarVars()[lib_uuid]  ---@type (ChloePianoLib|ChloeDrumkitLib)?
         end
 
-        -- piano is initilized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
+        -- piano is initialized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
         ---@type Instrument
         local drum_instrument = {
@@ -321,7 +321,7 @@ local drumkit_builder = {
                         true,
                         nil,
                         instruction.start_velocity
-                            * 0.02                         -- Drum is a little loud by default reletive to the other instruments.
+                            * 0.02                         -- Drum is a little loud by default relative to the other instruments.
                             * (avatar:getVolume() / 100)    -- Respect if viewer has muted the host.
                     )   -- playNote is kinda a legacy function for Piano 2.0, but it's the same signature for old and new drums.
 
@@ -335,18 +335,18 @@ local drumkit_builder = {
                 fallback_instrument_instance.update_sounds(position)
             end,
 
-            stop_one_sound_immediatly = function()
-                -- Drum kit is only impulses. All sounds will naturaly stop
-                fallback_instrument_instance.stop_one_sound_immediatly()
+            stop_one_sound_immediately = function()
+                -- Drum kit is only impulses. All sounds will naturally stop
+                fallback_instrument_instance.stop_one_sound_immediately()
             end,
 
-            stop_all_sounds_immediatly = function ()
-                -- Drum kit is only impulses. All sounds will naturaly stop
-                fallback_instrument_instance.stop_all_sounds_immediatly()
+            stop_all_sounds_immediately = function ()
+                -- Drum kit is only impulses. All sounds will naturally stop
+                fallback_instrument_instance.stop_all_sounds_immediately()
             end,
 
             is_finished = function ()
-                -- Drum kit is only impulses. We are allways (effectively) finished. Defer to fallback, just in case it's not finished.
+                -- Drum kit is only impulses. We are always (effectively) finished. Defer to fallback, just in case it's not finished.
                 return fallback_instrument_instance.is_finished()
             end
         }

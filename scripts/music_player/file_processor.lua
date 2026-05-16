@@ -1,21 +1,21 @@
 
--- This script searches throught the file_processors directory and tries to require a FileProcessor out of them
--- It then works with the Libray script to create song holders bound to their processing functions.
+-- This script searches throughout the file_processors directory and tries to require a FileProcessor out of them
+-- It then works with the Library script to create song holders bound to their processing functions.
 --
--- This archetecture should make adding support for new file types trivial but just dropping in a new processor.
+-- This architecture should make adding support for new file types trivial but just dropping in a new processor.
 --
 -- Local Songs work similarly to file processors, but are a special edge case, and so they're handled in local_songs.lua
 
 
 
--- TODO: Circle back to this speciffic script. Song tables are assigned a data_processor when they're created.
---       Library is (at time of writing) the only other script that uses this script specifficaly, and it's only
+-- TODO: Circle back to this specific script. Song tables are assigned a data_processor when they're created.
+--       Library is (at time of writing) the only other script that uses this script specifically, and it's only
 --       doing one thing (file_processor_api.song_list_from_paths). We could instead move this script into the
 --       library script.
 
 ---@alias DataSourceTypes "files"|"local" --|"manual"
 
--- TODO: DataSource is a rat's nest. Especialy since we only have either FilesApi songs and Local songs
+-- TODO: DataSource is a rat's nest. Especially since we only have either FilesApi songs and Local songs
 
 ---@alias DataSource
 ---| FilesApiDataSource
@@ -49,13 +49,13 @@
 ---@field is_local boolean?          Is true if song data does not need to be pinged.
 ---@field packet_decoder_info PacketDecoderInfo?    Temporary space for Packet Decoder to track ongoing information.
 
----Tracks ProcessedSong are the step immediatly before PlayingSong.
+---Tracks ProcessedSong are the step immediately before PlayingSong.
 ---@class Track
 ---@field instrument_type_id 0|1 0 for normal, 1 for percussion.
 ---@field recommended_instrument_name string? The name of an instrument for display in a UI
 
 
----A cannonical list of `FileProcessor`s
+---A canonical list of `FileProcessor`s
 ---@type FileProcessor[]
 local file_processors = {}
 

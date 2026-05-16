@@ -1,7 +1,7 @@
 
 -- A set of functions that builds songs, headers, and config info out of streams of characters.
 --
--- This is primaraly used by the Networking system, but also by the local song importer.
+-- This is primarily used by the Networking system, but also by the local song importer.
 
 
 
@@ -9,17 +9,17 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 
 -- decoder creates processed songs and configs for those songs.
 
--- There should be no ping functions here. This entire file must be runable on the viewer.
+-- There should be no ping functions here. This entire file must be runnable on the viewer.
 
 
 local do_debug_prints = false
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
----@param allways_log boolean?
-local function print_debug(message, is_warning, allways_log)
+---@param always_log boolean?
+local function print_debug(message, is_warning, always_log)
     if do_debug_prints then print(message) end
-    if do_debug_prints or allways_log then
+    if do_debug_prints or always_log then
         if is_warning then
             host:warnToLog(message)
         else
@@ -69,7 +69,7 @@ end
 --- Effectively converts 5 → `101` → {1, 0, 1}.
 --- If expected_len > results_list, append false to left side (`101` → `00101`)
 --- Used to assign percussion tracks to incoming songs
----@param int integer       usualy pulled right from vlq_to_int_from_packet
+---@param int integer       usually pulled right from vlq_to_int_from_packet
 ---@param length integer    the expected length of this list. (determines how many leading `0`s there will be)
 ---@return (0|1)[]
 local function int_to_bit_list(int, length)
@@ -83,8 +83,8 @@ local function int_to_bit_list(int, length)
 end
 
 --- Effectively converts 5 → `101` → {true, false, true}.
---- Same as int_to_bit_list, but returns boolian[] instead of 0|1[]
----@param int integer       usualy pulled right from vlq_to_int_from_packet
+--- Same as int_to_bit_list, but returns boolean[] instead of 0|1[]
+---@param int integer       usually pulled right from vlq_to_int_from_packet
 ---@param length integer    the expected length of this list. (determines how many leading `false`s there will be)
 ---@return boolean[]
 local function int_to_bool_list(int, length)
@@ -189,7 +189,7 @@ end
 
 --- Returns a config packet
 ---
---- Does nothing with the config cache library. We're assumeing whoever built this packet built it ready-to-go. (Also this script will run on the viewer anyways, so no access to the cache stuff anyways.)
+--- Does nothing with the config cache library. We're assuming whoever built this packet built it ready-to-go. (Also this script will run on the viewer anyways, so no access to the cache stuff anyways.)
 ---@param packet_data PacketDataString
 ---@return SongPlayerConfig
 local function new_config_from_packet(packet_data)
@@ -255,10 +255,10 @@ local function new_config_from_packet(packet_data)
     config_data.default_normal_instrument = ( default_normal_instrument_name and { name = default_normal_instrument_name } or nil )
     config_data.default_percussion_instrument = ( default_percussion_instrument_name and { name = default_percussion_instrument_name } or nil )
 
-    local num_configed_track_instruments = vlq_to_int_from_reader(reader)
-    if num_configed_track_instruments and num_configed_track_instruments > 0 then
+    local num_configured_track_instruments = vlq_to_int_from_reader(reader)
+    if num_configured_track_instruments and num_configured_track_instruments > 0 then
         config_data.instrument_selections = {}
-        for _ = 1, num_configed_track_instruments do
+        for _ = 1, num_configured_track_instruments do
             local track_number = vlq_to_int_from_reader(reader)
             local instrument_name = bytes_with_len_to_string_from_reader(reader)
             config_data.instrument_selections[track_number] = { name = instrument_name }
@@ -311,22 +311,22 @@ local function new_song_from_header_packet(packet_data_string)
 end
 
 ---@type table<ControlPacketCode, fun(controller:SongPlayerController, reader:PacketReader)>
-local control_packet_handelers = {
+local control_packet_handlers = {
     [packet_enums_api.control_packet_codes.start] = function(controller, _)  controller:play() end,
     [packet_enums_api.control_packet_codes.stop] = function(controller, _)   controller:stop() end,
     [packet_enums_api.control_packet_codes.remove] = function(_, _)
-        -- This controll code is for network management. It tells a client they can delete a song we've sent
+        -- This control code is for network management. It tells a client they can delete a song we've sent
     end,
 }
 
 ---@param controller SongPlayerController
 ---@param packet_data PacketDataString
 ---@return SongPlayerController
-local function controll_player_from_packet(controller, packet_data)
+local function control_player_from_packet(controller, packet_data)
     local reader = new_packet_reader(packet_data)
     local control_code = vlq_to_int_from_reader(reader)
-    if control_packet_handelers[control_code] then
-        control_packet_handelers[control_code](controller, reader)
+    if control_packet_handlers[control_code] then
+        control_packet_handlers[control_code](controller, reader)
     else
         error("Unrecognized control code `"..tostring(control_code).."`")
     end
@@ -342,7 +342,7 @@ local packet_receiver_api = {
     new_song_from_header_packet = new_song_from_header_packet,
     new_config_from_packet = new_config_from_packet,
     add_instructions_to_song_from_packet = add_instructions_to_song_from_packet,
-    controll_player_from_packet = controll_player_from_packet
+    control_player_from_packet = control_player_from_packet
 }
 
 return packet_receiver_api

@@ -1,7 +1,7 @@
 
 -- In order to make the music player work at low permission levels, much of its logic, needs to be spread out over time.
 --
--- Futures help us keep track of these long-running opperations, and let the caller use callback-style asyncronous programming.
+-- Futures help us keep track of these long-running operations, and let the caller use callback-style asynchronous programming.
 --
 -- (That callback feature is also why we defined a new `TL_Futures` type. Figura already has a built in `Future` type.)
 --
@@ -15,7 +15,7 @@ local tl_futures_api = {
 
     new_future = function(type_of_value, catch_for_colon_syntax)
         if type(type_of_value) == "table" and type_of_value.new_future then
-            -- caller probably used `:` syntax, which means `type_of_value` is actualy `self`. Let's help them out and try the 2nd paramiter.
+            -- caller probably used `:` syntax, which means `type_of_value` is actually `self`. Let's help them out and try the 2nd parameter.
             type_of_value = catch_for_colon_syntax
         end
         if type(type_of_value) ~= "string" then error("Please pass a type (as a string) when creating a future.") end
@@ -23,11 +23,11 @@ local tl_futures_api = {
         local up__type_of_value = type_of_value       ---@type string     Marks what type the future is expected to contain.
         local up__is_done = false   ---@type boolean    Flags if this future is done
         local up__error             ---@type string?    Error messages belonging to a failed the future
-        local up__value             ---@type any?       The value of a successfull future.
+        local up__value             ---@type any?       The value of a successful future.
         local up__progress = 0      ---@type number      a number from 0 to 1 to represent a future's progress.
         local up__on_done_callback_fns = {} ---@type fun(future:TL_Future)[]    a collection of functions to be called after a future has finished.
         local up__on_progress_callback_fns = {} ---@type fun(future:TL_Future)[]    a collection of functions to be called every time progress is updated
-        local up__completed_done_callbacks = 0 ---@type integer  a tracker for completed callbacks. Used to keep track of ran callbacks, so that they are guarrentied to run in order.
+        local up__completed_done_callbacks = 0 ---@type integer  a tracker for completed callbacks. Used to keep track of ran callbacks, so that they are guarantied to run in order.
 
         local function up__done_or_error()
             if not up__is_done then error("Future is not done") end
@@ -37,15 +37,15 @@ local tl_futures_api = {
 
         ---Futures store the state of an async process. When the process is done, a value or an error can be extracted from the future.
         ---
-        ---Most fields in the future expect the future to be done before they get read. Allways check `:is_done()` before reading values,
-        ---or use `:register_callback()` to queue up a function to run immediatly when the future finishes.
+        ---Most fields in the future expect the future to be done before they get read. Always check `:is_done()` before reading values,
+        ---or use `:register_callback()` to queue up a function to run immediately when the future finishes.
         ---
         ---(Dev note: The "Future" type already sorta exist in Figura (see the networking/HTTP module),
         ---but I really wanted a callback functions to make chaining easier, so I'm defining my own type.)
         ---@class TL_Future<T>
         ---@field is_done fun(self:TL_Future): boolean              Returns false if background process is still running
         ---@field get_progress fun(self:TL_Future): number          Returns a number from 0 to 1 (or whatever the value of "progress" is)
-        ---@field has_error fun(self:TL_Future): boolean            Returns true if an error occured inside the future
+        ---@field has_error fun(self:TL_Future): boolean            Returns true if an error occurred inside the future
         ---@field throw_error fun(self:TL_Future)                   Throws any stored errors.
         ---@field get_error fun(self:TL_Future): string?            Returns any stored errors.
         ---@field get_value fun(self:TL_Future): T                  Returns any stored values.
@@ -120,7 +120,7 @@ local tl_futures_api = {
             end,
         }
 
-        -- Sets future to done, and runs all callbacks. This is sepperate to ensure the script using TL_FutureController allways returns a value or an error.
+        -- Sets future to done, and runs all callbacks. This is separate to ensure the script using TL_FutureController always returns a value or an error.
         local function up__set_done()
             if up__is_done then return end
             up__is_done = true
@@ -135,11 +135,11 @@ local tl_futures_api = {
         ---
         ---@see TL_Future
         ---@class TL_FutureController<T>
-        ---@field is_done fun(self:TL_FutureController):boolean Returns the running state of the future. Controll this with `set_done_with_value()` and `set_done_with_error()`
+        ---@field is_done fun(self:TL_FutureController):boolean Returns the running state of the future. Control this with `set_done_with_value()` and `set_done_with_error()`
         ---@field set_done_with_value fun(self:TL_FutureController, value:T)
         ---@field set_done_with_error fun(self:TL_FutureController, error:string)
         ---@field set_progress fun(self:TL_FutureController, progress:number)       `Progress` is a number from 0-1 that represents the completion of the future.
-        ---@field get_future fun(self:TL_FutureController):TL_Future<T>              Returns the future assosiated with this controller.
+        ---@field get_future fun(self:TL_FutureController):TL_Future<T>              Returns the future associated with this controller.
         local future_controller = {
             is_done = function(self) return up__is_done end,
             set_done_with_value = function(self, value) up__value = value; up__set_done(); end,

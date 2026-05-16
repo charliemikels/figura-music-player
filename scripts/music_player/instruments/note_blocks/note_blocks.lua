@@ -5,7 +5,7 @@ local note_block_sounds = {
     ---@class NoteBlockSound
     ---@field name string
     ---@field is_percussion boolean
-    ---@field base_tuning integer   Each note block sound is tuned to F# in different octives. 42 == F#2, 54 == F#3, 66 == F#4, 78 == F#5, 90 == F#6, etc.
+    ---@field base_tuning integer   Each note block sound is tuned to F# in different octaves. 42 == F#2, 54 == F#3, 66 == F#4, 78 == F#5, 90 == F#6, etc.
     ---@field sound_id string
 
     { name = "Harp",            is_percussion = false, base_tuning = 66, sound_id = "block.note_block.harp" },
@@ -26,7 +26,7 @@ local note_block_sounds = {
     { name = "Bass Drum",       is_percussion = true,  base_tuning = 42, sound_id = "block.note_block.basedrum" },
 }
 
----Converts a midi note ID to a multiplier usable in minecraft (reletive to the instrument's initial tuning)
+---Converts a midi note ID to a multiplier usable in minecraft (relative to the instrument's initial tuning)
 ---@param note_id integer
 ---@param instrument_base_id integer    The midi id for the instrument's base tuning
 ---@return number multiplier
@@ -40,7 +40,7 @@ local compiled_instrument_builders = {}
 for _, note_block_sound in ipairs(note_block_sounds) do
     local note_block_instrument_builder = {
         name = name_prefix .. note_block_sound.name,
-        is_available = function() return true end,  -- using minecraft built in noteblock sounds. this will allways be available.
+        is_available = function() return true end,  -- using minecraft built in noteblock sounds. This will always be available.
         features = {
             percussion = note_block_sound.is_percussion,
         },
@@ -49,7 +49,7 @@ for _, note_block_sound in ipairs(note_block_sounds) do
             ---@type Instrument
             local new_instance = {
                 play_instruction = function(instruction, position, _)
-                    -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+                    -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                     local new_sound = sounds[note_block_sound.sound_id]
                         :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning))
                         :setPos(position)
@@ -60,10 +60,10 @@ for _, note_block_sound in ipairs(note_block_sounds) do
                 update_sounds = function(_)
                     -- Notes do not linger, nothing to update
                 end,
-                stop_one_sound_immediatly = function()
+                stop_one_sound_immediately = function()
                     -- Notes do not linger and so there's nothing to clean
                 end,
-                stop_all_sounds_immediatly = function()
+                stop_all_sounds_immediately = function()
                     -- Notes do not linger and so there's nothing to clean
                 end,
                 is_finished = function()

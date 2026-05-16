@@ -1,15 +1,15 @@
 
 -- Can convert a Song into a "local song" format.
 --
--- Local songs are essentialy the same as a stream of data packets, just stored as a
--- lua file, and uploaded with the avatar instead of loaded by the filder api.
+-- Local songs are essentially the same as a stream of data packets, just stored as a
+-- lua file, and uploaded with the avatar instead of loaded by the files api.
 --
 -- This script exports its songs to a folder inside `[figura_root]/data/`. You'll
 -- need to move them from there and into the local_songs folder.
 --
 -- You may notice that exported songs use a lot of c-style escaped characters.
 -- On your computer, this will make songs very large, but Figura will compress
--- these files at upload time, so they won't actualy take up that much space.
+-- these files at upload time, so they won't actually take up that much space.
 
 local packet_encoder_api = require("./packet_encoder")  ---@type PacketEncoderApi
 
@@ -20,10 +20,10 @@ local do_debug_prints = true
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
----@param allways_log boolean?
-local function print_debug(message, is_warning, allways_log)
+---@param always_log boolean?
+local function print_debug(message, is_warning, always_log)
     if do_debug_prints then print(message) end
-    if do_debug_prints or allways_log then
+    if do_debug_prints or always_log then
         if is_warning then
             host:warnToLog(message)
         else
@@ -47,7 +47,7 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     -- In order to write a string into a file in a way that lua can
     -- `require()` it back into a string, we need to quote it.
 
-    -- Although lua itself is very happy storeing arbitrary binary data in strings,
+    -- Although lua itself is very happy storing arbitrary binary data in strings,
     -- it seems to have a hard time loading arbitrary binary data from a require()ed file
     --
     -- This means that we need to encode our binary data in some string-safe format.
@@ -55,15 +55,15 @@ local function safely_wrap_string_in_quotes(unquoted_string)
     -- Base 64 is a pretty good one. It's only a little larger on disk than the actual
     -- raw byte stream, and Figura gives us data.buffer to easily convert to and from it.
     --
-    -- However we can also encode arbitrary binary bytes by useing c-style escape sequences.
-    -- On disk, it's much larger than base 64 encodeing. However Figura's default compression
-    -- system seems to actualy parse the file enough so that the escaped sequence returns to
-    -- a single character at upload time. Meaning it's actualy way more space efficient for
+    -- However we can also encode arbitrary binary bytes by using c-style escape sequences.
+    -- On disk, it's much larger than base 64 encoding. However Figura's default compression
+    -- system seems to actually parse the file enough so that the escaped sequence returns to
+    -- a single character at upload time. Meaning it's actually way more space efficient for
     -- our needs.
     --
     -- See https://www.lua.org/pil/2.4.html#:~:text=the%20escape%20sequence%20%5Cddd
     --
-    -- We do need to be careful about escapeing any problem chars in our existing byte stream
+    -- We do need to be careful about escaping any problem chars in our existing byte stream
     -- (mostly `"` and `\`, ), but that's about it.
 
     local string_builder = {}   ---@type string[]
@@ -124,7 +124,7 @@ local function export_song_to_local(song, config)
     ---@type LocalSongScript
     local tmp_layout_table = {
         name = song.name,
-        durration = song.duration,
+        duration = song.duration,
         num_instructions = #song.instructions,
         header = head_packet,
         config = config_packet,
@@ -151,9 +151,9 @@ local function export_song_to_local(song, config)
     table.insert(string_collector, "local local_song = {\n")
 
     -- it'd be really cool if we wrote a loop to convert from tmp_layout_table's keys and dump the values as strings,
-    -- but data is a list. and idk if there's a good way to distinguish between a list and normal key pair table.
+    -- but data is a list. and IDK if there's a good way to distinguish between a list and normal key pair table.
     table.insert(string_collector, "  name = "..safely_wrap_string_in_quotes(tmp_layout_table.name)..",\n")
-    table.insert(string_collector, "  durration = "..tmp_layout_table.durration..",\n")
+    table.insert(string_collector, "  duration = "..tmp_layout_table.duration..",\n")
     table.insert(string_collector, "  num_instructions = "..tmp_layout_table.num_instructions..",\n")
     table.insert(string_collector, "  header = "..safely_wrap_string_in_quotes(tmp_layout_table.header)..",\n")
     table.insert(string_collector, "  config = "..safely_wrap_string_in_quotes(tmp_layout_table.config)..",\n")
@@ -189,7 +189,7 @@ local function export_song_to_local(song, config)
         write_stream:write(byte)
     end
 
-    print_debug("Closeing write stream…")
+    print_debug("Closing write stream…")
     write_stream:close()
 
     print_debug("Export done.\nRemember to move the exported file into this avatar's `local_songs` folder.")

@@ -18,7 +18,7 @@ local print_instrument_factory = {
         ---@type Instrument
         new_instance = {
             play_instruction = function(instruction, _, time_since_due)
-                print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+                print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 table.insert(active_instructions, {
                     time_started = client.getSystemTime() - time_since_due,
                     instruction = instruction
@@ -27,7 +27,7 @@ local print_instrument_factory = {
             update_sounds = function(_)
                 for active_instruction_key, active_instruction in pairs(active_instructions) do
                     if (active_instruction.time_started + active_instruction.instruction.duration) <= client.getSystemTime() then
-                        print("stopping: " .. tostring(active_instruction.instruction.note) .. " on trk" .. tostring(active_instruction.instruction.track_index))
+                        print("stopping: " .. tostring(active_instruction.instruction.note) .. " on track" .. tostring(active_instruction.instruction.track_index))
                         active_instructions[active_instruction_key] = nil
                         -- As it turns out, setting an element to nil in a for pairs() loop is fine.
                         -- See docs for pair() which point to next() https://www.lua.org/manual/5.4/manual.html#pdf-next
@@ -35,11 +35,11 @@ local print_instrument_factory = {
                     end
                 end
             end,
-            stop_one_sound_immediatly = function()
+            stop_one_sound_immediately = function()
                 local key, _ = next(active_instructions)
                 active_instructions[key] = nil
             end,
-            stop_all_sounds_immediatly = function()
+            stop_all_sounds_immediately = function()
                 active_instructions = {}
             end,
             is_finished = function() return next(active_instructions) == nil end

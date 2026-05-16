@@ -1,5 +1,5 @@
 
--- SongPlayers are responcible for actualy playing the Song. Specificaly, they are in charge of
+-- SongPlayers are responsible for actually playing the Song. Specifically, they are in charge of
 --
 -- 1. Managing various event loops
 -- 2. Dispatching instructions to instruments
@@ -8,16 +8,16 @@
 -- 4. Managing and detecting instruments
 -- 5. Displaying info text about playback
 --
--- When creating a song player, you are actualy given a SongPlayerController.
+-- When creating a song player, you are actually given a SongPlayerController.
 -- This keeps the internal functions and data safe and, but still gives you plenty of control.
 
 
 
 -- TODO: A good chunk of this file is just for gathering instruments. Can that be its own script?
 
----@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
+---@type InstrumentName -- An instrument that will always exist so long as the avatar is loaded.
 local fallback_normal_instrument_name = "MC/Harp"
----@type InstrumentName -- An instrument that will allways exist so long as the avatar is loaded.
+---@type InstrumentName -- An instrument that will always exist so long as the avatar is loaded.
 local fallback_percussion_instrument_name = "Percussion"
 
 ---@type InstrumentName
@@ -30,10 +30,10 @@ local do_debug_prints = false
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
----@param allways_log boolean?
-local function print_debug(message, is_warning, allways_log)
+---@param always_log boolean?
+local function print_debug(message, is_warning, always_log)
     if do_debug_prints then print(message) end
-    if do_debug_prints or allways_log then
+    if do_debug_prints or always_log then
         if is_warning then
             host:warnToLog(message)
         else
@@ -52,7 +52,7 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 --- There are some special exceptions
 ---
 --- - Track `0` is for song-level meta events, like tempo change. When track == 0, the note number and modifiers table might have other exceptions.
---- - Track `nil` is reserved for packet encodeing/decodeing. This allows not modifiers to be stored sepperately from their instructions, and recognized as modifiers. It should not appear as a real track.
+--- - Track `nil` is reserved for packet encoding/decoding. This allows not modifiers to be stored separately from their instructions, and recognized as modifiers. It should not appear as a real track.
 ---@field track_index integer
 ---@field start_time number         An absolute time in ms from the start of the song.
 ---@field start_velocity number     The initial velocity (volume) of the note.
@@ -63,7 +63,7 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 
 ---@class InstructionModifier
 ---@field start_time number     an absolute time in ms from the start of the song. (not start of instruction)
----@field type string           a string like "pitch", "volume", "pan", that tells us what this modifier controlls.
+---@field type string           a string like "pitch", "volume", "pan", that tells us what this modifier controls.
 ---@field value number          the strength of this modifier
 
 
@@ -78,19 +78,19 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 
 ---@class Instrument
 ---
---- Queue the given instruction and play it immediatly. Remember to call update_sounds to eventualy stop the instruction.
+--- Queue the given instruction and play it immediately. Remember to call update_sounds to eventually stop the instruction.
 ---@field play_instruction fun(instruction: Instruction, position: Vector3, time_since_due: integer)
 ---@field update_sounds fun(position: Vector3)
 ---
 --- For use with an emergency stop feature. In this case, we will likely need to use a world tick loop to stop the song.
---- At low permissions, we only have a handfull of instructions, and so we can't just call every sound to stop it,
+--- At low permissions, we only have a handful of instructions, and so we can't just call every sound to stop it,
 --- We might need to go one at a time
----@field stop_one_sound_immediatly fun()
+---@field stop_one_sound_immediately fun()
 ---
 --- For when the user chooses to stop a song.
----@field stop_all_sounds_immediatly fun()
+---@field stop_all_sounds_immediately fun()
 ---
---- Returns true when the instrument has fully handeled all instructions given through play_instruction()
+--- Returns true when the instrument has fully handled all instructions given through play_instruction()
 ---@field is_finished fun():boolean
 
 --- Lookup table of reserved instrument names.
@@ -157,7 +157,7 @@ local function get_all_instruments()
                 print_debug(
                     "Instrument `"
                         .. tostring(found_instrument_builder.name)
-                        .. "` is useing a reserved name instrument name"
+                        .. "` is using a reserved name instrument name"
                     , true
                 )
                 break
@@ -192,18 +192,18 @@ get_all_instruments()
 ---@field default_percussion_instrument? InstrumentSelection
 ---@field instrument_selections? table<TrackID, InstrumentSelection>
 ---@field source_pos Vector3?           The location where sound comes from. Setting source_pos will unset source_entity if one was set earlier.
----@field source_entity Entity?   When set, player will update source_pos to match the entitty's position.
+---@field source_entity Entity?   When set, player will update source_pos to match the entity's position.
 ---@field hide_in_world_info boolean?           Configures if song info should be displayed in the world.
----@field primary_update_event_key string?      See `events:getEvents()`. Defaults to "RENDER." Usefull for playing a song with a player_skull instead of the real avatar.
+---@field primary_update_event_key string?      See `events:getEvents()`. Defaults to "RENDER." Useful for playing a song with a player_skull instead of the real avatar.
 ---@field fallback_update_event_key string?     See `events:getEvents()`. Defaults to "TICK."
 ---
--- --- Auto stop is important if the song is comming from the player entity.
+-- --- Auto stop is important if the song is coming from the player entity.
 -- --- Without it, whenever the player is unloaded (eg goes through a nether portal), any running music will freeze and
--- --- drone on continualy until the the events start again, or the avatar is reloaded.
+-- --- drone on continually until the the events start again, or the avatar is reloaded.
 -- --- Only set this to `false` for controlled environments.
 -- ---@field auto_stop_if_update_events_fail boolean?
 
-local spinner_states = {[0] = "▙",[1] = "▛",[2] = "▜",[3] = "▟",}   -- indexed by 0 saves instructions in get_spinner. Be carefull if getting length.
+local spinner_states = {[0] = "▙",[1] = "▛",[2] = "▜",[3] = "▟",}   -- indexed by 0 saves instructions in get_spinner. Be careful if getting length.
 
 ---returns a spinner synced to the current time.
 ---@return string
@@ -232,13 +232,13 @@ local function progress_bar(width, progress)
 
 	local num_bars = math.floor((width+1) * progress)
 	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
-	return progress_bar_string  -- As it turns out, Lua actualy optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
+	return progress_bar_string  -- As it turns out, Lua actually optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
 end
 
 ---@param song_player SongPlayer
 ---@return boolean
 local function client_is_looking_at_song_player(song_player)
-    if host:isHost() then return true end   -- means that, for the host, the display is visible at all times (within the distance range), but no funky behaviors in 3rd person or paperdolls.
+    if host:isHost() then return true end   -- means that, for the host, the display is visible at all times (within the distance range), but no funky behaviors in 3rd person or paper dolls.
     if song_player.source_entity and client:getViewer() then
         local viewer_targeted_entity = client:getViewer():getTargetedEntity()
         if viewer_targeted_entity then
@@ -282,21 +282,21 @@ local function update_info_display_text(song_player)
     song_player.info_display_text_task:setText(info_text)
 end
 
-local configed_instruments_to_apply = {} ---@type table<SongPlayer, {track_config:SongPlayerTrackConfig, new_selection:InstrumentSelection}[]>
+local configured_instruments_to_apply = {} ---@type table<SongPlayer, {track_config:SongPlayerTrackConfig, new_selection:InstrumentSelection}[]>
 
---- Use with the `apply_config_update_loop_for_this_player` functions inside `eventualy_apply_configed_instrument`.
+--- Use with the `apply_config_update_loop_for_this_player` functions inside `eventually_apply_configured_instrument`.
 ---@param song_player SongPlayer
 ---@return boolean? is_done
 local function apply_config_instrument_update_loop(song_player)
-    if (not configed_instruments_to_apply[song_player])
-        or #configed_instruments_to_apply[song_player] <= 0
-    then    -- List is empty or we already deleted the list in a previous itteration.
-        configed_instruments_to_apply[song_player] = nil
+    if (not configured_instruments_to_apply[song_player])
+        or #configured_instruments_to_apply[song_player] <= 0
+    then    -- List is empty or we already deleted the list in a previous iteration.
+        configured_instruments_to_apply[song_player] = nil
         return true
         -- song_player.controller.remove_update_callback(apply_config_update_loop_for_this_player)
     end
 
-    local list_of_instruments_we_need_to_apply = configed_instruments_to_apply[song_player]
+    local list_of_instruments_we_need_to_apply = configured_instruments_to_apply[song_player]
     local to_apply_this_time = table.remove(list_of_instruments_we_need_to_apply)
     local previous_instrument = to_apply_this_time.track_config.selected_instrument
     to_apply_this_time.track_config.selected_instrument =
@@ -311,17 +311,17 @@ end
 ---@param song_player SongPlayer
 ---@param track_config SongPlayerTrackConfig
 ---@param new_selection InstrumentSelection
-local function eventualy_apply_configed_instrument(song_player, track_config, new_selection)
+local function eventually_apply_configured_instrument(song_player, track_config, new_selection)
     local config_bundle = {
         track_config = track_config,
         new_selection = new_selection
     }
 
-    if configed_instruments_to_apply[song_player] then -- loop is already running
-        table.insert(configed_instruments_to_apply[song_player], config_bundle)
+    if configured_instruments_to_apply[song_player] then -- loop is already running
+        table.insert(configured_instruments_to_apply[song_player], config_bundle)
     else
-        configed_instruments_to_apply[song_player] = {}
-        table.insert(configed_instruments_to_apply[song_player], config_bundle)
+        configured_instruments_to_apply[song_player] = {}
+        table.insert(configured_instruments_to_apply[song_player], config_bundle)
 
         local background_process_event = song_player.primary_event
 
@@ -340,9 +340,9 @@ local function eventualy_apply_configed_instrument(song_player, track_config, ne
 
 
         background_process_event:register(apply_config_instrument_loop_for_this_player) -- make sure we can continue processing even in background
-        song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)   -- make sure we'll eventualy process it. (if song plays, we can step.)
+        song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)   -- make sure we'll eventually process it. (if song plays, we can step.)
 
-        apply_config_instrument_loop_for_this_player()  -- manualy call first time. Prevents the start_time=0 notes from useing the wrong instrument.
+        apply_config_instrument_loop_for_this_player()  -- manually call first time. Prevents the start_time=0 notes from using the wrong instrument.
     end
 end
 
@@ -358,16 +358,16 @@ local function apply_config(song_player, config)
         local instrument_selection_to_use_instead = nil
         if config.instrument_selections and config.instrument_selections[track_index] then
             instrument_selection_to_use_instead = config.instrument_selections[track_index]
-        elseif config.default_normal_instrument and track_config.reccomended_instrument_type == 0 then
+        elseif config.default_normal_instrument and track_config.recommended_instrument_type == 0 then
             instrument_selection_to_use_instead = config.default_normal_instrument
-        elseif config.default_percussion_instrument and track_config.reccomended_instrument_type == 1 then
+        elseif config.default_percussion_instrument and track_config.recommended_instrument_type == 1 then
             instrument_selection_to_use_instead = config.default_percussion_instrument
         end
 
         if instrument_selection_to_use_instead then
             -- Turns out, calling new_instance() gets very expensive if you have a lot of heavy instruments.
-            -- See SSB4 Menu: where there are 3 percussion tracks. if each are set to ChloeSpacedOut Drumkit, then it gets heavy really fast.
-            eventualy_apply_configed_instrument(song_player, track_config, instrument_selection_to_use_instead)
+            -- See SSB4 Menu: where there are 3 percussion tracks. if each are set to ChloeSpacedOut Drum Kit, then it gets heavy really fast.
+            eventually_apply_configured_instrument(song_player, track_config, instrument_selection_to_use_instead)
         end
     end
 
@@ -389,7 +389,7 @@ local function apply_config(song_player, config)
     -- Update info display offsets to match sound positions
     if song_player.source_entity then
         if player:isLoaded() and song_player.source_entity:getUUID() == player:getUUID() then  -- TODO: recover if we have loaded the player entity after the song starts.
-            -- source entity is the host. We can use our avatar's atatchment points.
+            -- source entity is the host. We can use our avatar's attachment points.
 
             song_player.info_display_root_part_parent_type = "Model"
             song_player.info_display_root_pos_offset = vectors.vec3(0, player:getEyeHeight(), 0)
@@ -443,7 +443,7 @@ local function update_song(song_player)
             + vec(0, (song_player.source_entity:getBoundingBox().y * 0.5), 0)
 
         if song_player.info_display_root_part_parent_type == "World" then
-            -- we're useing entity positioning, but our display is useing world space. Update it's positioning to match.
+            -- we're using entity positioning, but our display is using world space. Update it's positioning to match.
             song_player.info_display_root_pos_offset = song_player.source_pos
             song_player.info_display_root_part:setPos(song_player.info_display_root_pos_offset)
         end
@@ -479,7 +479,7 @@ local function update_song(song_player)
         -- extra for loop to remove instruments.
         -- There's a slim chance that removing an instrument from the list will change the order of pairs() output.
         -- Meaning there's a chance an instrument might skip an update.
-        -- Honestly the likelyhood of this actualy mattering is extreamly low since the next time update_song() gets
+        -- Honestly the likelihood of this actually mattering is extremely low since the next time update_song() gets
         -- called, any missed instruments will be updated then.
         for _, key_to_remove in ipairs( finished_deprecated_instrument_keys ) do
             song_player.deprecated_instruments[key_to_remove] = nil
@@ -498,7 +498,7 @@ local function update_song(song_player)
             -- (If all notes are slightly late, then none of the notes are slightly late.)
             break
         end
-        if this_instruction.track_index == 0 then   -- this instruction actualy holds song meta data
+        if this_instruction.track_index == 0 then   -- this instruction actually holds song meta data
             -- This meta_data does not impact song playback. But it might hold, for example,
             -- time signature data that other parts of the avatar could sync up to.
 
@@ -507,7 +507,7 @@ local function update_song(song_player)
                 fn(this_instruction.note, this_instruction.meta_event_data)
             end
 
-            -- Refer to the midi file processor for diffrent note codes and whatever. EG:
+            -- Refer to the midi file processor for different note codes and whatever. EG:
             -- - set_tempo = 0x51 → { T = microseconds_per_midi_quarter_note }
             -- - time_signature = 0x58 → { n = numerator, d = denominator }
             -- - -- lyric = 0x05, …
@@ -534,7 +534,7 @@ local function update_song(song_player)
         if not success then
             ---@cast value string
             print_debug("on_update_callback function "..function_index.." ("..tostring(fn)..") errored.\n"..value, true, true)
-            print_debug("Removeing this function from update list.")
+            print_debug("Removing this function from update list.")
             table.remove(song_player.on_update_callback_functions, function_index)
         else
             function_index = function_index + 1
@@ -569,7 +569,7 @@ end
 local song_player_api = {
     --- Create a new SongPlayer and return its SongPlayerController.
     ---
-    --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responcible for one song.
+    --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responsible for one song.
     ---@type fun(song: Song, config: SongPlayerConfig?): SongPlayerController
     new_player = function (song, config)
         if not config or (not next(config)) then config = {} end
@@ -605,7 +605,7 @@ local song_player_api = {
         local function event_watcher_and_swapper()
             event_watcher_and_swapper_state_machine[watcher_state_key]()
         end
-        -- Essentialy 5 states:
+        -- Essentially 5 states:    (but also a bunch of steps for emergency stop)
         -- Using primary, primary is fine, continue
         -- Using primary, primary is down, switch to fallback
         -- Using fallback, primary is down, continue
@@ -668,14 +668,14 @@ local song_player_api = {
                 watcher_state_key = "emergency_stop_active_instruments"
             end,
             emergency_stop_active_instruments = function()
-                -- run through all tracks, kill running notes one at a time untill all are done.
+                -- run through all tracks, kill running notes one at a time until all are done.
                 local key, track = next(song_player.track_config, emergency_stop_instrument_key_for_next)
                 if key then
                     if track.selected_instrument.is_finished() then
                         -- advance the "next()" loop for next time.
                         emergency_stop_instrument_key_for_next = key
                     else
-                        track.selected_instrument.stop_one_sound_immediatly()
+                        track.selected_instrument.stop_one_sound_immediately()
                     end
                 else
                     -- key is nil, we've reached the end of the list
@@ -684,14 +684,14 @@ local song_player_api = {
                 end
             end,
             emergency_stop_deprecated_instruments = function()
-                -- run through deprecated_instruments, kill running notes one at a time untill all are done.
+                -- run through deprecated_instruments, kill running notes one at a time until all are done.
                 local key, instrument = next(song_player.deprecated_instruments, emergency_stop_instrument_key_for_next)
                 if key then
                     if instrument.is_finished() then
                         -- advance the "next()" loop for next time.
                         emergency_stop_instrument_key_for_next = key
                     else
-                        instrument.stop_one_sound_immediatly()
+                        instrument.stop_one_sound_immediately()
                     end
                 else
                     -- key is nil, we've reached the end of the list
@@ -708,7 +708,7 @@ local song_player_api = {
                     -- song_player.info_display_text_task:remove()
                     -- song_player.info_display_mute_instructions_text_task:remove()
                     -- song_player.info_display_billboard_part:remove()
-                    song_player.info_display_root_part:remove()     -- pretty sure that removeing the root part cascades to its children. We can save a bunch of instructions by just removeing root.
+                    song_player.info_display_root_part:remove()     -- pretty sure that removing the root part cascades to its children. We can save a bunch of instructions by just removing root.
 
                 else    -- huh. info display root is nil. Maybe it was never set? Either way we can skip all the way to the stop functions part.
                     watcher_state_key = "emergency_run_stop_functions"
@@ -728,7 +728,7 @@ local song_player_api = {
             end,
 
             emergency_run_stop_functions = function()
-                -- there's a really good chance that calling these stop functions will over run the resource limits (we're useing the world tick event to do these after all.)
+                -- there's a really good chance that calling these stop functions will over run the resource limits (we're using the world tick event to do these after all.)
                 -- But since we're passing the stop reason to the caller, I think it's safe to just let them deal with not crashing.
 
                 local key, fn = next(song_player.on_stop_callback_functions, emergency_stop_callback_function_key_for_next)
@@ -749,7 +749,7 @@ local song_player_api = {
             end,
         }
 
-        -- For playback, we don't need to store the names of the reccomended instruments.
+        -- For playback, we don't need to store the names of the recommended instruments.
 
         ---@type table<number, SongPlayerTrackConfig>
         local track_configs = {}
@@ -759,15 +759,13 @@ local song_player_api = {
             local track_config = {
 
                 --- The instrument type provided by the file_processor. 1 == Percussion, 0 = normal.
-                ---
-                --- Whenever we implement dynamicly loading instruments (where the client and host might not have the same instruments)
-                --- this lets us know what instrument we should use instead.
+                --- Helps us select weather to use the default instrument or the default percussion instrument if no other instrument data was provided
                 ---@type 0|1
-                reccomended_instrument_type = track_data.instrument_type_id,
+                recommended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
                 selected_instrument = known_instruments[
-                    -- This selects a reasonable default instrument. We'll overwride this soon when we apply the real song config.
+                    -- This selects a reasonable default instrument. We'll overwrite this soon when we apply the real song config.
                         (   track_data.instrument_type_id == 1
                             and (known_instruments[default_percussion_instrument_name] and default_percussion_instrument_name or fallback_percussion_instrument_name)
                             or  (known_instruments[default_normal_instrument_name] and default_normal_instrument_name or fallback_normal_instrument_name)
@@ -807,7 +805,7 @@ local song_player_api = {
             source_pos = vec(0,0,0),    ---@type Vector3
 
             info_display_root_part = nil,               ---@type ModelPart?     A world-space positioning
-            info_display_billboard_part = nil,          ---@type ModelPart?     should not be manualy positioned. Only for rotation
+            info_display_billboard_part = nil,          ---@type ModelPart?     should not be manually positioned. Only for rotation
             info_display_text_task = nil,               ---@type TextTask?      A faux screenspace positioning (since it's a child of the billboard part)
             info_display_mute_instructions_text_task = nil,     ---@type TextTask?
 
@@ -876,7 +874,7 @@ local song_player_api = {
                         :setText("Annoyed? Permissions, "..avatar:getEntityName()..", ∧, Avatar Sounds Volume") -- ", :mute:"
 
 
-                    -- Initilize "playing" state
+                    -- Initialize "playing" state
 
                     song_player.start_time = get_earliest_possible_start_time(song_player)
                     song_player.next_instruction_index = 1
@@ -946,7 +944,7 @@ local song_player_api = {
                     song_player.elapsed_time = nil
                     song_player.start_time = nil
 
-                    -- REmove events and reset the watcher to initial state.
+                    -- Remove events and reset the watcher to initial state.
 
                     song_player.primary_event:remove(update_this_song)
                     song_player.fallback_event:remove(update_this_song)
@@ -958,10 +956,10 @@ local song_player_api = {
                     -- Instrument Cleanup. If stop() called by update loop, then all instruments should already be done.
 
                     for _, track in pairs(song_player.track_config) do
-                        track.selected_instrument.stop_all_sounds_immediatly()
+                        track.selected_instrument.stop_all_sounds_immediately()
                     end
                     for key, deprecated_instruments in pairs(song_player.deprecated_instruments) do
-                        deprecated_instruments.stop_all_sounds_immediatly()
+                        deprecated_instruments.stop_all_sounds_immediately()
                         song_player.deprecated_instruments[key] = nil
                     end
 
@@ -1054,8 +1052,8 @@ local song_player_api = {
         then -- this song needs to buffer, but that not started yet. Add a metatable that updates buffer_start_time (and start_time) when we receive the first instruction.
             setmetatable(song_player.instructions, {
                 __newindex = function(table, index, value)
-                    setmetatable(song_player.instructions, nil) -- Remove the metamethod after the first write. Technicaly this will burn all metamethods on `.instructions`, but this is the only one, so… probably fine.
-                    table[index] = value                        -- set the index _after_ removeing the metamethod so that this isn't recursive
+                    setmetatable(song_player.instructions, nil) -- Remove the metamethod after the first write. Technically this will burn all metamethods on `.instructions`, but this is the only one, so… probably fine.
+                    table[index] = value                        -- set the index _after_ removing the metamethod so that this isn't recursive
                     song_player.buffer_start_time = client:getSystemTime()
                     if song_player.controller.is_playing() then
                         song_player.start_time = get_earliest_possible_start_time(song_player)
@@ -1067,7 +1065,7 @@ local song_player_api = {
         return song_player.controller
     end,
 
-    --- Returns a list of instrument keys sorted alphabeticaly.
+    --- Returns a list of instrument keys sorted alphabetically.
     ---@type fun(): string[]
     get_instrument_keys = function()
         ---@type string[]

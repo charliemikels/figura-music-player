@@ -6,12 +6,12 @@
 --- these settings.
 ---@see https://github.com/ChloeSpacedOut/figura-piano-2.0
 
---- Note: this script is specifficaly built for Piano 2.0. The older versions of the piano will not be detected
+--- Note: this script is specifically built for Piano 2.0. The older versions of the piano will not be detected
 
 
 ---@type UUID[]
 local piano_lib_uuids = {
-    "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Imortalized piano avatar
+    "943218fd-5bbc-4015-bf7f-9da4f37bac59",     -- Immortalized piano avatar
     "b0e11a12-eada-4f28-bb70-eb8903219fe5",     -- ChloeSpacedIn avatar
 
     -- Dear end user: If you or a loved one has equipped the piano 2.0 avatar, you
@@ -41,7 +41,7 @@ local instrument_search_functions = {
     search_pianos = function()
         search_uuid_key, search_uuid = next(piano_lib_uuids, search_uuid_key)
         if not search_uuid_key then -- search_uuid_key is nil. we've hit the end of the list. move on.
-            -- instrument_search_state = "search_pianos"    -- we actualy don't have anywhere to go at this time
+            -- instrument_search_state = "search_pianos"    -- we actually don't have anywhere to go at this time
             return
         end
 
@@ -68,10 +68,10 @@ local instrument_search_functions = {
     -- purge_old = function() end,
 }
 
-local last_update_check_gametime = world.getTime()
+local last_update_check_world_time = world.getTime()
 local function step_update_known_instruments()
-    if last_update_check_gametime ~= world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
-        last_update_check_gametime = world.getTime()
+    if last_update_check_world_time ~= world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+        last_update_check_world_time = world.getTime()
         instrument_search_functions[instrument_search_state]()
     end
 end
@@ -80,17 +80,17 @@ end
 
 
 local max_search_radius_from_host = 10      ---@type number     -- distance in blocks for Near piano calculations
-local last_nearest_check_gametime = world.getTime()
+local last_nearest_check_world_time = world.getTime()
 
 
 ---@param target_pos Vector3
 ---@return UUID?
 ---@return ChloeInstrumentID?
 local function get_nearest_piano_uuid_and_id(target_pos)
-    if last_nearest_check_gametime == world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
+    if last_nearest_check_world_time == world.getTime() then -- limit to one check per tick. if there's like 5 pianos all hitting the step function,
         return
     else
-        last_nearest_check_gametime = world.getTime()
+        last_nearest_check_world_time = world.getTime()
     end
 
     step_update_known_instruments()
@@ -121,7 +121,7 @@ end
 ---@return boolean
 local function instrument_is_available()
     step_update_known_instruments()
-    -- TODO: should we limit this to a radius arround the host?
+    -- TODO: should we limit this to a radius around the host?
 
     for _, piano_ids_and_positions in pairs(known_instruments) do
         if next(piano_ids_and_positions) then -- there is at least one drum in the list
@@ -161,7 +161,7 @@ local function display_text_timeouts_watcher()
 end
 
 local function start_display_text_timeouts_watcher()
-    all_piano_info_display_roots = models:newPart("piano_info_display_super_parrent", "World")
+    all_piano_info_display_roots = models:newPart("piano_info_display_super_parent", "World")
     events.world_tick:register(display_text_timeouts_watcher)
 end
 
@@ -172,7 +172,7 @@ local function add_or_update_display_text(piano_id, new_timeout_time)
     end
 
     if not next(piano_time_to_info_text_timeout) then   -- this is the first piano and the watcher is not running
-        start_display_text_timeouts_watcher()   -- initilizes some things for us
+        start_display_text_timeouts_watcher()   -- initializes some things for us
     end
 
     local this_piano_root = all_piano_info_display_roots:newPart(piano_id, "World")
@@ -231,7 +231,7 @@ local piano_builder = {
             end
         end
 
-        -- piano is initilized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
+        -- piano is initialized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
         ---@type Instrument
         local piano_instrument = {
@@ -252,12 +252,12 @@ local piano_builder = {
                         instance_piano.instance,
                         instruction.note,
                         instruction.start_velocity
-                            * 0.5                           -- Piano is a little loud by default reletive to the other instruments.
+                            * 0.5                           -- Piano is a little loud by default relative to the other instruments.
                             * (avatar:getVolume() / 100),   -- Respect if viewer has muted the host.
 
                         instruction.track_index+16,--1,           -- Channel ID 1 is shared with the piano itself. Channel 10 is percussion stuff. +20 ensures we're well outside any pre-configured channels. (luckily piano doesn't care that chanel 20 is also way outside midi spec.)
                         1,-- instruction.track_index,
-                            -- TODO: There's an issue where tracks are initilized with channel ID instead of their track ID.
+                            -- TODO: There's an issue where tracks are initialized with channel ID instead of their track ID.
                             --       My system doesn't care if I send to channel or track, but piano has special rules for channels (piano itself uses channel 1)
                             --       and it's kinda silly to use instruction.track_index as channels.
                             --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
@@ -272,7 +272,7 @@ local piano_builder = {
 
                     add_or_update_display_text(instance_piano_id, (note_release_time + info_text_clear_time_padding))
 
-                    -- TODO: Trick piano into moveing it's keys.
+                    -- TODO: Trick piano into moving it's keys.
 
                 end
             end,
@@ -283,14 +283,14 @@ local piano_builder = {
                 fallback_instrument_instance.update_sounds(position)
             end,
 
-            stop_one_sound_immediatly = function()
+            stop_one_sound_immediately = function()
                 -- we can trust the piano to stop its own notes
-                fallback_instrument_instance.stop_one_sound_immediatly()
+                fallback_instrument_instance.stop_one_sound_immediately()
             end,
 
-            stop_all_sounds_immediatly = function ()
+            stop_all_sounds_immediately = function ()
                 -- we can trust the piano to stop its own notes
-                fallback_instrument_instance.stop_all_sounds_immediatly()
+                fallback_instrument_instance.stop_all_sounds_immediately()
             end,
 
             is_finished = function ()

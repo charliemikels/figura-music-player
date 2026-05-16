@@ -1,14 +1,14 @@
 
 -- This script creates a UI built out of Action Wheel parts that makes it easy for end users to find, select, and play songs.
 --
--- Under the hood it uses Network's network_song_player to automaticaly sync up what the host does with all the clients.
+-- Under the hood it uses Network's network_song_player to automatically sync up what the host does with all the clients.
 --
 -- Note that at this time, Local songs are detected by this script, but still use the pings and the network scripts
 -- to send them to clients.
 
 
 local song_library_api = require("./libraries")     ---@type LibrariesApi   -- TODO: Only used to fallback to a default library. Shouldn't this be core's job to bind it all? we could drop this requirement.
-local config_cahe_api = require("./config_cache")   ---@type ConfigCacheAPI
+local config_cache_api = require("./config_cache")   ---@type ConfigCacheAPI
 local networking_api = require("./networking")      ---@type SongNetworkingApi
 local song_player_api = require("./song_player")         ---@type SongPlayerAPI  -- TODO: This is only used to gather instrument information. Is there a way to split player and instrument info?
 
@@ -42,7 +42,7 @@ local function progress_bar(width, progress)
 
 	local num_bars = math.floor((width+1) * progress)
 	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
-	return progress_bar_string  -- As it turns out, Lua actualy optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
+	return progress_bar_string  -- As it turns out, Lua actually optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
 end
 
 --- Creates an action wheel UI
@@ -50,13 +50,13 @@ end
 --- This function spits out an Action. The caller will need to place this action into an active action wheel before the User can call it.
 ---@param song_library Library? The Library used for this UI. Defaults to `song_library_api:build_default_library()`.
 ---@param enter_songbook_title string? The title of the enter songbook action. Defaults to `"Songbook"`
----@return Action enter_songbook_action The action used to enter the songbook. Place this action into your actionwheel.
+---@return Action enter_songbook_action The action used to enter the songbook. Place this action into your Action Wheel.
 local function new_action_wheel_ui(song_library, enter_songbook_title)
 
-    -- This function is likely to be called by an end user, double check if they're useing a `.` or `:` to call this function.
+    -- This function is likely to be called by an end user, double check if they're using a `.` or `:` to call this function.
     ---@diagnostic disable-next-line: undefined-field
     if song_library and song_library.new_action_wheel_ui then
-        -- If here, then song_library is actualy `self`
+        -- If here, then song_library is actually `self`
         error("Please use `.` instead of `:` when calling `new_action_wheel_ui()`")
     end
 
@@ -64,7 +64,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
     if not host:isHost() then
         -- Listen, the viewer probably can't access the Action wheel anyways
-        -- (it would certenly not be visible at least), and any automation the host
+        -- (it would certainly not be visible at least), and any automation the host
         -- might want to do should be done with the API functions anyways.
         -- So let's… just return an empty action.
         --
@@ -95,12 +95,12 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
     local num_songs_to_display_in_selector = 16
 
     local selected_song_index = 1           -- Matches a song in song_library. Library is sorted in alphabetical order.
-    local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libreries, processors, data, configs, etc.)
+    local playing_song_library_id = nil     -- If the UI is playing a song, this var will match the library ID of the playing song. (For use with libraries, processors, data, configs, etc.)
     local playing_song_controller = nil     ---@type SongPlayerController? -- If the UI is playing a song, this var will match the transfer ID of the playing song. (For use with network API)
 
     --- Updates the title text in `actions.select_song` (This is the main "song list" render.)
     local function update_song_selector_title()
-        -- TODO: This, and a few other functions could be methods that take in `self`. we can then initilize them at init time, instead of building them every instance.
+        -- TODO: This, and a few other functions could be methods that take in `self`. we can then initialize them at init time, instead of building them every instance.
         -- However, since at this point everything is host-only, and host is likely to only call it once, it's not a high priority fix.
 
         if not host:isHost() then return "Song list" end
@@ -112,7 +112,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         local start_index = selected_song_index - math.floor(num_songs_to_display_in_selector / 2)
         local end_index = start_index + num_songs_to_display_in_selector
 
-        -- Don't overscroll if near the start or end of the list
+        -- Don't over-scroll if near the start or end of the list
         if start_index < 1 then
             start_index = 1
             end_index = math.min(song_library:get_library_length(), num_songs_to_display_in_selector +1)
@@ -128,7 +128,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             if playing_song_controller and playing_song_controller.get_progress() then
                 selector_title_string = selector_title_string .. "\n"
 
-                if playing_song_controller.get_progress() < 0 then  -- TODO: since ading this logic, song_player_controllers now have get_buffer_progress and other useful functions for moments like this. Upgrade?
+                if playing_song_controller.get_progress() < 0 then  -- TODO: since adding this logic, song_player_controllers now have get_buffer_progress and other useful functions for moments like this. Upgrade?
                     -- Song is buffering and has not started
                     selector_title_string = selector_title_string
                         .. "Buffering: Ready in "
@@ -176,7 +176,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 if song_processors_and_player_controllers[this_row_song.id].error then
                     this_row = this_row .. "🚫"  -- "No" sign
                 elseif not song_processors_and_player_controllers[this_row_song.id].net_player_controller then
-                    -- Song is in the midle of being processed.
+                    -- Song is in the middle of being processed.
                     -- (We know because the player has not been built yet, but an entry in this table was created)
                     this_row = this_row .. get_spinner() -- hour glass
                 else
@@ -237,12 +237,12 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             return false, "Unable to configure unprocessed songs. Processed songs have a check (✓) in the song list."
         end
         if song_processors_and_player_controllers[target_song.id].error then
-            return false, "This song had an error durring processing and cannot be configured."
+            return false, "This song had an error during processing and cannot be configured."
         end
         if not song_processors_and_player_controllers[target_song.id].processor_future:is_done() then
             return false, "This song is still being processed and cannot be configured yet."
         end
-        -- networking_api.get_player_for_transfered_song(playing_song_transfer_id).is_playing()
+        -- networking_api.get_player_for_transferred_song(playing_song_transfer_id).is_playing()
         if target_song.id == playing_song_library_id then
             return false, "Cannot configure a playing song. Please stop the song and try again."
         end
@@ -312,7 +312,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         end)
 
     ---@param config SongPlayerConfig
-    local function add_ui_speciffic_config_fields(config)
+    local function add_ui_specific_config_fields(config)
         config.source_entity = player
     end
 
@@ -350,14 +350,14 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                     end
 
                     local song_player_config = target_song.included_config
-                    local cached_config = config_cahe_api.load_song_config(target_song.id)
+                    local cached_config = config_cache_api.load_song_config(target_song.id)
                     if not song_player_config or next(cached_config) ~= nil then
                         -- Prioritize cached config if there is something in the cache.
-                        -- config_cahe_api.load_song_config always returns some sort of valid config, even if there's nothing in the cache.
+                        -- config_cache_api.load_song_config always returns some sort of valid config, even if there's nothing in the cache.
                         song_player_config = cached_config
                     end
 
-                    add_ui_speciffic_config_fields(song_player_config)
+                    add_ui_specific_config_fields(song_player_config)
 
                     local networked_player = networking_api.new_network_player(target_song.processed_song, song_player_config)
 
@@ -373,7 +373,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                     and not song_processors_and_player_controllers[target_song.id].net_player_controller.is_playing()
                 then
                     if networking_api.outgoing_packet_queue_progress() < 1 then
-                        print("The packet queue is already bussy. Are there multiple music players useing the network?")
+                        print("The packet queue is already busy. Are there multiple music players using the network?")
                     else
                         playing_song_controller = song_processors_and_player_controllers[target_song.id].net_player_controller
                         playing_song_library_id = target_song.id
@@ -394,7 +394,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 return require("./local_song_builder") ---@type LocalSongBuilderApi
             end)
             if not require_success then
-                host:warnToLog("User tried to use ui.lua to export a song to a LocalSong, but we faild to require `local_song_builder.lua`. It might not be installed. Silently ignoreing the user.")
+                host:warnToLog("User tried to use ui.lua to export a song to a LocalSong, but we failed to require `local_song_builder.lua`. It might not be installed. Silently ignoring the user.")
                 return
             end
 
@@ -416,13 +416,13 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             end
 
             local song_player_config = target_song.included_config
-            local cached_config = config_cahe_api.load_song_config(target_song.id)
+            local cached_config = config_cache_api.load_song_config(target_song.id)
             if not song_player_config or next(cached_config) ~= nil then
                 -- Prioritize cached config if there is something in the cache.
-                -- config_cahe_api.load_song_config always returns some sort of valid config, even if there's nothing in the cache.
+                -- config_cache_api.load_song_config always returns some sort of valid config, even if there's nothing in the cache.
                 song_player_config = cached_config
             end
-            add_ui_speciffic_config_fields(song_player_config)
+            add_ui_specific_config_fields(song_player_config)
 
             local export_pcall_success, value = pcall(function()
                 local_song_builder.export_song_to_local(target_song.processed_song, song_player_config)
@@ -440,7 +440,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
 
 
     -- Config page
-    -- This page needs to let us select what instrument playes which track.
+    -- This page needs to let us select what instrument players which track.
     local song_config_action_wheel_page = action_wheel:newPage()
 
     ---@class ConfigPageState
@@ -466,7 +466,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         local start_index = config_page_state.selected_instrument_index - math.floor(num_instruments_to_display / 2)
         local end_index = start_index + num_instruments_to_display
 
-        -- Don't overscroll if near the start or end of the list
+        -- Don't over-scroll if near the start or end of the list
         if start_index < 1 then
             start_index = 1
             end_index = math.min(number_of_instruments, num_instruments_to_display +1)
@@ -542,7 +542,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         local start_index = config_page_state.selected_track_index - math.floor(tracks_to_display / 2)
         local end_index = start_index + tracks_to_display
 
-        -- Don't overscroll if near the start or end of the list
+        -- Don't over-scroll if near the start or end of the list
         if start_index < 1 then
             start_index = 1
             end_index = math.min(number_of_tracks, tracks_to_display +1)
@@ -578,9 +578,9 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         :title("Confirm and save changes")
         :item("minecraft:written_book")
         :onLeftClick(function (_)
-            config_cahe_api.write_song_config(config_page_state.targeted_song.id, config_page_state.targeted_song_config)
+            config_cache_api.write_song_config(config_page_state.targeted_song.id, config_page_state.targeted_song_config)
 
-            add_ui_speciffic_config_fields(config_page_state.targeted_song_config)
+            add_ui_specific_config_fields(config_page_state.targeted_song_config)
             song_processors_and_player_controllers[config_page_state.targeted_song.id].net_player_controller.set_new_config(config_page_state.targeted_song_config)
 
             action_wheel:setPage(music_player_action_wheel_page)
@@ -669,10 +669,10 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             local targeted_song = song_library:get_song_by_sorted_index(selected_song_index)
             config_page_state = {
                 targeted_song = targeted_song,
-                targeted_song_config = config_cahe_api.load_song_config(targeted_song.id),
+                targeted_song_config = config_cache_api.load_song_config(targeted_song.id),
                 selected_track_index = 1,
                 selected_instrument_index = 1,
-                instrument_keys = song_player_api.get_instrument_keys() -- reload instruments every time we enter the configurator.
+                instrument_keys = song_player_api.get_instrument_keys() -- reload instruments every time we enter the config page.
             }
             table.insert(config_page_state.instrument_keys, 1, default_instrument_name) -- throw in a fake "default" instrument at the top of the list.
 

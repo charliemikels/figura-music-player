@@ -20,10 +20,10 @@ local midi_chunk_types = {
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
----@param allways_log boolean?
-local function print_debug(message, is_warning, allways_log)
+---@param always_log boolean?
+local function print_debug(message, is_warning, always_log)
     if do_debug_prints then print(message) end
-    if do_debug_prints or allways_log then
+    if do_debug_prints or always_log then
         if is_warning then
             host:warnToLog(message)
         else
@@ -33,14 +33,14 @@ local function print_debug(message, is_warning, allways_log)
 end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 
----For use with state and track chunk initilization.
+---For use with state and track chunk initialization.
 ---@type MidiDeviceName
 local default_midi_device_name = ""
 
 ---Meta event `0x09` can define new output devices with their own set of channels,
 ---allowing us to have more than 16 total channels in a file.
 ---
----Use this function to standardize channel initilization within state.
+---Use this function to standardize channel initialization within state.
 ---
 ---@param state MidiProcessorState
 ---@param new_device_name MidiDeviceName
@@ -121,7 +121,7 @@ local function get_or_set_and_get_track_id(state, device_name, channel_id, progr
     return state.used_track_ids[device_name][channel_id][program_id]
 end
 
----Converts a number into a string with both Dec and Hex values. Primaraly for debug
+---Converts a number into a string with both Dec and Hex values. Primally for debug
 ---@param number number
 ---@return string
 local function number_to_dec_and_hex(number)
@@ -139,7 +139,7 @@ local function bytes_to_number(bytes)
     return result
 end
 
----Similar to bytes_to_number, but ensures incomming numebrs are 7 bits long.
+---Similar to bytes_to_number, but ensures incoming numbers are 7 bits long.
 ---Use with variable-length quantities
 ---TODO: if only used with variable length quantities, move into that function.
 ---@param bytes integer[]
@@ -150,7 +150,7 @@ local function combine_seven_bit_numbers(bytes)
     for _, next_7byte in ipairs(bytes) do
         result = bit32.bor( -- lshift fills space it makes with 0s. use or to "paste" data into space created.
             bit32.lshift( result, 7 ), -- make space for next byte
-            bit32.band(next_7byte, everything_but_first_bit) -- ensure value is only 7 bits. (might break if input is larget than 8 bits? idk)
+            bit32.band(next_7byte, everything_but_first_bit) -- ensure value is only 7 bits. (might break if input is larger than 8 bits? idk)
         )
     end
     return result
@@ -167,7 +167,7 @@ local function read_next_file_byte(state)
     return state.reader.file_stream:read()
 end
 
----Like read_next_file_byte, returns the next byte from the data list, and auto incriments chunk.data_index
+---Like read_next_file_byte, returns the next byte from the data list, and auto increments chunk.data_index
 ---@param chunk MidiChunk
 local function read_next_chunk_byte(chunk)
     local return_byte = chunk.data[chunk.data_index]
@@ -180,9 +180,9 @@ end
 ---@return number
 local function read_variable_length_quantity(track)
     -- Some values in midi are stored as "variable-length quantities."
-    -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoreticaly," could go longer.
+    -- These are numbers that can be 1 byte long, or up to 4 bytes long. "Theoretically," could go longer.
     --
-    -- Bit 7 (the first bit, where the last is bit 0) for each number is actualy the flag that tells us
+    -- Bit 7 (the first bit, where the last is bit 0) for each number is actually the flag that tells us
     -- whether to continue reading or if we've reached the end. The last byte in the sequence has a 0 at
     -- bit 7, and every byte before will have a 1. Bits 6-0 hold the actual number.
     --
@@ -195,12 +195,12 @@ local function read_variable_length_quantity(track)
     -- 10000001 10000000 00000000 → 01000000 00000000
     -- 11111111 11111111 11111111 01111111 → 00001111 11111111 11111111 11111111  | FF FF FF 7F → 0F FF FF FF
     --
-    -- largest midi value: FF FF FF 7F → resulting in 0FFFFFFF. Although, theoreticaly, it could go higher.
+    -- largest midi value: FF FF FF 7F → resulting in 0FFFFFFF. Although, theoretically, it could go higher.
 
     local continue_bit_mask = tonumber("10000000", 2)
     local number_data_mask = bit32.bnot(continue_bit_mask)
 
-    -- gather relevent bytes
+    -- gather relevant bytes
     local bytes = {}
     repeat
         local current_byte = read_next_chunk_byte(track)
@@ -212,11 +212,11 @@ end
 
 
 local midi_default_tempo = 500000
----Calculates a multiplier to convert between the file's delta ticks to a duration in miliseconds
+---Calculates a multiplier to convert between the file's delta ticks to a duration in millisecond
 ---@param division integer      Part of the midi header chunk. Defines delta ticks per quarter note
----@param tempo integer         Set by meta event 0x51 (set_tempo). Defines microseconds (not milis) per midi quarter note.
+---@param tempo integer         Set by meta event 0x51 (set_tempo). Defines microseconds (not millisecond) per midi quarter note.
 ---@return number multiplier
-local function recalculate_ticks_to_milis_multiplier(division, tempo)
+local function recalculate_ticks_to_milliseconds_multiplier(division, tempo)
     -- state.midi_header_info.ticks_pre_quarter_note
     return (tempo / division) / 1000
 end
@@ -380,7 +380,7 @@ end
 local control_change_and_mode_change_functions = {
 
     -- At this stage, we're reading all notes in chronological order. So we should be able to
-    -- ignore start time, so long as we save any relevent data in the note on event
+    -- ignore start time, so long as we save any relevant data in the note on event
 
     ---@alias MidiControlChangeEventKey
     --- | 2 breath control
@@ -408,7 +408,7 @@ local control_change_and_mode_change_functions = {
     [91] = function() end,      -- Reverb. Ignoring.
     [92] = function() end,      -- Tremolo. Ignoring.
     [93] = function() end,      -- Chorus. Ignoring.
-    [94] = function() end,      -- Detuning. Ignoring, though this wouldn't be too hard to implement. TODO: revisit.
+    [94] = function() end,      -- Detuneing. Ignoring, though this wouldn't be too hard to implement. TODO: revisit.
     [95] = function() end,      -- Phazer. Ignoring.
 
     [121] = function() end,     -- Reset all controllers.   TODO: Revisit? this may be something simple like "purge all channel modifiers from current channel states"  -- TODO: is this per device, or over the whole file?
@@ -422,7 +422,7 @@ local midi_meta_event_functions -- pre-declared so that event `0x21` can reuse `
 ---
 ---@see MidiMessage
 ---
----It is technicaly safe to implement an empty function to ignore a meta event.
+---It is technically safe to implement an empty function to ignore a meta event.
 ---The function that calls these functions has already read in the data.
 ---
 ---@type table<MidiMetaEventKey, fun(state: MidiProcessorState, track: MidiChunk, data: integer[], start_time: number)>
@@ -451,7 +451,7 @@ midi_meta_event_functions = {
     ---sequence_number
     ---
     ---Optional. Format 0 and 1 have only one sequence, But format 2 might have multiple. Sequence_number is used to keep sequences in order.
-    ---Must come before non-zero delta times, and before all transmitable midi events.
+    ---Must come before non-zero delta times, and before all transmittable midi events.
     -- [0x00] = function(state, track, data, start_time)
     --     message.data.sequence_number = message.event_raw_data[1]
     -- end,
@@ -478,10 +478,10 @@ midi_meta_event_functions = {
     ---Else, it's the name of this specific track.
     ---
     ---We may want to care about this, but because we'll probably get the song name from the file name, and because
-    ---tracks don't actualy isolate anything (we really only care about the midi channels) then we can probably just
+    ---tracks don't actually isolate anything (we really only care about the midi channels) then we can probably just
     ---ignore this event entirely.
     ---
-    ---See also: midi message 11000000 - Program change. Sets the reccomended instrument for the selected track.
+    ---See also: midi message 11000000 - Program change. Sets the recommended instrument for the selected track.
     [0x03] = function()
         -- local track_name = string.char(table.unpack(data))
     end,
@@ -490,19 +490,19 @@ midi_meta_event_functions = {
     ---
     ---Text event. Description or type of instrument to use for this track. See also Midi channel prefix
     -- [0x04] = function(state, track, data, start_time)
-    --     track.meta_state.custom_program_name = string.char(table.unpack(data))   --?? What's the dif between this and `0x08`?
+    --     track.meta_state.custom_program_name = string.char(table.unpack(data))   --?? What's the difference between this and `0x08`?
     -- end,
 
     ---lyric
     ---
-    ---Text event. defines the lyric to sing at a speciffic time. Typicaly, lyric events are stored per-sylable
+    ---Text event. defines the lyric to sing at a specific time. Typically, lyric events are stored per-syllable
     -- [0x05] = function(state, track, data, start_time)
     --     message.data.lyric = string.char(table.unpack(message.event_raw_data))
     -- end,
 
     ---marker
     ---
-    ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usualy only if first track.
+    ---a text marker to name parts of the song. ("Verse 1", "chorus", etc.) usually only if first track.
     -- [0x06] = function(state, track, data, start_time)
     --     message.data.marker = string.char(table.unpack(message.event_raw_data))
     -- end,
@@ -519,7 +519,7 @@ midi_meta_event_functions = {
     -- See: https://drive.google.com/file/d/1hBRgTrIvv5K7jgeuz0rpeXXT9MNAj6qh/view
     -- Names the program used in following bank select and program change messages.
     --
-    -- We can use any names defined here instead of relying on the lookup table of program IDs to reccomended Names.
+    -- We can use any names defined here instead of relying on the lookup table of program IDs to recommended Names.
     --
     -- See also:
     [0x08] = function(_, _, _, _)
@@ -529,12 +529,12 @@ midi_meta_event_functions = {
 
     -- Device (port) name
     --
-    -- Instructs the current _track_ (chunk) to output to a speciffic "port,"
+    -- Instructs the current _track_ (chunk) to output to a specific "port,"
     -- aka: output to a different midi device.
     --
     -- This can enable us to have more than 16 channels, if we keep track of tracks and devices
     --
-    -- If this event is called, it should only be called once per track chunk, and happen before any sendable events.
+    -- If this event is called, it should only be called once per track chunk, and happen before any send-able events.
     --
     -- See also: https://drive.google.com/file/d/1hBRgTrIvv5K7jgeuz0rpeXXT9MNAj6qh/view
     [0x09] = function(state, track, data, _)
@@ -561,7 +561,7 @@ midi_meta_event_functions = {
 
         if track.meta_state.early_program_change_patch_number then
             -- Program Change was called too early. Redo it's effects here. See midi event 11000000 Program Change
-            -- HACK: This is a bandaid fix because I'm too lazy to rework the entire reading data logic in order to allow for look-aheads
+            -- HACK: This is a band-aid fix because I'm too lazy to rework the entire reading data logic in order to allow for lookaheads
 
             local patch_number = track.meta_state.early_program_change_patch_number
             local channel = track.meta_state.early_program_change_channel_number
@@ -591,7 +591,7 @@ midi_meta_event_functions = {
 
     -- Midi Port
     --
-    -- Essentialy the same thing as [0x09], but data is one byte for the port index, instead of a string.
+    -- Essentially the same thing as [0x09], but data is one byte for the port index, instead of a string.
     --
     -- considered obsolete. Use `0x09`: "Device (port) name" instead. https://www.mixagesoftware.com/en/midikit/help/HTML/meta_events.html
     [0x21] = function(state, track, data, start_time)
@@ -602,7 +602,7 @@ midi_meta_event_functions = {
 
     ---end_of_track
     ---
-    ---Marker for a cannonical end of a track.
+    ---Marker for a canonical end of a track.
     [0x2F] = function(state, track, _, start_time)
         -- Real cleanup will happen during the "done" stage
 
@@ -621,18 +621,18 @@ midi_meta_event_functions = {
 
     ---set_tempo
     ---
-    --- Used to calculate the correct delta_time. Usualy seen only in the first track.
-    --- Stored in microseconds (not milis) per quarter note. If unspecified, default to 500000 (120 bpm)
+    --- Used to calculate the correct delta_time. Usually seen only in the first track.
+    --- Stored in microseconds (not milliseconds) per quarter note. If unspecified, default to 500000 (120 bpm)
     ---
-    ---Impacts playback. Pair with "devisions" in the midi header chunk
+    ---Impacts playback. Pair with "divisions" in the midi header chunk
     [0x51] = function(state, track, data, start_time)
         local microseconds_per_midi_quarter_note = bytes_to_number(data)
-        -- next_event_tick_delta is usualy only used in the "which event is next" calculation and is updated at the very end of the read
-        -- We are already in the read loop, so "next_event_tick_delta" is actualy this event's tick_delta
+        -- next_event_tick_delta is usually only used in the "which event is next" calculation and is updated at the very end of the read
+        -- We are already in the read loop, so "next_event_tick_delta" is actually this event's tick_delta
         local event_start_tick = track.sum_ticks + track.next_event_tick_delta
         table.insert(state.processed_metadata.tempo_changes.ticks_when_tempo_changed, 1, event_start_tick)   -- pos 1 to keep it in reverse order (so index 1 is most recent)
         state.processed_metadata.tempo_changes.delta_tick_multipliers[event_start_tick] =
-            recalculate_ticks_to_milis_multiplier(
+            recalculate_ticks_to_milliseconds_multiplier(
                 state.midi_header_info.ticks_pre_quarter_note,
                 microseconds_per_midi_quarter_note
             )
@@ -660,8 +660,8 @@ midi_meta_event_functions = {
 
     ---time_signature
     ---
-    ---Does not actualy impact playback of a midi file. But used for accurate score info and display.
-    ---We will keep parts of it arround for posibly syncing animations.
+    ---Does not actually impact playback of a midi file. But used for accurate score info and display.
+    ---We will keep parts of it around for possibly syncing animations.
     ---
     ---Should default to 4/4
     [0x58] = function(state, _, data, start_time)
@@ -710,16 +710,16 @@ midi_meta_event_functions = {
 
     ---sequencer_specific_meta_event
     ---
-    ---Instructions for speciffic sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
+    ---Instructions for specific sequencers. There may be common ones we'll want to implement later. Take note of instances where this appears.
     -- [0x7F] = function(state, track, data, start_time)
     --     message.data.sequencer_specific_meta_event_data = message.event_raw_data
     -- end
 }
 
 ---@type table<integer, true>
-local ignored_controll_change_codes = {}
+local ignored_control_change_codes = {}
 
-local midi_message_functions    -- pre-initilized so that note-on can call note-off when velocity is 0
+local midi_message_functions    -- pre-initialized so that note-on can call note-off when velocity is 0
 
 ---Collection of functions to process midi message events from a Midi Tracks, indexed by their event ID byte.
 ---
@@ -729,7 +729,7 @@ local midi_message_functions    -- pre-initilized so that note-on can call note-
 ---@type table<MidiStandardEventKey, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId?, start_time: number)>
 midi_message_functions = {
 
-    -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a paramiter.
+    -- ↓ Functions 10000000 through 11100000 (aka 11101111) include a channel ID. This is pre-parsed and passed as a parameter.
 
     ---@alias MidiStandardEventKey
     --- | 128  (0x80 / 10000000) note off
@@ -787,7 +787,7 @@ midi_message_functions = {
         end
 
         if state.instruction_builder[track.current_device][channel].notes[note_id] then
-            print_debug("⚠ 0x90 `Note On` recieved for a note that is already playing. Technicaly undefined behavior? Restarting the note.")
+            print_debug("⚠ 0x90 `Note On` received for a note that is already playing. Technically undefined behavior? Restarting the note.")
             track.data_index = track.data_index - 2  -- rewind so that the stop event can just read the data itself.
             midi_message_functions[tonumber("10000000", 2)](state, track, channel, start_time)
             -- no need to fast forward, we've already consumed the data we need and can just keep moving
@@ -834,7 +834,7 @@ midi_message_functions = {
     ---
     ---Some controller numbers are reserved. See "Channel Mode Messages"
     [0xB0] = function(state, track, channel, start_time)
-        -- These are two sepperate event types. Be sure to handle each depending on the state.
+        -- These are two separate event types. Be sure to handle each depending on the state.
         local controller_number = read_next_chunk_byte(track)
         local controller_value = read_next_chunk_byte(track)
 
@@ -842,9 +842,9 @@ midi_message_functions = {
             print_debug("Running control change function ".. tostring(controller_number))
             control_change_and_mode_change_functions[controller_number](state, track, channel, start_time, controller_value)
         else
-            if not ignored_controll_change_codes[controller_number] then
+            if not ignored_control_change_codes[controller_number] then
                 print_debug("Ignoring unrecognized control change code ".. tostring(controller_number)..". Future warnings for this code will be suppressed.", true, true)
-                ignored_controll_change_codes[controller_number] = true
+                ignored_control_change_codes[controller_number] = true
             end
             -- error("Controller number `"..tostring(controller_number).."` not in control_change_and_mode_change_functions.")
             -- TODO: It looks like we're not expected to implement every controller event. There are some pre-defined events
@@ -854,7 +854,7 @@ midi_message_functions = {
 
     ---Program change
     ---
-    ---Sets the recomended instrument/patch for the channel
+    ---Sets the recommended instrument/patch for the channel
     [0xC0] = function(state, track, channel, start_time)
         local patch_number = read_next_chunk_byte(track)
 
@@ -867,17 +867,17 @@ midi_message_functions = {
             -- To solve this correctly, I would need to look ahead at all of the events at time=0
             -- and see if the track needs to use a different device early.
             -- This is hard to do right now because of the way I'm using `read_next_chunk_byte(track)`
-            -- and applying changes at the same time. I can't cleanly sepparate reading from processing.
+            -- and applying changes at the same time. I can't cleanly separate reading from processing.
             -- Likewise, I can't cleanly backtrack either to retroactively fix issues.
             --
             -- But Right Now™, this one thing (program change before device name) is the Only™ real
-            -- problem this situation causes. So, as a hacky bandaid solution, I can store the data from this event
+            -- problem this situation causes. So, as a hacky band-aid solution, I can store the data from this event
             -- and check if the stored data exists in the Device Name event.
             --
-            -- As a consiquence, this method WILL CHANGE THE PROGRAM of BOTH the default device and the new device.
+            -- As a consequence, this method WILL CHANGE THE PROGRAM of BOTH the default device and the new device.
             -- But I think it's a safe assumption that any file that specifies a device name for one track
             -- will probably™ specify a device for every track. We also later filter the channels to only the
-            -- ones we actualy use, so applying IDs to an unused default device will not be a problem long-term.
+            -- ones we actually use, so applying IDs to an unused default device will not be a problem long-term.
 
             track.meta_state.early_program_change_patch_number = patch_number
             track.meta_state.early_program_change_channel_number = channel
@@ -902,8 +902,8 @@ midi_message_functions = {
     ---
     ---Center (no pitch change) is Hex = 2000, Dec = 8192.
     ---
-    ---"Sensitivity is a function of the transmitter." Usualy this is ±2 semitones. Midi by default doesn't encode the range,
-    ---but some use a `RPN` (Registered Parameter Number) to encode this message in the control codes.
+    ---"Sensitivity is a function of the transmitter." Usually this is ±2 semitones. Midi by default doesn't encode the range,
+    ---but some use an `RPN` (Registered Parameter Number) to encode this message in the control codes.
     [0xE0] = function(state, track, channel, start_time)
         local least_significant_byte = read_next_chunk_byte(track)
         local most_significant_byte = read_next_chunk_byte(track)
@@ -917,7 +917,7 @@ midi_message_functions = {
 
     ---System Exclusive
     ---
-    ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can inturrupt a system exclusive message.
+    ---Each data byte in the system Exclusive message starts with a 0. Only real-time messages can interrupt a system exclusive message.
     [0xF0] = function(_, track, _, _)
         -- sysex events are messages for "the system." I don't think we need to worry about this type.
         -- sysex events are sometimes stored as packets within the midi file.
@@ -983,9 +983,9 @@ midi_message_functions = {
 
     ---Timing Clock
     ---
-    ---Sent 24 times per quarter note when synchronisation is required
+    ---Sent 24 times per quarter note when synchronization is required
     [0xF8] = function()
-        -- no data, no devices to syncronize, safely ignore.
+        -- no data, no devices to synchronize, safely ignore.
     end,
 
     ---Undefined
@@ -997,21 +997,21 @@ midi_message_functions = {
     ---
     ---Start the current sequence playing
     [0xFA] = function()
-        -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
+        -- No data, controls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Continue
     ---
     ---Continue at the point the sequence was stopped
     [0xFB] = function()
-        -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
+        -- No data, controls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Stop
     ---
     ---Stop the current sequence
     [0xFC] = function()
-        -- No data, controlls playback devices in realtime situations. We are not realtime, Safely ignore?
+        -- No data, controls playback devices in realtime situations. We are not realtime, Safely ignore?
     end,
 
     ---Undefined
@@ -1022,15 +1022,15 @@ midi_message_functions = {
     ---Active Sensing
     ---
     ---Optional message. Receivers that get this message will expect another Active Sensing message within 300ms.
-    ---Or it will assume the conection has terminated. When it's terminated, receiver will turn off all voices and
-    ---return to normal, non active sensing opperation.
+    ---Or it will assume the connection has terminated. When it's terminated, receiver will turn off all voices and
+    ---return to normal, non active sensing operation.
     [0xFE] = function()
         -- no data, realtime situations only to make sure everything stays online. Safely ignore.
     end,
 
     ---Meta event
     ---
-    ---Meta events have their own sub IDs and functions assosiated with them.
+    ---Meta events have their own sub IDs and functions associated with them.
     ---
     ---@see midi_meta_event_functions
     [0xFF] = function(state, track, _, start_time)
@@ -1070,8 +1070,8 @@ local midi_processor_loop_stage_functions = {
         -- TODO: remove song.data_source entirely? Because we could bundle our own native file format,
         -- we probably don't want to bundle midi files. IE: this function will only be called with filesAPI.
         -- It is worth while to keep track of songs that have host-only data (needs pings) vs songs that are
-        -- bundled with the avatar. (Don't need pings for data, just start/stop.) But for the midi parcer
-        -- itself, this distinction is not exactly nessesary.
+        -- bundled with the avatar. (Don't need pings for data, just start/stop.) But for the midi parser
+        -- itself, this distinction is not exactly necessary.
         if song_holder.source.type == "files" then
             state.reader.file_stream = file:openReadStream(song_holder.source.full_path)
             if state.reader.file_stream:available() then state.reader.total_file_size = state.reader.file_stream:available() end
@@ -1084,7 +1084,7 @@ local midi_processor_loop_stage_functions = {
     end,
 
     read = function(song_holder, state)
-        -- read in data, a few bytes at a time, so that we don't freeze the game reading a hughe file.
+        -- read in data, a few bytes at a time, so that we don't freeze the game reading a huge file.
         for _ = 1, max_read_steps_per_event, 1 do
             if
                 not state.reader.file_stream:available()
@@ -1179,7 +1179,7 @@ local midi_processor_loop_stage_functions = {
                         -- print_debug("Found new track")
 
                     elseif new_chunk.type == midi_chunk_types.header then
-                        -- header chunks are usualy very small (6 bytes). It's worth while to just process it now.
+                        -- header chunks are usually very small (6 bytes). It's worth while to just process it now.
 
                         if state.chunks.header then error("Tried to process the header chunk, but state.chunks.header is not empty.") end
 
@@ -1244,9 +1244,9 @@ local midi_processor_loop_stage_functions = {
                             state.midi_header_info.timing_method = 0
 
                             state.midi_header_info.ticks_pre_quarter_note = ticks_per_quarter_note
-                            local tick_to_milis_multiplier = recalculate_ticks_to_milis_multiplier(ticks_per_quarter_note, midi_default_tempo)
+                            local tick_to_milliseconds_multiplier = recalculate_ticks_to_milliseconds_multiplier(ticks_per_quarter_note, midi_default_tempo)
                             table.insert(state.processed_metadata.tempo_changes.ticks_when_tempo_changed, 1, 0)
-                            state.processed_metadata.tempo_changes.delta_tick_multipliers[0] = tick_to_milis_multiplier
+                            state.processed_metadata.tempo_changes.delta_tick_multipliers[0] = tick_to_milliseconds_multiplier
                         end
 
                         state.chunks.header = header_chunk
@@ -1281,7 +1281,7 @@ local midi_processor_loop_stage_functions = {
             state.reader = nil
 
             for track_index, track in pairs(state.chunks.tracks) do
-                -- Jumpstart process phase by pre-calculating the delta of the first event in each track.
+                -- Jump-start process phase by pre-calculating the delta of the first event in each track.
                 -- For most tracks, this will probably just be 0
                 track.index = track_index
                 track.next_event_tick_delta = read_variable_length_quantity(track)
@@ -1340,7 +1340,7 @@ local midi_processor_loop_stage_functions = {
             -- ticks_when_tempo_changed is sorted in reverse order. This loop goes from most recent tempo change to tick 0
             for index, tick_where_tempo_changed in ipairs(state.processed_metadata.tempo_changes.ticks_when_tempo_changed) do
                 local upper_bound = (index-1 == 0 and soonest_start_tick or state.processed_metadata.tempo_changes.ticks_when_tempo_changed[index-1])
-                local lower_bound = tick_where_tempo_changed    -- TODO: we could could cache the previous event's sum_time, break early here, and then add the cache time. This would ensure this loop only goes as few itterations as needed.
+                local lower_bound = tick_where_tempo_changed    -- TODO: we could could cache the previous event's sum_time, break early here, and then add the cache time. This would ensure this loop only goes as few iterations as needed.
                 local ticks_spent_in_this_range = upper_bound - lower_bound
                 local time_spent_in_this_range = ticks_spent_in_this_range * state.processed_metadata.tempo_changes.delta_tick_multipliers[tick_where_tempo_changed]
                 sum_time_accumulator = sum_time_accumulator + time_spent_in_this_range
@@ -1348,7 +1348,7 @@ local midi_processor_loop_stage_functions = {
             local soonest_start_time = sum_time_accumulator
 
             -- Running Status:
-            -- Messages may ommit their status ID if they have the same ID as the status before it. ("Running status")
+            -- Messages may omit their status ID if they have the same ID as the status before it. ("Running status")
             -- Check next byte. If it's a data byte, backtrack reader and use previous status ID
 
             local first_bit_mask = tonumber("10000000", 2)
@@ -1489,8 +1489,8 @@ local midi_processor_loop_stage_functions = {
         printTable_debug(processed_song)
 
         print_debug(
-            "Midi processor successfuly built song `"..song_holder.name
-                .. "`. Durration: "..tostring(processed_song.duration/1000).."s"
+            "Midi processor successfully built song `"..song_holder.name
+                .. "`. Duration: "..tostring(processed_song.duration/1000).."s"
                 .. ", Instruction count: "..tostring(#processed_song.instructions)
                 .. ", Track count: "..tostring(#processed_song.tracks)
             , false, true
@@ -1554,10 +1554,10 @@ local function midi_processor(song_holder)
             time_song_end = nil,
 
             --- Lookup tables of start times to delta time multipliers.
-            --- See meta event 0x51 and recalculate_ticks_to_milis_multiplier().
+            --- See meta event 0x51 and recalculate_ticks_to_milliseconds_multiplier().
             ---@type {ticks_when_tempo_changed: integer[], delta_tick_multipliers: table<integer, number>}
             tempo_changes = {
-                ticks_when_tempo_changed = {},  -- An reverced-ordered list of ticks where the tempo changes. These ticks are also keys for delta_tick_multipliers.
+                ticks_when_tempo_changed = {},  -- An reversed-ordered list of ticks where the tempo changes. These ticks are also keys for delta_tick_multipliers.
                 delta_tick_multipliers = {}     -- A list of delta tick multipliers indexed by the tick when they became active.
             }
         },
@@ -1574,7 +1574,7 @@ local function midi_processor(song_holder)
 
         -- A tracker to decide the next track ID humber, if one is not found.
         --
-        -- Remember to incriment when creating a new player track
+        -- Remember to increment when creating a new player track
         ---@type integer
         next_track_id = 1,
 
@@ -1584,7 +1584,7 @@ local function midi_processor(song_holder)
             total_file_size = 0 ---@type integer
         },
         midi_header_info = {
-            ---@type 0|1|2      0 == no tracks, 1 == has tracks (play all at once), 2 = Manualy Timed Tracks
+            ---@type 0|1|2      0 == no tracks, 1 == has tracks (play all at once), 2 = Manually Timed Tracks
             format = nil,
 
             ---@type integer
@@ -1641,9 +1641,9 @@ local function midi_processor(song_holder)
     -- to catch all the tick events
     -- Using the render loop is better, because the game does not try to
     -- catch up lost frames, and instead the framerate just drops.
-    -- Using world_render is even better, because it is allways called, but
+    -- Using world_render is even better, because it is always called, but
     -- the default limit is really low unless the host is on max perms.
-    -- It's safe to assume the HOST is allways at max perms. So ultimately,
+    -- It's safe to assume the HOST is always at max perms. So ultimately,
     -- it's fine.
     events.WORLD_RENDER:register(processor_loop)
 

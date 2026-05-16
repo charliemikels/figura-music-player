@@ -1,7 +1,7 @@
 
 -- Tiny little standard entry point for the music player script for most use cases.
 --
--- check the doc comment for core_api.build_default_ui_action for example useage.
+-- check the doc comment for core_api.build_default_ui_action for example usage.
 
 
 
@@ -32,7 +32,7 @@ local core_api = {
     ---@return Action enter_songbook_action
     build_default_ui_action = function()
 
-        local _ = require("./networking")   -- We want to make sure that the viewer definitly has the networking library ready to go.
+        local _ = require("./networking")   -- We want to make sure that the viewer definitely has the networking library ready to go.
 
         local library_api = require("./libraries") ---@type LibrariesApi
         local library = library_api:build_default_library()

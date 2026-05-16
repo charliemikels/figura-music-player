@@ -96,7 +96,7 @@ To stop playback, click the playing song, or click on any processed song. The UI
 
 There's some info above and below the song selection list to help you understand what's going on.
 
-You can also hold down your Sprint key to scroll the list faster (rebindable in the Figura settings menu).
+You can also hold down your Sprint key to scroll the list faster (you can rebind this in Figura's settings).
 
 ## Bottom right: Configure
 
@@ -160,7 +160,7 @@ You'll want to follow the [piano's basic usage instructions](https://github.com/
 4. Add the UUID to the lists in `scripts/music_player/instruments/chloespacedout_instruments/piano.lua` and `…/drumkit.lua`.
 5. Reload the music player avatar.
 
-But if you're going through this much effort, you might as well check out [ChloeSpacedOut's Figura Midi Player](https://github.com/ChloeSpacedOut/figura-midi-player). It's basicaly the same kind of script as mine, but has more dirrect access to the Piano's extensive instrument library.
+But if you're going through this much effort, you might as well check out [ChloeSpacedOut's Figura Midi Player](https://github.com/ChloeSpacedOut/figura-midi-player). It's basicaly the same kind of script as mine, but has more direct access to the Piano's extensive instrument library.
 
 ### Who's Charlie? I thought you were Tanner? (and vice versa)
 

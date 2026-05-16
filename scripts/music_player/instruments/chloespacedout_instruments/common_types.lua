@@ -10,8 +10,8 @@
 ---@field attenuation number    -- float between 0 and 1
 ---@field midi ChloeFiguraMidiCloudMidiApi
 ---@field soundfont ChloeFiguraMidiCloudSoundfontAPI
----@field lastSysTime number    -- initilized to client.getSystemTime()
----@field lastUpdated number    -- initilized to client.getSystemTime()
+---@field lastSysTime number    -- initialized to client.getSystemTime()
+---@field lastUpdated number    -- initialized to client.getSystemTime()
 ---@field shouldKeepAlive boolean
 ---@field shouldKeepAliveClock number
 ---@field songs table
@@ -27,9 +27,9 @@
 
 ---@class ChloeFiguraMidiCloudMidiNote
 ---
---- Initilizes a new midi note and plays it.
+--- Initializes a new midi note and plays it.
 ---
---- This function also takes care of initilizeing new channels and tracks. But will also stop notes if we reuse a pitch on a track.
+--- This function also takes care of initialing new channels and tracks. But will also stop notes if we reuse a pitch on a track.
 ---
 --- `pitch` and `velocity` are midi values, so 0-128 or something.
 ---
@@ -44,8 +44,8 @@
 ---
 --- `sysTime` is the time the note was released, but it can be set to a future time. Call with `client.getSystemTime()` and add `instruction.duration` to it.
 ---@field release fun(self:ChloeFiguraMidiCloudMidiNote, sysTime:integer)
----@field stop fun(self:ChloeFiguraMidiCloudMidiNote) -- stops the note immediatly.
----@field releaseTime integer   -- The time the note was released. Because we set this time immediatly after creating the note, we should expect this to allways be something
+---@field stop fun(self:ChloeFiguraMidiCloudMidiNote) -- stops the note immediately.
+---@field releaseTime integer   -- The time the note was released. Because we set this time immediately after creating the note, we should expect this to always be something
 ---@field duration number       -- The amount of extra time it takes for this not to decay after being released.
 ---@field sound Sound
 
@@ -66,7 +66,7 @@
 
 ---@alias ChloeInstrumentID string   -- PianoIDs are the same as tostring( vec3position )
 
----@class ChloePiano    -- This is a subset of what is in the actual piano. we should primaraly just use IDs and the built-in helper functions.
+---@class ChloePiano    -- This is a subset of what is in the actual piano. we should primally just use IDs and the built-in helper functions.
 ---@field ID ChloeInstrumentID
 ---@field lastInstrument integer
 ---@field model 1|2|3|4                     -- 1-3 == pianos. 4 == drum kit
@@ -74,7 +74,7 @@
 ---@field instance ChloeFiguraMidiCloudInstance
 ---@field midi table
 
--- Drum speciffic
+-- Drum specific
 
 ---@alias ChloeKeyID string -- Piano v1 and drumkit (and Piano 2.0 in fallback mode) use strings like "A#4", "C2", "G#5" to identify what notes to play.
 

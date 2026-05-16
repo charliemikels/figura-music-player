@@ -1,5 +1,5 @@
 
--- Essentialy a special version of file_processor.lua, but specifficaly for local song files.
+-- Essentially a special version of file_processor.lua, but specifically for local song files.
 -- Local songs are songs that are uploaded with the avatar and don't need pings for viewers
 -- to play them.
 --
@@ -14,10 +14,10 @@ local do_debug_prints = false
 --- Logs a message to the console. But if do_debug_prints is true, it also logs to chat. Use do_debug_prints=true to debug viewers.
 ---@param message string
 ---@param is_warning boolean?
----@param allways_log boolean?
-local function print_debug(message, is_warning, allways_log)
+---@param always_log boolean?
+local function print_debug(message, is_warning, always_log)
     if do_debug_prints then print(message) end
-    if do_debug_prints or allways_log then
+    if do_debug_prints or always_log then
         if is_warning then
             host:warnToLog(message)
         else
@@ -29,7 +29,7 @@ end
 
 ---@class LocalSongScript
 ---@field name string
----@field durration number
+---@field duration number
 ---@field num_instructions integer
 ---@field header PacketDataString
 ---@field config PacketDataString
@@ -44,7 +44,7 @@ local local_song_template = {
     header = "",
     config = "",
     data = {},
-    durration = 0,
+    duration = 0,
     num_instructions = 0,
 }
 
@@ -75,7 +75,7 @@ for _, script_path in pairs(listFiles(local_songs_directory_path, true)) do
             uuid = client.intUUIDToString(client.generateUUID()),
             id = script_path,
             name = "⌂/"..script_path:gsub(".-"..local_songs_directory_path_but_just_what_is_after_the_slash:gsub("([^%w])","%%%1").."%.", ""),
-            short_name = "TBD", -- This can remain TDB, it'll be populated when we actualy require the script
+            short_name = "TBD", -- This can remain TBD, it'll be populated when we actually require the script
             start_or_get_data_processor = function()
                 return return_future
             end,
@@ -143,7 +143,7 @@ local_song_tick_loop_functions = {
             return
         end
 
-        -- key existance and type checking.
+        -- key existence and type checking.
 
         for k, v in pairs(local_song_template) do
             if not require_result[k] then
@@ -191,12 +191,12 @@ local_song_tick_loop_functions = {
             return
         end
 
-        if not header_pcall_value.duration == result_of_require.durration then
+        if not header_pcall_value.duration == result_of_require.duration then
             remove_script_from_loop_with_error(
                 script_index,
-                "Header durration `"..header_pcall_value.duration
-                    .."` does not match declared durration `"
-                    ..result_of_require.durration.."`"
+                "Header duration `"..header_pcall_value.duration
+                    .."` does not match declared duration `"
+                    ..result_of_require.duration.."`"
             )
             return
         end
@@ -266,7 +266,7 @@ local_song_tick_loop_functions = {
         if #result_of_require.data < data_packet_index_for_script then -- we're out of packets to process
             if #processed_song.instructions == result_of_require.num_instructions then -- instruction count matched what we expected
 
-                print_debug("Localy song `"..processed_song.name.."` was built successfuly", false, true)
+                print_debug("Local song `"..processed_song.name.."` was built successfully", false, true)
 
                 future_controllers_by_script_path[script_path]:set_done_with_value(processed_song)
             else    -- there's an instruction count mismatch.
@@ -298,7 +298,7 @@ local_song_tick_loop_functions = {
             return
         end
 
-        -- no need for an extra saveing step, add_instructions_to_song_from_packet will update song for us, even inside the pcall.
+        -- no need for an extra saving step, add_instructions_to_song_from_packet will update song for us, even inside the pcall.
 
         -- progress from [0 to 0.2] is reserved by header and config processors. we can go from (0.2, 1.0]
         local data_progress = math.map(data_packet_index_for_script, 0, #result_of_require.data, 0.2, 1.0)
@@ -320,7 +320,7 @@ local_song_tick_loop_max_perms_function = function()
     if avatar:getPermissionLevel() == "MAX" then
         local_song_tick_loop_main_function()
         -- take another stab at the main loop, but in the world tick.
-        -- Will also run if TICK isn't running (avatar is disconected)
+        -- Will also run if TICK isn't running (avatar is disconnected)
     end
 end
 

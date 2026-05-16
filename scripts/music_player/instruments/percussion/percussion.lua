@@ -161,7 +161,7 @@ local drumkit_sounds_lookup = {
     -- end,
 }
 
----Convert a midi key to a drumkit shound
+---Convert a midi key to a drumkit sound
 ---@param midi_key integer
 ---@return Sound
 local function drumkit_sound_lookup(midi_key)
@@ -176,7 +176,7 @@ end
 ---@type InstrumentBuilder
 local print_instrument_factory = {
     name = "Percussion",         -- Also used when making unique identifiers
-    is_available = function() return true end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
+    is_available = function() return true end,
     features = {            -- Displayed to users so that they know what features this instrument supports.
         percussion = true,
     },
@@ -189,7 +189,7 @@ local print_instrument_factory = {
         ---@type Instrument
         local new_instance = {
             play_instruction = function(instruction, position, _)
-                -- print("start: " .. tostring(instruction.note) .. " on trk" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+                -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 local new_sound = drumkit_sound_lookup(instruction.note)
                     :setPos(position)
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
@@ -200,10 +200,10 @@ local print_instrument_factory = {
             update_sounds = function(_)
                 -- Notes do not linger, nothing to update
             end,
-            stop_one_sound_immediatly = function()
+            stop_one_sound_immediately = function()
                 -- Notes do not linger and so there's nothing to clean
             end,
-            stop_all_sounds_immediatly = function()
+            stop_all_sounds_immediately = function()
                 -- Notes do not linger and so there's nothing to clean
             end,
             is_finished = function()

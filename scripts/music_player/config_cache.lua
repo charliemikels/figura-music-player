@@ -1,7 +1,7 @@
 
--- A wrapper arround Figura's Config api that allows us to easily save SongPlayerConfig data for future use.
+-- A wrapper around Figura's Config api that allows us to easily save SongPlayerConfig data for future use.
 --
--- While you give the ConfigCacheAPI a full song config, it only actualy stores keys in the `approved_keys_to_save` table.
+-- While you give the ConfigCacheAPI a full song config, it only actually stores keys in the `approved_keys_to_save` table.
 --
 -- Mostly it only stores instrument selections.
 
@@ -16,7 +16,7 @@ local approved_keys_to_save = {
 
 local config_path = "TL_music_player_saved_configs"
 
----Wrapper function to ensure we allways open and close the config file.
+---Wrapper function to ensure we always open and close the config file.
 ---@generic R
 ---@param fn fun(...):R
 ---@param ... unknown
@@ -32,16 +32,16 @@ end
 ---@param song_id string            A unique identifier for a song.
 ---@param song_config SongPlayerConfig
 local function write_song_config(song_id, song_config)
-    -- We only want to save a handfull of keys. Mostly just instrument selection.
-    -- The script should take responcibility for actual playback controll
+    -- We only want to save a handful of keys. Mostly just instrument selection.
+    -- The script should take responsibility for actual playback control
     ---@type SongPlayerConfig
-    local coppied_song_config = {}
+    local copied_song_config = {}
     for k, v in pairs(song_config) do
         if approved_keys_to_save[k] then
-            coppied_song_config[k] = v
+            copied_song_config[k] = v
         end
     end
-    config:save(song_id, coppied_song_config)
+    config:save(song_id, copied_song_config)
 end
 
 ---@param song_id string            A unique identifier for a song.
@@ -84,7 +84,7 @@ return {
 
     --- Caches an entire song_config. All items, including entity data, are stored
     ---
-    --- see also write_song_config() for a typicaly more usefull config storage function.
+    --- see also write_song_config() for a typically more useful config storage function.
     force_write_song_config = function(song_id, song_config)
         load_run_and_unload_our_config(force_write_song_config, song_id, song_config)
     end,

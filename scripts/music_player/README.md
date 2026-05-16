@@ -2,7 +2,7 @@ Alright gamers.
 
 ![This is where the fun begins](https://i.kym-cdn.com/photos/images/original/001/947/993/084.png)
 
-## Overview of "default" experiance
+## Overview of "default" experience
 
 In case any of you are trying to study this code, here's a ~~quick~~ overview of what the script does.
 
@@ -59,7 +59,7 @@ The intended entry-point is the `core.build_default_ui_action()` function in `co
 Unlike the other File processors, `local_songs.lua`
 
 1. Starts it's data processor loop on Init, start data_processor actually just returns a pre-created future for that song.
-2. Is designed to run on all clients. Each step is actually very minimal and runs on the TICK event. This means that all clients will (eventualy) load every local song.
+2. Is designed to run on all clients. Each step is actually very minimal and runs on the TICK event. This means that all clients will (eventually) load every local song.
 
 `LocalSongScripts` are essentially a lua script that just stores all the `PacketDataString`s necessary to build a song using `packet_decoder.lua`. We use this system because we know all the the decoder functions are already light enough to run on the viewer, and `PacketDataString`s are pretty well compressed too. Not as good as MIDI, but competitive with ABC.
 
@@ -136,9 +136,9 @@ Check out the definition for SongPlayerController to see what you can do with it
 - `.register_…`/`.remove_(callback_type)_callback()`: Similar to the File Processor's callback system, this lets you piggy back of of the song's event loop to run functions. There are three callback types
   - `stop`: Is called every time the song is stopped. It will also pass why the song stopper (either a "normal" or an "emergency" stop).
   - `update`: Is called every time the song is updated.
-  - `meta`: some instructions are meta instructions. They don't impact the playback audio, but it can be useful to sync certen events in the song. This callback will be given the event ID and its data when it is called.
+  - `meta`: some instructions are meta instructions. They don't impact the playback audio, but it can be useful to sync certain events in the song. This callback will be given the event ID and its data when it is called.
 
-In addition to managing the song itself, `SongPlayer`s are also reponcible for displaying the in-world info text for the playing song. That includeds the progress bar, song title, and mute instructions.
+In addition to managing the song itself, `SongPlayer`s are also responsible for displaying the in-world info text for the playing song. That includes the progress bar, song title, and mute instructions.
 
 Song players actually use multiple event loops to manage themselves.
 
@@ -146,7 +146,7 @@ The Main loop steps through the Song, finds instructions that need to be played,
 
 There is also a watcher loop that runs on the WorldTick event. It's job is to make sure the main event has not failed.
 
-By default the main loop uses the Render event to get better temporal resolution. (Unless the viewer is running at 20FPS, the Render event is much faster than the Tick event.) But the Render event doesn't always run. This commonly happens when the avatar is off-screen on low and default permissions, but it can also happen with some modded full-screen GUIs like Xaero's Worldmap. So all song_players are set up with a fallback event. By default the fallback event is the Tick event, which is usually pretty reliable, and has a high instruction limit. The WorldTick watcher loop is in charge of noticing when the main event fails, and to switch to the fallback.
+By default the main loop uses the Render event to get better temporal resolution. (Unless the viewer is running at 20FPS, the Render event is much faster than the Tick event.) But the Render event doesn't always run. This commonly happens when the avatar is off-screen on low and default permissions, but it can also happen with some modded full-screen GUIs like Xaero's World Map. So all song_players are set up with a fallback event. By default the fallback event is the Tick event, which is usually pretty reliable, and has a high instruction limit. The WorldTick watcher loop is in charge of noticing when the main event fails, and to switch to the fallback.
 
 But there are still cases where both the main and fallback event loops stop running. (Maybe the Host has gone through a Nether portal, unloading their entity.) More than likely this will leave behind sounds that cannot be updated. So the watcher's second job is to preform an emergency stop when both the main and fallback events fail.
 
