@@ -319,7 +319,7 @@ end
 
 --- Host-side event loop to emit pings from the ping queue
 local function ping_loop()
-    if ping_loop_start_time + (packet_encoder_api.get_target_ms_between_packets() * (outgoing_packet_queue_index -1)) < client:getSystemTime() then
+    while ping_loop_start_time + (packet_encoder_api.get_target_ms_between_packets() * (outgoing_packet_queue_index -1)) < client:getSystemTime() do
         -- we can emit another packet
         -- Note that this condition may be true in situations where the time between
         -- two packets is slightly _less_ than target_ms_between_packets.
@@ -337,7 +337,11 @@ local function ping_loop()
         outgoing_packet_queue_index = outgoing_packet_queue_index + 1
 
         -- check if list is empty
-        if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then print_host("All pings sent."); stop_and_cleanup_packet_ping_loop() end
+        if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then
+            print_host("All pings sent.")
+            stop_and_cleanup_packet_ping_loop()
+            return
+        end
     end
 end
 
