@@ -178,7 +178,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 elseif not song_processors_and_player_controllers[this_row_song.id].net_player_controller then
                     -- Song is in the middle of being processed.
                     -- (We know because the player has not been built yet, but an entry in this table was created)
-                    this_row = this_row .. get_spinner() -- hour glass
+                    this_row = this_row .. get_spinner()    -- "⏳" -- hour glass
                 else
                     this_row = this_row .. "✓ "
                 end
