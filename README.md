@@ -168,6 +168,27 @@ But if you're going through this much effort, you might as well check out [Chloe
 
 Tanner_Limes is my Minecraft username. Hi Discord people!
 
+### Does it work on Default permissions?
+
+Yes. The host needs to be at MAX in order to use the File processors, but **most songs are playable at LOW permissions**. The limiting factor is how many instruments a song is using, and how complex they are.
+
+Here's Rush E, in multiplayer, where the viewer has set this script to LOW permissions.
+
+https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
+
+(Appologies for the 240p demo video. Github's 10MB limit is pretty tight.)
+
+<details>
+<summary>Some caveats about this demo</summary>
+<ul>
+    <li>It takes an impracticaly long time to buffer. (~11 minutes at current settings)</li>
+    <li>To actualy hear anything meaningful, the viewer would need to enable the Unlimited Sounds advanced setting. However it eventualy runs into Minecraft's internal 247 sound limit. </li>
+    <li>Unfortunantly the default Triangle Sine instrument hits a resource limit arround the 113s mark. However, the Noteblock instruments and using ChloeSpacedOut's piano are able to complete the song.</li>
+</ul>
+</details>
+
+
+
 ## Changes in v5
 
 Version 5 comes with significant changes
