@@ -172,7 +172,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
             if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
 
-                local un_deltaed_start_time = instruction_start_delta + packet_start_time + modifiable_instructions[assigned_instruction_modifier_id].start_time
+                local un_deltaed_start_time = instruction_start_delta + modifiable_instructions[assigned_instruction_modifier_id].start_time    -- notably not relative to packet's time, but the host instruction's time.
 
                 ---@type InstructionModifier
                 local modifier = {

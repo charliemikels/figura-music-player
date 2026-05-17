@@ -289,13 +289,14 @@ end
 --- For use with song_instruction_to_packet_parts()
 ---
 --- A simple wrapper so that I can reuse the "add modifier" code
----@param modifier InstructionModifier                 The modifier to add
+---@param modifier InstructionModifier          The modifier to add
+---@param instruction_start_time number         The absolute start time for the parent instruction
 ---@param instruction_modifier_list_id integer  The note ID to add this modifier to.
 ---@return {start_time: number, packet_part: PartialPacketDataBytes}
 local function modifier_to_packet_part(modifier, instruction_start_time, instruction_modifier_list_id)
     ---@type PartialPacketDataBytes
     local modifier_packet_part = {}
-    union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time - instruction_start_time)))
+    union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time - instruction_start_time)))    -- Modifier start time is relative to start of song. Compress to be relative to instruction
     union_tables(modifier_packet_part, int_to_vlq(nil))
         -- nil signals that this is a modifier for an instruction we've (probably) already sent
         -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
