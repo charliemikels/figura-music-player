@@ -35,7 +35,7 @@ local songs_turned_into_packets_so_far = 0  -- used to build a unique ID number 
 
 local control_packet_codes = packet_enums_api.control_packet_codes
 
--- The colection of songs received from the Host (or whatever called add_packet_to_song).
+-- The collection of songs received from the Host (or whatever called add_packet_to_song).
 -- These are indexed by a host-controlled integer, and are uniquely identifiable in this way.
 ---@type table<integer, {song: Song, player: SongPlayerController}>
 local collected_incoming_songs = {}
