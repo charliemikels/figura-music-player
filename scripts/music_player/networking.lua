@@ -46,7 +46,7 @@ local collected_incoming_songs = {}
 ---@type table<integer, boolean>
 local missed_incoming_songs = {}
 
-
+--#region pinged data song player
 
 ---@param transferred_song_id integer
 ---@param packet_data_string PacketDataString
@@ -381,20 +381,12 @@ local function outgoing_packet_queue_progress()
     return outgoing_packet_queue_index / #outgoing_bundled_packets_queue
 end
 
---- A SongPlayer wrapper that plays the a song on all clients (viewers and host).
+--- The standard network_song_player variant. It is just here to
 ---
---- Use this instead of manually working with the networking / packet building process.
----
---- Host Only. May turn a song into packets (expensive) and call ping functions.
 ---@param outbound_song Song
 ---@param outbound_player_config SongPlayerConfig
 ---@return SongPlayerController
-local function new_network_song_player(outbound_song, outbound_player_config)
-    if not host:isHost() then -- The caller is a viewer.
-        -- To avoid double-playback issues (where host makes a player, and also the viewer happens to make a player), this function will throw our own error
-        error("new_network_song_player was called, but caller is not Host. Use the normal song_player instead to let the viewer play songs.")
-    end
-
+local function new_pinging_song_player(outbound_song, outbound_player_config)
     local transferred_song_id = songs_turned_into_packets_so_far
     songs_turned_into_packets_so_far = songs_turned_into_packets_so_far +1
 
@@ -602,6 +594,64 @@ local function new_network_song_player(outbound_song, outbound_player_config)
     end
 
     return custom_song_controller
+end
+
+--#endregion pinged data song player
+
+
+------------------------------------------------
+
+
+--#region host controlled local songs
+
+function pings.TL_FMP_init_local_song_controller(transferred_id, song_id)
+
+end
+
+
+---@param outbound_song Song
+---@param outbound_player_config SongPlayerConfig
+---@return SongPlayerController
+local function new_host_controlled_local_song_player(outbound_song, outbound_player_config)
+    print("--TODO: new_host_controlled_local_song_player")
+
+    -- Some things to consider:
+    -- 1. A local song is not guaranteed to be done, even if it's done for us.
+    --    We might need to add a "re-prioritize" feature to local_songs.lua
+    -- 2. Local Song's processor currently processes until the song is fully done.
+    --    It could instead build a necessary amount of pings, say its done, then
+    --    move on to the next incomplete local song. Re-prioritizing would let us
+    --    finish the song on demand in the same way that we buffer songs in the ping system
+    -- 3.
+
+    return nil
+end
+
+--#endregion host controlled local songs
+
+
+
+
+
+--- A SongPlayer wrapper that plays the a song on all clients (viewers and host).
+---
+--- Use this instead of manually working with the networking / packet building process.
+---
+--- Host Only. Will call ping functions, and may turn a song into packets (expensive).
+---@param outbound_song Song
+---@param outbound_player_config SongPlayerConfig
+---@return SongPlayerController
+local function new_network_song_player(outbound_song, outbound_player_config)
+    if not host:isHost() then -- The caller is a viewer.
+        -- To avoid double-playback issues (where host makes a player, and also the viewer happens to make a player), this function will throw our own error
+        error("new_network_song_player was called, but caller is not Host. Use the normal song_player instead to let the viewer play songs.")
+    end
+
+    if outbound_song.is_local then
+        return new_host_controlled_local_song_player(outbound_song, outbound_player_config)
+    end
+
+    return new_pinging_song_player(outbound_song, outbound_player_config)
 end
 
 ---@class SongNetworkingApi
