@@ -66,7 +66,7 @@ for _, script_path in pairs(listFiles(local_songs_directory_path, true)) do
     if not string.match(script_path, pattern_to_exclude) then
         table.insert(possible_script_paths, script_path)
 
-        print_debug("Found posible local song: `"..script_path.."`")
+        print_debug("Found possible local song: `"..script_path.."`")
 
         local future_controller, return_future = tl_futures_api.new_future("Song")
 
