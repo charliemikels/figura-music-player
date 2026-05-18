@@ -314,11 +314,11 @@ end
 --- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
 --- few modifiers to significantly improve buffer times.
 ---@type integer
-local target_modifier_temporal_resolution = 20
+local target_modifier_temporal_resolution = 50
 
---- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it was the start of a gap.
+--- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it because it was the start of a gap.
 ---@type integer
-local modifier_gap_threshold = 30
+local modifier_gap_threshold = math.floor(target_modifier_temporal_resolution * 1.25)
 
 --- Encodes a song instruction into PartialPacketDataBytes.
 ---
