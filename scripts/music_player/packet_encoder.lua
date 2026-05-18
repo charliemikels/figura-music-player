@@ -306,7 +306,19 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
 end
 
+--- Baseline temporal resolution for modifiers.
+---
+--- At high FPS like 144, we can only update a SongPlayer about once every 7 milliseconds.
+--- At 60 FPS, our maximum resolution is about 16ms
+---
+--- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
+--- few modifiers to significantly improve buffer times.
+---@type integer
+local target_modifier_temporal_resolution = 20
 
+--- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it was the start of a gap.
+---@type integer
+local modifier_gap_threshold = 30
 
 --- Encodes a song instruction into PartialPacketDataBytes.
 ---
@@ -379,11 +391,12 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
 
                 else
 
-                    if      modifier_subset_tracker[modifier.type].last_seen.start_time ~= modifier_subset_tracker[modifier.type].last_added.start_time
-                        and modifier_subset_tracker[modifier.type].last_seen.start_time + (30) < modifier.start_time
+                    -- Check if the previous modifier was the end of a chain of modifiers, and the start of a gap
+                    if      modifier_subset_tracker[modifier.type].last_seen ~= modifier_subset_tracker[modifier.type].last_added
+                        and modifier.start_time - modifier_subset_tracker[modifier.type].last_seen.start_time > modifier_gap_threshold
                     then
-                        -- The last_seen modifier was not added, but there is too much time between that last modifier and this modifier.
-                        -- The last_seen modifier might have been a "bookend" modifier. We should re-include it just in case.
+                        -- The last_seen modifier was not added in the normal round, but it was the start of a "gap" where there were no additional modifiers.
+                        -- Add the missed modifier before adding the current modifier. That way the whole gap will have the correct sound.
 
                         table.insert(modifier_packet_parts, modifier_to_packet_part(
                             modifier_subset_tracker[modifier.type].last_seen,
@@ -394,10 +407,10 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
                         modifier_subset_tracker[modifier.type].last_added = modifier_subset_tracker[modifier.type].last_seen
                     end
 
-
+                    -- Check if current modifier should be added
                     if  modifier.start_time >= (
                             modifier_subset_tracker[modifier.type].first_start_time
-                            + (20 * modifier_subset_tracker[modifier.type].total_added)
+                            + (target_modifier_temporal_resolution * modifier_subset_tracker[modifier.type].total_added)
                         )
                     then
                         -- this modifier is at the right time. Add it.
