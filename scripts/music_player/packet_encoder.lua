@@ -313,7 +313,7 @@ end
 --- It also splits any recognized modifiers into their own list of PartialPacketDataBytes, and makes sure their IDs are synced to the root instruction
 ---@param instruction Instruction
 ---@param packet_start_time number      The start time of the current packet. Used to calculate the delta for this instruction.
----@param modifiers_tracker table
+---@param modifiers_tracker PacketEncoderModifiersTracker
 ---@return {instruction_part_and_start: {start_time: number, packet_part: PartialPacketDataBytes}, modifier_parts_and_starts: {start_time: number, packet_part: PartialPacketDataBytes}[] }
 local function song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
     local modifier_packet_parts = {}
@@ -448,7 +448,7 @@ end
 local function build_data_packets_and_buffer_time(song)
 
     --- A counter that lets us generate unique IDs for any note that has a modifier
-
+    ---@class PacketEncoderModifiersTracker
     local modifiers_tracker = {
         id_counter = 0, ---@type integer A counter that lets us have a unique ID for every note that has a modifier in this song.
         total_number_of_unrecognized_modifier_types_by_type = {}  ---@type table<string, integer>
