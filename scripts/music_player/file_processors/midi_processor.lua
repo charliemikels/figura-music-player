@@ -916,7 +916,7 @@ midi_message_functions = {
         -- Note: We cannot send the RPN number to instruments. Otherwise if a ping gets dropped then the rest of the song is incorrect.
         --       We need to pre-compute the final pitch bend here.
 
-        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value ~= 8192 and pitch_value or nil)
+        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value ~= 8192 and (pitch_value * pitch_wheel_multiplier) or nil)
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, pitch_value, "pitch_wheel")
     end,
 
