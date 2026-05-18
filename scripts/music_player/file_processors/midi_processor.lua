@@ -908,6 +908,14 @@ midi_message_functions = {
         local least_significant_byte = read_next_chunk_byte(track)
         local most_significant_byte = read_next_chunk_byte(track)
         local pitch_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
+
+        -- TODO: we actually need to get this RPN number. It does change how songs like _Through the Fire and the Flames_ work.
+        -- TODO: reconsider how modifiers are stored. Right now we're storing them as the raw midi value, but for pitch we can store it as a multiplier?.
+        --       We would only need to store floats. A pitch multiplier will never be negative, but can be small.
+        --
+        -- Note: We cannot send the RPN number to instruments. Otherwise if a ping gets dropped then the rest of the song is incorrect.
+        --       We need to pre-compute the final pitch bend here.
+
         state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value ~= 8192 and pitch_value or nil)
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, pitch_value, "pitch_wheel")
     end,
