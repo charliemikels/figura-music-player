@@ -422,13 +422,20 @@ local function calculate_pitch_multiplier(state, track, channel)
     return new_multiplier
 end
 
+---@enum MidiRegisteredParameterNumberKeys
+local rpn_keys = {
+    set_pitch_bend_range = 0,
+    fine_tuning = 1,
+    coarse_tuning = 2,
+}
+
 --- for use with apply_rpn_data control change functions.
----@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId, start_time: number, data_entry_msb: integer, data_entry_lsb: integer)>
+---@type table<MidiRegisteredParameterNumberKeys, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId, start_time: number, data_entry_msb: integer, data_entry_lsb: integer)>
 local registered_parameter_number_data_entry_functions = {
 
     -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn
     -- We only need to support messages 0, 1, and 2 to reach Midi 1 spec. https://www.recordingblogs.com/wiki/general-midi-1#:~:text=messages%2E-,It,numbers,-%2E
-    [ 0 ] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb) -- set pitch bend range
+    [rpn_keys.set_pitch_bend_range] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb) -- set pitch bend range
         if not (data_entry_msb and data_entry_lsb) then -- ignore this message
             -- we need both: https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=It%20needs%20both%20data%20entry%20%28coarse%20and%20fine%29%20messages
             print_debug("RPN 0 needs both the msb and the lsb. msb: "..tostring(data_entry_msb).." lsb: "..tostring(data_entry_lsb), true, true)
@@ -449,14 +456,14 @@ local registered_parameter_number_data_entry_functions = {
 
     end,
 
-    [ 1 ] = function() -- fine tuning
+    [rpn_keys.fine_tuning] = function()
         -- Slides channels tuning up or down by (at most) 2 semitones
         --      this time, 2 semitones is spec, not just a sane default.
         -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=Fine%20tuning,-%3A%20The
 
     end,
 
-    [ 2 ] = function() -- Coarse tuning
+    [rpn_keys.coarse_tuning] = function()
         -- Just like Fine Tuning, but only requires MSB to be set
         -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=The%20coarse%20tuning%20RPNs%20use%20only%20the%20coarse%20data%20entry%20message%20to%20tune
 
@@ -487,8 +494,6 @@ local function apply_rpn_data(state, track, channel, start_time)
     else
         print_debug("Un recognized RPM: "..selected_rpn, true, true)
     end
-
-    error("-- TODO: apply_rpn_data")
 end
 
 -- for use with midi event 10110000: Control Change / Channel Mode Messages
