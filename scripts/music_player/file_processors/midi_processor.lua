@@ -49,6 +49,10 @@ local function add_new_device(state, new_device_name)
     ---@class MidiDeviceChannelState
     ---@field volume integer?
     ---@field pan integer?
+    ---@field rpn_msb integer?          See MidiControlChangeEventKey 101
+    ---@field rpn_lsb integer?          See MidiControlChangeEventKey 100
+    ---@field data_entry_msb integer?   See MidiControlChangeEventKey 6
+    ---@field data_entry_lsb integer?   See MidiControlChangeEventKey 38
 
     ---@alias MidiDeviceName string
     ---@alias MidiChannelId integer
