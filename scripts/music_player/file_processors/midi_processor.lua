@@ -890,7 +890,7 @@ midi_message_functions = {
         print_debug("channel: `" .. tostring(channel) .. "` selected instrument: `" .. tostring(patch_name_lookup[patch_number]) .."`")
     end,
 
-    ---Channel Presure (Channel Aftertouch)
+    ---Channel Pressure (Channel Aftertouch)
     [0xD0] = function(_, track, _, _)
         -- I don't really care about Aftertouch. None of my test files use it at least.
         local _ = read_next_chunk_byte(track)
