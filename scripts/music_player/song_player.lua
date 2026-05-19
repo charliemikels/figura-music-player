@@ -55,9 +55,9 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 --- - Track `nil` is reserved for packet encoding/decoding. This allows not modifiers to be stored separately from their instructions, and recognized as modifiers. It should not appear as a real track.
 ---@field track_index integer
 ---@field start_time number         An absolute time in ms from the start of the song.
----@field start_velocity number     The initial velocity (volume) of the note.
+---@field start_velocity integer    The initial velocity (volume) of the note. Matches Midi's integer range.
 ---@field duration number           The amount of time this instruction is active for. May be 0.
----@field note number               The note to play, or ID of a meta event
+---@field note integer              The note to play, or ID of a meta event
 ---@field modifiers InstructionModifier[]
 ---@field meta_event_data table<string, integer>? Only for use with track 0 meta instructions.
 
