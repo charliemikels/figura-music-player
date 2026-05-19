@@ -363,12 +363,34 @@ local patch_name_lookup = {
 ---@param data_type string
 local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
     for _, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
-        ---@type InstructionModifier
-        local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
-        table.insert(
-            note_data.modifiers,
-            new_modifier
-        )
+
+        local existing_modifier_was_updated = false
+        -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
+        for test_modifier_index = #note_data.modifiers, 1, -1 do
+
+            -- we need to do this scan to be sure RPNs (which split their value over two messages) only actually store one modifier where possible.
+
+            local test_modifier = note_data.modifiers[test_modifier_index]
+            if test_modifier.type == data_type then
+               if test_modifier.start_time == start_time then   -- This modifier is the exact same type at the exact same time. Let's overwrite it.
+                   -- print("This modifier is has the same type and is at the same time as this new modifier. We are just going to update the old modifier's value instead.")
+                   -- print(test_modifier, "fn params:", state, track, channel, start_time, controller_value, data_type)
+
+                   test_modifier.value = controller_value
+                   existing_modifier_was_updated = true
+               end
+               break -- safe to break here because all other modifiers that match our type should™ be further in the past. We know we've checked the most likely thing to replace.
+            end
+        end
+
+        if not existing_modifier_was_updated then
+            ---@type InstructionModifier
+            local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
+            table.insert(
+                note_data.modifiers,
+                new_modifier
+            )
+        end
     end
 end
 
