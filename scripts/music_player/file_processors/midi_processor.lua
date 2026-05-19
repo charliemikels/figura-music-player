@@ -1079,7 +1079,7 @@ midi_message_functions = {
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
         -- local pitch_multiplier = (2^((channel_state.pitch_wheel_range_in_semitones * clamped_wheel_value)/12))
 
-        channel_state.pitch_wheel = (wheel_value ~= 8192 and (wheel_value) or nil)
+        channel_state.pitch_wheel = wheel_value
         channel_state.pitch_multiplier = calculate_pitch_multiplier(state, track, channel)
         -- update_channel_state_in_currently_playing_notes(state, track, channel, start_time, wheel_value, "pitch_wheel")
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, channel_state.pitch_multiplier, "pitch_mult")
