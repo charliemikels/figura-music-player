@@ -439,10 +439,10 @@ local control_change_and_mode_change_functions = {
 
     [100] = function(state, track, channel, _, controller_value) -- Registered Parameter Number (LSB)
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
-        
+
         if controller_value == 127 then -- value of 127 sets the value to null
             channel_state.rpn_lsb = nil
-            if not channel_state.rpn_msb then 
+            if not channel_state.rpn_msb then
                 -- both the msb and lsb are now unset. Let's zero out the data entry fields too.    -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=below%2E-,Two,effects
                 channel_state.data_entry_msb = nil
                 channel_state.data_entry_lsb = nil
@@ -451,12 +451,12 @@ local control_change_and_mode_change_functions = {
             channel_state.rpn_lsb = controller_value
         end
     end,
-    
+
     [101] = function(state, track, channel, _, controller_value) -- Registered Parameter Number (MSB)
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
         if controller_value == 127 then -- value of 127 sets the value to null
             channel_state.rpn_msb = nil
-            if not channel_state.rpn_lsb then 
+            if not channel_state.rpn_lsb then
                 -- both the msb and lsb are now unset. Let's zero out the data entry fields too.    -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=below%2E-,Two,effects
                 channel_state.data_entry_msb = nil
                 channel_state.data_entry_lsb = nil
