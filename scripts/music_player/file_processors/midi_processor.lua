@@ -415,6 +415,8 @@ local control_change_and_mode_change_functions = {
     --- | 93 chorus
     --- | 94 detuneing
     --- | 95 phazer
+    --- | 100 Registered Parameter Number   (least significant byte)
+    --- | 101 Registered Parameter Number   (most significant byte)
     --- | 121 reset controllers
 
     [2] = function() end,    -- Breath control
