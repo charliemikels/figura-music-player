@@ -362,7 +362,6 @@ local patch_name_lookup = {
 ---@param controller_value integer
 ---@param data_type string
 local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
-    ---@type integer, Instruction
     for _, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
         ---@type InstructionModifier
         local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
