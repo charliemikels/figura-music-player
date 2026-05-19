@@ -49,6 +49,9 @@ local function add_new_device(state, new_device_name)
     ---@class MidiDeviceChannelState
     ---@field volume integer?
     ---@field pan integer?
+    ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
+    ---@field pitch_wheel_range_in_semitones number  see RPN 0. Used to calculate the final power of the pitch wheel
+    ---@field pitch_multiplier number
     ---@field rpn_msb integer?          See MidiControlChangeEventKey 101
     ---@field rpn_lsb integer?          See MidiControlChangeEventKey 100
     ---@field data_entry_msb integer?   See MidiControlChangeEventKey 6
@@ -66,7 +69,13 @@ local function add_new_device(state, new_device_name)
     state.instruction_builder[new_device_name] = {}
     state.processed_metadata.channel_data[new_device_name] = {}
     for channel_id = 0, 15 do
-        state.instruction_builder[new_device_name][channel_id] = { channel_state = {}, notes = {} }
+        state.instruction_builder[new_device_name][channel_id] = {
+            channel_state = {
+                pitch_wheel = 8192,
+                pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a sane default  https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones
+                pitch_multiplier = 1,
+            }, notes = {}
+        }
         ---@class MidiDeviceChannelData
         state.processed_metadata.channel_data[new_device_name][channel_id] = {
             ---@type {id: integer, name: string}[]
@@ -397,6 +406,91 @@ local function update_channel_state_in_currently_playing_notes(state, track, cha
     end
 end
 
+---does not apply the multiplier. Just calculate it
+---@param state MidiProcessorState
+---@param track MidiChunk
+---@param channel MidiChannelId
+---@return number multiplier
+local function calculate_pitch_multiplier(state, track, channel)
+    local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+
+    local wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
+    local clamped_pitch_wheel = (channel_state.pitch_wheel - 8192) / 8192 -- [0, 0x3FFF]
+
+    local new_multiplier = 2^(wheel_range_in_semitones * clamped_pitch_wheel / 12)
+
+    return new_multiplier
+end
+
+--- for use with apply_rpn_data control change functions.
+---@type table<integer, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId, start_time: number, data_entry_msb: integer, data_entry_lsb: integer)>
+local registered_parameter_number_data_entry_functions = {
+
+    -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn
+    -- We only need to support messages 0, 1, and 2 to reach Midi 1 spec. https://www.recordingblogs.com/wiki/general-midi-1#:~:text=messages%2E-,It,numbers,-%2E
+    [ 0 ] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb) -- set pitch bend range
+        if not (data_entry_msb and data_entry_lsb) then -- ignore this message
+            -- we need both: https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=It%20needs%20both%20data%20entry%20%28coarse%20and%20fine%29%20messages
+            print_debug("RPN 0 needs both the msb and the lsb. msb: "..tostring(data_entry_msb).." lsb: "..tostring(data_entry_lsb), true, true)
+            return
+        end
+
+        -- https://midi.org/midi-1-0-control-change-messages#:~:text=Pitch%20Bend%20Sensitivity
+        local semitones_range, cents_range = data_entry_msb, data_entry_lsb
+        local new_wheel_range_in_semitones = semitones_range + (cents_range / 100)
+
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        -- local old_wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
+        channel_state.pitch_wheel_range_in_semitones = new_wheel_range_in_semitones
+
+        local new_multiplier = calculate_pitch_multiplier(state, track, channel)
+
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
+
+    end,
+
+    [ 1 ] = function() -- fine tuning
+        -- Slides channels tuning up or down by (at most) 2 semitones
+        --      this time, 2 semitones is spec, not just a sane default.
+        -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=Fine%20tuning,-%3A%20The
+
+    end,
+
+    [ 2 ] = function() -- Coarse tuning
+        -- Just like Fine Tuning, but only requires MSB to be set
+        -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=The%20coarse%20tuning%20RPNs%20use%20only%20the%20coarse%20data%20entry%20message%20to%20tune
+
+    end,
+
+
+}
+
+--- Called by control code 6 (Data Entry MSB) and 38 (Data Entry LSB)
+---@param state MidiProcessorState
+---@param track MidiChunk
+---@param channel MidiChannelId
+---@param start_time number
+local function apply_rpn_data(state, track, channel, start_time)
+    local rpn_msb = state.instruction_builder[track.current_device][channel].channel_state.rpn_msb
+    local rpn_lsb = state.instruction_builder[track.current_device][channel].channel_state.rpn_lsb
+    if not (rpn_msb and rpn_lsb) then -- One of the numbers is null. We don't have enough data to assign this value to a valid destination.
+        -- https://forum.juce.com/t/juce-mpe-mode-configuration-implementation-issue/59537/3
+        return
+    end
+    local selected_rpn = combine_seven_bit_numbers({rpn_msb, rpn_lsb})
+
+    local data_entry_msb = state.instruction_builder[track.current_device][channel].channel_state.data_entry_msb
+    local data_entry_lsb = state.instruction_builder[track.current_device][channel].channel_state.data_entry_lsb
+
+    if registered_parameter_number_data_entry_functions[selected_rpn] then
+        registered_parameter_number_data_entry_functions[selected_rpn](state, track, channel, start_time, data_entry_msb, data_entry_lsb)
+    else
+        print_debug("Un recognized RPM: "..selected_rpn, true, true)
+    end
+
+    error("-- TODO: apply_rpn_data")
+end
+
 -- for use with midi event 10110000: Control Change / Channel Mode Messages
 --
 -- See: https://nickfever.com/music/midi-cc-list
@@ -407,9 +501,11 @@ local control_change_and_mode_change_functions = {
     -- ignore start time, so long as we save any relevant data in the note on event
 
     ---@alias MidiControlChangeEventKey
-    --- | 2 breath control
-    --- | 7 volume
+    --- | 2  breath control
+    --- | 7  volume
+    --- | 6  Data Entry  (used with RPNs) (most significant byte)
     --- | 10 pan
+    --- | 38 Data Entry  (used with RPNs) (least significant byte)
     --- | 91 reverb
     --- | 92 tremolo
     --- | 93 chorus
@@ -421,6 +517,11 @@ local control_change_and_mode_change_functions = {
 
     [2] = function() end,    -- Breath control
 
+    [6] = function(state, track, channel, start_time, controller_value)
+        state.instruction_builder[track.current_device][channel].channel_state.data_entry_msb = controller_value
+        apply_rpn_data(state, track, channel, start_time)
+    end,
+
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
         state.instruction_builder[track.current_device][channel].channel_state.volume = (controller_value ~= 100 and controller_value or nil) -- 100 is probably the "most default" setting
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "volume")
@@ -429,6 +530,11 @@ local control_change_and_mode_change_functions = {
         -- 0 = hard left, 64 = center, 127 = hard right
         state.instruction_builder[track.current_device][channel].channel_state.pan = (controller_value ~= 64 and controller_value or nil)
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "pan")
+    end,
+
+    [38] = function(state, track, channel, start_time, controller_value)
+        state.instruction_builder[track.current_device][channel].channel_state.data_entry_lsb = controller_value
+        apply_rpn_data(state, track, channel, start_time)
     end,
 
     [91] = function() end,      -- Reverb. Ignoring.
@@ -962,17 +1068,16 @@ midi_message_functions = {
     [0xE0] = function(state, track, channel, start_time)
         local least_significant_byte = read_next_chunk_byte(track)
         local most_significant_byte = read_next_chunk_byte(track)
-        local pitch_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
+        local wheel_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
+        -- local clamped_wheel_value = (wheel_value - 8192) / 8192 -- "clamped" meaning from -1 to 1, instead of 0 to 16383 (0x3FFF)
 
-        -- TODO: we actually need to get this RPN number. It does change how songs like _Through the Fire and the Flames_ work.
-        -- TODO: reconsider how modifiers are stored. Right now we're storing them as the raw midi value, but for pitch we can store it as a multiplier?.
-        --       We would only need to store floats. A pitch multiplier will never be negative, but can be small.
-        --
-        -- Note: We cannot send the RPN number to instruments. Otherwise if a ping gets dropped then the rest of the song is incorrect.
-        --       We need to pre-compute the final pitch bend here.
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        -- local pitch_multiplier = (2^((channel_state.pitch_wheel_range_in_semitones * clamped_wheel_value)/12))
 
-        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value ~= 8192 and (pitch_value * pitch_wheel_multiplier) or nil)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, pitch_value, "pitch_wheel")
+        channel_state.pitch_wheel = (wheel_value ~= 8192 and (wheel_value) or nil)
+        channel_state.pitch_multiplier = calculate_pitch_multiplier(state, track, channel)
+        -- update_channel_state_in_currently_playing_notes(state, track, channel, start_time, wheel_value, "pitch_wheel")
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, channel_state.pitch_multiplier, "pitch_mult")
     end,
 
     -- ↑ Has channel ID
