@@ -145,7 +145,6 @@ end
 
 ---Similar to bytes_to_number, but ensures incoming numbers are 7 bits long.
 ---Use with variable-length quantities
----TODO: if only used with variable length quantities, move into that function.
 ---@param bytes integer[]
 ---@return number
 local function combine_seven_bit_numbers(bytes)
