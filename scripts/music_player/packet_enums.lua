@@ -36,6 +36,11 @@ local modifier_key_to_number = {
     -- pan = 3,
 }
 
+---@type table<ModifierTypeCodes, boolean?>
+local modifier_uses_floats_lookup = {
+    [modifier_key_to_number.pitch_mult] = true
+}
+
 --- Reverse of modifier_type_codes for reverse lookup
 ---@type table<ModifierTypeCodes, string>
 local modifier_number_to_key = {}
@@ -49,6 +54,7 @@ local packet_enums_api = {
     packet_type_ids = packet_type_ids,
     control_packet_codes = control_packet_codes,
     modifier_key_to_number = modifier_key_to_number,
+    modifier_uses_floats_lookup = modifier_uses_floats_lookup,
     modifier_number_to_key = modifier_number_to_key,
 }
 

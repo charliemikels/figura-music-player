@@ -202,10 +202,15 @@ local function add_instructions_to_song_from_packet(song, packet_data)
         else -- Track index is nil, this is a modifier for an instruction we have (probably) already seen.
 
             local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
-            local modifier_type_id = vlq_to_int_from_reader(reader)
-            local modifier_value = vlq_to_int_from_reader(reader)
 
+            local modifier_type_id = vlq_to_int_from_reader(reader)
             local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
+
+            local modifier_value = (
+                packet_enums_api.modifier_uses_floats_lookup[modifier_type]
+                and vlqs_to_number_from_reader(reader)
+                or vlq_to_int_from_reader(reader)
+            )
 
             if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
 
