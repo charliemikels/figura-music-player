@@ -76,9 +76,11 @@ end
 
 ---reads two VLQs and creates a float
 ---@param reader PacketReader
----@return number
+---@return number?
 local function vlqs_to_number_from_reader(reader)
     local mantissa_as_int = vlq_to_int_from_reader(reader)
+    if not mantissa_as_int then return nil end
+
     local zigzag_exponent = vlq_to_int_from_reader(reader)
 
     local mantissa = demote_int_to_decimal_places(mantissa_as_int)
