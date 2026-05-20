@@ -362,7 +362,7 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
     union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
     union_tables(modifier_packet_part, int_to_vlq(packet_enums_api.modifier_key_to_number[modifier.type]))
     local value_bytes = (
-        packet_enums_api.modifier_uses_floats_lookup[modifier.type]
+        packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
         and number_to_bytes(modifier.value)
         or int_to_vlq(modifier.value)
     )
