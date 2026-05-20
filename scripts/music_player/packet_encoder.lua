@@ -27,6 +27,22 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 local pings_per_second = 6      -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer might lag behind. (viewer can't process more than one ping per TICK (20 per second).)
 local bytes_per_second = 400    -- 400 is about as high as you can get without dropping too many packets. If it's a good day, you can get away with something much higher, but 400 is a safe default.
 
+
+local discard_note_modifiers = false      -- Disables all instruction modifiers. Things like volume control and pitch bending. These can take up a lot of space, so disabling them can significantly improve buffer times (at cost of worse quality)
+
+--- Baseline temporal resolution for modifiers.
+---
+--- At high FPS like 144, we can only update a SongPlayer about once every 7 milliseconds.
+--- At 60 FPS, our maximum resolution is about 16ms
+---
+--- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
+--- few modifiers to significantly improve buffer times.
+---@type integer
+local target_modifier_temporal_resolution = 35
+
+
+
+
 local do_debug_prints = false
 
 
@@ -373,16 +389,6 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
 end
 
---- Baseline temporal resolution for modifiers.
----
---- At high FPS like 144, we can only update a SongPlayer about once every 7 milliseconds.
---- At 60 FPS, our maximum resolution is about 16ms
----
---- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
---- few modifiers to significantly improve buffer times.
----@type integer
-local target_modifier_temporal_resolution = 35
-
 --- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it because it was the start of a gap.
 ---@type integer
 local modifier_gap_threshold = math.floor(target_modifier_temporal_resolution * 1.25)
@@ -405,7 +411,7 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
     union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.note))
     union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.start_velocity)) -- This is a normal instruction.
 
-    if not (instruction.modifiers and next(instruction.modifiers)) then -- This instruction has no modifiers.
+    if discard_note_modifiers or not (instruction.modifiers and next(instruction.modifiers)) then -- This instruction has no modifiers.
         union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(nil))
     else    -- this instruction has modifiers.
         -- Assign a unique note modifier tracker ID
