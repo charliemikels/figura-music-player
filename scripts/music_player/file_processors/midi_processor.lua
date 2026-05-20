@@ -435,8 +435,6 @@ local function recalculate_and_apply_pitch_multiplier_to_current_notes(state, tr
 
     local new_multiplier = 2^((total_semitone_offset) / 12)
 
-    print(total_semitone_offset, new_multiplier)
-
     update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
 end
 
