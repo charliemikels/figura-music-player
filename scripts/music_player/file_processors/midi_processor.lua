@@ -495,11 +495,11 @@ local registered_parameter_number_data_entry_functions = {
     end,
 
     [rpn_keys.coarse_tuning] = function(state, track, channel, start_time, data_entry_msb, _)
-        -- By spec, only uses msb
-        -- each step away from 0x20 is a full semitone offset
-        -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=The%20coarse%20tuning%20RPNs%20use%20only%20the%20coarse%20data%20entry%20message%20to%20tune
+        -- Does not use the LSB
+        -- each step away from 0x40 is a full semitone offset
+        -- http://midi.teragonaudio.com/tech/midispec/rpn.htm#:~:text=Setting%20the%20coarse%20adjustment%20adjusts%20the%20tuning%20in%20semitones%2C%20where%200x40%20is%20A440%20tuning%2E%20There%20is%20no%20need%20to%20set%20a%20fine%20adjustment%2E
 
-        local offset_in_semitones = data_entry_msb - 0x20
+        local offset_in_semitones = data_entry_msb - 0x40
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
         channel_state.coarse_tuning_offset_in_semitones = offset_in_semitones
 
