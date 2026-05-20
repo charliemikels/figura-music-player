@@ -51,10 +51,9 @@ local function add_new_device(state, new_device_name)
     ---@field volume integer?
     ---@field pan integer?
     ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
-    ---@field pitch_wheel_range_in_semitones number  see RPN 0. Used to calculate the final power of the pitch wheel
-    ---@field fine_tuning_offset_in_semitones number
-    ---@field coarse_tuning_offset_in_semitones integer
-    ---@field pitch_multiplier number
+    ---@field pitch_wheel_range_in_semitones number     see rpn_keys.set_pitch_bend_range. Used to calculate the final power of the pitch wheel
+    ---@field fine_tuning_offset_in_semitones number    see rpn_keys.fine_tuning. always between [-2, 2)
+    ---@field coarse_tuning_offset_in_semitones integer see rpn_keys.coarse_tuning. always between [-2, 2)
     ---@field rpn_msb integer?          See MidiControlChangeEventKey 101
     ---@field rpn_lsb integer?          See MidiControlChangeEventKey 100
     ---@field data_entry_msb integer?   See MidiControlChangeEventKey 6
@@ -76,10 +75,9 @@ local function add_new_device(state, new_device_name)
             channel_state = {
                 modifiers = {},
                 pitch_wheel = 8192,
-                pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a sane default  https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones
+                pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a [sane default](https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones).
                 fine_tuning_offset_in_semitones = 0,
                 coarse_tuning_offset_in_semitones = 0,
-                pitch_multiplier = 1,
             }, notes = {}
         }
         ---@class MidiDeviceChannelData
@@ -423,20 +421,23 @@ end
 ---@param state MidiProcessorState
 ---@param track MidiChunk
 ---@param channel MidiChannelId
----@return number multiplier
-local function calculate_pitch_multiplier(state, track, channel)
+---@param start_time number
+local function recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
     local channel_state = state.instruction_builder[track.current_device][channel].channel_state
 
     local wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
     local clamped_pitch_wheel = (channel_state.pitch_wheel - 8192) / 8192 -- [0, 0x3FFF]
     local pitch_wheel_offset_in_semitones = wheel_range_in_semitones * clamped_pitch_wheel
+
     local total_semitone_offset = pitch_wheel_offset_in_semitones
         + channel_state.fine_tuning_offset_in_semitones
         + channel_state.coarse_tuning_offset_in_semitones
 
     local new_multiplier = 2^((total_semitone_offset) / 12)
 
-    return new_multiplier
+    print(total_semitone_offset, new_multiplier)
+
+    update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
 end
 
 ---@enum MidiRegisteredParameterNumberKeys
@@ -471,8 +472,7 @@ local registered_parameter_number_data_entry_functions = {
         -- local old_wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
         channel_state.pitch_wheel_range_in_semitones = new_wheel_range_in_semitones
 
-        local new_multiplier = calculate_pitch_multiplier(state, track, channel)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
 
     end,
 
@@ -491,8 +491,7 @@ local registered_parameter_number_data_entry_functions = {
 
         channel_state.fine_tuning_offset_in_semitones = value_in_semitones
 
-        local new_multiplier = calculate_pitch_multiplier(state, track, channel)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
     end,
 
     [rpn_keys.coarse_tuning] = function(state, track, channel, start_time, data_entry_msb, _)
@@ -504,8 +503,7 @@ local registered_parameter_number_data_entry_functions = {
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
         channel_state.coarse_tuning_offset_in_semitones = offset_in_semitones
 
-        local new_multiplier = calculate_pitch_multiplier(state, track, channel)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
     end,
 
 
@@ -1113,13 +1111,9 @@ midi_message_functions = {
         local wheel_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
 
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
-        -- local pitch_multiplier = (2^((channel_state.pitch_wheel_range_in_semitones * clamped_wheel_value)/12))
 
         channel_state.pitch_wheel = wheel_value
-        channel_state.pitch_multiplier = calculate_pitch_multiplier(state, track, channel)
-
-        -- update_channel_state_in_currently_playing_notes(state, track, channel, start_time, wheel_value, "pitch_wheel")
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (channel_state.pitch_multiplier ~= 1 and channel_state.pitch_multiplier or nil), "pitch_mult")
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
     end,
 
     -- ↑ Has channel ID
