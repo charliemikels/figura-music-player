@@ -32,7 +32,7 @@ local control_packet_codes = {
 ---@enum ModifierTypeCodes
 local modifier_key_to_number = {
     volume = 1,
-    pitch_wheel = 2,
+    pitch_mult = 2,
     -- pan = 3,
 }
 
