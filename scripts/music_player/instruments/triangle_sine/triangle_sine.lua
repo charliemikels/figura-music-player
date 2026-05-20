@@ -13,6 +13,7 @@ end
 
 ---Converts a midi note ID to a multiplier usable in minecraft
 ---@param note_id integer
+---@param offset number? in semitones. used to slightly detune the instrument. (prevents "stacking" and some interference.)
 ---@return number
 local function midi_note_to_multiplier(note_id, offset)
     -- Semitones away from a4, where negative is lower and positive is higher.
@@ -23,7 +24,7 @@ end
 
 local modifier_functions = {
     pitch_mult = function(active_instruction, value, _)
-        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, 0) * (value or 1))
+        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, active_instruction.detune_amount) * (value or 1))
     end,
     volume = function(active_instruction, value, _)
         -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
