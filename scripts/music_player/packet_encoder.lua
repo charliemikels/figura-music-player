@@ -361,11 +361,12 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
         -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
     union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
     union_tables(modifier_packet_part, int_to_vlq(packet_enums_api.modifier_key_to_number[modifier.type]))
-    local value_bytes = (
-        packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
-        and number_to_bytes(modifier.value)
-        or int_to_vlq(modifier.value)
-    )
+    -- local value_bytes = (
+    --     packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
+    --     and number_to_bytes(modifier.value)
+    --     or int_to_vlq(modifier.value)
+    -- )
+    local value_bytes = number_to_bytes(modifier.value)
     union_tables(modifier_packet_part, value_bytes)
     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
 end
