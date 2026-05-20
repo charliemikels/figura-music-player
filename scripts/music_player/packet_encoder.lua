@@ -381,7 +381,7 @@ end
 --- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
 --- few modifiers to significantly improve buffer times.
 ---@type integer
-local target_modifier_temporal_resolution = 50
+local target_modifier_temporal_resolution = 35
 
 --- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it because it was the start of a gap.
 ---@type integer
