@@ -445,14 +445,17 @@ local registered_parameter_number_data_entry_functions = {
     -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn
     -- We only need to support messages 0, 1, and 2 to reach Midi 1 spec. https://www.recordingblogs.com/wiki/general-midi-1#:~:text=messages%2E-,It,numbers,-%2E
     [rpn_keys.set_pitch_bend_range] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb) -- set pitch bend range
-        if not (data_entry_msb and data_entry_lsb) then -- ignore this message
-            -- we need both: https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=It%20needs%20both%20data%20entry%20%28coarse%20and%20fine%29%20messages
-            print_debug("RPN 0 needs both the msb and the lsb. msb: "..tostring(data_entry_msb).." lsb: "..tostring(data_entry_lsb), true, true)
-            return
-        end
+
+        -- Ok even though we have sources like this that say we need both values,
+        -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=It%20needs%20both%20data%20entry%20%28coarse%20and%20fine%29%20messages
+        -- Some songs like _Through the Fire and the Flames_ only send us the MSB.
+        --
+        -- We'll just need to rely on update_channel_state_in_currently_playing_notes overwrite-if-the-type-and-time-are-the-same feature.
+
+        print_debug("Setting pitch bend range msb: "..tostring(data_entry_msb).." lsb: "..tostring(data_entry_lsb))
 
         -- https://midi.org/midi-1-0-control-change-messages#:~:text=Pitch%20Bend%20Sensitivity
-        local semitones_range, cents_range = data_entry_msb, data_entry_lsb
+        local semitones_range, cents_range = (data_entry_msb or 0), (data_entry_lsb or 0)
         local new_wheel_range_in_semitones = semitones_range + (cents_range / 100)
 
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
@@ -460,7 +463,6 @@ local registered_parameter_number_data_entry_functions = {
         channel_state.pitch_wheel_range_in_semitones = new_wheel_range_in_semitones
 
         local new_multiplier = calculate_pitch_multiplier(state, track, channel)
-
         update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
 
     end,
