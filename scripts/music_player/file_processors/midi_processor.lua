@@ -503,7 +503,7 @@ local function apply_rpn_data(state, track, channel, start_time)
     if registered_parameter_number_data_entry_functions[selected_rpn] then
         registered_parameter_number_data_entry_functions[selected_rpn](state, track, channel, start_time, data_entry_msb, data_entry_lsb)
     else
-        print_debug("Un recognized RPM: "..selected_rpn, true, true)
+        print_debug("Un recognized RPN: "..selected_rpn, true, true)
     end
 end
 
