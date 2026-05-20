@@ -208,10 +208,10 @@ local function add_instructions_to_song_from_packet(song, packet_data)
             local modifier_type_id = uint_from_reader(reader)
             local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
 
-            -- local modifier_value = (
-            --     packet_enums_api.modifier_uses_floats_lookup[modifier_type_id]
-            --     and vlqs_to_number_from_reader(reader)
-            --     or vlq_to_int_from_reader(reader)
+            -- local modifier_value = (     -- TODO: Fix this logic, will save us space if we can correctly choose between ints and floats
+            --     packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier_type]]
+            --     and number_from_reader(reader)
+            --     or uint_from_reader(reader)
             -- )
             local modifier_value = number_from_reader(reader)
 
