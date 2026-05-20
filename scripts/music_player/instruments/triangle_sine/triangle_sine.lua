@@ -38,7 +38,6 @@ local function update_modifiers(active_instruction, instrument_config)
     for index = active_instruction.modifier_index, #modifiers do
         local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
         if active_instruction.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
-        printTable(modifiers[index])
         if modifier_functions[modifiers[index].type] then
             modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value, instrument_config)
         end
