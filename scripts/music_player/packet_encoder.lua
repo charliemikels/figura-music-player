@@ -69,6 +69,15 @@ local function union_tables(table_1, table_2)
     return table_1
 end
 
+---Lets us save negative numbers as positive numbers.
+---@param signed_integer integer
+---@return integer zigzag_unsigned_integer
+local function zigzag_encode(signed_integer)
+    -- double number, take absolute value, then subtract 1 if original number was negative.
+    -- negative numbers become odd numbers, and positive numbers become even.
+    if signed_integer < 0 then return (-signed_integer * 2) - 1 else return signed_integer * 2 end
+end
+
 ---Convert an integer (or nil) into a variable-length-quantity byte list
 ---@param integer integer?
 ---@return Byte[]
@@ -88,6 +97,52 @@ local function int_to_vlq(integer)
     end
     return bytes
 end
+
+
+---Shifts the decimal point in a number so that `0.123` becomes `123`
+---@param number number must be between [0, 1)
+---@return integer
+local function promote_decimal_places_to_int(number)
+    if (number >= 1) or (number < 0) then error("promote_decimal_places_to_int must take a number between [0, 1), but we got `"..tostring(number).."`") end
+
+    local max_vlq_len = 3
+    -- by default, lua prints numbers with up to 5 decimal points (though it actually stores at a higher resolution). max_vlq_len = 2 is enough to get all 5, max_vlq_len = 3 gets us up to 7
+
+    -- generates the maximum value that can be stored in a VLQ and stay under max_vlq_len
+    -- Each byte in the VLQ holds 7 bits of info.
+    local max_vlq_value = tonumber(string.rep(string.rep("1", 7), max_vlq_len), 2)
+
+    local shifted_number = number
+    local previous_shift = number
+
+    local tolerance = 1e-5 -- end early if the shifted_number is within range of floor(shifted_number), meaning they're basically the same number, don't add padding 0s
+
+    while
+        math.floor(shifted_number) < max_vlq_value
+        and math.abs(previous_shift - math.floor(previous_shift)) > tolerance
+    do
+        previous_shift = shifted_number
+        shifted_number = shifted_number * 10
+        -- using base ten ensures the viewer is able to slap a `0.` to the front using string functions and quickly get a result.
+        -- if instead we used `* 2` (effectively a left shift), it would better maximize precision, but undoing it, I think requires a loop of some sort on the viewer
+    end
+    -- shifted_number is now out of range, but previous number should be fine.
+
+    return math.floor(previous_shift)
+end
+
+---converts a float into two VLQ ints
+---@param float number
+---@return Byte[]
+local function unsigned_float_to_bytes(float)
+    local mantissa, exponent = math.frexp(float)    -- mantissa will always be between [0.5, 1). exponent is a signed int
+
+    local mantissa_as_an_int = promote_decimal_places_to_int(mantissa)
+    local zigzag_exponent = zigzag_encode(exponent)
+
+    return union_tables(int_to_vlq(mantissa_as_an_int), int_to_vlq(zigzag_exponent))
+end
+
 
 ---Converts a string into a table of bytes, where the length is placed just before the string.
 ---@param str string?

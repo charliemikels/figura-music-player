@@ -30,6 +30,18 @@ end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
+---Zigzag encoding lets us store signed integers as unsigned integers.
+---@param zigzag_unsigned_integer integer
+---@return integer signed_integer
+local function zigzag_decode(zigzag_unsigned_integer)
+    -- if number is even, then it was originaly a positive number
+    if (zigzag_unsigned_integer % 2) == 0 then
+        return math.floor(zigzag_unsigned_integer / 2)
+    else
+        return math.floor((zigzag_unsigned_integer + 1) / 2) * -1
+    end
+end
+
 ---Convert a variable-length-quantity into an integer (or a nil) and advances PacketReader's index.
 ---@param packet_reader PacketReader
 ---@return integer?
@@ -50,6 +62,29 @@ local function vlq_to_int_from_reader(packet_reader)
     until byte < 128
     return result
 end
+
+---Turns an integer into the decimal part of a number. `123` becomes `0.123`
+---@param integer integer
+---@return number will be between [0, 1)
+local function demote_int_to_decimal_places(integer)
+    if math.floor(integer) ~= integer then error("demote_int_to_decimal_places requires an integer, but we got a float: `"..tostring(integer).."`") end
+    if integer < 0 then error("demote_int_to_decimal_places requires a positive integer, but we got a negative value: `"..tostring(integer).."`") end
+    return tonumber("0."..tostring(integer))
+end
+
+---reads two VLQs and creates a float
+---@param reader PacketReader
+---@return number
+local function two_vlqs_to_unsigned_float_from_reader(reader)
+    local mantissa_as_int = vlq_to_int_from_reader(reader)
+    local zigzag_exponent = vlq_to_int_from_reader(reader)
+
+    local mantissa = demote_int_to_decimal_places(mantissa_as_int)
+    local exponent = zigzag_decode(zigzag_exponent)
+
+    return math.ldexp(mantissa, exponent)
+end
+
 
 ---Reads a string (including the length at the beginning) out of a PacketReader's bytes
 ---@param reader PacketReader
