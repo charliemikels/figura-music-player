@@ -76,7 +76,7 @@ local function int_to_vlq(integer)
     if integer == nil then
         -- 0x80 (10000000) is not a valid first byte in the sequence.
         -- The first byte will either be `0x00`, or have a `1` somewhere in the data to start the number.
-        -- 0x08 is legal in the middle of the sequence, but never as the initial.
+        -- 0x80 is legal in the middle of the sequence, but never as the initial.
         -- We can use this exception to represent nils in our packets.
         return { 0x80 }
     end
