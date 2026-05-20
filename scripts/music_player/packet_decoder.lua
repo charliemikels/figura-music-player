@@ -63,6 +63,8 @@ local function vlq_to_int_from_reader(packet_reader)
     return result
 end
 
+---For use with vlqs_to_number_from_reader
+---
 ---Turns an integer into the decimal part of a number. `123` becomes `0.123`
 ---@param integer integer
 ---@return number will be between [0, 1)
@@ -75,7 +77,7 @@ end
 ---reads two VLQs and creates a float
 ---@param reader PacketReader
 ---@return number
-local function two_vlqs_to_unsigned_float_from_reader(reader)
+local function vlqs_to_number_from_reader(reader)
     local mantissa_as_int = vlq_to_int_from_reader(reader)
     local zigzag_exponent = vlq_to_int_from_reader(reader)
 

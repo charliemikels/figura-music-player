@@ -131,10 +131,12 @@ local function promote_decimal_places_to_int(number)
     return math.floor(previous_shift)
 end
 
----converts a float into two VLQ ints
+---converts a number into two VLQ ints
+--- 
+---Unlike the int functions, number may be positive or negative and can be a float. But may be a lossy conversion. 
 ---@param float number
 ---@return Byte[]
-local function unsigned_float_to_bytes(float)
+local function number_to_bytes(float)
     local mantissa, exponent = math.frexp(float)    -- mantissa will always be between [0.5, 1). exponent is a signed int
 
     local mantissa_as_an_int = promote_decimal_places_to_int(mantissa)
