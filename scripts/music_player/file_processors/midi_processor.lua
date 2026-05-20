@@ -157,7 +157,7 @@ end
 ---Similar to bytes_to_number, but ensures incoming numbers are 7 bits long.
 ---Use with variable-length quantities
 ---@param bytes integer[]
----@return number
+---@return integer
 local function combine_seven_bit_numbers(bytes)
     local everything_but_first_bit = tonumber("01111111", 2)
     local result = 0
