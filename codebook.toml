@@ -24,6 +24,7 @@ words = [
     "infs",
     "ints",
     "lookaheads",
+    "lossy",
     "lsb",
     "lshift",
     "lsp's",
