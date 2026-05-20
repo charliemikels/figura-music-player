@@ -52,6 +52,8 @@ local function add_new_device(state, new_device_name)
     ---@field pan integer?
     ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
     ---@field pitch_wheel_range_in_semitones number  see RPN 0. Used to calculate the final power of the pitch wheel
+    ---@field fine_tuning_offset_in_semitones number
+    ---@field coarse_tuning_offset_in_semitones integer
     ---@field pitch_multiplier number
     ---@field rpn_msb integer?          See MidiControlChangeEventKey 101
     ---@field rpn_lsb integer?          See MidiControlChangeEventKey 100
@@ -75,6 +77,8 @@ local function add_new_device(state, new_device_name)
                 modifiers = {},
                 pitch_wheel = 8192,
                 pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a sane default  https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones
+                fine_tuning_offset_in_semitones = 0,
+                coarse_tuning_offset_in_semitones = 0,
                 pitch_multiplier = 1,
             }, notes = {}
         }
@@ -425,8 +429,12 @@ local function calculate_pitch_multiplier(state, track, channel)
 
     local wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
     local clamped_pitch_wheel = (channel_state.pitch_wheel - 8192) / 8192 -- [0, 0x3FFF]
+    local pitch_wheel_offset_in_semitones = wheel_range_in_semitones * clamped_pitch_wheel
+    local total_semitone_offset = pitch_wheel_offset_in_semitones
+        + channel_state.fine_tuning_offset_in_semitones
+        + channel_state.coarse_tuning_offset_in_semitones
 
-    local new_multiplier = 2^(wheel_range_in_semitones * clamped_pitch_wheel / 12)
+    local new_multiplier = 2^((total_semitone_offset) / 12)
 
     return new_multiplier
 end
@@ -444,6 +452,7 @@ local registered_parameter_number_data_entry_functions = {
 
     -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn
     -- We only need to support messages 0, 1, and 2 to reach Midi 1 spec. https://www.recordingblogs.com/wiki/general-midi-1#:~:text=messages%2E-,It,numbers,-%2E
+
     [rpn_keys.set_pitch_bend_range] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb) -- set pitch bend range
 
         -- Ok even though we have sources like this that say we need both values,
@@ -467,17 +476,36 @@ local registered_parameter_number_data_entry_functions = {
 
     end,
 
-    [rpn_keys.fine_tuning] = function()
+    [rpn_keys.fine_tuning] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb)
         -- Slides channels tuning up or down by (at most) 2 semitones
         --      this time, 2 semitones is spec, not just a sane default.
         -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=Fine%20tuning,-%3A%20The
 
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+
+
+        local combined_value = combine_seven_bit_numbers({(data_entry_msb or 0), (data_entry_lsb or 0)})
+
+        local clamped_value = (combined_value - 8192) / 8192 -- [0, 0x3FFF] → [-1, 1)
+        local value_in_semitones = clamped_value * 2    -- 2 semitones is standard for fine tuning.     https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=Fine%20tuning,-%3A%20The
+
+        channel_state.fine_tuning_offset_in_semitones = value_in_semitones
+
+        local new_multiplier = calculate_pitch_multiplier(state, track, channel)
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
     end,
 
-    [rpn_keys.coarse_tuning] = function()
-        -- Just like Fine Tuning, but only requires MSB to be set
+    [rpn_keys.coarse_tuning] = function(state, track, channel, start_time, data_entry_msb, _)
+        -- By spec, only uses msb
+        -- each step away from 0x20 is a full semitone offset
         -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=The%20coarse%20tuning%20RPNs%20use%20only%20the%20coarse%20data%20entry%20message%20to%20tune
 
+        local offset_in_semitones = data_entry_msb - 0x20
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        channel_state.coarse_tuning_offset_in_semitones = offset_in_semitones
+
+        local new_multiplier = calculate_pitch_multiplier(state, track, channel)
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
     end,
 
 
