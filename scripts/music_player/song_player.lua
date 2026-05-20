@@ -64,7 +64,7 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@class InstructionModifier
 ---@field start_time number     an absolute time in ms from the start of the song. (not start of instruction)
 ---@field type string           a string like "pitch", "volume", "pan", that tells us what this modifier controls.
----@field value number          the strength of this modifier
+---@field value number?         the strength of this modifier may be nil to return to default.
 
 
 ---A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.

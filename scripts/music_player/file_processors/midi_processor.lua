@@ -47,6 +47,7 @@ local default_midi_device_name = ""
 local function add_new_device(state, new_device_name)
 
     ---@class MidiDeviceChannelState
+    ---@field modifiers table<string, number>
     ---@field volume integer?
     ---@field pan integer?
     ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
@@ -71,6 +72,7 @@ local function add_new_device(state, new_device_name)
     for channel_id = 0, 15 do
         state.instruction_builder[new_device_name][channel_id] = {
             channel_state = {
+                modifiers = {},
                 pitch_wheel = 8192,
                 pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a sane default  https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones
                 pitch_multiplier = 1,
@@ -366,21 +368,24 @@ local patch_name_lookup = {
     [128-1] = "Gunshot",
 }
 
----comment
+---Adds a new InstructionModifier with type data_type and value controller_value to all current notes in the chanel/device combo.
 ---@param state MidiProcessorState
 ---@param track MidiChunk
 ---@param channel MidiChannelId
 ---@param start_time number
----@param controller_value integer
+---@param controller_value number?
 ---@param data_type string
 local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
-    for _, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
+    local channel_data = state.instruction_builder[track.current_device][channel]
+    channel_data.channel_state.modifiers[data_type] = controller_value
+
+    for _, note_data in pairs(channel_data.notes) do
 
         local existing_modifier_was_updated = false
         -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
-        for test_modifier_index = #note_data.modifiers, 1, -1 do
 
-            -- we need to do this scan to be sure RPNs (which split their value over two messages) only actually store one modifier where possible.
+
+        for test_modifier_index = #note_data.modifiers, 1, -1 do
 
             local test_modifier = note_data.modifiers[test_modifier_index]
             if test_modifier.type == data_type then
@@ -397,7 +402,11 @@ local function update_channel_state_in_currently_playing_notes(state, track, cha
 
         if not existing_modifier_was_updated then
             ---@type InstructionModifier
-            local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
+            local new_modifier = {
+                start_time = start_time,
+                type = data_type,
+                value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
+            }
             table.insert(
                 note_data.modifiers,
                 new_modifier
@@ -528,13 +537,11 @@ local control_change_and_mode_change_functions = {
     end,
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
-        state.instruction_builder[track.current_device][channel].channel_state.volume = (controller_value ~= 100 and controller_value or nil) -- 100 is probably the "most default" setting
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "volume")
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (controller_value ~= 100 and controller_value or nil), "volume")
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
-        state.instruction_builder[track.current_device][channel].channel_state.pan = (controller_value ~= 64 and controller_value or nil)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "pan")
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (controller_value ~= 64 and controller_value or nil), "pan")
     end,
 
     [38] = function(state, track, channel, start_time, controller_value)
@@ -926,7 +933,7 @@ midi_message_functions = {
 
         local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
         if not note_to_stop then
-            print_debug("Note off tried to stop a note that was not been started before. Ignoring.")
+            print_debug("Note off tried to stop a note that was not been started before. Ignoring.", true)
             return
         end
         note_to_stop.duration = start_time - note_to_stop.start_time
@@ -980,8 +987,8 @@ midi_message_functions = {
             modifiers = {}
         }
 
-        -- import current channel state. not all values may be set
-        for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state) do
+        -- import current channel modifiers. not all values may be set
+        for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state.modifiers) do
             ---@type InstructionModifier
             local new_modifier = { start_time = start_time, type = key, value = value }
             table.insert(new_note_data.modifiers, new_modifier)
@@ -1074,15 +1081,15 @@ midi_message_functions = {
         local least_significant_byte = read_next_chunk_byte(track)
         local most_significant_byte = read_next_chunk_byte(track)
         local wheel_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
-        -- local clamped_wheel_value = (wheel_value - 8192) / 8192 -- "clamped" meaning from -1 to 1, instead of 0 to 16383 (0x3FFF)
 
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
         -- local pitch_multiplier = (2^((channel_state.pitch_wheel_range_in_semitones * clamped_wheel_value)/12))
 
         channel_state.pitch_wheel = wheel_value
         channel_state.pitch_multiplier = calculate_pitch_multiplier(state, track, channel)
+
         -- update_channel_state_in_currently_playing_notes(state, track, channel, start_time, wheel_value, "pitch_wheel")
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, channel_state.pitch_multiplier, "pitch_mult")
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (channel_state.pitch_multiplier ~= 1 and channel_state.pitch_multiplier or nil), "pitch_mult")
     end,
 
     -- ↑ Has channel ID

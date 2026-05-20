@@ -24,13 +24,13 @@ end
 local modifier_functions = {
     pitch_wheel = function(active_instruction, value, instrument_config)
         -- max value = 0x3FFF. where 0x2000 is neutral.  0 to 0x3FFF → ±0x2000 → ±1 → ±2
-        local semitone_offset = (value - 8192) / 8192 * instrument_config.pitch_bend_sensitivity
+        local semitone_offset = value and ((value - 8192) / 8192 * instrument_config.pitch_bend_sensitivity) or 0
         -- print(client:getSystemTime(), value, semitone_offset)
         active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, semitone_offset))
     end,
     volume = function(active_instruction, value, _)
         -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
-        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value / 100))
+        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value and (value / 100) or 1))
     end,
 }
 
@@ -41,6 +41,7 @@ local function update_modifiers(active_instruction, instrument_config)
     for index = active_instruction.modifier_index, #modifiers do
         local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
         if active_instruction.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
+        printTable(modifiers[index])
         if modifier_functions[modifiers[index].type] then
             modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value, instrument_config)
         end
