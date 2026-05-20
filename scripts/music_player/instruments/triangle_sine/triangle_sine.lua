@@ -22,11 +22,8 @@ end
 
 
 local modifier_functions = {
-    pitch_wheel = function(active_instruction, value, instrument_config)
-        -- max value = 0x3FFF. where 0x2000 is neutral.  0 to 0x3FFF → ±0x2000 → ±1 → ±2
-        local semitone_offset = value and ((value - 8192) / 8192 * instrument_config.pitch_bend_sensitivity) or 0
-        -- print(client:getSystemTime(), value, semitone_offset)
-        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, semitone_offset))
+    pitch_mult = function(active_instruction, value, _)
+        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, 0) * (value or 1))
     end,
     volume = function(active_instruction, value, _)
         -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
