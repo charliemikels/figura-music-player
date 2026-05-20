@@ -190,10 +190,20 @@ local print_instrument_factory = {
         local new_instance = {
             play_instruction = function(instruction, position, _)
                 -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+
+                -- check_for_starting_volume
+                local starting_volume = 100
+                for _, modifier in ipairs(instruction.modifiers) do
+                    if modifier.start_time > instruction.start_time then break end  -- we've gone past the very beginning of this note.
+                    if modifier.type == "volume" then
+                        starting_volume = modifier.value or 100
+                    end
+                end
+
                 local new_sound = drumkit_sound_lookup(instruction.note)
                     :setPos(position)
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
-                new_sound:setVolume( new_sound:getVolume() * (instruction.start_velocity/127))
+                new_sound:setVolume( new_sound:getVolume() * (instruction.start_velocity/127) * (starting_volume / 100))
 
                 new_sound:play()
             end,
