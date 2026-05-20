@@ -81,7 +81,7 @@ end
 ---Convert an integer (or nil) into a variable-length-quantity byte list
 ---@param integer integer?
 ---@return Byte[]
-local function int_to_vlq(integer)
+local function uint_to_bytes(integer)
     if integer == nil then
         -- 0x80 (10000000) is not a valid first byte in the sequence.
         -- The first byte will either be `0x00`, or have a `1` somewhere in the data to start the number.
@@ -137,24 +137,24 @@ end
 ---@param float number?
 ---@return Byte[]
 local function number_to_bytes(float)
-    if not float then return int_to_vlq(nil) end
+    if not float then return uint_to_bytes(nil) end
 
     local mantissa, exponent = math.frexp(float)    -- mantissa will always be between [0.5, 1). exponent is a signed int
 
     local mantissa_as_an_int = promote_decimal_places_to_int(mantissa)
     local zigzag_exponent = zigzag_encode(exponent)
 
-    return union_tables(int_to_vlq(mantissa_as_an_int), int_to_vlq(zigzag_exponent))
+    return union_tables(uint_to_bytes(mantissa_as_an_int), uint_to_bytes(zigzag_exponent))
 end
 
 
 ---Converts a string into a table of bytes, where the length is placed just before the string.
 ---@param str string?
 ---@return Byte[]
-local function string_to_bytes_with_len(str)
-    if str == nil then return int_to_vlq(nil) end
+local function string_to_bytes(str)
+    if str == nil then return uint_to_bytes(nil) end
     local tabulated_string = table.pack( string.byte(str, 1, -1) )
-    local tabulated_length = int_to_vlq(tabulated_string.n)
+    local tabulated_length = uint_to_bytes(tabulated_string.n)
     tabulated_string.n = nil
     return union_tables(tabulated_length, tabulated_string)
 end
@@ -162,7 +162,7 @@ end
 --- Effectively converts {true, false, true} → `101` → 5
 ---@param bools boolean[]
 ---@return integer
-local function bool_list_to_number(bools)
+local function bool_list_to_int(bools)
     local bits = {}
     for index, bool in ipairs(bools) do bits[index] = (bool and 1 or 0) end
     return tonumber(table.concat(bits), 2)
@@ -171,7 +171,7 @@ end
 --- Effectively converts {1, 0, 1} → `101` → 5
 ---@param bits (1|0)[]
 ---@return integer
-local function bit_list_to_number(bits)
+local function bit_list_to_int(bits)
     return tonumber(table.concat(bits), 2)
 end
 
@@ -224,11 +224,11 @@ local function build_config_packet(player_config)
 
             truth_table = { source_is_entity, false, false, flip_uuid_int_1, flip_uuid_int_2, flip_uuid_int_3, flip_uuid_int_4 }
 
-            union_tables(source_table, int_to_vlq(bool_list_to_number(truth_table)))
-            union_tables(source_table, int_to_vlq(math.floor(math.abs(uuid_int_1))))
-            union_tables(source_table, int_to_vlq(math.floor(math.abs(uuid_int_2))))
-            union_tables(source_table, int_to_vlq(math.floor(math.abs(uuid_int_3))))
-            union_tables(source_table, int_to_vlq(math.floor(math.abs(uuid_int_4))))
+            union_tables(source_table, uint_to_bytes(bool_list_to_int(truth_table)))
+            union_tables(source_table, uint_to_bytes(math.floor(math.abs(uuid_int_1))))
+            union_tables(source_table, uint_to_bytes(math.floor(math.abs(uuid_int_2))))
+            union_tables(source_table, uint_to_bytes(math.floor(math.abs(uuid_int_3))))
+            union_tables(source_table, uint_to_bytes(math.floor(math.abs(uuid_int_4))))
 
         elseif player_config.source_pos then
             source_is_entity = false
@@ -263,25 +263,25 @@ local function build_config_packet(player_config)
 
 
             truth_table = { source_is_entity, flip_x, flip_y, flip_z, add_half_x, add_half_y, add_half_z}
-            union_tables(source_table, int_to_vlq(bool_list_to_number(truth_table)))
-            union_tables(source_table, int_to_vlq(abs_floor_x))
-            union_tables(source_table, int_to_vlq(abs_floor_y))
-            union_tables(source_table, int_to_vlq(abs_floor_z))
+            union_tables(source_table, uint_to_bytes(bool_list_to_int(truth_table)))
+            union_tables(source_table, uint_to_bytes(abs_floor_x))
+            union_tables(source_table, uint_to_bytes(abs_floor_y))
+            union_tables(source_table, uint_to_bytes(abs_floor_z))
         else
             -- no source data given at data at all send nil.
-            union_tables(source_table, int_to_vlq( nil ))
+            union_tables(source_table, uint_to_bytes( nil ))
         end
 
         union_tables(config_packet_body, source_table)
     end
 
     -- Default instruments
-    union_tables(config_packet_body, string_to_bytes_with_len(
+    union_tables(config_packet_body, string_to_bytes(
         player_config.default_normal_instrument
         and player_config.default_normal_instrument.name
         or nil
     ))
-    union_tables(config_packet_body, string_to_bytes_with_len(
+    union_tables(config_packet_body, string_to_bytes(
         player_config.default_percussion_instrument
         and player_config.default_percussion_instrument.name
         or nil
@@ -292,23 +292,23 @@ local function build_config_packet(player_config)
     local configured_track_count = 0
     for track_id, selected_instrument in pairs(player_config.instrument_selections or {}) do
         configured_track_count = configured_track_count + 1
-        union_tables(instrument_selections, int_to_vlq(track_id))
-        union_tables(instrument_selections, string_to_bytes_with_len(selected_instrument.name))
+        union_tables(instrument_selections, uint_to_bytes(track_id))
+        union_tables(instrument_selections, string_to_bytes(selected_instrument.name))
         -- TODO: serialize instrument params
     end
-    union_tables(config_packet_body, int_to_vlq(configured_track_count))
+    union_tables(config_packet_body, uint_to_bytes(configured_track_count))
     union_tables(config_packet_body, instrument_selections)
 
     -- events
-    union_tables(config_packet_body, string_to_bytes_with_len(player_config.primary_update_event_key))
-    union_tables(config_packet_body, string_to_bytes_with_len(player_config.fallback_update_event_key))
+    union_tables(config_packet_body, string_to_bytes(player_config.primary_update_event_key))
+    union_tables(config_packet_body, string_to_bytes(player_config.fallback_update_event_key))
 
     -- boolean-based-configs
 
     local boolean_configs = {
         (player_config.hide_in_world_info and true or false),
     }
-    union_tables(config_packet_body, int_to_vlq(bool_list_to_number(boolean_configs)))
+    union_tables(config_packet_body, uint_to_bytes(bool_list_to_int(boolean_configs)))
 
     return packet_data_bytes_to_string(config_packet_body)
 end
@@ -327,9 +327,9 @@ end
 ---@return PacketDataString
 local function build_header_packets(song, buffer_delay)
     local packet = {}
-    union_tables(packet, string_to_bytes_with_len(song.name))
+    union_tables(packet, string_to_bytes(song.name))
 
-    union_tables(packet, int_to_vlq(
+    union_tables(packet, uint_to_bytes(
         math.ceil(song.duration) -- Even if the render event is running at 144FPS, the player only update every 5ms. Drop sub-millisecond precision.
     ))
 
@@ -337,10 +337,10 @@ local function build_header_packets(song, buffer_delay)
     for _, track in ipairs(song.tracks) do
         table.insert(track_type_bits, track.instrument_type_id)
     end
-    union_tables(packet, int_to_vlq(#track_type_bits))
-    union_tables(packet, int_to_vlq(bit_list_to_number(track_type_bits)))
+    union_tables(packet, uint_to_bytes(#track_type_bits))
+    union_tables(packet, uint_to_bytes(bit_list_to_int(track_type_bits)))
 
-    union_tables(packet, int_to_vlq(buffer_delay))
+    union_tables(packet, uint_to_bytes(buffer_delay))
 
     return packet_data_bytes_to_string(packet)
 end
@@ -355,12 +355,12 @@ end
 local function modifier_to_packet_part(modifier, instruction_start_time, instruction_modifier_list_id)
     ---@type PartialPacketDataBytes
     local modifier_packet_part = {}
-    union_tables(modifier_packet_part, int_to_vlq(math.floor(modifier.start_time - instruction_start_time)))    -- Modifier start time is relative to start of song. Compress to be relative to instruction
-    union_tables(modifier_packet_part, int_to_vlq(nil))
+    union_tables(modifier_packet_part, uint_to_bytes(math.floor(modifier.start_time - instruction_start_time)))    -- Modifier start time is relative to start of song. Compress to be relative to instruction
+    union_tables(modifier_packet_part, uint_to_bytes(nil))
         -- nil signals that this is a modifier for an instruction we've (probably) already sent
         -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
-    union_tables(modifier_packet_part, int_to_vlq(instruction_modifier_list_id))
-    union_tables(modifier_packet_part, int_to_vlq(packet_enums_api.modifier_key_to_number[modifier.type]))
+    union_tables(modifier_packet_part, uint_to_bytes(instruction_modifier_list_id))
+    union_tables(modifier_packet_part, uint_to_bytes(packet_enums_api.modifier_key_to_number[modifier.type]))
     -- local value_bytes = (
     --     packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
     --     and number_to_bytes(modifier.value)
@@ -397,20 +397,20 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
 
     local instruction_packet_part_and_start = {start_time = instruction.start_time, packet_part = {}}
 
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.start_time - packet_start_time)))
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.track_index))
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(math.floor(instruction.duration)))
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.note))
-    union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction.start_velocity)) -- This is a normal instruction.
+    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(math.floor(instruction.start_time - packet_start_time)))
+    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.track_index))
+    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(math.floor(instruction.duration)))
+    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.note))
+    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.start_velocity)) -- This is a normal instruction.
 
     if not (instruction.modifiers and next(instruction.modifiers)) then -- This instruction has no modifiers.
-        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(nil))
+        union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(nil))
     else    -- this instruction has modifiers.
         -- Assign a unique note modifier tracker ID
 
         local instruction_modifier_list_id = modifiers_tracker.id_counter
         modifiers_tracker.id_counter = modifiers_tracker.id_counter + 1
-        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(instruction_modifier_list_id))
+        union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction_modifier_list_id))
 
 
         -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
@@ -507,11 +507,11 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time, 
         for _, _ in pairs(instruction.meta_event_data) do
             count = count + 1
         end
-        union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(count))
+        union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(count))
 
         for key, val in pairs(instruction.meta_event_data) do
-            union_tables(instruction_packet_part_and_start.packet_part, string_to_bytes_with_len(key))
-            union_tables(instruction_packet_part_and_start.packet_part, int_to_vlq(val))
+            union_tables(instruction_packet_part_and_start.packet_part, string_to_bytes(key))
+            union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(val))
         end
     end
 
@@ -540,7 +540,7 @@ local function build_data_packets_and_buffer_time(song)
     ---@type {start_time: number, packet_part: PartialPacketDataBytes}[]
     local unhandled_modifiers_start_part_pairs = {}
     local packet_start_time = song.instructions[1].start_time
-    union_tables(current_packet_builder, int_to_vlq(math.floor(packet_start_time)))
+    union_tables(current_packet_builder, uint_to_bytes(math.floor(packet_start_time)))
 
     --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
     ---
@@ -556,7 +556,7 @@ local function build_data_packets_and_buffer_time(song)
 
             packet_start_time = new_start_time
             current_packet_builder = {}
-            union_tables(current_packet_builder, int_to_vlq(math.floor(new_start_time)))
+            union_tables(current_packet_builder, uint_to_bytes(math.floor(new_start_time)))
 
             if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > proposed_packet_start_part_pair.start_time then
                 -- Too much time has passed for us to play this instruction on time.
@@ -656,7 +656,7 @@ end
 ---@param control_code ControlPacketCode
 ---@return PacketDataString
 local function make_control_packet(control_code)
-    return packet_data_bytes_to_string( int_to_vlq(control_code) )
+    return packet_data_bytes_to_string( uint_to_bytes(control_code) )
 end
 
 

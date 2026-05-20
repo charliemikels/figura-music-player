@@ -45,7 +45,7 @@ end
 ---Convert a variable-length-quantity into an integer (or a nil) and advances PacketReader's index.
 ---@param packet_reader PacketReader
 ---@return integer?
-local function vlq_to_int_from_reader(packet_reader)
+local function uint_from_reader(packet_reader)
     local bytes = packet_reader.bytes
     if bytes[packet_reader.index] == 0x80 then
         -- see comment block inside int_to_vlq
@@ -77,11 +77,11 @@ end
 ---reads two VLQs and creates a float
 ---@param reader PacketReader
 ---@return number?
-local function vlqs_to_number_from_reader(reader)
-    local mantissa_as_int = vlq_to_int_from_reader(reader)
+local function number_from_reader(reader)
+    local mantissa_as_int = uint_from_reader(reader)
     if not mantissa_as_int then return nil end
 
-    local zigzag_exponent = vlq_to_int_from_reader(reader)
+    local zigzag_exponent = uint_from_reader(reader)
 
     local mantissa = demote_int_to_decimal_places(mantissa_as_int)
     local exponent = zigzag_decode(zigzag_exponent)
@@ -93,8 +93,8 @@ end
 ---Reads a string (including the length at the beginning) out of a PacketReader's bytes
 ---@param reader PacketReader
 ---@return string?
-local function bytes_with_len_to_string_from_reader(reader)
-    local len_string = vlq_to_int_from_reader(reader)
+local function string_from_reader(reader)
+    local len_string = uint_from_reader(reader)
     if len_string == nil then return nil end
     local str = string.char(table.unpack(
         reader.bytes,
@@ -164,15 +164,15 @@ local function add_instructions_to_song_from_packet(song, packet_data)
     local reader = new_packet_reader(packet_data)
 
     local modifiable_instructions =  song.packet_decoder_info.instructions_with_modifier_ids
-    local packet_start_time = vlq_to_int_from_reader(reader)
+    local packet_start_time = uint_from_reader(reader)
     repeat
-        local instruction_start_delta = vlq_to_int_from_reader(reader)
-        local track_index = vlq_to_int_from_reader(reader)
+        local instruction_start_delta = uint_from_reader(reader)
+        local track_index = uint_from_reader(reader)
         if track_index then -- Track index is provided. This is a normal instruction
 
-            local duration = vlq_to_int_from_reader(reader)
-            local note = vlq_to_int_from_reader(reader)
-            local start_velocity = vlq_to_int_from_reader(reader)
+            local duration = uint_from_reader(reader)
+            local note = uint_from_reader(reader)
+            local start_velocity = uint_from_reader(reader)
 
             ---@type Instruction
             local instruction = {
@@ -184,17 +184,17 @@ local function add_instructions_to_song_from_packet(song, packet_data)
                 modifiers = {}
             }
 
-            local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
+            local assigned_instruction_modifier_id = uint_from_reader(reader)
             if assigned_instruction_modifier_id then
                 modifiable_instructions[assigned_instruction_modifier_id] = instruction
             end
 
             if track_index == 0 then -- this instruction is a song-level meta event. Let's populate the meta data field
                 instruction.meta_event_data = {}
-                local num_fields_to_get = vlq_to_int_from_reader(reader)
+                local num_fields_to_get = uint_from_reader(reader)
                 for i = 1, num_fields_to_get do
-                    local meta_key = bytes_with_len_to_string_from_reader(reader)
-                    local meta_val = vlq_to_int_from_reader(reader)
+                    local meta_key = string_from_reader(reader)
+                    local meta_val = uint_from_reader(reader)
                     instruction.meta_event_data[meta_key] = meta_val
                 end
             end
@@ -203,9 +203,9 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
         else -- Track index is nil, this is a modifier for an instruction we have (probably) already seen.
 
-            local assigned_instruction_modifier_id = vlq_to_int_from_reader(reader)
+            local assigned_instruction_modifier_id = uint_from_reader(reader)
 
-            local modifier_type_id = vlq_to_int_from_reader(reader)
+            local modifier_type_id = uint_from_reader(reader)
             local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
 
             -- local modifier_value = (
@@ -213,7 +213,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
             --     and vlqs_to_number_from_reader(reader)
             --     or vlq_to_int_from_reader(reader)
             -- )
-            local modifier_value = vlqs_to_number_from_reader(reader)
+            local modifier_value = number_from_reader(reader)
 
             if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
 
@@ -243,7 +243,7 @@ local function new_config_from_packet(packet_data)
 
     local reader = new_packet_reader(packet_data)
 
-    local source_pos_bool_list = vlq_to_int_from_reader(reader)
+    local source_pos_bool_list = uint_from_reader(reader)
     if source_pos_bool_list == nil then
         -- The boolean list used to flag info about the source is missing. Source info was not provided.
     else
@@ -255,10 +255,10 @@ local function new_config_from_packet(packet_data)
             local flip_uuid_int_3 = bool_list[6]
             local flip_uuid_int_4 = bool_list[7]
 
-            local uuid_part_1 = vlq_to_int_from_reader(reader) * (flip_uuid_int_1 and -1 or 1)
-            local uuid_part_2 = vlq_to_int_from_reader(reader) * (flip_uuid_int_2 and -1 or 1)
-            local uuid_part_3 = vlq_to_int_from_reader(reader) * (flip_uuid_int_3 and -1 or 1)
-            local uuid_part_4 = vlq_to_int_from_reader(reader) * (flip_uuid_int_4 and -1 or 1)
+            local uuid_part_1 = uint_from_reader(reader) * (flip_uuid_int_1 and -1 or 1)
+            local uuid_part_2 = uint_from_reader(reader) * (flip_uuid_int_2 and -1 or 1)
+            local uuid_part_3 = uint_from_reader(reader) * (flip_uuid_int_3 and -1 or 1)
+            local uuid_part_4 = uint_from_reader(reader) * (flip_uuid_int_4 and -1 or 1)
 
             local uuid_string = client.intUUIDToString(uuid_part_1, uuid_part_2, uuid_part_3, uuid_part_4)
 
@@ -281,9 +281,9 @@ local function new_config_from_packet(packet_data)
             local add_half_y = bool_list[6]
             local add_half_z = bool_list[7]
 
-            local abs_floor_x = vlq_to_int_from_reader(reader)
-            local abs_floor_y = vlq_to_int_from_reader(reader)
-            local abs_floor_z = vlq_to_int_from_reader(reader)
+            local abs_floor_x = uint_from_reader(reader)
+            local abs_floor_y = uint_from_reader(reader)
+            local abs_floor_z = uint_from_reader(reader)
 
             local source_x_pos = (abs_floor_x + (add_half_x and 0.5 or 0)) * (flip_x and -1 or 1)
             local source_y_pos = (abs_floor_y + (add_half_y and 0.5 or 0)) * (flip_y and -1 or 1)
@@ -294,27 +294,27 @@ local function new_config_from_packet(packet_data)
         end
     end
 
-    local default_normal_instrument_name = bytes_with_len_to_string_from_reader(reader)
-    local default_percussion_instrument_name = bytes_with_len_to_string_from_reader(reader)
+    local default_normal_instrument_name = string_from_reader(reader)
+    local default_percussion_instrument_name = string_from_reader(reader)
 
     config_data.default_normal_instrument = ( default_normal_instrument_name and { name = default_normal_instrument_name } or nil )
     config_data.default_percussion_instrument = ( default_percussion_instrument_name and { name = default_percussion_instrument_name } or nil )
 
-    local num_configured_track_instruments = vlq_to_int_from_reader(reader)
+    local num_configured_track_instruments = uint_from_reader(reader)
     if num_configured_track_instruments and num_configured_track_instruments > 0 then
         config_data.instrument_selections = {}
         for _ = 1, num_configured_track_instruments do
-            local track_number = vlq_to_int_from_reader(reader)
-            local instrument_name = bytes_with_len_to_string_from_reader(reader)
+            local track_number = uint_from_reader(reader)
+            local instrument_name = string_from_reader(reader)
             config_data.instrument_selections[track_number] = { name = instrument_name }
             print_debug("config assigned instrument " .. instrument_name .. " to track " .. tostring(track_number))
         end
     end
 
-    config_data.primary_update_event_key = bytes_with_len_to_string_from_reader(reader)
-    config_data.fallback_update_event_key = bytes_with_len_to_string_from_reader(reader)
+    config_data.primary_update_event_key = string_from_reader(reader)
+    config_data.fallback_update_event_key = string_from_reader(reader)
 
-    local boolean_configs = int_to_bool_list(vlq_to_int_from_reader(reader), 1)
+    local boolean_configs = int_to_bool_list(uint_from_reader(reader), 1)
     config_data.hide_in_world_info = boolean_configs[1]
 
     return config_data
@@ -326,18 +326,18 @@ end
 local function new_song_from_header_packet(packet_data_string)
     local reader = new_packet_reader(packet_data_string)
 
-    local name = bytes_with_len_to_string_from_reader(reader)
-    local duration = vlq_to_int_from_reader(reader)
+    local name = string_from_reader(reader)
+    local duration = uint_from_reader(reader)
 
-    local num_tracks = vlq_to_int_from_reader(reader)
-    local track_type_id_flags = int_to_bit_list(vlq_to_int_from_reader(reader), num_tracks)
+    local num_tracks = uint_from_reader(reader)
+    local track_type_id_flags = int_to_bit_list(uint_from_reader(reader), num_tracks)
     ---@type Track[]
     local tracks = {}
     for i, type in ipairs(track_type_id_flags) do
         tracks[i] = {instrument_type_id = type}
     end
 
-    local buffer_delay = vlq_to_int_from_reader(reader)
+    local buffer_delay = uint_from_reader(reader)
 
     ---@type Song
     local incoming_song = {
@@ -369,7 +369,7 @@ local control_packet_handlers = {
 ---@return SongPlayerController
 local function control_player_from_packet(controller, packet_data)
     local reader = new_packet_reader(packet_data)
-    local control_code = vlq_to_int_from_reader(reader)
+    local control_code = uint_from_reader(reader)
     if control_packet_handlers[control_code] then
         control_packet_handlers[control_code](controller, reader)
     else
