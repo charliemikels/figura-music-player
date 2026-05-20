@@ -34,7 +34,7 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@param zigzag_unsigned_integer integer
 ---@return integer signed_integer
 local function zigzag_decode(zigzag_unsigned_integer)
-    -- if number is even, then it was originaly a positive number
+    -- if number is even, then it was originally a positive number
     if (zigzag_unsigned_integer % 2) == 0 then
         return math.floor(zigzag_unsigned_integer / 2)
     else
