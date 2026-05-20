@@ -477,26 +477,21 @@ local registered_parameter_number_data_entry_functions = {
     end,
 
     [rpn_keys.fine_tuning] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb)
-        -- Slides channels tuning up or down by (at most) 2 semitones
-        --      this time, 2 semitones is spec, not just a sane default.
-        -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=Fine%20tuning,-%3A%20The
+        -- sets a tuning offset in cents.
+        -- http://midi.teragonaudio.com/tech/midispec/rpn.htm#:~:text=Both%20the%20coarse%20and%20fine%20adjustments%20together%20form%20a%2014%2Dbit%20value%20that%20sets%20the%20tuning%20in%20semitones%2C%20where%200x2000%20is%20A440%20tuning
 
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
-
-
         local combined_value = combine_seven_bit_numbers({(data_entry_msb or 0), (data_entry_lsb or 0)})
+        local offset_in_cents = combined_value - 0x2000
 
-        local clamped_value = (combined_value - 8192) / 8192 -- [0, 0x3FFF] → [-1, 1)
-        local value_in_semitones = clamped_value * 2    -- 2 semitones is standard for fine tuning.     https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=Fine%20tuning,-%3A%20The
-
-        channel_state.fine_tuning_offset_in_semitones = value_in_semitones
+        channel_state.fine_tuning_offset_in_semitones = offset_in_cents / 100
 
         recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
     end,
 
     [rpn_keys.coarse_tuning] = function(state, track, channel, start_time, data_entry_msb, _)
+        -- sets a tuning offset in semitones
         -- Does not use the LSB
-        -- each step away from 0x40 is a full semitone offset
         -- http://midi.teragonaudio.com/tech/midispec/rpn.htm#:~:text=Setting%20the%20coarse%20adjustment%20adjusts%20the%20tuning%20in%20semitones%2C%20where%200x40%20is%20A440%20tuning%2E%20There%20is%20no%20need%20to%20set%20a%20fine%20adjustment%2E
 
         local offset_in_semitones = data_entry_msb - 0x40
