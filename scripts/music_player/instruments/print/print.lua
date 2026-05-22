@@ -1,9 +1,8 @@
----@module "../song_player"
 
 ---@type InstrumentBuilder
 local print_instrument_factory = {
     name = "Print",         -- Also used when making unique identifiers
-    is_available = function() return true end,       -- Used by dynamicly-loaded instruments to signal when they are ready to go.
+    is_available = function() return true end,
     features = {            -- Displayed to users so that they know what features this instrument supports.
         percussion = false,
         sustain = true          -- Notes can "ring" for any amount of time. (Unlike music block notes)

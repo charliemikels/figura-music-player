@@ -1,4 +1,3 @@
----@module "../song_player"
 
 -- local a4_frequency = 440    -- in hz
 local a4_id = 69 -- nice. Midi note numbers are 1 semitone away from the next note in the sequence.
@@ -58,10 +57,10 @@ instrument_builder = {
 
     new_instance = function(params)
 
-        local song_player_api = require("../../song_player")  ---@type SongPlayerAPI
+        local instruments_api = require("../../instruments")  ---@type InstrumentsApi
 
-        local fallback_instrument_builder = song_player_api.get_instrument_builder("MC/Harp")
-        local fallback_instrument_instance   = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
+        local fallback_instrument_builder = instruments_api.get_instrument_builder("MC/Harp")
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
 
         ---@type {time_started: number, stop_time: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}

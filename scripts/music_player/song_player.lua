@@ -11,19 +11,8 @@
 -- When creating a song player, you are actually given a SongPlayerController.
 -- This keeps the internal functions and data safe and, but still gives you plenty of control.
 
-
-
--- TODO: A good chunk of this file is just for gathering instruments. Can that be its own script?
-
----@type InstrumentName -- An instrument that will always exist so long as the avatar is loaded.
-local fallback_normal_instrument_name = "MC/Harp"
----@type InstrumentName -- An instrument that will always exist so long as the avatar is loaded.
-local fallback_percussion_instrument_name = "Percussion"
-
----@type InstrumentName
-local default_normal_instrument_name = "Triangle Sine"
----@type InstrumentName
-local default_percussion_instrument_name = "Percussion"
+local instruments_api = require("./instruments") ---@type InstrumentsApi
+local known_instruments = instruments_api.get_instruments()
 
 local do_debug_prints = false
 
@@ -67,124 +56,11 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@field value number?         the strength of this modifier may be nil to return to default.
 
 
----A unique string. Instruments loaded from other avatars should be prefixed with their UUID or username or something that won't cause conflicts.
----@alias InstrumentName string
 
----@class InstrumentBuilder
----@field name InstrumentName
----@field is_available fun():boolean    may be false for instruments with custom sounds and instruments from other avatars.
----@field features table<string, boolean>?
----@field new_instance fun(params: integer[]):Instrument
-
----@class Instrument
----
---- Queue the given instruction and play it immediately. Remember to call update_sounds to eventually stop the instruction.
----@field play_instruction fun(instruction: Instruction, position: Vector3, time_since_due: integer)
----@field update_sounds fun(position: Vector3)
----
---- For use with an emergency stop feature. In this case, we will likely need to use a world tick loop to stop the song.
---- At low permissions, we only have a handful of instructions, and so we can't just call every sound to stop it,
---- We might need to go one at a time
----@field stop_one_sound_immediately fun()
----
---- For when the user chooses to stop a song.
----@field stop_all_sounds_immediately fun()
----
---- Returns true when the instrument has fully handled all instructions given through play_instruction()
----@field is_finished fun():boolean
-
---- Lookup table of reserved instrument names.
----@type table<InstrumentName, true>
-local reserved_instrument_names = {
-    ["default"] = true,
-    ["default percussion"] = true
-}
-
----@type table<InstrumentName, InstrumentBuilder>
-local known_instruments = {}
-
---- A function to fetch all instruments from the `./instruments` folder.
---- Can be re-ran at any time to update the list.
-local function get_all_instruments()
-    for _, script in ipairs(listFiles("./instruments", true)) do
-        local found_instrument_builder_list
-        local success, value = pcall(function()
-            found_instrument_builder_list = require(script)
-        end)
-        if not success then
-            print_debug(
-                "Error: Failed to require the script `"
-                    ..script
-                    .."` found in the `instruments` folder. Full error below:\n\n"
-                    ..tostring(value),
-                true
-            )
-            break
-        end
-
-        if type(found_instrument_builder_list) ~= "table" then
-            print_debug("The `"..script.."` script did not return a list of instruments.", true)
-            break
-        end
-
-        for _, found_instrument_builder in ipairs(found_instrument_builder_list) do
-            if not (
-                        found_instrument_builder.name
-                    and (found_instrument_builder.is_available ~= nil)
-                    and found_instrument_builder.new_instance
-                )
-            then
-                print_debug(
-                    "An instrument was found in the `"
-                        .. tostring(script)
-                        .."` script, but it doesn't look like an instrument.",
-                    true
-                )
-                break
-            end
-
-            if known_instruments[found_instrument_builder.name] then
-                print_debug(
-                    "Instrument `"
-                        .. tostring(found_instrument_builder.name)
-                        .. "` is already in known_instruments list",
-                    true
-                )
-                break
-            end
-
-            if reserved_instrument_names[string.lower(found_instrument_builder.name)] then
-                print_debug(
-                    "Instrument `"
-                        .. tostring(found_instrument_builder.name)
-                        .. "` is using a reserved name instrument name"
-                    , true
-                )
-                break
-            end
-
-            print_debug("Found new instrument", found_instrument_builder.name)
-            known_instruments[found_instrument_builder.name] = found_instrument_builder
-        end
-    end
-    if not known_instruments[fallback_normal_instrument_name] then
-        error("fallback_normal_instrument_name "
-            .. tostring(fallback_normal_instrument_name)
-            .." did not appear in the known_instruments list"
-        )
-    end
-    if not known_instruments[fallback_percussion_instrument_name] then
-        error("fallback_percussion_instrument_name "
-            .. tostring(fallback_percussion_instrument_name)
-            .." did not appear in the known_instruments list"
-        )
-    end
-end
-get_all_instruments()
 
 
 ---@class InstrumentSelection
----@field name InstrumentName   A key in known_instruments.
+---@field name InstrumentKey   A key in known_instruments.
 ---@field params integer[]?     list of params passed to the builder. List of integers for serialization. The instrument is in charge of understanding this.
 
 ---@class SongPlayerConfig
@@ -764,13 +640,7 @@ local song_player_api = {
                 recommended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
-                selected_instrument = known_instruments[
-                    -- This selects a reasonable default instrument. We'll overwrite this soon when we apply the real song config.
-                        (   track_data.instrument_type_id == 1
-                            and (known_instruments[default_percussion_instrument_name] and default_percussion_instrument_name or fallback_percussion_instrument_name)
-                            or  (known_instruments[default_normal_instrument_name] and default_normal_instrument_name or fallback_normal_instrument_name)
-                        )
-                    ].new_instance({})
+                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({})
             }
             track_configs[track_index] = track_config
         end
@@ -1069,40 +939,6 @@ local song_player_api = {
 
         return song_player.controller
     end,
-
-    --- Returns a list of instrument keys sorted alphabetically.
-    ---@type fun(): string[]
-    get_instrument_keys = function()
-        ---@type string[]
-        local keys = {}
-        for key, _ in pairs(known_instruments) do
-            table.insert(keys, key)
-        end
-        table.sort(keys, function(a, b)
-            return string.lower(a) < string.lower(b)
-        end)
-        return keys
-    end,
-
-    ---@type fun(instrument_key: string): boolean
-    is_instrument_available = function(instrument_key)
-        return known_instruments[instrument_key].is_available()
-    end,
-
-    ---@type fun(instrument_key: string): table<string, boolean>
-    get_instrument_features = function(instrument_key)
-        local features = {} -- protects the real features table from edits.
-        for k, v in pairs(known_instruments[instrument_key].features) do
-            features[k] = v
-        end
-        return features
-    end,
-
-    ---@param instrument_key string
-    ---@return InstrumentBuilder?
-    get_instrument_builder = function(instrument_key)
-        return known_instruments[instrument_key]
-    end
 }
 
 

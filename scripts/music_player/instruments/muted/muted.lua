@@ -1,4 +1,3 @@
----@module "../song_player"
 
 ---@type InstrumentBuilder
 local muted_instrument_factory = {

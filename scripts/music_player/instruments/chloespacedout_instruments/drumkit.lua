@@ -275,9 +275,10 @@ local drumkit_builder = {
     },
     new_instance = function( _ )
 
-        local fallback_instrument_builders   = require("../percussion/percussion")    ---@type InstrumentBuilder[]
-        local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
-        local fallback_instrument_instance   = fallback_instrument_builder.new_instance({})
+        local instruments_api = require("../../instruments")  ---@type InstrumentsApi
+
+        local fallback_instrument_builder = instruments_api.get_instrument_builder("Percussion")
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
 
         local instance_drum_id             ---@type ChloeInstrumentID?
         local instance_drum_lib            ---@type (ChloePianoLib|ChloeDrumkitLib)?
