@@ -1,4 +1,5 @@
 
+local helper_functions_api = require("./helpers") ---@type HelperFunctionsApi
 
 
 local do_debug_prints = false
@@ -78,28 +79,17 @@ local pattern_to_exclude = instruments_directory_path_but_just_what_is_after_the
 --- Builds a canonical instrument list
 --- All instrument builders must exist at upload time, but don't need to be "available" right away.
 do
-    for _, script_path in pairs(listFiles(instruments_directory_path, true)) do
-        if not string.match(script_path, pattern_to_exclude) then
+    local required_directories = helper_functions_api.require_folder("./instruments")
 
-            print_debug("Found possible instrument provider: `"..script_path.."`", false)
+    for _, folder_require in pairs(required_directories) do
+        if folder_require.success then
 
-            local found_instrument_builder_list
-            local success, value = pcall(function()
-                found_instrument_builder_list = require(script_path)
-            end)
-            if not success then
-                print_debug(
-                    "Error: Failed to require the script `"
-                        ..script_path
-                        .."` found in the `"..instruments_directory_path.."` folder. Full error below:\n\n"
-                        ..tostring(value),
-                    true, true
-                )
-                break
-            end
+            print_debug("Found possible instrument provider: `".. folder_require.path .."`", false)
+
+            local found_instrument_builder_list = folder_require.result -- require
 
             if type(found_instrument_builder_list) ~= "table" then
-                print_debug("The `"..script_path.."` script did not return a list of instruments.", true, true)
+                print_debug("The `"..folder_require.path.."` script did not return a list of instruments.", true, true)
                 break
             end
 
@@ -112,7 +102,7 @@ do
                 then
                     print_debug(
                         "An instrument was found in the `"
-                            .. tostring(script_path)
+                            .. tostring(folder_require.path)
                             .."` script, but it doesn't look like an instrument.",
                         true, true
                     )
