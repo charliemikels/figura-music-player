@@ -378,12 +378,11 @@ local function modifier_to_packet_part(modifier, instruction_start_time, instruc
     union_tables(modifier_packet_part, uint_to_bytes(instruction_modifier_list_id))
     union_tables(modifier_packet_part, uint_to_bytes(packet_enums_api.modifier_key_to_number[modifier.type]))
 
-    -- local value_bytes = (    -- TODO: Fix this logic, will save us space if we can correctly choose between ints and floats
-    --     packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
-    --     and number_to_bytes(modifier.value)
-    --     or uint_to_bytes(modifier.value)
-    -- )
-    local value_bytes = number_to_bytes(modifier.value)
+    local value_bytes = (
+        packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
+        and number_to_bytes(modifier.value)
+        or uint_to_bytes(modifier.value)
+    )
 
     union_tables(modifier_packet_part, value_bytes)
     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
