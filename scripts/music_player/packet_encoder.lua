@@ -121,7 +121,7 @@ end
 local function promote_decimal_places_to_int(number)
     if (number >= 1) or (number < 0) then error("promote_decimal_places_to_int must take a number between [0, 1), but we got `"..tostring(number).."`") end
 
-    local max_vlq_len = 3
+    local max_vlq_len = 2
     -- by default, lua prints numbers with up to 5 decimal points (though it actually stores at a higher resolution). max_vlq_len = 2 is enough to get all 5, max_vlq_len = 3 gets us up to 7
 
     -- generates the maximum value that can be stored in a VLQ and stay under max_vlq_len
