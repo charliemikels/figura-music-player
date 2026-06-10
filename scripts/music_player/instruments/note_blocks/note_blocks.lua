@@ -29,9 +29,10 @@ local note_block_sounds = {
 ---Converts a midi note ID to a multiplier usable in minecraft (relative to the instrument's initial tuning)
 ---@param note_id integer
 ---@param instrument_base_id integer    The midi id for the instrument's base tuning
+---@param detune_amount number  value in semitones
 ---@return number multiplier
-local function midi_note_to_multiplier(note_id, instrument_base_id)
-    local semitones_from_base_tuning = note_id - instrument_base_id
+local function midi_note_to_multiplier(note_id, instrument_base_id, detune_amount)
+    local semitones_from_base_tuning = (note_id - instrument_base_id) + detune_amount
     return 2^(semitones_from_base_tuning / 12)
 end
 
@@ -50,11 +51,23 @@ for _, note_block_sound in ipairs(note_block_sounds) do
             local new_instance = {
                 play_instruction = function(instruction, position, _)
                     -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+
+                    -- At the moment, note blocks don't really have an update loop, so real pitch control and volume control don't really make sense. But let's take care of what we can on note init.
+                    local starting_volume = 100
+                    for _, modifier in ipairs(instruction.modifiers) do
+                        if modifier.start_time > instruction.start_time then break end  -- we've gone past the very beginning of this note.
+                        if modifier.type == "volume" then
+                            starting_volume = modifier.value or 100
+                        end
+                    end
+
+                    local detune_amount = ((math.random()-0.5) * 0.075) or 0 -- helps sounds sound "rounder" if two instances of an instument play the same note. 
+
                     local new_sound = sounds[note_block_sound.sound_id]
-                        :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning))
+                        :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning, detune_amount))
                         :setPos(position)
                         :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
-                        :setVolume( instruction.start_velocity/127)
+                        :setVolume( instruction.start_velocity/127 * (starting_volume/100))
                     new_sound:play()
                 end,
                 update_sounds = function(_)

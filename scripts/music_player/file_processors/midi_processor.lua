@@ -47,8 +47,17 @@ local default_midi_device_name = ""
 local function add_new_device(state, new_device_name)
 
     ---@class MidiDeviceChannelState
+    ---@field modifiers table<string, number>
     ---@field volume integer?
     ---@field pan integer?
+    ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
+    ---@field pitch_wheel_range_in_semitones number     see rpn_keys.set_pitch_bend_range. Used to calculate the final power of the pitch wheel
+    ---@field fine_tuning_offset_in_semitones number    see rpn_keys.fine_tuning. always between [-2, 2)
+    ---@field coarse_tuning_offset_in_semitones integer see rpn_keys.coarse_tuning. always between [-2, 2)
+    ---@field rpn_msb integer?          See MidiControlChangeEventKey 101
+    ---@field rpn_lsb integer?          See MidiControlChangeEventKey 100
+    ---@field data_entry_msb integer?   See MidiControlChangeEventKey 6
+    ---@field data_entry_lsb integer?   See MidiControlChangeEventKey 38
 
     ---@alias MidiDeviceName string
     ---@alias MidiChannelId integer
@@ -62,7 +71,15 @@ local function add_new_device(state, new_device_name)
     state.instruction_builder[new_device_name] = {}
     state.processed_metadata.channel_data[new_device_name] = {}
     for channel_id = 0, 15 do
-        state.instruction_builder[new_device_name][channel_id] = { channel_state = {}, notes = {} }
+        state.instruction_builder[new_device_name][channel_id] = {
+            channel_state = {
+                modifiers = {},
+                pitch_wheel = 8192,
+                pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a [sane default](https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones).
+                fine_tuning_offset_in_semitones = 0,
+                coarse_tuning_offset_in_semitones = 0,
+            }, notes = {}
+        }
         ---@class MidiDeviceChannelData
         state.processed_metadata.channel_data[new_device_name][channel_id] = {
             ---@type {id: integer, name: string}[]
@@ -141,9 +158,8 @@ end
 
 ---Similar to bytes_to_number, but ensures incoming numbers are 7 bits long.
 ---Use with variable-length quantities
----TODO: if only used with variable length quantities, move into that function.
 ---@param bytes integer[]
----@return number
+---@return integer
 local function combine_seven_bit_numbers(bytes)
     local everything_but_first_bit = tonumber("01111111", 2)
     local result = 0
@@ -354,22 +370,159 @@ local patch_name_lookup = {
     [128-1] = "Gunshot",
 }
 
----comment
+---Adds a new InstructionModifier with type data_type and value controller_value to all current notes in the chanel/device combo.
 ---@param state MidiProcessorState
 ---@param track MidiChunk
 ---@param channel MidiChannelId
 ---@param start_time number
----@param controller_value integer
+---@param controller_value number?
 ---@param data_type string
 local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
-    ---@type integer, Instruction
-    for _, note_data in pairs(state.instruction_builder[track.current_device][channel].notes) do
-        ---@type InstructionModifier
-        local new_modifier = { start_time = start_time, type = data_type, value = controller_value }
-        table.insert(
-            note_data.modifiers,
-            new_modifier
-        )
+    local channel_data = state.instruction_builder[track.current_device][channel]
+    channel_data.channel_state.modifiers[data_type] = controller_value
+
+    for _, note_data in pairs(channel_data.notes) do
+
+        local existing_modifier_was_updated = false
+        -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
+
+
+        for test_modifier_index = #note_data.modifiers, 1, -1 do
+
+            local test_modifier = note_data.modifiers[test_modifier_index]
+            if test_modifier.type == data_type then
+               if test_modifier.start_time == start_time then   -- This modifier is the exact same type at the exact same time. Let's overwrite it.
+                   -- print("This modifier is has the same type and is at the same time as this new modifier. We are just going to update the old modifier's value instead.")
+                   -- print(test_modifier, "fn params:", state, track, channel, start_time, controller_value, data_type)
+
+                   test_modifier.value = controller_value
+                   existing_modifier_was_updated = true
+               end
+               break -- safe to break here because all other modifiers that match our type should™ be further in the past. We know we've checked the most likely thing to replace.
+            end
+        end
+
+        if not existing_modifier_was_updated then
+            ---@type InstructionModifier
+            local new_modifier = {
+                start_time = start_time,
+                type = data_type,
+                value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
+            }
+            table.insert(
+                note_data.modifiers,
+                new_modifier
+            )
+        end
+    end
+end
+
+---does not apply the multiplier. Just calculate it
+---@param state MidiProcessorState
+---@param track MidiChunk
+---@param channel MidiChannelId
+---@param start_time number
+local function recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+    local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+
+    local wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
+    local clamped_pitch_wheel = (channel_state.pitch_wheel - 8192) / 8192 -- [0, 0x3FFF]
+    local pitch_wheel_offset_in_semitones = wheel_range_in_semitones * clamped_pitch_wheel
+
+    local total_semitone_offset = pitch_wheel_offset_in_semitones
+        + channel_state.fine_tuning_offset_in_semitones
+        + channel_state.coarse_tuning_offset_in_semitones
+
+    local new_multiplier = 2^((total_semitone_offset) / 12)
+
+    update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
+end
+
+---@enum MidiRegisteredParameterNumberKeys
+local rpn_keys = {
+    set_pitch_bend_range = 0,
+    fine_tuning = 1,
+    coarse_tuning = 2,
+}
+
+--- for use with apply_rpn_data control change functions.
+---@type table<MidiRegisteredParameterNumberKeys, fun(state: MidiProcessorState, track: MidiChunk, channel: MidiChannelId, start_time: number, data_entry_msb: integer, data_entry_lsb: integer)>
+local registered_parameter_number_data_entry_functions = {
+
+    -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn
+    -- We only need to support messages 0, 1, and 2 to reach Midi 1 spec. https://www.recordingblogs.com/wiki/general-midi-1#:~:text=messages%2E-,It,numbers,-%2E
+
+    [rpn_keys.set_pitch_bend_range] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb) -- set pitch bend range
+
+        -- Ok even though we have sources like this that say we need both values,
+        -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=It%20needs%20both%20data%20entry%20%28coarse%20and%20fine%29%20messages
+        -- Some songs like _Through the Fire and the Flames_ only send us the MSB.
+        --
+        -- We'll just need to rely on update_channel_state_in_currently_playing_notes overwrite-if-the-type-and-time-are-the-same feature.
+
+        print_debug("Setting pitch bend range msb: "..tostring(data_entry_msb).." lsb: "..tostring(data_entry_lsb))
+
+        -- https://midi.org/midi-1-0-control-change-messages#:~:text=Pitch%20Bend%20Sensitivity
+        local semitones_range, cents_range = (data_entry_msb or 0), (data_entry_lsb or 0)
+        local new_wheel_range_in_semitones = semitones_range + (cents_range / 100)
+
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        -- local old_wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
+        channel_state.pitch_wheel_range_in_semitones = new_wheel_range_in_semitones
+
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+
+    end,
+
+    [rpn_keys.fine_tuning] = function(state, track, channel, start_time, data_entry_msb, data_entry_lsb)
+        -- sets a tuning offset in cents.
+        -- http://midi.teragonaudio.com/tech/midispec/rpn.htm#:~:text=Both%20the%20coarse%20and%20fine%20adjustments%20together%20form%20a%2014%2Dbit%20value%20that%20sets%20the%20tuning%20in%20semitones%2C%20where%200x2000%20is%20A440%20tuning
+
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        local combined_value = combine_seven_bit_numbers({(data_entry_msb or 0), (data_entry_lsb or 0)})
+        local offset_in_cents = combined_value - 0x2000
+
+        channel_state.fine_tuning_offset_in_semitones = offset_in_cents / 100
+
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+    end,
+
+    [rpn_keys.coarse_tuning] = function(state, track, channel, start_time, data_entry_msb, _)
+        -- sets a tuning offset in semitones
+        -- Does not use the LSB
+        -- http://midi.teragonaudio.com/tech/midispec/rpn.htm#:~:text=Setting%20the%20coarse%20adjustment%20adjusts%20the%20tuning%20in%20semitones%2C%20where%200x40%20is%20A440%20tuning%2E%20There%20is%20no%20need%20to%20set%20a%20fine%20adjustment%2E
+
+        local offset_in_semitones = data_entry_msb - 0x40
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        channel_state.coarse_tuning_offset_in_semitones = offset_in_semitones
+
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+    end,
+
+
+}
+
+--- Called by control code 6 (Data Entry MSB) and 38 (Data Entry LSB)
+---@param state MidiProcessorState
+---@param track MidiChunk
+---@param channel MidiChannelId
+---@param start_time number
+local function apply_rpn_data(state, track, channel, start_time)
+    local rpn_msb = state.instruction_builder[track.current_device][channel].channel_state.rpn_msb
+    local rpn_lsb = state.instruction_builder[track.current_device][channel].channel_state.rpn_lsb
+    if not (rpn_msb and rpn_lsb) then -- One of the numbers is null. We don't have enough data to assign this value to a valid destination.
+        -- https://forum.juce.com/t/juce-mpe-mode-configuration-implementation-issue/59537/3
+        return
+    end
+    local selected_rpn = combine_seven_bit_numbers({rpn_msb, rpn_lsb})
+
+    local data_entry_msb = state.instruction_builder[track.current_device][channel].channel_state.data_entry_msb
+    local data_entry_lsb = state.instruction_builder[track.current_device][channel].channel_state.data_entry_lsb
+
+    if registered_parameter_number_data_entry_functions[selected_rpn] then
+        registered_parameter_number_data_entry_functions[selected_rpn](state, track, channel, start_time, data_entry_msb, data_entry_lsb)
+    else
+        print_debug("Un recognized RPN: "..selected_rpn, true, true)
     end
 end
 
@@ -383,26 +536,38 @@ local control_change_and_mode_change_functions = {
     -- ignore start time, so long as we save any relevant data in the note on event
 
     ---@alias MidiControlChangeEventKey
-    --- | 2 breath control
-    --- | 7 volume
+    --- | 2  breath control
+    --- | 7  volume
+    --- | 6  Data Entry  (used with RPNs) (most significant byte)
     --- | 10 pan
+    --- | 38 Data Entry  (used with RPNs) (least significant byte)
     --- | 91 reverb
     --- | 92 tremolo
     --- | 93 chorus
     --- | 94 detuneing
     --- | 95 phazer
+    --- | 100 Registered Parameter Number   (least significant byte)
+    --- | 101 Registered Parameter Number   (most significant byte)
     --- | 121 reset controllers
 
     [2] = function() end,    -- Breath control
 
+    [6] = function(state, track, channel, start_time, controller_value)
+        state.instruction_builder[track.current_device][channel].channel_state.data_entry_msb = controller_value
+        apply_rpn_data(state, track, channel, start_time)
+    end,
+
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
-        state.instruction_builder[track.current_device][channel].channel_state.volume = (controller_value ~= 100 and controller_value or nil) -- 100 is probably the "most default" setting
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "volume")
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (controller_value ~= 100 and controller_value or nil), "volume")
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
-        state.instruction_builder[track.current_device][channel].channel_state.pan = (controller_value ~= 64 and controller_value or nil)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, "pan")
+        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (controller_value ~= 64 and controller_value or nil), "pan")
+    end,
+
+    [38] = function(state, track, channel, start_time, controller_value)
+        state.instruction_builder[track.current_device][channel].channel_state.data_entry_lsb = controller_value
+        apply_rpn_data(state, track, channel, start_time)
     end,
 
     [91] = function() end,      -- Reverb. Ignoring.
@@ -410,6 +575,35 @@ local control_change_and_mode_change_functions = {
     [93] = function() end,      -- Chorus. Ignoring.
     [94] = function() end,      -- Detuneing. Ignoring, though this wouldn't be too hard to implement. TODO: revisit.
     [95] = function() end,      -- Phazer. Ignoring.
+
+    [100] = function(state, track, channel, _, controller_value) -- Registered Parameter Number (LSB)
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+
+        if controller_value == 127 then -- value of 127 sets the value to null
+            channel_state.rpn_lsb = nil
+            if not channel_state.rpn_msb then
+                -- both the msb and lsb are now unset. Let's zero out the data entry fields too.    -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=below%2E-,Two,effects
+                channel_state.data_entry_msb = nil
+                channel_state.data_entry_lsb = nil
+            end
+        else
+            channel_state.rpn_lsb = controller_value
+        end
+    end,
+
+    [101] = function(state, track, channel, _, controller_value) -- Registered Parameter Number (MSB)
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+        if controller_value == 127 then -- value of 127 sets the value to null
+            channel_state.rpn_msb = nil
+            if not channel_state.rpn_lsb then
+                -- both the msb and lsb are now unset. Let's zero out the data entry fields too.    -- https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=below%2E-,Two,effects
+                channel_state.data_entry_msb = nil
+                channel_state.data_entry_lsb = nil
+            end
+        else
+            channel_state.rpn_msb = controller_value
+        end
+    end,
 
     [121] = function() end,     -- Reset all controllers.   TODO: Revisit? this may be something simple like "purge all channel modifiers from current channel states"  -- TODO: is this per device, or over the whole file?
 }
@@ -760,7 +954,7 @@ midi_message_functions = {
 
         local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
         if not note_to_stop then
-            print_debug("Note off tried to stop a note that was not been started before. Ignoring.")
+            print_debug("Note off tried to stop a note that was not been started before. Ignoring.", true)
             return
         end
         note_to_stop.duration = start_time - note_to_stop.start_time
@@ -814,8 +1008,8 @@ midi_message_functions = {
             modifiers = {}
         }
 
-        -- import current channel state. not all values may be set
-        for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state) do
+        -- import current channel modifiers. not all values may be set
+        for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state.modifiers) do
             ---@type InstructionModifier
             local new_modifier = { start_time = start_time, type = key, value = value }
             table.insert(new_note_data.modifiers, new_modifier)
@@ -890,7 +1084,7 @@ midi_message_functions = {
         print_debug("channel: `" .. tostring(channel) .. "` selected instrument: `" .. tostring(patch_name_lookup[patch_number]) .."`")
     end,
 
-    ---Channel Presure (Channel Aftertouch)
+    ---Channel Pressure (Channel Aftertouch)
     [0xD0] = function(_, track, _, _)
         -- I don't really care about Aftertouch. None of my test files use it at least.
         local _ = read_next_chunk_byte(track)
@@ -907,9 +1101,12 @@ midi_message_functions = {
     [0xE0] = function(state, track, channel, start_time)
         local least_significant_byte = read_next_chunk_byte(track)
         local most_significant_byte = read_next_chunk_byte(track)
-        local pitch_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
-        state.instruction_builder[track.current_device][channel].channel_state.pitch_wheel = (pitch_value ~= 8192 and pitch_value or nil)
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, pitch_value, "pitch_wheel")
+        local wheel_value = combine_seven_bit_numbers({ most_significant_byte, least_significant_byte })
+
+        local channel_state = state.instruction_builder[track.current_device][channel].channel_state
+
+        channel_state.pitch_wheel = wheel_value
+        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
     end,
 
     -- ↑ Has channel ID

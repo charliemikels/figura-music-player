@@ -275,9 +275,10 @@ local drumkit_builder = {
     },
     new_instance = function( _ )
 
-        local fallback_instrument_builders   = require("../percussion/percussion")    ---@type InstrumentBuilder[]
-        local _, fallback_instrument_builder = next(fallback_instrument_builders, nil)
-        local fallback_instrument_instance   = fallback_instrument_builder.new_instance({})
+        local instruments_api = require("../../instruments")  ---@type InstrumentsApi
+
+        local fallback_instrument_builder = instruments_api.get_instrument_builder("Percussion")
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
 
         local instance_drum_id             ---@type ChloeInstrumentID?
         local instance_drum_lib            ---@type (ChloePianoLib|ChloeDrumkitLib)?
@@ -321,7 +322,7 @@ local drumkit_builder = {
                         true,
                         nil,
                         instruction.start_velocity
-                            * 0.02                         -- Drum is a little loud by default relative to the other instruments.
+                            * 0.01                          -- Drum is a little loud by default relative to the other instruments.
                             * (avatar:getVolume() / 100)    -- Respect if viewer has muted the host.
                     )   -- playNote is kinda a legacy function for Piano 2.0, but it's the same signature for old and new drums.
 

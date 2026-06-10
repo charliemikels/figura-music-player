@@ -2,7 +2,7 @@
     "authors":["Tanner Limes"],
     "name": "Figura Music Player",
     "description": "Play music to delight and annoy your fiends",
-    "version": "5.0.0",
+    "version": "6.0.0",
     "color": "#78ff92",
     "autoload": ["scripts/Action Wheel"]
 }

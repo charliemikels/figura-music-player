@@ -1,4 +1,3 @@
----@module "../song_player"
 
 -- local a4_frequency = 440    -- in hz
 local a4_id = 69 -- nice. Midi note numbers are 1 semitone away from the next note in the sequence.
@@ -13,6 +12,7 @@ end
 
 ---Converts a midi note ID to a multiplier usable in minecraft
 ---@param note_id integer
+---@param offset number? in semitones. used to slightly detune the instrument. (prevents "stacking" and some interference.)
 ---@return number
 local function midi_note_to_multiplier(note_id, offset)
     -- Semitones away from a4, where negative is lower and positive is higher.
@@ -22,27 +22,23 @@ end
 
 
 local modifier_functions = {
-    pitch_wheel = function(active_instruction, value, instrument_config)
-        -- max value = 0x3FFF. where 0x2000 is neutral.  0 to 0x3FFF → ±0x2000 → ±1 → ±2
-        local semitone_offset = (value - 8192) / 8192 * instrument_config.pitch_bend_sensitivity
-        -- print(client:getSystemTime(), value, semitone_offset)
-        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, semitone_offset))
+    pitch_mult = function(active_instruction, value)
+        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, active_instruction.detune_amount) * (value or 1))
     end,
-    volume = function(active_instruction, value, _)
+    volume = function(active_instruction, value)
         -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
-        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value / 100))
+        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value and (value / 100) or 1))
     end,
 }
 
 ---@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}
----@param instrument_config table
-local function update_modifiers(active_instruction, instrument_config)
+local function update_modifiers(active_instruction)
     local modifiers = active_instruction.instruction.modifiers
     for index = active_instruction.modifier_index, #modifiers do
         local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
         if active_instruction.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
         if modifier_functions[modifiers[index].type] then
-            modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value, instrument_config)
+            modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value)
         end
         active_instruction.modifier_index = index + 1
     end
@@ -61,17 +57,13 @@ instrument_builder = {
 
     new_instance = function(params)
 
-        local song_player_api = require("../../song_player")  ---@type SongPlayerAPI
+        local instruments_api = require("../../instruments")  ---@type InstrumentsApi
 
-        local fallback_instrument_builder = song_player_api.get_instrument_builder("MC/Harp")
-        local fallback_instrument_instance   = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
+        local fallback_instrument_builder = instruments_api.get_instrument_builder("MC/Harp")
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
 
         ---@type {time_started: number, stop_time: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
-        local instrument_config = {
-            pitch_bend_sensitivity = 2,
-            do_detune = true
-        }
 
         ---@type Instrument
         local new_instance = {
@@ -85,7 +77,7 @@ instrument_builder = {
                     end
                 end
 
-                local detune_amount = (instrument_config.do_detune and ((math.random()-0.5) * 0.1) or 0)
+                local detune_amount = ((math.random()-0.5) * 0.1) or 0
 
                 local new_sound = sounds[triangle_sine_sound_key]
                     :setPos(position)
@@ -104,7 +96,7 @@ instrument_builder = {
                     modifier_index = 1,
                     sound = new_sound
                 }
-                update_modifiers(active_instruction, instrument_config)
+                update_modifiers(active_instruction)
 
                 active_instruction.sound:play()
                 table.insert(active_instructions, active_instruction)
@@ -122,7 +114,7 @@ instrument_builder = {
                         active_instructions[active_instruction_key] = nil
                     else
                         active_instruction.sound:setPos(position)
-                        update_modifiers(active_instruction, instrument_config)
+                        update_modifiers(active_instruction)
                     end
                 end
             end,

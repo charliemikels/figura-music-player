@@ -8,9 +8,9 @@
 
 
 local song_library_api = require("./libraries")     ---@type LibrariesApi   -- TODO: Only used to fallback to a default library. Shouldn't this be core's job to bind it all? we could drop this requirement.
-local config_cache_api = require("./config_cache")   ---@type ConfigCacheAPI
+local config_cache_api = require("./config_cache")  ---@type ConfigCacheAPI
 local networking_api = require("./networking")      ---@type SongNetworkingApi
-local song_player_api = require("./song_player")         ---@type SongPlayerAPI  -- TODO: This is only used to gather instrument information. Is there a way to split player and instrument info?
+local instruments_api = require("./instruments")    ---@type InstrumentsApi
 
 local do_debug_prints = false
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
@@ -152,8 +152,15 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             else
                 selector_title_string = selector_title_string .. "\nStarting..."
             end
+
             selector_title_string = selector_title_string .. " " .. get_spinner() .. "\n"
+
+            if networking_api.get_number_outgoing_packets_remaining() > 0 then
+                selector_title_string = selector_title_string .. "Sending pings. " .. tostring(networking_api.get_number_outgoing_packets_remaining()) .. " packets remaining. " .. "\n"
+            end
+
             selector_title_string = selector_title_string .. "\n"
+
         end
 
         selector_title_string = selector_title_string .. "Song List:\n"
@@ -497,7 +504,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         for k = start_index, end_index do
             local current_instrument_key = config_page_state.instrument_keys[k] or default_instrument_name
 
-            local current_instrument_features = (current_instrument_key == default_instrument_name and {} or song_player_api.get_instrument_features(current_instrument_key))
+            local current_instrument_features = (current_instrument_key == default_instrument_name and {} or instruments_api.get_instrument_features(current_instrument_key))
             local current_instrument_features_sorted = {}   ---@type string[]
             for key, available in pairs(current_instrument_features) do
                 if available then
@@ -519,7 +526,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 .. (current_instrument_key == currently_chosen_instrument_on_selected_track and bell_emoji or "  ")
                 .. " "
                 .. (
-                    (current_instrument_key == default_instrument_name or (song_player_api.is_instrument_available(current_instrument_key)) )
+                    (current_instrument_key == default_instrument_name or (instruments_api.is_instrument_available(current_instrument_key)) )
                     and current_instrument_key
                     or ("'}, { 'text'='" .. current_instrument_key .. "', 'color'='dark_gray'}, {'text'='")
                 )
@@ -675,7 +682,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 targeted_song_config = config_cache_api.load_song_config(targeted_song.id),
                 selected_track_index = 1,
                 selected_instrument_index = 1,
-                instrument_keys = song_player_api.get_instrument_keys() -- reload instruments every time we enter the config page.
+                instrument_keys = instruments_api.get_sorted_instrument_keys() -- reload instruments every time we enter the config page.
             }
             table.insert(config_page_state.instrument_keys, 1, default_instrument_name) -- throw in a fake "default" instrument at the top of the list.
 

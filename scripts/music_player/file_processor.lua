@@ -51,7 +51,7 @@
 
 ---Tracks ProcessedSong are the step immediately before PlayingSong.
 ---@class Track
----@field instrument_type_id 0|1 0 for normal, 1 for percussion.
+---@field instrument_type_id InstrumentTypeId 0 for normal, 1 for percussion.
 ---@field recommended_instrument_name string? The name of an instrument for display in a UI
 
 

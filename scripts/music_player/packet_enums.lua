@@ -31,9 +31,14 @@ local control_packet_codes = {
 
 ---@enum ModifierTypeCodes
 local modifier_key_to_number = {
-    volume = 1,
-    pitch_wheel = 2,
-    -- pan = 3,
+    volume = 1,     -- an int between 0 to 127, where 100 is our assumed default
+    pitch_mult = 2, -- a float that we just multiply onto the pitch of a note.
+    -- pan = 3,     -- an int between 0 to 127, where 64 is "center"
+}
+
+---@type table<ModifierTypeCodes, boolean?>
+local modifier_uses_floats_lookup = {
+    [modifier_key_to_number.pitch_mult] = true
 }
 
 --- Reverse of modifier_type_codes for reverse lookup
@@ -49,6 +54,7 @@ local packet_enums_api = {
     packet_type_ids = packet_type_ids,
     control_packet_codes = control_packet_codes,
     modifier_key_to_number = modifier_key_to_number,
+    modifier_uses_floats_lookup = modifier_uses_floats_lookup,
     modifier_number_to_key = modifier_number_to_key,
 }
 
