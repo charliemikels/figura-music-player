@@ -80,7 +80,7 @@ local drumkit_sounds_lookup = {
         return sounds[ "block.bell.use" ]:pitch(6)        -- has variations
     end,
     [56] = function() -- Cowbell
-        return sounds[ "block.note_block.cow_bell" ]:pitch(1.1)
+        return sounds[ "block.note_block.cow_bell" ]:pitch(1.1):setVolume(0.25)
     end,
     [57] = function() -- Crash Cymbal 2
         -- SBC's Crash 2 is nearly identical to Crash 1
