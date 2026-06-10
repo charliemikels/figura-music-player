@@ -152,8 +152,15 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             else
                 selector_title_string = selector_title_string .. "\nStarting..."
             end
+
             selector_title_string = selector_title_string .. " " .. get_spinner() .. "\n"
+
+            if networking_api.get_number_outgoing_packets_remaining() > 0 then
+                selector_title_string = selector_title_string .. "Sending pings. " .. tostring(networking_api.get_number_outgoing_packets_remaining()) .. " packets remaining. " .. "\n"
+            end
+
             selector_title_string = selector_title_string .. "\n"
+
         end
 
         selector_title_string = selector_title_string .. "Song List:\n"

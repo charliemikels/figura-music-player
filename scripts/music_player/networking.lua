@@ -381,6 +381,12 @@ local function outgoing_packet_queue_progress()
     return outgoing_packet_queue_index / #outgoing_bundled_packets_queue
 end
 
+---@return integer
+local function get_number_outgoing_packets_remaining()
+    if #outgoing_bundled_packets_queue == 0 then return 0 end
+    return #outgoing_bundled_packets_queue - outgoing_packet_queue_index
+end
+
 --- A SongPlayer wrapper that plays the a song on all clients (viewers and host).
 ---
 --- Use this instead of manually working with the networking / packet building process.
@@ -610,6 +616,7 @@ local api = {
     local_receive_packet = local_receive_packet,    -- adds a packet to it's targeted song.
     ping_packets = ping_packets,
     outgoing_packet_queue_progress = outgoing_packet_queue_progress,
+    get_number_outgoing_packets_remaining = get_number_outgoing_packets_remaining,
 
     ---@param transferred_song_id integer
     play_transferred_song = function(transferred_song_id)
