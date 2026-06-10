@@ -712,7 +712,7 @@ local song_player_api = {
 
                 ---@type fun()
                 play = function()
-                    print_host("Playing \"" .. tostring(song.name) .. "\"")
+                    print_debug("Playing \"" .. tostring(song.name) .. "\"")
                     if song_player.controller.is_playing() then return end
 
                     -- Info display building and setup
@@ -811,7 +811,7 @@ local song_player_api = {
 
                 ---@type fun()
                 stop = function()
-                    print_host("Stopping \"".. tostring(song.name) .."\"")
+                    print_debug("Stopping \"".. tostring(song.name) .."\"")
 
                     -- Shut down player.
 

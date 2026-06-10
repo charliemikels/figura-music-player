@@ -338,7 +338,7 @@ local function ping_loop()
 
         -- check if list is empty
         if outgoing_packet_queue_index > #outgoing_bundled_packets_queue then
-            print_host("All pings sent.")
+            print_debug("All pings sent.")
             stop_and_cleanup_packet_ping_loop()
             return
         end
