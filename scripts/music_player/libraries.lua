@@ -33,7 +33,10 @@ local function list_files_in_path_recursively(start_path)
     end
 
     if not file:isDirectory(start_path) then
-        error("Path is not a directory" .. tostring(start_path))
+        local mkdir_was_successful = file:mkdirs(start_path)
+        if not mkdir_was_successful then
+            error("Failed to create folder at path " .. tostring(start_path))
+        end
     end
 
     local sub_paths_to_test = file:list(start_path)     ---@type string[]
@@ -82,6 +85,13 @@ local function add_source_directory(library, new_source_path)
     for _, song in ipairs(file_processor_api.song_list_from_paths(display_and_full_paths)) do
         library.song_holders[song.id] = song
     end
+    table.insert(library.source_directories, new_source_path)
+end
+
+---@param library Library
+---@return string[]
+local function get_source_directories(library)
+    return (library.source_directories or {})
 end
 
 ---@param library Library
@@ -129,7 +139,9 @@ local libraries_api = {
         ---@class Library
         ---@field song_holders table<string, SongHolder> Canonical song list.
         ---@field sorted_song_holders SongHolder[] Sorted song list. Used to display the songs in alphabetical order.
+        ---@field source_directories string[] List of directories passed to add_source_directory().
         ---@field add_source_directory fun(library:Library, path:string)
+        ---@field get_source_directories fun(library:Library): string[]
         ---@field get_song_by_id fun(library:Library, id:string):SongHolder?
         ---@field get_song_by_sorted_index fun(library:Library, index:integer):SongHolder?
         ---@field get_library_length fun(library:Library):integer
@@ -137,8 +149,10 @@ local libraries_api = {
         local library = {
             song_holders = {},
             sorted_song_holders = {},
+            source_directories = {},
             song_keys_are_sorted = false,
             add_source_directory = add_source_directory,
+            get_source_directories = get_source_directories,
             get_song_by_id = get_song_by_id,
             get_song_by_sorted_index = get_song_by_sorted_index,
             get_library_length = get_library_length,
