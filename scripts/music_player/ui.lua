@@ -342,6 +342,11 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         end)
         :onLeftClick(function(_)
             local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+            if not target_song then
+                print("No song selected")
+                return
+            end
+
             if not song_processors_and_player_controllers[target_song.id] then song_processors_and_player_controllers[target_song.id] = {} end
             if song_processors_and_player_controllers[target_song.id].error then
                 print_host(song_processors_and_player_controllers[target_song.id].error)
