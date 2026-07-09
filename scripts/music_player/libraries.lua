@@ -33,8 +33,8 @@ local function list_files_in_path_recursively(start_path)
     end
 
     if not file:isDirectory(start_path) then
-        local mkdir_was_successfull = file:mkdirs(start_path)
-        if not mkdir_was_successfull then
+        local mkdir_was_successful = file:mkdirs(start_path)
+        if not mkdir_was_successful then
             error("Failed to create folder at path " .. tostring(start_path))
         end
     end
