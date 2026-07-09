@@ -33,7 +33,10 @@ local function list_files_in_path_recursively(start_path)
     end
 
     if not file:isDirectory(start_path) then
-        error("Path is not a directory" .. tostring(start_path))
+        local mkdir_was_successfull = file:mkdirs(start_path)
+        if not mkdir_was_successfull then
+            error("Failed to create folder at path " .. tostring(start_path))
+        end
     end
 
     local sub_paths_to_test = file:list(start_path)     ---@type string[]
