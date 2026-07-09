@@ -103,9 +103,14 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         -- TODO: This, and a few other functions could be methods that take in `self`. we can then initialize them at init time, instead of building them every instance.
         -- However, since at this point everything is host-only, and host is likely to only call it once, it's not a high priority fix.
 
-        if not host:isHost() then return "Song list" end
-        if not next(song_library.song_holders) then
-            return "Song list\nNo songs found. Check the `[figura root]/data/TL_Songbook` directory."
+        if not host:isHost() then
+            actions.select_song:title("Song list")
+            return
+        end
+
+        if song_library:get_library_length() < 1 then
+            actions.select_song:title("Song list\nNo songs found. Check the `[figura root]/data/TL_Songbook` directory.")
+            return
         end
 
         -- get index range
