@@ -109,7 +109,15 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         end
 
         if song_library:get_library_length() < 1 then
-            actions.select_song:title("Song list\nNo songs found. Check the `[figura root]/data/TL_Songbook` directory.")
+            local selector_string = "Song list\n\nNo songs found in library."
+            if song_library:get_source_directories()[1] then
+                selector_string = selector_string
+                    .. "\nCheck the `[figura_root]/data/"
+                    .. song_library:get_source_directories()[1]
+                    .. "` directory and make sure it has some music files."
+            end
+
+            actions.select_song:title(selector_string)
             return
         end
 
