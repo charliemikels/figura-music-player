@@ -18,12 +18,51 @@
 ---@field tracks table
 ---@field channels table
 ---@field parseProjects table
+---
+---@field remove fun(self:ChloeFiguraMidiCloudInstance)     -- Deletes and cleans this instance
+---@field newSong fun(self:ChloeFiguraMidiCloudInstance, name:string, midiData:ChloeFiguraMidiCloudMidiData):ChloeFiguraMidiCloudSong
+---@field setTarget fun(self:ChloeFiguraMidiCloudInstance, target:ChloeFiguraMidiCloudValidInstanceTarget):ChloeFiguraMidiCloudInstance      -- Change where the player plays in-world.
+---@field getTarget fun(self:ChloeFiguraMidiCloudInstance): ChloeFiguraMidiCloudValidInstanceTarget
+---@field setVolume fun(self:ChloeFiguraMidiCloudInstance, volume:number): ChloeFiguraMidiCloudInstance     -- will be clamped from 0 to 1
+---@field getVolume fun(self:ChloeFiguraMidiCloudInstance): number
+---@field getPermissionLevel fun(self:ChloeFiguraMidiCloudInstance): string         -- wrapper for `avatar:getPermissionLevel()`
+---@field setOnMidiEvent fun(self:ChloeFiguraMidiCloudInstance, func:function): ChloeFiguraMidiCloudInstance      -- sets a callback function for midi events. -- TODO: does func have some special shape?
+---@field setShouldKillInstance fun(self:ChloeFiguraMidiCloudInstance, func:function): ChloeFiguraMidiCloudInstance   -- TODO: does func have some special shape?
+---@field setShouldKillInstance fun(self:ChloeFiguraMidiCloudInstance, func:function): ChloeFiguraMidiCloudInstance   -- TODO: does func have some special shape?
+---@field keepAlive fun(self:ChloeFiguraMidiCloudInstance): ChloeFiguraMidiCloudInstance    -- sets some keep alive value to true. -- TODO: What is keepAlive?
+
+---@class ChloeFiguraMidiCloudSong
+---@field new fun(self:ChloeFiguraMidiCloudSong, instance:ChloeFiguraMidiCloudInstance, ID:string, rawData:ChloeFiguraMidiCloudMidiData):ChloeFiguraMidiCloudSong
+---
+---@field ID string
+---@field activeSong table?  nil
+---@field isRemoved boolean
+---@field target ChloeFiguraMidiCloudValidInstanceTarget
+---@field volume number     -- From 0 to 1
+---@field attenuation number    defaults to 1
+---@field midi ChloeFiguraMidiCloudMidiApi
+    -- self.soundfont = soundfont
+    -- self.lastSysTime = client.getSystemTime()
+    -- self.lastUpdated = client.getSystemTime()
+    -- self.shouldKeepAlive = true
+    -- self.shouldKeepAliveClock = 0
+    -- self.songs = {}
+    -- self.tracks = {}
+    -- self.channels = {}
+    -- self.parseProjects = {}
+---
+
+
+
+
 
 ---@class ChloeFiguraMidiCloudMidiApi
 ---@field channel table
 ---@field events table
 ---@field note ChloeFiguraMidiCloudMidiNote
----@field song table
+---@field song ChloeFiguraMidiCloudSong -- just the sone metatable and starting functions.
+
+---@alias ChloeFiguraMidiCloudMidiData Byte[]   -- TODO: I don't actualy know what type this needs to be. It ultimately is "raw midi data", but is it in a string or byte list?
 
 ---@class ChloeFiguraMidiCloudMidiNote
 ---

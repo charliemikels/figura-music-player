@@ -186,6 +186,25 @@ local fallback_instrument_lookup = {
     [129] = "Percussion"
 }
 
+local tmp = sounds:getCustomSounds()
+
+---@alias ChloeFiguraMidiCloudValidInstanceTarget Player|BlockState|Vector3
+
+
+---@class ChloeFiguraMidiCloudAvatarApi
+---@field newInstance fun(ID:string, target:ChloeFiguraMidiCloudValidInstanceTarget, avatarInstance:AvatarAPI):ChloeFiguraMidiCloudInstance?
+---@field listSounds fun():string[]         Wrapper for `sounds:getCustomSounds()`
+---@field getSound fun(id:string):Sound   Wrapper for `sounds[id]`
+---@field sessionID fun():UUID              The result of `client.generateUUID()`. Unique to this instance of the midi avatar. Can be used to check for reloads.
+---@see https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/externalAPI.lua#L169-L172
+
+---@type ChloeFiguraMidiCloudAvatarApi?
+local midi_avatar_api = world.avatarVars()[chloe_player_uuid]
+printTable(midi_avatar_api)
+local midi_instance = midi_avatar_api.newInstance("TMP INSTANCE", vectors.vec3(0,0,0), avatar)
+printTable(midi_instance)
+local midi_api = midi_instance.midi
+printTable(midi_api.events)
 
 
 
