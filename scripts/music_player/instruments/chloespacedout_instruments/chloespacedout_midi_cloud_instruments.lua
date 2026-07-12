@@ -200,11 +200,11 @@ local tmp = sounds:getCustomSounds()
 
 ---@type ChloeFiguraMidiCloudAvatarApi?
 local midi_avatar_api = world.avatarVars()[chloe_player_uuid]
-printTable(midi_avatar_api)
+-- printTable(midi_avatar_api)
 local midi_instance = midi_avatar_api.newInstance("TMP INSTANCE", vectors.vec3(0,0,0), avatar)
-printTable(midi_instance)
+-- printTable(midi_instance)
 local midi_api = midi_instance.midi
-printTable(midi_api.events)
+-- printTable(midi_api.events)
 
 
 
@@ -213,5 +213,31 @@ printTable(midi_api.events)
 
 -- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
 
----@type InstrumentBuilder[]
-return {}
+local builders_to_return = {}   ---@type InstrumentBuilder[]
+for number, name in pairs(cloud_instrument_names) do
+    ---@type InstrumentBuilder
+    local builder = {
+        name = "ChloeMidiCloud: " .. string.format("%03d", number) .. " " .. name,
+        features = {},
+        is_available = function() return false end,
+        new_instance = function(params)
+            ---@type Instrument
+            local new_instrument = {
+                play_instruction = function() end,
+                is_finished = function () return true end,
+                update_sounds = function (position) end,
+                stop_all_sounds_immediately = function () end,
+                stop_one_sound_immediately = function () end
+            }
+            return new_instrument
+        end
+    }
+    table.insert(builders_to_return, builder)
+end
+table.sort(builders_to_return, function (a, b)
+	return a.name < b.name
+end)
+
+-- printTable(builders_to_return)
+
+return builders_to_return
