@@ -69,7 +69,8 @@ local reserved_instrument_names = {
 ---@type table<InstrumentKey, InstrumentBuilder>
 local known_instruments = {}
 
-
+-- TODO: This logic filters out legitimate instruments that happen to end in `instruments`. EG: `chloe_midi_cloud_instruments.lua`
+-- Is there a better way to filter out the starting folder/script without banishing items that just happen to be named the same?
 local instruments_directory_path = "./instruments"
 local instruments_directory_path_but_just_what_is_after_the_slash = instruments_directory_path:gsub(".*%.%/(%a-)", "%1")
 local pattern_to_exclude = instruments_directory_path_but_just_what_is_after_the_slash.."$"  -- tests if local song is the last thing in the list (the found path is a path to ourself)
