@@ -39,6 +39,7 @@ local default_percussion_instrument_name = "Percussion"
 ---@field is_available fun():boolean    may be false for instruments with custom sounds and instruments from other avatars.
 ---@field features table<string, boolean>?
 ---@field new_instance fun(params: integer[]):Instrument
+---@field sort_priority number? -- If nil, defaults to 0
 
 ---@alias InstrumentTypeId 0|1 0 for normal, 1 for percussion.
 
@@ -176,7 +177,11 @@ local function get_sorted_instrument_keys()
         table.insert(keys, key)
     end
     table.sort(keys, function(a, b)
-        return string.lower(a) < string.lower(b)
+        if (known_instruments[a].sort_priority or 0) == (known_instruments[b].sort_priority or 0) then
+            return string.lower(a) < string.lower(b)
+        end
+        -- print (a .. " and "..b.." don't match")
+        return (known_instruments[a].sort_priority or 0) > (known_instruments[b].sort_priority or 0)
     end)
     return keys
 end

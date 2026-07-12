@@ -218,6 +218,7 @@ for number, name in pairs(cloud_instrument_names) do
     ---@type InstrumentBuilder
     local builder = {
         name = "ChloeMidiCloud: " .. string.format("%03d", number) .. " " .. name,
+        sort_priority = -1,
         features = {},
         is_available = function() return false end,
         new_instance = function(params)
