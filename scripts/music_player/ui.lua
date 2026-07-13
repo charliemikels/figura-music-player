@@ -103,9 +103,22 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         -- TODO: This, and a few other functions could be methods that take in `self`. we can then initialize them at init time, instead of building them every instance.
         -- However, since at this point everything is host-only, and host is likely to only call it once, it's not a high priority fix.
 
-        if not host:isHost() then return "Song list" end
-        if not next(song_library.song_holders) then
-            return "Song list\nNo songs found. Check the `[figura root]/data/TL_Songbook` directory."
+        if not host:isHost() then
+            actions.select_song:title("Song list")
+            return
+        end
+
+        if song_library:get_library_length() < 1 then
+            local selector_string = "Song list\n\nNo songs found in library."
+            if song_library:get_source_directories()[1] then
+                selector_string = selector_string
+                    .. "\nCheck the `[figura_root]/data/"
+                    .. song_library:get_source_directories()[1]
+                    .. "` directory and make sure it has some music files."
+            end
+
+            actions.select_song:title(selector_string)
+            return
         end
 
         -- get index range
@@ -342,6 +355,11 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         end)
         :onLeftClick(function(_)
             local target_song = song_library:get_song_by_sorted_index(selected_song_index)
+            if not target_song then
+                print("No song selected")
+                return
+            end
+
             if not song_processors_and_player_controllers[target_song.id] then song_processors_and_player_controllers[target_song.id] = {} end
             if song_processors_and_player_controllers[target_song.id].error then
                 print_host(song_processors_and_player_controllers[target_song.id].error)
