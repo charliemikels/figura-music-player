@@ -1,11 +1,13 @@
 
 ---@alias UUID string
 
+---@alias ChloeFiguraMidiCloudValidInstanceTarget Player|BlockState|Vector3
+
 ---@class ChloeFiguraMidiCloudInstance
 ---@field ID string
 ---@field activeSong nil
 ---@field isRemoved boolean
----@field target Player|BlockState|Vector3  -- https://github.com/ChloeSpacedOut/figura-midi-player/blob/20c4d8031668a3ee2e3b3cb69843fabc46acc81a/ChloesMidiPlayerCloud/externalAPI.lua#L98
+---@field target ChloeFiguraMidiCloudValidInstanceTarget  -- https://github.com/ChloeSpacedOut/figura-midi-player/blob/20c4d8031668a3ee2e3b3cb69843fabc46acc81a/ChloesMidiPlayerCloud/externalAPI.lua#L98
 ---@field volume number         -- float between 0 and 1
 ---@field attenuation number    -- float between 0 and 1
 ---@field midi ChloeFiguraMidiCloudMidiApi
@@ -18,6 +20,8 @@
 ---@field tracks table
 ---@field channels table
 ---@field parseProjects table
+---
+--- -- TODO: the lower function fields don't always appear. there might be something like an instance builder, and a real instance.
 ---
 ---@field remove fun(self:ChloeFiguraMidiCloudInstance)     -- Deletes and cleans this instance
 ---@field newSong fun(self:ChloeFiguraMidiCloudInstance, name:string, midiData:ChloeFiguraMidiCloudMidiData):ChloeFiguraMidiCloudSong
@@ -59,12 +63,12 @@
 ---@class ChloeFiguraMidiCloudMidiApi
 ---@field channel table
 ---@field events table
----@field note ChloeFiguraMidiCloudMidiNote
+---@field note ChloeFiguraMidiCloudMidiNoteBuilder
 ---@field song ChloeFiguraMidiCloudSong -- just the sone metatable and starting functions.
 
 ---@alias ChloeFiguraMidiCloudMidiData Byte[]   -- TODO: I don't actualy know what type this needs to be. It ultimately is "raw midi data", but is it in a string or byte list?
 
----@class ChloeFiguraMidiCloudMidiNote
+---@class ChloeFiguraMidiCloudMidiNoteBuilder
 ---
 --- Initializes a new midi note and plays it.
 ---
@@ -75,20 +79,53 @@
 --- `sysTime` should be called with the note's start time. see `client.getSystemTime()`
 ---
 --- `pos` may be nil, in which the note will default to the instance's position.
----@field play fun(self:ChloeFiguraMidiCloudMidiNote, instance:table, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNote
+---@field play fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, instance:table, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNoteBuilder
 ---
----@field sustain fun(self:ChloeFiguraMidiCloudMidiNote) -- Removes the "main noise" and only plays the sustain loop.
+---@field sustain fun(self:ChloeFiguraMidiCloudMidiNoteBuilder) -- Removes the "main noise" and only plays the sustain loop.
 ---
 --- Stops a note with a small decay.
 ---
 --- `sysTime` is the time the note was released, but it can be set to a future time. Call with `client.getSystemTime()` and add `instruction.duration` to it.
----@field release fun(self:ChloeFiguraMidiCloudMidiNote, sysTime:integer)
----@field stop fun(self:ChloeFiguraMidiCloudMidiNote) -- stops the note immediately.
+---@field release fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, sysTime:integer)
+---@field stop fun(self:ChloeFiguraMidiCloudMidiNoteBuilder) -- stops the note immediately.
 ---@field releaseTime integer   -- The time the note was released. Because we set this time immediately after creating the note, we should expect this to always be something
----@field duration number       -- The amount of extra time it takes for this not to decay after being released.
+
+---@class ChloeFiguraMidiCloudMidiNoteInstance
+---@field track integer
+---@field pitch integer         -- Midi value of the base note
+---@field soundPitch number     -- The value given to Minecraft's `sound:setPitch()` function. Updating this will eventually update the sound of the currently playing note, but you probably want to manually update the `.sound` field too.
+---@field instrument ChloeFiguraMidiCloudInstrumentInfo
+---@field instance ChloeFiguraMidiCloudInstance
+---@field velocity number       -- the starting velocity
+---@field duration number
+---@field initTime number       -- the time this note started playing
+---@field state ChloeFiguraMidiCloudMidiNoteInstanceStates
 ---@field sound Sound
+---@field channel integer
+---@field pos Vector3
+
+---@alias ChloeFiguraMidiCloudMidiNoteInstanceStates
+---|"PLAYING"       -- The note is "pressed" and is playing.
+---|"RELEASED"      -- The note is not being pressed and is either stopped or rapidly decaying.
+---|"SUSTAINING"    -- A special state telling the note not to decay.
 
 ---@class ChloeFiguraMidiCloudSoundfontAPI
+
+---@class ChloeFiguraMidiCloudInstrumentInfo
+---@field sustain ChloeFiguraMidiCloudInstrumentInfoPitchLookup
+---@field template string       -- similar to the sound's ID
+---@field index integer
+---@field main ChloeFiguraMidiCloudInstrumentInfoPitchLookup
+
+--- A lookup for every midi note. Key is either a midi pitch as a string, or `"notes"`
+--- midi key strings → `{sample: integer, pitch: number}`   -- Marks the nearest sample, and a multiplier to achieve the final pitch from the base pitch
+--- "notes" is just a integer[] of the base pitches for this instrument. So that if you looked up those pitches, the multiplier would be `1`
+---@alias ChloeFiguraMidiCloudInstrumentInfoPitchLookup table
+
+
+
+
+
 
 ---@class ChloePianoLib
 ---@field getPianos fun():table<ChloeInstrumentID, ChloePiano>

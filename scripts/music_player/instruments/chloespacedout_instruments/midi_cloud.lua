@@ -186,7 +186,7 @@ local fallback_instrument_lookup = {
     [129] = "Percussion"
 }
 
----@alias ChloeFiguraMidiCloudValidInstanceTarget Player|BlockState|Vector3
+
 
 
 ---@class ChloeFiguraMidiCloudAvatarApi

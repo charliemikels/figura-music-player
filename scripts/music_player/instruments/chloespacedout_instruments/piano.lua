@@ -207,7 +207,7 @@ local piano_builder = {
         local instance_piano_id             ---@type ChloeInstrumentID?
         local instance_piano_lib            ---@type ChloePianoLib?
         local instance_piano                ---@type ChloePiano
-        local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
+        local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNoteBuilder
 
         local time_this_piano_will_be_done = client:getSystemTime()
 
