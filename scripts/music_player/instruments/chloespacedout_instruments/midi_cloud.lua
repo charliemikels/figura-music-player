@@ -206,7 +206,9 @@ printTable(midi_api.note)
 
 local test_note = midi_api.note:play( midi_instance, 50, 90, 1, 1, client.getSystemTime(), vec(6, 58, -17))
 test_note.soundPitch = test_note.soundPitch * 1.2
-test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??).Manualy setting the pitch ourselves ensures it updates immediatly.
+test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??). Manually setting the pitch ourselves ensures it updates immediatly.
+printTable(test_note)
+test_note:release(client.getSystemTime() + 100)
 printTable(test_note)
 
 

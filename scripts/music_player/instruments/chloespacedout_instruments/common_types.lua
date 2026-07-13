@@ -86,11 +86,11 @@
 --- Stops a note with a small decay.
 ---
 --- `sysTime` is the time the note was released, but it can be set to a future time. Call with `client.getSystemTime()` and add `instruction.duration` to it.
----@field release fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, sysTime:integer)
+---@field release fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, sysTime:integer)    -- Stops a note at the set time.
 ---@field stop fun(self:ChloeFiguraMidiCloudMidiNoteBuilder) -- stops the note immediately.
 ---@field releaseTime integer   -- The time the note was released. Because we set this time immediately after creating the note, we should expect this to always be something
 
----@class ChloeFiguraMidiCloudMidiNoteInstance
+---@class ChloeFiguraMidiCloudMidiNoteInstance: ChloeFiguraMidiCloudMidiNoteBuilder
 ---@field track integer
 ---@field pitch integer         -- Midi value of the base note
 ---@field soundPitch number     -- The value given to Minecraft's `sound:setPitch()` function. Updating this will eventually update the sound of the currently playing note, but you probably want to manually update the `.sound` field too.
@@ -106,7 +106,7 @@
 
 ---@alias ChloeFiguraMidiCloudMidiNoteInstanceStates
 ---|"PLAYING"       -- The note is "pressed" and is playing.
----|"RELEASED"      -- The note is not being pressed and is either stopped or rapidly decaying.
+---|"RELEASED"      -- The note is not being pressed and is being stopped or has a release time (see ChloeFiguraMidiCloudMidiNoteBuilder:release()).
 ---|"SUSTAINING"    -- A special state telling the note not to decay.
 
 ---@class ChloeFiguraMidiCloudSoundfontAPI
