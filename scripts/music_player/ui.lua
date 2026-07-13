@@ -583,7 +583,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             local current_track = config_page_state.targeted_song.processed_song.tracks[k]
 
             track_picker_title = track_picker_title
-                .. "\n"
+                .. ( k == start_index and "\n" or "\n\n")
                 .. (config_page_state.selected_track_index == k and "→" or "  ")
                 .. " " .. string.format("%02d", k)
                 .. " "
