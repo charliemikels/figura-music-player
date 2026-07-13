@@ -186,8 +186,6 @@ local fallback_instrument_lookup = {
     [129] = "Percussion"
 }
 
-local tmp = sounds:getCustomSounds()
-
 ---@alias ChloeFiguraMidiCloudValidInstanceTarget Player|BlockState|Vector3
 
 
@@ -204,7 +202,16 @@ local midi_avatar_api = world.avatarVars()[chloe_player_uuid]
 local midi_instance = midi_avatar_api.newInstance("TMP INSTANCE", vectors.vec3(0,0,0), avatar)
 -- printTable(midi_instance)
 local midi_api = midi_instance.midi
--- printTable(midi_api.events)
+printTable(midi_api.note)
+
+local test_note = midi_api.note:play( midi_instance, 50, 90, 1, 1, client.getSystemTime(), vec(6, 58, -17))
+test_note.soundPitch = test_note.soundPitch * 1.2
+test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??).Manualy setting the pitch ourselves ensures it updates immediatly.
+printTable(test_note)
+
+
+-- local test_note_two = midi_api.note:play( midi_instance, 54, 90, 1, 1, client.getSystemTime(), vec(6, 58, -17))
+-- test_note_two.soundPitch = test_note_two.soundPitch * 1.2
 
 
 
