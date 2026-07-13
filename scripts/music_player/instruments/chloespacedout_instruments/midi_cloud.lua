@@ -337,9 +337,6 @@ for number, name in pairs(cloud_instrument_names) do
     }
     table.insert(builders_to_return, builder)
 end
-table.sort(builders_to_return, function (a, b)
-	return a.name < b.name
-end)
 
 -- printTable(builders_to_return)
 
