@@ -187,7 +187,7 @@ local fallback_instrument_lookup = {
 }
 
 
----@class ChloeFiguraMidiCloudAvatarApi
+---@class ChloeFiguraMidiCloudAvatarVars
 ---@field newInstance fun(ID:string, target:ChloeFiguraMidiCloudValidInstanceTarget, avatarInstance:AvatarAPI):ChloeFiguraMidiCloudInstance?
 ---@field listSounds fun():string[]         Wrapper for `sounds:getCustomSounds()`
 ---@field getSound fun(id:string):Sound   Wrapper for `sounds[id]`
@@ -196,12 +196,53 @@ local fallback_instrument_lookup = {
 
 
 
+---@return ChloeFiguraMidiCloudAvatarVars?
+local function get_midi_avatar_vars()
+    return world.avatarVars()[chloe_player_uuid]
+end
 
--- Create a new midi instance
+---@return ChloeFiguraMidiCloudInstance?
+local function get_midi_instance()
+    local midi_cloud_avatar_vars = get_midi_avatar_vars()
+    if midi_cloud_avatar_vars == nil then return nil end
 
----@type ChloeFiguraMidiCloudAvatarApi?
-local midi_avatar_api = world.avatarVars()[chloe_player_uuid]     -- TODO: This can fail
-local midi_instance = midi_avatar_api.newInstance("TMP INSTANCE", vectors.vec3(0,0,0), avatar)  -- TODO: This can fail
+    local instance_uuid = client.intUUIDToString(client.generateUUID())
+    local midi_cloud_instance = midi_cloud_avatar_vars.newInstance(
+        instance_uuid,
+        vectors.vec3(0,0,0), -- remember to update target during playback.
+        avatar
+    )
+    return midi_cloud_instance
+end
+
+local is_midi_cloud_available_next_allowed_check_time = 0   -- used to prevent `is_midi_cloud_available` from running many times every update.
+local is_midi_cloud_available_last_result = false
+
+---@return boolean
+local function is_midi_cloud_available()
+    if client.getSystemTime() < is_midi_cloud_available_next_allowed_check_time then
+        return is_midi_cloud_available_last_result
+    end
+    is_midi_cloud_available_next_allowed_check_time = client.getSystemTime() + 20
+
+    local test_midi_cloud_instance = get_midi_instance()
+
+    if test_midi_cloud_instance then
+        test_midi_cloud_instance:remove()
+        test_midi_cloud_instance = nil
+        is_midi_cloud_available_last_result = true
+        return is_midi_cloud_available_last_result
+    end
+
+    is_midi_cloud_available_last_result = false
+    return is_midi_cloud_available_last_result
+end
+
+
+
+
+
+local midi_instance = get_midi_instance()
 local midi_api = midi_instance.midi
 
 -- spawn our own channel
@@ -270,7 +311,6 @@ end
 
 
 
-
 -- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
 
 local builders_to_return = {}   ---@type InstrumentBuilder[]
@@ -280,11 +320,13 @@ for number, name in pairs(cloud_instrument_names) do
         name = "ChloeMidiCloud: " .. string.format("%03d", number) .. " " .. name,
         sort_priority = -1,
         features = {},
-        is_available = function() return false end,
+        is_available = is_midi_cloud_available,
         new_instance = function(params)
             ---@type Instrument
             local new_instrument = {
-                play_instruction = function() end,
+                play_instruction = function (instruction, position, time_since_due)
+
+                end,
                 is_finished = function () return true end,
                 update_sounds = function (position) end,
                 stop_all_sounds_immediately = function () end,
