@@ -79,7 +79,7 @@
 --- `sysTime` should be called with the note's start time. see `client.getSystemTime()`
 ---
 --- `pos` may be nil, in which the note will default to the instance's position.
----@field play fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, instance:table, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNoteBuilder
+---@field play fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, instance:table, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNoteInstance
 ---
 ---@field sustain fun(self:ChloeFiguraMidiCloudMidiNoteBuilder) -- Removes the "main noise" and only plays the sustain loop.
 ---
