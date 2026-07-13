@@ -187,8 +187,6 @@ local fallback_instrument_lookup = {
 }
 
 
-
-
 ---@class ChloeFiguraMidiCloudAvatarApi
 ---@field newInstance fun(ID:string, target:ChloeFiguraMidiCloudValidInstanceTarget, avatarInstance:AvatarAPI):ChloeFiguraMidiCloudInstance?
 ---@field listSounds fun():string[]         Wrapper for `sounds:getCustomSounds()`
@@ -196,24 +194,54 @@ local fallback_instrument_lookup = {
 ---@field sessionID fun():UUID              The result of `client.generateUUID()`. Unique to this instance of the midi avatar. Can be used to check for reloads.
 ---@see https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/externalAPI.lua#L169-L172
 
+
+
+
+-- Create a new midi instance
+
 ---@type ChloeFiguraMidiCloudAvatarApi?
-local midi_avatar_api = world.avatarVars()[chloe_player_uuid]
--- printTable(midi_avatar_api)
-local midi_instance = midi_avatar_api.newInstance("TMP INSTANCE", vectors.vec3(0,0,0), avatar)
--- printTable(midi_instance)
+local midi_avatar_api = world.avatarVars()[chloe_player_uuid]     -- TODO: This can fail
+local midi_instance = midi_avatar_api.newInstance("TMP INSTANCE", vectors.vec3(0,0,0), avatar)  -- TODO: This can fail
 local midi_api = midi_instance.midi
-printTable(midi_api.note)
 
-local test_note = midi_api.note:play( midi_instance, 50, 90, 1, 1, client.getSystemTime(), vec(6, 58, -17))
-test_note.soundPitch = test_note.soundPitch * 1.2
+-- spawn our own channel
+
+local my_chanel_id = 32 -- midi caps out at 16 channels, but there's no such limit here. Using a big number means we avoid hard-coded channel rules like 9==percussion (when counting from 0)
+local new_channel = midi_api.channel:new(midi_instance, my_chanel_id)
+midi_instance.channels[my_chanel_id] = new_channel       -- for whatever reason, chloe's script doesn't do this for us
+
+-- Set the channel's instrument
+
+midi_instance.channels[my_chanel_id].instrument = 10
+
+-- Init the note
+
+local test_note = midi_api.note:play(
+    midi_instance,
+    60, 90,
+    my_chanel_id,
+    my_chanel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
+    client.getSystemTime(),
+    vec(6, 58, -17)
+)
+
+-- initial note pitch-bend.
+
+test_note.soundPitch = test_note.soundPitch * 1.2       -- We will need to keep track of this original sound pitch before we mess with it.
 test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??). Manually setting the pitch ourselves ensures it updates immediatly.
-printTable(test_note)
+
+-- Set a release time.
+
 test_note:release(client.getSystemTime() + 100)
-printTable(test_note)
 
+-- TODO: Figure out volume control
+-- TODO: Track original pitch bend so that the next pitch bend doesn't stack, but replaces
+-- TODO: Note done checking. ("RELEASED" happens as sune as we define a release time, and doesn't seem to go away)
 
--- local test_note_two = midi_api.note:play( midi_instance, 54, 90, 1, 1, client.getSystemTime(), vec(6, 58, -17))
--- test_note_two.soundPitch = test_note_two.soundPitch * 1.2
+-- events.TICK:register(function()
+--     print(test_note.releaseTime < client.getSystemTime())    -- Some Instruments (like 10) still clearly decay even after release time.
+--     print(test_note.state)                                   -- is set to release immediately after calling `:release()`
+-- end)
 
 
 
