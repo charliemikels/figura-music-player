@@ -225,18 +225,41 @@ local test_note = midi_api.note:play(
     vec(6, 58, -17)
 )
 
+local test_note_id_for_holder = test_note.pitch .. "_" .. test_note.channel .. "_" .. test_note.track
+
+-- Track pitch bend change
+
+local test_note_holder = {}
+test_note_holder[test_note_id_for_holder] = {
+    chloe_note = test_note,
+    base_pitch_multiplier = test_note.soundPitch,
+}
+
 -- initial note pitch-bend.
 
-test_note.soundPitch = test_note.soundPitch * 1.2       -- We will need to keep track of this original sound pitch before we mess with it.
+test_note.soundPitch = test_note_holder[test_note_id_for_holder].base_pitch_multiplier * 1.2
 test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??). Manually setting the pitch ourselves ensures it updates immediatly.
 
 -- Set a release time.
 
-test_note:release(client.getSystemTime() + 100)
+test_note:release(client.getSystemTime() + 100) -- TODO: is there a meaningful difrence between calling release for the future, and waiting until the right time and calling release then?
+
+
 
 -- TODO: Figure out volume control
--- TODO: Track original pitch bend so that the next pitch bend doesn't stack, but replaces
--- TODO: Note done checking. ("RELEASED" happens as soon as we define a release time, and doesn't seem to go away)
+-- Unlike pitch, the midi api manipulates volume to do decays and stuff.
+-- Does it take in changes to test_note.velocity?
+
+
+
+-- Check when done (We need to keep track of notes so that we can pitch bend them and stuff. But we need to know when it's OK to let go.)
+
+for note_holder_key, v in pairs(test_note_holder) do
+    if v.chloe_note.releaseTime < client.getSystemTime() then
+        test_note_holder[note_holder_key] = nil
+        test_note = nil
+    end
+end
 
 -- events.TICK:register(function()
 --     print(test_note.releaseTime < client.getSystemTime())    -- Some Instruments (like 10) still clearly decay even after release time.
