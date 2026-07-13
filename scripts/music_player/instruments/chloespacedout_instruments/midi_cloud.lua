@@ -236,7 +236,7 @@ test_note:release(client.getSystemTime() + 100)
 
 -- TODO: Figure out volume control
 -- TODO: Track original pitch bend so that the next pitch bend doesn't stack, but replaces
--- TODO: Note done checking. ("RELEASED" happens as sune as we define a release time, and doesn't seem to go away)
+-- TODO: Note done checking. ("RELEASED" happens as soon as we define a release time, and doesn't seem to go away)
 
 -- events.TICK:register(function()
 --     print(test_note.releaseTime < client.getSystemTime())    -- Some Instruments (like 10) still clearly decay even after release time.
