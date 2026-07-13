@@ -61,10 +61,25 @@
 
 
 ---@class ChloeFiguraMidiCloudMidiApi
----@field channel table
----@field events table
+---@field channel ChloeFiguraMidiCloudMidiChannelBuilder
+---@field events table<string, fun()>   -- TODO: https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/midiAPI.lua#L343
 ---@field note ChloeFiguraMidiCloudMidiNoteBuilder
 ---@field song ChloeFiguraMidiCloudSong -- just the sone metatable and starting functions.
+
+---@class ChloeFiguraMidiCloudMidiChannelBuilder
+---@field new fun(self: ChloeFiguraMidiCloudMidiChannelBuilder, instance: ChloeFiguraMidiCloudInstance, id: integer): ChloeFiguraMidiCloudMidiChannel
+
+---@class ChloeFiguraMidiCloudMidiChannel: ChloeFiguraMidiCloudMidiChannelBuilder
+---@field remove fun(self: ChloeFiguraMidiCloudMidiChannel)
+---@field ID integer
+---@field instance ChloeFiguraMidiCloudInstance
+---@field instrument integer
+---@field pitchBend integer         -- State of the pitch wheel. Matches midi. `8192` is neutral
+---@field rpnData {paramMSB: integer?, paramLSB: integer?, valMSB: integer?, valLSB:integer?}
+---@field pitchBendRange number     -- defaults to 2
+---@field volume number             -- defaults to 1
+
+
 
 ---@alias ChloeFiguraMidiCloudMidiData Byte[]   -- TODO: I don't actualy know what type this needs to be. It ultimately is "raw midi data", but is it in a string or byte list?
 
@@ -79,7 +94,7 @@
 --- `sysTime` should be called with the note's start time. see `client.getSystemTime()`
 ---
 --- `pos` may be nil, in which the note will default to the instance's position.
----@field play fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, instance:table, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNoteInstance
+---@field play fun(self:ChloeFiguraMidiCloudMidiNoteBuilder, instance:ChloeFiguraMidiCloudInstance, pitch:integer, velocity:integer, channelID:integer, trackID:integer, sysTime, pos:Vector3?):ChloeFiguraMidiCloudMidiNoteInstance
 ---
 ---@field sustain fun(self:ChloeFiguraMidiCloudMidiNoteBuilder) -- Removes the "main noise" and only plays the sustain loop.
 ---
