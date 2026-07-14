@@ -239,23 +239,23 @@ end
 
 
 
-local midi_instance = get_midi_instance()
-local midi_api = midi_instance.midi
+local test_midi_instance = get_midi_instance()
+local test_midi_api = test_midi_instance.midi
 
 -- spawn our own channel
 
 local my_chanel_id = 32 -- midi caps out at 16 channels, but there's no such limit here. Using a big number means we avoid hard-coded channel rules like 9==percussion (when counting from 0)
-local new_channel = midi_api.channel:new(midi_instance, my_chanel_id)
-midi_instance.channels[my_chanel_id] = new_channel       -- for whatever reason, chloe's script doesn't do this for us
+local new_channel = test_midi_api.channel:new(test_midi_instance, my_chanel_id)
+test_midi_instance.channels[my_chanel_id] = new_channel       -- for whatever reason, chloe's script doesn't do this for us
 
 -- Set the channel's instrument
 
-midi_instance.channels[my_chanel_id].instrument = 10
+test_midi_instance.channels[my_chanel_id].instrument = 10
 
 -- Init the note
 
-local test_note = midi_api.note:play(
-    midi_instance,
+local test_note = test_midi_api.note:play(
+    test_midi_instance,
     60, 90,
     my_chanel_id,
     my_chanel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
@@ -330,6 +330,8 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
             local fallback_instrument_instance = fallback_instrument_builder.new_instance({})
 
+            -- TODO: on instrument init (beginning of the song), check `is_midi_cloud_available()`, and if it is not,
+            -- spawn a one-time floating bit of text to tell viewers to check if cloud midi has perms.
 
 
             local midi_instance = get_midi_instance()
@@ -339,7 +341,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 play_instruction = function (instruction, position, time_since_due)
                     -- if not is_midi_cloud_available() then
                         fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
-                        return
+                        -- return
                     -- end
                 end,
                 is_finished = function ()
