@@ -326,7 +326,11 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
     local builder = {
         name = "ChloeMidiCloud: " .. string.format("%03d", instrument_midi_number) .. " " .. instrument_midi_name,
         sort_priority = -1,
-        features = {},
+        features = {
+            percussion = not (sample_is_non_melodic_lookup[instrument_midi_number] == nil),
+            sustain = (sample_is_non_melodic_lookup[instrument_midi_number] == nil),
+            pitch_bend = (sample_is_non_melodic_lookup[instrument_midi_number] == nil)
+        },
         is_available = is_midi_cloud_available,
         new_instance = function(params)
             local instruments_api = require("../../instruments")  ---@type InstrumentsApi
