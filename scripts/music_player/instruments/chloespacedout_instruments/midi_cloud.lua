@@ -240,7 +240,7 @@ end
 
 
 
-
+--[[
 
 local test_midi_instance = get_midi_instance()
 local test_midi_api = test_midi_instance.midi
@@ -313,7 +313,7 @@ for note_holder_key, v in pairs(test_note_holder) do
     end
 end
 
-
+--]]
 
 
 -- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
