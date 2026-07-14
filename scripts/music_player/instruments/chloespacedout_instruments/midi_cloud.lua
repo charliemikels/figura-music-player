@@ -350,7 +350,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
             local midi_cloud_was_previously_available = false
             local midi_instance = nil               ---@type ChloeFiguraMidiCloudInstance?
 
-            local channel_id = 32 -- midi caps out at 16 channels, but there's no such limit here. Using a big number means we avoid hard-coded channel rules like 9==percussion (when counting from 0)
+            local channel_id = (instrument_midi_number == 129 and 9 or 1)
 
             local function check_availability_and_rebuild_state_if_it_changed()
                 local midi_is_currently_available = is_midi_cloud_available()
