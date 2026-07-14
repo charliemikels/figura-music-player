@@ -202,7 +202,7 @@ end
 ---@return ChloeFiguraMidiCloudInstance?
 local function get_midi_instance()
     local midi_cloud_avatar_vars = get_midi_avatar_vars()
-    if midi_cloud_avatar_vars == nil then return nil end
+    if midi_cloud_avatar_vars == nil or midi_cloud_avatar_vars.newInstance == nil then return nil end
 
     local instance_uuid = client.intUUIDToString(client.generateUUID())
     local midi_cloud_instance = midi_cloud_avatar_vars.newInstance(
@@ -363,6 +363,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
                 else -- We're offline. Cleanup any stuff left over
                     print("offline")
+                    midi_instance = nil
                 end
 
                 midi_cloud_was_previously_available = midi_is_currently_available
@@ -373,7 +374,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
             ---@type Instrument
             local new_instrument = {
                 play_instruction = function (instruction, position, time_since_due)
-                    -- check_availability_and_rebuild_state_if_it_changed()
+                    check_availability_and_rebuild_state_if_it_changed()
                     if not is_midi_cloud_available() then
                         -- print("Backup played")
                         fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
@@ -401,7 +402,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     return fallback_instrument_instance.is_finished()
                 end,
                 update_sounds = function (position)
-                    -- check_availability_and_rebuild_state_if_it_changed()
+                    check_availability_and_rebuild_state_if_it_changed()
                     fallback_instrument_instance.update_sounds(position)
                 end,
                 stop_all_sounds_immediately = function ()
