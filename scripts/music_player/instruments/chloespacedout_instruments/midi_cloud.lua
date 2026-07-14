@@ -421,7 +421,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     fallback_instrument_instance.update_sounds(position)
 
                     if is_midi_cloud_available() then
-                        midi_instance:setTarget(position)
+                        midi_instance:setTarget(position)   -- TODO: This seems to be somewhat incomplete for note that have been released, but still decaying. Their positions won't be updated. Double check that it's not an us problem, the maybe make a PR?
 
                         -- TODO: Pitch
                         -- TODO: Volume
@@ -439,7 +439,11 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 stop_all_sounds_immediately = function ()
                     fallback_instrument_instance.stop_all_sounds_immediately()
 
-                    -- TODO: !
+                    -- TODO: We may not be properly cleaning up. Midi Cloud constantly gains instructions every time we start a song.
+                    --       We can probably fix this by calling midi_instance:remove() when all notes are done. Must maybe we could make a PR for the midi cloud? Auto start/stop events on demand if no songs playing?
+
+                    -- if is_midi_cloud_available() then
+                    -- end
 
                     for _, note in pairs(active_notes) do
                         if type(note.stop) == "function" then note:stop() end
