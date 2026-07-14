@@ -6,14 +6,14 @@
 
 
 ---@type UUID
-local chloe_player_uuid = "c0cfded1-a213-47d5-8054-94437f4fb906"
+local midi_cloud_player_uuid = "c0cfded1-a213-47d5-8054-94437f4fb906"
 
 
-
--- Trick viewer into loading the midi cloud by attaching it the player head as an idem to the avatar.
+-- Trick viewer into loading the Midi Cloud by rendering it's player head.
+-- Code basically stolen from Figura Piano 2.0. https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L6-L11
 
 local chloe_player_uuid_table = {}  ---@type integer[]
-chloe_player_uuid_table[1],chloe_player_uuid_table[2],chloe_player_uuid_table[3],chloe_player_uuid_table[4] = client.uuidToIntArray(chloe_player_uuid)
+chloe_player_uuid_table[1],chloe_player_uuid_table[2],chloe_player_uuid_table[3],chloe_player_uuid_table[4] = client.uuidToIntArray(midi_cloud_player_uuid)
 
 local chloe_player_head_item = world.newItem(
     [=[minecraft:player_head{display:{Name:'{"text":"midiHead"}'},SkullOwner:{Id:[I;]=]
@@ -25,10 +25,8 @@ local chloe_player_head_task = models:newItem("chloe_midi_player_head") -- attac
 chloe_player_head_task:setItem(chloe_player_head_item):setScale(0)
 
 
-
-
--- ripped from Midi Cloud's list of samples.
--- Some samples (like 2 and 3) are missing because cloud reuses another sample for them
+-- Ripped from Midi Cloud's list of samples.
+-- Some samples (like 2 and 3) are missing because cloud reuses another sample for them.
 ---@type table<integer, string>
 local cloud_instrument_names = {
     [001] = "Acoustic Grand Piano",
@@ -167,11 +165,10 @@ local sample_is_non_melodic_lookup = {
     [126] = "Helicopter",
     [127] = "Applause",
     [128] = "Gunshot",
-    [129] = true
+    [129] = "Percussion"
 }
 
-local default_fallback_instrument = "Triangle Sine"
-
+---@type table<integer, string>     Midi number to instrument name lookup (That's Our, TL Instruments. Not Midi instrument names.)
 local fallback_instrument_lookup = {
     [114] = "MC/Hat",
     [116] = "MC/Hat",
@@ -198,7 +195,7 @@ local fallback_instrument_lookup = {
 
 ---@return ChloeFiguraMidiCloudAvatarVars?
 local function get_midi_avatar_vars()
-    return world.avatarVars()[chloe_player_uuid]
+    return world.avatarVars()[midi_cloud_player_uuid]
 end
 
 ---@return ChloeFiguraMidiCloudInstance?
@@ -314,23 +311,49 @@ end
 -- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
 
 local builders_to_return = {}   ---@type InstrumentBuilder[]
-for number, name in pairs(cloud_instrument_names) do
+for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names) do
     ---@type InstrumentBuilder
     local builder = {
-        name = "ChloeMidiCloud: " .. string.format("%03d", number) .. " " .. name,
+        name = "ChloeMidiCloud: " .. string.format("%03d", instrument_midi_number) .. " " .. instrument_midi_name,
         sort_priority = -1,
         features = {},
         is_available = is_midi_cloud_available,
         new_instance = function(params)
+            local instruments_api = require("../../instruments")  ---@type InstrumentsApi
+
+            local fallback_instrument_builder = instruments_api.get_instrument_builder(fallback_instrument_lookup[instrument_midi_number])
+            if not fallback_instrument_builder then
+                fallback_instrument_builder = instruments_api.get_default_instrument_builder(
+                    sample_is_non_melodic_lookup[instrument_midi_number] and 1 or 0
+                )
+            end
+
+            local fallback_instrument_instance = fallback_instrument_builder.new_instance({})
+
+
+
+            local midi_instance = get_midi_instance()
+
             ---@type Instrument
             local new_instrument = {
                 play_instruction = function (instruction, position, time_since_due)
-
+                    -- if not is_midi_cloud_available() then
+                        fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                        return
+                    -- end
                 end,
-                is_finished = function () return true end,
-                update_sounds = function (position) end,
-                stop_all_sounds_immediately = function () end,
-                stop_one_sound_immediately = function () end
+                is_finished = function ()
+                    return fallback_instrument_instance.is_finished()
+                end,
+                update_sounds = function (position)
+                    fallback_instrument_instance.update_sounds(position)
+                end,
+                stop_all_sounds_immediately = function ()
+                    fallback_instrument_instance.stop_all_sounds_immediately()
+                end,
+                stop_one_sound_immediately = function ()
+                    fallback_instrument_instance.stop_one_sound_immediately()
+                end
             }
             return new_instrument
         end

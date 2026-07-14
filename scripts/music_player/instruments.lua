@@ -209,7 +209,7 @@ local function get_instrument_builder(instrument_key)
 end
 
 
----@param instrument_type_id InstrumentTypeId
+---@param instrument_type_id InstrumentTypeId   -- TODO: Reconsider. Should this just be an "is percussion" boolean?
 ---@return InstrumentBuilder?
 local function get_default_instrument_builder(instrument_type_id)
     return get_instrument_builder(
