@@ -198,6 +198,7 @@ local function get_midi_avatar_vars()
     return world.avatarVars()[midi_cloud_player_uuid]
 end
 
+
 ---@return ChloeFiguraMidiCloudInstance?
 local function get_midi_instance()
     local midi_cloud_avatar_vars = get_midi_avatar_vars()
@@ -212,6 +213,7 @@ local function get_midi_instance()
     return midi_cloud_instance
 end
 
+
 local is_midi_cloud_available_next_allowed_check_time = 0   -- used to prevent `is_midi_cloud_available` from running many times every update.
 local is_midi_cloud_available_last_result = false
 
@@ -224,13 +226,14 @@ local function is_midi_cloud_available()
 
     local test_midi_cloud_instance = get_midi_instance()
 
-    if test_midi_cloud_instance then
+    if test_midi_cloud_instance then    -- clean up the test instance before giving results.
         test_midi_cloud_instance:remove()
         test_midi_cloud_instance = nil
         is_midi_cloud_available_last_result = true
         return is_midi_cloud_available_last_result
     end
 
+    -- Nothing to really cleanup if test failed.
     is_midi_cloud_available_last_result = false
     return is_midi_cloud_available_last_result
 end
@@ -340,21 +343,67 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
             -- TODO: on instrument init (beginning of the song), check `is_midi_cloud_available()`, and if it is not,
             -- spawn a one-time floating bit of text to tell viewers to check if cloud midi has perms.
 
+            local midi_cloud_was_previously_available = false
+            local midi_instance = nil               ---@type ChloeFiguraMidiCloudInstance?
 
-            local midi_instance = get_midi_instance()
+            local channel_id = 32 -- midi caps out at 16 channels, but there's no such limit here. Using a big number means we avoid hard-coded channel rules like 9==percussion (when counting from 0)
+
+            local function check_availability_and_rebuild_state_if_it_changed()
+                local midi_is_currently_available = is_midi_cloud_available()
+                if midi_is_currently_available == midi_cloud_was_previously_available then return end
+
+                if midi_is_currently_available then -- We're online, initialize a fresh instance.
+                    print("online")
+                    midi_instance = get_midi_instance()
+
+                    local channel = midi_instance.midi.channel:new(midi_instance, channel_id)    -- Manually init a channel to set the instrument and avoid surprises.
+                    midi_instance.channels[channel_id] = channel       -- for whatever reason, chloe's script doesn't do this for us
+
+                    -- Set this channel's instrument
+
+                    midi_instance.channels[channel_id].instrument = instrument_midi_number
+
+                else -- We're offline. Cleanup any stuff left over
+                    print("offline")
+                end
+
+                midi_cloud_was_previously_available = midi_is_currently_available
+            end
+
+            check_availability_and_rebuild_state_if_it_changed()
 
             ---@type Instrument
             local new_instrument = {
                 play_instruction = function (instruction, position, time_since_due)
-                    -- if not is_midi_cloud_available() then
+                    -- check_availability_and_rebuild_state_if_it_changed()
+                    if not is_midi_cloud_available() then
+                        -- print("Backup played")
                         fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
-                        -- return
-                    -- end
+                        return
+                    end
+                    -- print("Midi played")
+
+                    local new_note = midi_instance.midi.note:play(
+                        midi_instance,
+                        instruction.note, 
+                        instruction.start_velocity * 0.5,   -- On the whole, the midi instruments are quite a bit louder than our baseline. 
+                        channel_id,
+                        channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
+                        client.getSystemTime() - time_since_due,
+                        position
+                    )
+
+                    -- print(instruction.note)
+
+                    new_note:release(new_note.initTime + instruction.duration)
+
+
                 end,
                 is_finished = function ()
                     return fallback_instrument_instance.is_finished()
                 end,
                 update_sounds = function (position)
+                    -- check_availability_and_rebuild_state_if_it_changed()
                     fallback_instrument_instance.update_sounds(position)
                 end,
                 stop_all_sounds_immediately = function ()
