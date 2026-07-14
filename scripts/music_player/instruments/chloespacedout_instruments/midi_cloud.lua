@@ -280,13 +280,26 @@ test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediatel
 
 -- Set a release time.
 
-test_note:release(client.getSystemTime() + 100) -- TODO: is there a meaningful difrence between calling release for the future, and waiting until the right time and calling release then?
+test_note:release(client.getSystemTime() + 1000) -- TODO: is there a meaningful difrence between calling release for the future, and waiting until the right time and calling release then?
 
 
+-- Volume control
 
--- TODO: Figure out volume control
--- Unlike pitch, the midi api manipulates volume to do decays and stuff.
--- Does it take in changes to test_note.velocity?
+test_note.velocity =  0.02                          -- Like soundPitch, velocity sometimes doesn't update on the very first update, and so the old volume can sometimes still be heard
+test_note.sound:setVolume(test_note.velocity)       -- Manually set the volume.
+                                                    -- We should only do this when we init the sound.
+                                                    -- 1. IDK, but I think the midi cloud messes with the sound's volume to implement do decay and stuff. Don't mess with volume in-flight.
+                                                    -- 2. After note initialization, there shouldn't be any crazy, precise-timing required jumps in volume. we can let them be 1 tick late or whatever.
+
+print(test_note.velocity)
+local function test_event_loop()
+    test_note.velocity = test_note.velocity * 1.2
+    print(test_note.releaseTime < client.getSystemTime(), test_note.velocity)
+    if test_note.releaseTime < client.getSystemTime() then
+        events.TICK:remove(test_event_loop)
+    end
+end
+events.TICK:register(test_event_loop)
 
 
 
@@ -298,12 +311,6 @@ for note_holder_key, v in pairs(test_note_holder) do
         test_note = nil
     end
 end
-
--- events.TICK:register(function()
---     print(test_note.releaseTime < client.getSystemTime())    -- Some Instruments (like 10) still clearly decay even after release time.
---     print(test_note.state)                                   -- is set to release immediately after calling `:release()`
--- end)
-
 
 
 
