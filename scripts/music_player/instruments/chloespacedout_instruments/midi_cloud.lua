@@ -352,6 +352,12 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
             local channel_id = (instrument_midi_number == 129 and 9 or 1)
 
+
+            -- While I'll be using integer indexing, this table will not be sorted.
+            ---@type table<integer, ChloeFiguraMidiCloudMidiNoteInstance>
+            local active_notes = {}
+
+
             local function check_availability_and_rebuild_state_if_it_changed()
                 local midi_is_currently_available = is_midi_cloud_available()
                 if midi_is_currently_available == midi_cloud_was_previously_available then return end
@@ -362,18 +368,22 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     local channel = midi_instance.midi.channel:new(midi_instance, channel_id)    -- Manually init a channel to set the instrument and avoid surprises.
                     midi_instance.channels[channel_id] = channel       -- for whatever reason, chloe's script doesn't do this for us
 
-                    -- Set this channel's instrument
-
                     midi_instance.channels[channel_id].instrument = instrument_midi_number
 
                 else -- We're offline. Cleanup any stuff left over
                     midi_instance = nil
+
+                    for _, note in pairs(active_notes) do
+                        if note.stop then note:stop() end
+                    end
+                    active_notes = {}
                 end
 
                 midi_cloud_was_previously_available = midi_is_currently_available
             end
 
             check_availability_and_rebuild_state_if_it_changed()
+
 
             ---@type Instrument
             local new_instrument = {
@@ -400,20 +410,48 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
                     new_note:release(new_note.initTime + instruction.duration)
 
+                    table.insert(active_notes, new_note)
 
                 end,
                 is_finished = function ()
-                    return fallback_instrument_instance.is_finished()
+                    return #active_notes == 0 and fallback_instrument_instance.is_finished()
                 end,
                 update_sounds = function (position)
                     check_availability_and_rebuild_state_if_it_changed()
                     fallback_instrument_instance.update_sounds(position)
+
+                    if is_midi_cloud_available() then
+                        midi_instance:setTarget(position)
+
+                        -- TODO: Pitch
+                        -- TODO: Volume
+
+                    end
+
+                    for key, note in pairs(active_notes) do
+                        if note.releaseTime <= client.getSystemTime() then
+                            -- so long as we don't insert into the table, it's safe to delete items from a table during a pairs() loop.
+                            active_notes[key] = nil
+                        end
+                    end
+
                 end,
                 stop_all_sounds_immediately = function ()
                     fallback_instrument_instance.stop_all_sounds_immediately()
+
+                    -- TODO: !
+
+                    for _, note in pairs(active_notes) do
+                        if type(note.stop) == "function" then note:stop() end
+                    end
+                    active_notes = {}
                 end,
                 stop_one_sound_immediately = function ()
                     fallback_instrument_instance.stop_one_sound_immediately()
+
+                    local key, note = next(active_notes)
+                    if type(note.stop) == "function" then note:stop() end
+                    active_notes[key] = nil
                 end
             }
             return new_instrument
