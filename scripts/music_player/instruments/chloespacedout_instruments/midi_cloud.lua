@@ -294,10 +294,8 @@ test_note.sound:setVolume(test_note.velocity)       -- Manually set the volume.
                                                     -- 1. IDK, but I think the midi cloud messes with the sound's volume to implement do decay and stuff. Don't mess with volume in-flight.
                                                     -- 2. After note initialization, there shouldn't be any crazy, precise-timing required jumps in volume. we can let them be 1 tick late or whatever.
 
-print(test_note.velocity)
 local function test_event_loop()
     test_note.velocity = test_note.velocity * 1.2
-    print(test_note.releaseTime < client.getSystemTime(), test_note.velocity)
     if test_note.releaseTime < client.getSystemTime() then
         events.TICK:remove(test_event_loop)
     end
@@ -385,8 +383,8 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
                     local new_note = midi_instance.midi.note:play(
                         midi_instance,
-                        instruction.note, 
-                        instruction.start_velocity * 0.5,   -- On the whole, the midi instruments are quite a bit louder than our baseline. 
+                        instruction.note,
+                        instruction.start_velocity * 0.5,   -- On the whole, the midi instruments are quite a bit louder than our baseline.
                         channel_id,
                         channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
                         client.getSystemTime() - time_since_due,
