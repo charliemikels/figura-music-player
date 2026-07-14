@@ -279,11 +279,11 @@ test_note_holder[test_note_id_for_holder] = {
 -- initial note pitch-bend.
 
 test_note.soundPitch = test_note_holder[test_note_id_for_holder].base_pitch_multiplier * 1.2
-test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??). Manually setting the pitch ourselves ensures it updates immediatly.
+test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??). Manually setting the pitch ourselves ensures it updates immediately.
 
 -- Set a release time.
 
-test_note:release(client.getSystemTime() + 1000) -- TODO: is there a meaningful difrence between calling release for the future, and waiting until the right time and calling release then?
+test_note:release(client.getSystemTime() + 1000) -- TODO: is there a meaningful difference between calling release for the future, and waiting until the right time and calling release then?
 
 
 -- Volume control
