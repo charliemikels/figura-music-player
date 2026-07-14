@@ -357,7 +357,6 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 if midi_is_currently_available == midi_cloud_was_previously_available then return end
 
                 if midi_is_currently_available then -- We're online, initialize a fresh instance.
-                    print("online")
                     midi_instance = get_midi_instance()
 
                     local channel = midi_instance.midi.channel:new(midi_instance, channel_id)    -- Manually init a channel to set the instrument and avoid surprises.
@@ -368,7 +367,6 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     midi_instance.channels[channel_id].instrument = instrument_midi_number
 
                 else -- We're offline. Cleanup any stuff left over
-                    print("offline")
                     midi_instance = nil
                 end
 
