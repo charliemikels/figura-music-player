@@ -335,7 +335,44 @@ local function is_note_done_for_real(note)
     return not ((note.sound and note.sound:isPlaying()) or (note.loopSound and note.loopSound:isPlaying()))
 end
 
--- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
+local reduced_volume_amount = 0.2
+
+---@type table<string, fun(active_note:MidiCloudInstrumentActiveNote, value:number, note_is_being_initialized)>
+local modifier_functions = {
+    pitch_mult = function (active_note, value, _)
+        local target_pitch = active_note.initial_pitch * (value or 1)
+        active_note.note.soundPitch = target_pitch
+        if active_note.note.sound then active_note.note.sound:setPitch(target_pitch) end            -- Midi Cloud does not manipulate the pitch mid flight. we're free to manually update it whenever.
+        if active_note.note.loopSound then active_note.note.loopSound:setPitch(target_pitch) end
+    end,
+
+    volume = function (active_note, value, note_is_being_initialized)
+        local target_velocity = (active_note.instruction.start_velocity / 127) * reduced_volume_amount * (avatar:getVolume() / 100) * (value and (value / 100) or 1)
+        active_note.note.velocity = target_velocity
+        if note_is_being_initialized then   -- unlike pitch, Midi Cloud does manage the sound's volume to do decays and stuff. we should only edit these values directly right at init.
+            if active_note.note.sound then active_note.note.sound:setVolume(target_velocity) end
+            if active_note.note.loopSound then active_note.note.loopSound:setVolume(target_velocity) end
+        end
+    end
+}
+
+---@param active_note MidiCloudInstrumentActiveNote
+---@param note_is_being_initialized boolean?
+local function update_modifiers(active_note, note_is_being_initialized)
+    local modifiers = active_note.instruction.modifiers
+    for modifier_index = active_note.instruction_modifier_index, #modifiers do
+        local modifier_delta_from_instruction_start = modifiers[modifier_index].start_time - active_note.instruction.start_time
+        if active_note.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
+
+        if modifier_functions[modifiers[modifier_index].type] then
+            modifier_functions[modifiers[modifier_index].type](active_note, modifiers[modifier_index].value, note_is_being_initialized)
+        end
+        active_note.instruction_modifier_index = modifier_index + 1
+
+    end
+end
+
+
 
 local builders_to_return = {}   ---@type InstrumentBuilder[]
 for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names) do
@@ -390,10 +427,8 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 return false
             end
 
-            -- While I'll be using integer indexing, this table will not be sorted.
-            ---@type table<integer, {note: ChloeFiguraMidiCloudMidiNoteInstance, initial_pitch: number}>
+            ---@type table<integer, MidiCloudInstrumentActiveNote>     -- integer indexed, but unsorted. use with pairs()
             local active_notes = {}
-
 
             local function check_availability_and_rebuild_state_if_it_changed()
                 instrument_last_updated_time = client.getSystemTime()
@@ -440,7 +475,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     local new_note = midi_instance.midi.note:play(
                         midi_instance,
                         instruction.note,
-                        instruction.start_velocity * 0.3 * (avatar:getVolume() / 100),   -- On the whole, the midi instruments are quite a bit louder than our baseline.
+                        (instruction.start_velocity / 127) * reduced_volume_amount * (avatar:getVolume() / 100),   -- On the whole, the midi instruments are quite a bit louder than our baseline.
                         channel_id,
                         channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
                         client.getSystemTime() - time_since_due,
@@ -448,10 +483,19 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     )
 
                     new_note:release(new_note.initTime + instruction.duration)
-                    table.insert(active_notes, {note = new_note, initial_pitch = new_note.soundPitch})
 
-                    -- TODO: Initial Pitch modifiers
-                    -- TODO: Initial Volume modifiers
+                    ---@class MidiCloudInstrumentActiveNote
+                    local new_active_note = {
+                        time_started = client.getSystemTime() - time_since_due,
+                        instruction = instruction,
+                        note = new_note,
+                        initial_pitch = new_note.soundPitch,
+                        instruction_modifier_index = 1
+                    }
+
+                    table.insert(active_notes, new_active_note)
+
+                    update_modifiers(new_active_note, true)
 
                     new_note.pos = position
                 end,
@@ -469,15 +513,16 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                             -- We can safely modify lists inside a pairs loop, so long as we do not add keys.
 
                             local note = active_note.note
-                            note.pos = position
-                            for _, sound in pairs({note.sound, note.loopSound}) do
-                                if sound then
-                                    -- sound:setPos(position)
+                            note.pos = position     -- midi cloud does a pretty good job keeping this updated when we set it
 
-                                    -- TODO: Pitch
-                                    -- TODO: Volume
-                                end
-                            end
+                            update_modifiers(active_note)
+
+
+                            -- for _, sound in pairs({note.sound, note.loopSound}) do
+                            --     if sound then
+                            --         -- sound:setPos(position)
+                            --     end
+                            -- end
 
                             if is_note_done_for_real(note) then
                                 active_notes[key] = nil
