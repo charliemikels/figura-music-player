@@ -17,8 +17,8 @@
 ---@field shouldKeepAlive boolean
 ---@field shouldKeepAliveClock number
 ---@field songs table
----@field tracks table
----@field channels table
+---@field tracks table<any, table<any, ChloeFiguraMidiCloudMidiNoteInstance>>   -- Indexed by TrackID, then Pitch number. Holds the notes this instance is in charge of. See https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/externalAPI.lua#L36-L40
+---@field channels table        -- Holds stuff like the pitch-wheel state? I think…
 ---@field parseProjects table
 ---
 --- -- TODO: the lower function fields don't always appear. there might be something like an instance builder, and a real instance.
