@@ -402,8 +402,6 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 midi_cloud_was_previously_available = midi_is_currently_available
             end
 
-            check_availability_and_rebuild_state_if_it_changed()
-
 
             ---@type Instrument
             local new_instrument = {
