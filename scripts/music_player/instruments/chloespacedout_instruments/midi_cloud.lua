@@ -419,7 +419,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                         end
                     end
 
-                    pcall(function() midi_instance:remove() end)    -- Try to clean up the instance itself.
+                    pcall(function() midi_instance:remove() end)    -- Try to clean up the instance itself. If this fails, the midi player itself should still eventually clean it up when it runs should_kill_instance.
                     midi_instance = nil
                     active_notes = {}
                 end
@@ -448,9 +448,12 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     )
 
                     new_note:release(new_note.initTime + instruction.duration)
-
                     table.insert(active_notes, {note = new_note, initial_pitch = new_note.soundPitch})
 
+                    -- TODO: Initial Pitch modifiers
+                    -- TODO: Initial Volume modifiers
+
+                    new_note.pos = position
                 end,
                 is_finished = function ()
                     return #active_notes == 0 and fallback_instrument_instance.is_finished()
@@ -462,16 +465,28 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     if midi_instance then
                         midi_instance:setTarget(position)
 
-                        -- TODO: Pitch
-                        -- TODO: Volume
+                        for key, active_note in pairs(active_notes) do
+                            -- We can safely modify lists inside a pairs loop, so long as we do not add keys.
 
-                    end
+                            local note = active_note.note
+                            note.pos = position
+                            for _, sound in pairs({note.sound, note.loopSound}) do
+                                if sound then
+                                    -- sound:setPos(position)
 
-                    for key, active_note in pairs(active_notes) do
-                        if is_note_done_for_real(active_note.note) then
-                            active_notes[key] = nil
+                                    -- TODO: Pitch
+                                    -- TODO: Volume
+                                end
+                            end
+
+                            if is_note_done_for_real(note) then
+                                active_notes[key] = nil
+                            end
                         end
+
                     end
+
+                    -- we don't need to do active_notes cleanup here. It should have been cleared already by check_availability_and_rebuild_state_if_it_changed()
 
                 end,
                 stop_all_sounds_immediately = function ()
