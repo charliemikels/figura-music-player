@@ -186,12 +186,12 @@ local fallback_instrument_lookup = {
 }
 
 
+--- see https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/externalAPI.lua#L169-L172
 ---@class ChloeFiguraMidiCloudAvatarVars
 ---@field newInstance fun(ID:string, target:ChloeFiguraMidiCloudValidInstanceTarget, avatarInstance:AvatarAPI):ChloeFiguraMidiCloudInstance?
 ---@field listSounds fun():string[]         Wrapper for `sounds:getCustomSounds()`
----@field getSound fun(id:string):Sound   Wrapper for `sounds[id]`
+---@field getSound fun(id:string):Sound     Wrapper for `sounds[id]`
 ---@field sessionID fun():UUID              The result of `client.generateUUID()`. Unique to this instance of the midi avatar. Can be used to check for reloads.
----@see https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/externalAPI.lua#L169-L172
 
 
 
@@ -243,80 +243,7 @@ end
 
 
 
---[[
 
-local test_midi_instance = get_midi_instance()
-local test_midi_api = test_midi_instance.midi
-
--- spawn our own channel
-
-local my_chanel_id = 32 -- midi caps out at 16 channels, but there's no such limit here. Using a big number means we avoid hard-coded channel rules like 9==percussion (when counting from 0)
-local new_channel = test_midi_api.channel:new(test_midi_instance, my_chanel_id)
-test_midi_instance.channels[my_chanel_id] = new_channel       -- for whatever reason, chloe's script doesn't do this for us
-
--- Set the channel's instrument
-
-test_midi_instance.channels[my_chanel_id].instrument = 10
-
--- Init the note
-
-local test_note = test_midi_api.note:play(
-    test_midi_instance,
-    60, 90,
-    my_chanel_id,
-    my_chanel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
-    client.getSystemTime(),
-    vec(6, 58, -17)
-)
-
-local test_note_id_for_holder = test_note.pitch .. "_" .. test_note.channel .. "_" .. test_note.track
-
--- Track pitch bend change
-
-local test_note_holder = {}
-test_note_holder[test_note_id_for_holder] = {
-    chloe_note = test_note,
-    base_pitch_multiplier = test_note.soundPitch,
-}
-
--- initial note pitch-bend.
-
-test_note.soundPitch = test_note_holder[test_note_id_for_holder].base_pitch_multiplier * 1.2
-test_note.sound:setPitch(test_note.soundPitch)  -- Midi cloud doesn't immediately catch this change (Feels like its updates are running on world TICK, while we usually run on RENDER??). Manually setting the pitch ourselves ensures it updates immediately.
-
--- Set a release time.
-
-test_note:release(client.getSystemTime() + 1000) -- TODO: is there a meaningful difference between calling release for the future, and waiting until the right time and calling release then?
-
-
--- Volume control
-
-test_note.velocity =  0.02                          -- Like soundPitch, velocity sometimes doesn't update on the very first update, and so the old volume can sometimes still be heard
-test_note.sound:setVolume(test_note.velocity)       -- Manually set the volume.
-                                                    -- We should only do this when we init the sound.
-                                                    -- 1. IDK, but I think the midi cloud messes with the sound's volume to implement do decay and stuff. Don't mess with volume in-flight.
-                                                    -- 2. After note initialization, there shouldn't be any crazy, precise-timing required jumps in volume. we can let them be 1 tick late or whatever.
-
-local function test_event_loop()
-    test_note.velocity = test_note.velocity * 1.2
-    if test_note.releaseTime < client.getSystemTime() then
-        events.TICK:remove(test_event_loop)
-    end
-end
-events.TICK:register(test_event_loop)
-
-
-
--- Check when done (We need to keep track of notes so that we can pitch bend them and stuff. But we need to know when it's OK to let go.)
-
-for note_holder_key, v in pairs(test_note_holder) do
-    if v.chloe_note.releaseTime < client.getSystemTime() then
-        test_note_holder[note_holder_key] = nil
-        test_note = nil
-    end
-end
-
---]]
 
 --- If cloud drops to too-low of a permission level, calling note:stop() can throw the "overran resources limit" error.
 --- This function replicates `note:stop()`'s behavior, but we're doing it ourself.
