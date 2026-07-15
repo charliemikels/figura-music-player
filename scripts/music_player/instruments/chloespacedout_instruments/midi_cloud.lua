@@ -154,6 +154,8 @@ local cloud_instrument_names = {
     [129] = "Percussion",
 }
 
+-- TODO: should these be mashed into 1 big table? something like cloud_instrument_lookup: {name: string, is_melodic: string?, fallback_instrument_name: string?}
+
 local sample_is_non_melodic_lookup = {
     [114] = "Agogo",
     [116] = "Woodblock",
