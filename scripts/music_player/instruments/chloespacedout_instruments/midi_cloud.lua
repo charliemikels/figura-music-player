@@ -369,6 +369,34 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
             local channel_id = (instrument_midi_number == 129 and 9 or 1)
 
+            local instrument_last_updated_time = client.getSystemTime()     -- Driven by check_availability_and_rebuild_state_if_it_changed.
+
+            -- Returns true if this instrument has not been updated in a while. This function will be given
+            -- to the Midi Cloud. Cloud will check this function every update and will handle its own deconstruction
+            -- if this function returns true.
+            --
+            -- Useful in case the Host's avatar crashes, so that Midi Cloud can still clean itself up.
+            --
+            -- See `instance:setShouldKillInstance()`
+            ---@param _ ChloeFiguraMidiCloudInstance
+            ---@return boolean
+            local function should_kill_instance( _ )
+                -- Quick heads up. If the Viewer sets Host to BLOCKED permissions, then this code will immediately crash Midi Cloud.
+                -- This is kinda similar to an earlier problem I solved with commit 5aa47462e5270613ac62167fc6712f266a4d2a9e
+                -- In that issue, we set cloud perms too low, and Host got punished for hitting the instruction limit on FNs like note:stop()
+                -- This time around, cloud gets punished when host drops too low.
+                --
+                -- Also any bad actor could crash the midi cloud by throwing any error inside this function.
+                --
+                -- I think this PR should fix this issue. https://github.com/ChloeSpacedOut/figura-midi-player/pull/2
+
+                if client.getSystemTime() > instrument_last_updated_time + 1000 then
+                    host:warnToLog("Cloud Midi Instrument: No updates in a while, killing midi instance "..tostring(midi_instance.ID))
+                    midi_instance = nil
+                    return true
+                end
+                return false
+            end
 
             -- While I'll be using integer indexing, this table will not be sorted.
             ---@type table<integer, ChloeFiguraMidiCloudMidiNoteInstance>
@@ -376,6 +404,8 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
 
             local function check_availability_and_rebuild_state_if_it_changed()
+                instrument_last_updated_time = client.getSystemTime()
+
                 local midi_is_currently_available = is_midi_cloud_available()
                 if midi_is_currently_available == midi_cloud_was_previously_available then return end
 
@@ -387,6 +417,8 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
                     midi_instance.channels[channel_id].instrument = instrument_midi_number
 
+                    midi_instance:setShouldKillInstance(should_kill_instance)
+
                 else -- We're offline. Cleanup any stuff left over
 
                     for _, notes_by_pitch in pairs(midi_instance.tracks) do
@@ -395,6 +427,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                         end
                     end
 
+                    pcall(function() midi_instance:remove() end)    -- Try to clean up the instance itself.
                     midi_instance = nil
                     active_notes = {}
                 end
