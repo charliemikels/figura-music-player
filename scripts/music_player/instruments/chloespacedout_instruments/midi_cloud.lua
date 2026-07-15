@@ -460,7 +460,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     fallback_instrument_instance.update_sounds(position)
 
                     if midi_instance then
-                        midi_instance:setTarget(position)   -- TODO: This seems to be somewhat incomplete for note that have been released, but still decaying. Their positions won't be updated. Double check that it's not an us problem, the maybe make a PR?
+                        midi_instance:setTarget(position)
 
                         -- TODO: Pitch
                         -- TODO: Volume
