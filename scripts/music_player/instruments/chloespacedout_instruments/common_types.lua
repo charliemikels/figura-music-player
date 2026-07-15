@@ -119,7 +119,8 @@
 ---@field duration number
 ---@field initTime number       -- the time this note started playing
 ---@field state ChloeFiguraMidiCloudMidiNoteInstanceStates
----@field sound Sound
+---@field sound Sound?
+---@field loopSound Sound?
 ---@field channel integer
 ---@field pos Vector3
 

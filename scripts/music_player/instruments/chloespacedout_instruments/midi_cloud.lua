@@ -318,6 +318,15 @@ end
 
 --]]
 
+--- If cloud drops to too-low of a permission level, calling note:stop() can throw the "overran resources limit" error.
+--- This function replicates `note:stop()`'s behavior, but we're doing it ourself.
+--- See https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/midiAPI.lua#L333
+---@param note ChloeFiguraMidiCloudMidiNoteInstance
+local function manually_stop_note(note)
+    if note.sound then note.sound:stop() end
+    if note.loopSound then note.loopSound:stop() end
+    note.instance.tracks[note.track][note.pitch] = nil
+end
 
 -- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
 
@@ -372,11 +381,14 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     midi_instance.channels[channel_id].instrument = instrument_midi_number
 
                 else -- We're offline. Cleanup any stuff left over
-                    midi_instance = nil
 
-                    for _, note in pairs(active_notes) do
-                        if note.stop then note:stop() end
+                    for _, notes_by_pitch in pairs(midi_instance.tracks) do
+                        for _, note in pairs(notes_by_pitch) do
+                            manually_stop_note(note)
+                        end
                     end
+
+                    midi_instance = nil
                     active_notes = {}
                 end
 
