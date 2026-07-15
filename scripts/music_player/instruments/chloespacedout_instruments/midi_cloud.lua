@@ -328,6 +328,13 @@ local function manually_stop_note(note)
     note.instance.tracks[note.track][note.pitch] = nil
 end
 
+--- Checks if a note is actually done playing by checking its internal sounds.
+---@param note ChloeFiguraMidiCloudMidiNoteInstance
+---@return boolean
+local function is_note_done_for_real(note)
+    return not ((note.sound and note.sound:isPlaying()) or (note.loopSound and note.loopSound:isPlaying()))
+end
+
 -- re-use the vanilla instrument's InstrumentBuilder_builder thing to just grab all the instruments at once. (Be careful with percussion.)
 
 local builders_to_return = {}   ---@type InstrumentBuilder[]
@@ -438,8 +445,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     end
 
                     for key, note in pairs(active_notes) do
-                        if note.releaseTime <= client.getSystemTime() then
-                            -- so long as we don't insert into the table, it's safe to delete items from a table during a pairs() loop.
+                        if is_note_done_for_real(note) then
                             active_notes[key] = nil
                         end
                     end
@@ -448,23 +454,25 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 stop_all_sounds_immediately = function ()
                     fallback_instrument_instance.stop_all_sounds_immediately()
 
-                    -- TODO: We may not be properly cleaning up. Midi Cloud constantly gains instructions every time we start a song.
-                    --       We can probably fix this by calling midi_instance:remove() when all notes are done. Must maybe we could make a PR for the midi cloud? Auto start/stop events on demand if no songs playing?
-
-                    -- if is_midi_cloud_available() then
-                    -- end
-
-                    for _, note in pairs(active_notes) do
-                        if type(note.stop) == "function" then note:stop() end
+                    if midi_instance then
+                        pcall(function() midi_instance:remove() end)    -- pcall avoids issues where the Cloud Midi permissions drop, or is otherwise being funky
+                        midi_instance = nil
                     end
+
+                    for _, note in pairs(active_notes) do manually_stop_note(note) end
                     active_notes = {}
                 end,
                 stop_one_sound_immediately = function ()
                     fallback_instrument_instance.stop_one_sound_immediately()
 
                     local key, note = next(active_notes)
-                    if type(note.stop) == "function" then note:stop() end
-                    active_notes[key] = nil
+                    if note then
+                        manually_stop_note(note)
+                        active_notes[key] = nil
+                    elseif key == nil and midi_instance then
+                        pcall(function() midi_instance:remove() end)    -- pcall avoids issues where the Cloud Midi permissions drop, or is otherwise being funky
+                        midi_instance = nil
+                    end
                 end
             }
             return new_instrument
