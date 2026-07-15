@@ -390,11 +390,9 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                 play_instruction = function (instruction, position, time_since_due)
                     check_availability_and_rebuild_state_if_it_changed()
                     if not is_midi_cloud_available() then
-                        -- print("Backup played")
                         fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
                         return
                     end
-                    -- print("Midi played")
 
                     local new_note = midi_instance.midi.note:play(
                         midi_instance,
@@ -405,8 +403,6 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                         client.getSystemTime() - time_since_due,
                         position
                     )
-
-                    -- print(instruction.note)
 
                     new_note:release(new_note.initTime + instruction.duration)
 
