@@ -224,11 +224,12 @@ local function is_midi_cloud_available()
     if client.getSystemTime() < is_midi_cloud_available_next_allowed_check_time then
         return is_midi_cloud_available_last_result
     end
-    is_midi_cloud_available_next_allowed_check_time = client.getSystemTime() + 20
+    is_midi_cloud_available_next_allowed_check_time = client.getSystemTime() + 2
 
-    local test_midi_cloud_instance = get_midi_instance()
+    local get_instance_success, test_midi_cloud_instance =  pcall(get_midi_instance)    -- if Cloud Midi's avatar is somehow on low permissions, pcall will catch the "overran resource limit" error
 
-    if test_midi_cloud_instance then    -- clean up the test instance before giving results.
+    if get_instance_success and test_midi_cloud_instance then    -- clean up the test instance before giving results.
+        ---@cast test_midi_cloud_instance ChloeFiguraMidiCloudInstance
         test_midi_cloud_instance:remove()
         test_midi_cloud_instance = nil
         is_midi_cloud_available_last_result = true
