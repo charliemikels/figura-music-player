@@ -391,7 +391,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
             end
 
             -- While I'll be using integer indexing, this table will not be sorted.
-            ---@type table<integer, ChloeFiguraMidiCloudMidiNoteInstance>
+            ---@type table<integer, {note: ChloeFiguraMidiCloudMidiNoteInstance, initial_pitch: number}>
             local active_notes = {}
 
 
@@ -449,7 +449,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
                     new_note:release(new_note.initTime + instruction.duration)
 
-                    table.insert(active_notes, new_note)
+                    table.insert(active_notes, {note = new_note, initial_pitch = new_note.soundPitch})
 
                 end,
                 is_finished = function ()
@@ -459,7 +459,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     check_availability_and_rebuild_state_if_it_changed()
                     fallback_instrument_instance.update_sounds(position)
 
-                    if is_midi_cloud_available() then
+                    if midi_instance then
                         midi_instance:setTarget(position)   -- TODO: This seems to be somewhat incomplete for note that have been released, but still decaying. Their positions won't be updated. Double check that it's not an us problem, the maybe make a PR?
 
                         -- TODO: Pitch
@@ -467,8 +467,8 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
 
                     end
 
-                    for key, note in pairs(active_notes) do
-                        if is_note_done_for_real(note) then
+                    for key, active_note in pairs(active_notes) do
+                        if is_note_done_for_real(active_note.note) then
                             active_notes[key] = nil
                         end
                     end
@@ -482,15 +482,15 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                         midi_instance = nil
                     end
 
-                    for _, note in pairs(active_notes) do manually_stop_note(note) end
+                    for _, active_note in pairs(active_notes) do manually_stop_note(active_note.note) end
                     active_notes = {}
                 end,
                 stop_one_sound_immediately = function ()
                     fallback_instrument_instance.stop_one_sound_immediately()
 
-                    local key, note = next(active_notes)
-                    if note then
-                        manually_stop_note(note)
+                    local key, active_note = next(active_notes)
+                    if active_note then
+                        manually_stop_note(active_note.note)
                         active_notes[key] = nil
                     elseif key == nil and midi_instance then
                         pcall(function() midi_instance:remove() end)    -- pcall avoids issues where the Cloud Midi permissions drop, or is otherwise being funky
