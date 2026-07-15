@@ -381,14 +381,6 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
             ---@param _ ChloeFiguraMidiCloudInstance
             ---@return boolean
             local function should_kill_instance( _ )
-                -- Quick heads up. If the Viewer sets Host to BLOCKED permissions, then this code will immediately crash Midi Cloud.
-                -- This is kinda similar to an earlier problem I solved with commit 5aa47462e5270613ac62167fc6712f266a4d2a9e
-                -- In that issue, we set cloud perms too low, and Host got punished for hitting the instruction limit on FNs like note:stop()
-                -- This time around, cloud gets punished when host drops too low.
-                --
-                -- Also any bad actor could crash the midi cloud by throwing any error inside this function.
-                --
-                -- I think this PR should fix this issue. https://github.com/ChloeSpacedOut/figura-midi-player/pull/2
 
                 if client.getSystemTime() > instrument_last_updated_time + 1000 then
                     host:warnToLog("Cloud Midi Instrument: No updates in a while, killing midi instance "..tostring(midi_instance.ID))
