@@ -30,10 +30,14 @@
 ---@field setVolume fun(self:ChloeFiguraMidiCloudInstance, volume:number): ChloeFiguraMidiCloudInstance     -- will be clamped from 0 to 1
 ---@field getVolume fun(self:ChloeFiguraMidiCloudInstance): number
 ---@field getPermissionLevel fun(self:ChloeFiguraMidiCloudInstance): string         -- wrapper for `avatar:getPermissionLevel()`
----@field setOnMidiEvent fun(self:ChloeFiguraMidiCloudInstance, func:function): ChloeFiguraMidiCloudInstance      -- sets a callback function for midi events. -- TODO: does func have some special shape?
----@field setShouldKillInstance fun(self:ChloeFiguraMidiCloudInstance, func:function): ChloeFiguraMidiCloudInstance   -- TODO: does func have some special shape?
----@field setShouldKillInstance fun(self:ChloeFiguraMidiCloudInstance, func:function): ChloeFiguraMidiCloudInstance   -- TODO: does func have some special shape?
+---@field setOnMidiEvent fun(self:ChloeFiguraMidiCloudInstance, func:fun(self:ChloeFiguraMidiCloudInstance, sequence:table, track:table, trackID:any, activeSong:ChloeFiguraMidiCloudSong)): ChloeFiguraMidiCloudInstance      -- sets a callback function for midi events. -- TODO: does func have some special shape?
+---@field setShouldKillInstance fun(self:ChloeFiguraMidiCloudInstance, func:fun():boolean): ChloeFiguraMidiCloudInstance   -- Instance will call the passed function to know if the instance is done and may be cleaned up.
 ---@field keepAlive fun(self:ChloeFiguraMidiCloudInstance): ChloeFiguraMidiCloudInstance    -- sets some keep alive value to true. -- TODO: What is keepAlive?
+
+-- ---@class ChloeFiguraMidiCloudTrackSequenceItem -- IDK man, just trying to flesh out what I see on midiPlayer.lua:32    https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/midiPlayer.lua#L32
+
+-- ---@class ChloeFiguraMidiCloudTrack
+-- ---@field sequence ChloeFiguraMidiCloudTrackSequenceItem[]
 
 ---@class ChloeFiguraMidiCloudSong
 ---@field new fun(self:ChloeFiguraMidiCloudSong, instance:ChloeFiguraMidiCloudInstance, ID:string, rawData:ChloeFiguraMidiCloudMidiData):ChloeFiguraMidiCloudSong
