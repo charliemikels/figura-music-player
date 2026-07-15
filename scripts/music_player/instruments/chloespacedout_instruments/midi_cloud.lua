@@ -440,7 +440,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     local new_note = midi_instance.midi.note:play(
                         midi_instance,
                         instruction.note,
-                        instruction.start_velocity * 0.5,   -- On the whole, the midi instruments are quite a bit louder than our baseline.
+                        instruction.start_velocity * 0.3 * (avatar:getVolume() / 100),   -- On the whole, the midi instruments are quite a bit louder than our baseline.
                         channel_id,
                         channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
                         client.getSystemTime() - time_since_due,
