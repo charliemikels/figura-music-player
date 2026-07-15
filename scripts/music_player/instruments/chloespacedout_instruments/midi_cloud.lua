@@ -1,6 +1,4 @@
 
--- TODO:  As of `v6.0.1-27-g5ff4061`, something I changed killed the original Piano instrument (Where we reach into the piano to do stuff.) (Specifically at least, "radioactive" throws a "Overran resource limits!" error somewhere in the cloud_midi's midiAPI.lua file.)
-
 -- See https://github.com/ChloeSpacedOut/figura-midi-player/tree/main/ChloesMidiPlayerCloud
 
 -- There have been one too many times where I want to use the figura Piano and there just isn't one nearby.
