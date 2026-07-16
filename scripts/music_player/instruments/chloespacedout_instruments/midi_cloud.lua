@@ -275,7 +275,7 @@ local modifier_functions = {
     end,
 
     volume = function (active_note, value, note_is_being_initialized)
-        local target_velocity = (active_note.instruction.start_velocity / 127) * reduced_volume_amount * (avatar:getVolume() / 100) * (value and (value / 100) or 1)
+        local target_velocity = (active_note.instruction.start_velocity ) * reduced_volume_amount * (avatar:getVolume() / 100) * (value and (value / 100) or 1)
         active_note.note.velocity = target_velocity
         if note_is_being_initialized then   -- unlike pitch, Midi Cloud does manage the sound's volume to do decays and stuff. we should only edit these values directly right at init.
             if active_note.note.sound then active_note.note.sound:setVolume(target_velocity) end
@@ -403,7 +403,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     local new_note = midi_instance.midi.note:play(
                         midi_instance,
                         instruction.note,
-                        (instruction.start_velocity / 127) * reduced_volume_amount * (avatar:getVolume() / 100),   -- On the whole, the midi instruments are quite a bit louder than our baseline.
+                        (instruction.start_velocity) * reduced_volume_amount * (avatar:getVolume() / 100),   -- On the whole, the midi instruments are quite a bit louder than our baseline.
                         channel_id,
                         channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
                         client.getSystemTime() - time_since_due,
