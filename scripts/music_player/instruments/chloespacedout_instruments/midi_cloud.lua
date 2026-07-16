@@ -273,6 +273,26 @@ local function update_modifiers(active_note, note_is_being_initialized)
 end
 
 
+local we_need_to_warn_the_host_that_viewers_will_need_to_boost_cloud_midis_permissions = true
+do
+    local current_config = config:getName()
+    config:setName("TL_music_player_instrument_configs")
+    we_need_to_warn_the_host_that_viewers_will_need_to_boost_cloud_midis_permissions = not config:load("midi_cloud_suppress_init_warnings")
+    config:setName(current_config)
+end
+
+
+function TL_cloud_midi_instrument_suppress_warning(should_suppress)
+    if (should_suppress == nil or should_suppress) and host:isHost() then
+        print("Suppressing warning")
+        print("You can undo this with: /figura run TL_cloud_midi_instrument_suppress_warning(false)")
+    end
+
+    local current_config = config:getName()
+    config:setName("TL_music_player_instrument_configs")
+    config:save("midi_cloud_suppress_init_warnings", (should_suppress == nil or should_suppress))
+    config:setName(current_config)
+end
 
 local builders_to_return = {}   ---@type InstrumentBuilder[]
 for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_number_to_info) do
@@ -298,8 +318,33 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
             local fallback_instrument_instance = fallback_instrument_builder.new_instance({})
 
-            -- TODO: on instrument init (beginning of the song), check `is_midi_cloud_available()`, and if it is not,
-            -- spawn a one-time floating bit of text to tell viewers to check if cloud midi has perms.
+
+            if we_need_to_warn_the_host_that_viewers_will_need_to_boost_cloud_midis_permissions then
+                if host:isHost() then
+
+                    print("📎\n"
+                        .."It looks like you\'re playing a song with a Cloud Midi instrument.\n"
+                        .."Please read the figura-music-player README file for some\n"
+                        .."important info about that."
+                    )
+
+                    -- TODO Update README, then update this link to go directly to the
+                    -- TODO: In readme, add a link to how to suppress this warning. (Run `/figura run TL_cloud_midi_instrument_suppress_warning()`)
+
+                    local url = "https://github.com/charliemikels/figura-music-player/blob/main/README.md"
+                    if client.compareVersions(client.getVersion(), "1.21.5") < 1 then   -- version is 1.21.4 or lower
+                        printJson('{"text":"\nClick here to find the README on Github\n", "clickEvent":{"action":"open_url", "value":"'..url..'"}}')
+                        printJson('{"text":"'..url..'", "underlined":true, "clickEvent":{"action":"open_url", "value":"'..url..'"}}')
+                    else    -- version 1.21.5 changed how URL formatting works for this command.
+                        printJson('{"text":"\nClick here to find the README on Github\n", "click_event":{"action":"open_url", "url":"'..url..'"}}')
+                        printJson('{"text":"'..url..'", "underlined":true, "click_event":{"action":"open_url", "url":"'..url..'"}}')
+                    end
+
+                end
+
+                we_need_to_warn_the_host_that_viewers_will_need_to_boost_cloud_midis_permissions = false
+            end
+
 
             local midi_cloud_was_previously_available = false
             local midi_instance = nil               ---@type ChloeFiguraMidiCloudInstance?
