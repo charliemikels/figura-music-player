@@ -12,17 +12,17 @@ local midi_cloud_player_uuid = "c0cfded1-a213-47d5-8054-94437f4fb906"
 -- Trick viewer into loading the Midi Cloud by rendering it's player head.
 -- Code basically stolen from Figura Piano 2.0. https://github.com/ChloeSpacedOut/figura-piano-2.0/blob/63a8c67be23970b6896c9f7716d28249de030741/Piano%202.0/main.lua#L6-L11
 
-local chloe_player_uuid_table = {}  ---@type integer[]
-chloe_player_uuid_table[1],chloe_player_uuid_table[2],chloe_player_uuid_table[3],chloe_player_uuid_table[4] = client.uuidToIntArray(midi_cloud_player_uuid)
+local midi_cloud_player_uuid_table = {}  ---@type integer[]
+midi_cloud_player_uuid_table[1],midi_cloud_player_uuid_table[2],midi_cloud_player_uuid_table[3],midi_cloud_player_uuid_table[4] = client.uuidToIntArray(midi_cloud_player_uuid)
 
-local chloe_player_head_item = world.newItem(
+local midi_cloud_player_head_item = world.newItem(
     [=[minecraft:player_head{display:{Name:'{"text":"midiHead"}'},SkullOwner:{Id:[I;]=]
-        ..chloe_player_uuid_table[1]..","..chloe_player_uuid_table[2]..","
-        ..chloe_player_uuid_table[3]..","..chloe_player_uuid_table[4]
+        ..midi_cloud_player_uuid_table[1]..","..midi_cloud_player_uuid_table[2]..","
+        ..midi_cloud_player_uuid_table[3]..","..midi_cloud_player_uuid_table[4]
         ..[=[]}}]=]
 )
-local chloe_player_head_task = models:newItem("chloe_midi_player_head") -- attaches to user's feet.
-chloe_player_head_task:setItem(chloe_player_head_item):setScale(0)
+local midi_cloud_player_head_task = models:newItem("chloe_midi_player_head") -- attaches to user's feet.
+midi_cloud_player_head_task:setItem(midi_cloud_player_head_item):setScale(0)      -- practically invisible, but still renders.
 
 
 -- Ripped from Midi Cloud's list of samples.
