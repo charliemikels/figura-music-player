@@ -263,7 +263,7 @@ local function is_note_done_for_real(note)
     return not ((note.sound and note.sound:isPlaying()) or (note.loopSound and note.loopSound:isPlaying()))
 end
 
-local reduced_volume_amount = 0.2
+local reduced_volume_amount = 0.2      -- On the whole, the midi instruments are quite a bit louder than our baseline. This factor will help bring it in line with the other instruments.
 
 ---@type table<string, fun(active_note:MidiCloudInstrumentActiveNote, value:number, note_is_being_initialized)>
 local modifier_functions = {
@@ -403,7 +403,7 @@ for instrument_midi_number, instrument_midi_name in pairs(cloud_instrument_names
                     local new_note = midi_instance.midi.note:play(
                         midi_instance,
                         instruction.note,
-                        (instruction.start_velocity) * reduced_volume_amount * (avatar:getVolume() / 100),   -- On the whole, the midi instruments are quite a bit louder than our baseline.
+                        (instruction.start_velocity) * reduced_volume_amount * (avatar:getVolume() / 100),
                         channel_id,
                         channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
                         client.getSystemTime() - time_since_due,
