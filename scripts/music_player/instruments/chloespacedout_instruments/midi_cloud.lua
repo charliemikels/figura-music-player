@@ -377,7 +377,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                         instruction.note,
                         (instruction.start_velocity) * reduced_volume_amount * (avatar:getVolume() / 100),
                         channel_id,
-                        channel_id,  -- TODO: Due to a bug (see here: https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 ), TrackID should always be in sync with the selected channel.
+                        1,
                         client.getSystemTime() - time_since_due,
                         position
                     )
