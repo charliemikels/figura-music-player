@@ -6,8 +6,7 @@
 
 
 ---@type UUID
-local midi_cloud_player_uuid = "c0cfded1-a213-47d5-8054-94437f4fb906"    -- The UUID in example avatar (at time of writing): https://github.com/ChloeSpacedOut/figura-midi-player/blob/cb417ba36452dc82fb8102b4cf7727d77ad20272/ChloesMidiPlayerClientExample/midiPlayerClient.lua#L10
--- local midi_cloud_player_uuid = "943218fd-5bbc-4015-bf7f-9da4f37bac59" -- Some immortalized midi player. Should we switch to this one? Check later. Chloe might be in the middle of something.
+local midi_cloud_player_uuid = "c0cfded1-a213-47d5-8054-94437f4fb906"
 
 
 -- Trick viewer into loading the Midi Cloud by rendering it's player head.
