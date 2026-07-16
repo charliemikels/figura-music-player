@@ -275,7 +275,11 @@ local modifier_functions = {
     end,
 
     volume = function (active_note, value, note_is_being_initialized)
-        local target_velocity = (active_note.instruction.start_velocity ) * reduced_volume_amount * (avatar:getVolume() / 100) * (value and (value / 100) or 1)
+        local target_velocity = (
+            (active_note.instruction.start_velocity ) * reduced_volume_amount * (avatar:getVolume() / 100) * (value and (value / 100) or 1)
+            / 100   -- Notes initialized with `midi.note:play()`'s velocity are divided by 100 when applied to the note. see: https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/midiAPI.lua#L218
+                    -- However this is only done by `midi.note:play()`. When we edit note.velocity directly, Midi Cloud does no division for us. So we need to do it ourselves here.
+        )
         active_note.note.velocity = target_velocity
         if note_is_being_initialized then   -- unlike pitch, Midi Cloud does manage the sound's volume to do decays and stuff. we should only edit these values directly right at init.
             if active_note.note.sound then active_note.note.sound:setVolume(target_velocity) end
