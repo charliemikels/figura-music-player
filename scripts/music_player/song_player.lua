@@ -637,6 +637,12 @@ local song_player_api = {
             end,
         }
 
+        ---This function is supposed to be passed to instruments, so that they can send back notifications to be displayed on player UI
+        ---@param message string
+        local function notification_intake(message)
+            song_player.notification_timeouts[message] = client.getSystemTime() + 500
+        end
+
         -- For playback, we don't need to store the names of the recommended instruments.
 
         ---@type table<number, SongPlayerTrackConfig>
@@ -652,7 +658,7 @@ local song_player_api = {
                 recommended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
-                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({}, song_player.notification_intake)
+                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({}, notification_intake)
             }
             track_configs[track_index] = track_config
         end
@@ -718,9 +724,7 @@ local song_player_api = {
             on_meta_callback_functions = {},    ---@type fun(event_code:integer, meta_event_data:table<string, integer>)[]
 
             notification_timeouts = {},         ---@type table<string, number>  -- Holds notifications received by the notification_intake function. Value is the time this notification should be removed. Indexed by notification string to automatically remove duplicates.
-            notification_intake = function (message)   ---@type fun(message:string)     -- This function is supposed to be passed to instruments, so that they can send back notifications to be displayed on player UI
-                song_player.notification_timeouts[message] = client.getSystemTime() + 500
-            end,
+            notification_intake = notification_intake,
 
             ---@class SongPlayerController
             controller = {
