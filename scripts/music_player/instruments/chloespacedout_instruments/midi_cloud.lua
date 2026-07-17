@@ -476,7 +476,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                             end
                         end
                     else
-                        notify_ui_function("Please set `Chloe's MIDI Player` and `".. (avatar:getEntityName() or avatar:getName()) .."` to MAX perms to use this instrument.")
+                        notify_ui_function("Please set `Chloe's MIDI Player` and `".. (avatar:getEntityName() or avatar:getName()) .."` to MAX perms to use Midi Cloud instruments.")
                     end
 
                     -- we don't need to do active_notes cleanup here. It should have been cleared already by check_availability_and_rebuild_state_if_it_changed()
