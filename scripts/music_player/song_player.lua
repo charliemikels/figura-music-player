@@ -629,7 +629,7 @@ local song_player_api = {
 
 
 
-                    -- finaly at the end of the emergency functions
+                    -- finally at the end of the emergency functions
                     watcher_state_key = "idle"
                     events.WORLD_TICK:remove(event_watcher_and_swapper)
                     print_debug("Emergency stop for `"..song_player.name.."` complete.", true, true)
