@@ -464,13 +464,6 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
                             update_modifiers(active_note)
 
-
-                            -- for _, sound in pairs({note.sound, note.loopSound}) do
-                            --     if sound then
-                            --         -- sound:setPos(position)
-                            --     end
-                            -- end
-
                             if is_note_done_for_real(note) then
                                 active_notes[key] = nil
                             end
