@@ -28,3 +28,15 @@ The "Piano" and "Drumkit" instruments behave slightly differentially. While they
 For help spawning a piano and other usage notes, please see [Figura Piano 2.0's Github page](https://github.com/ChloeSpacedOut/figura-piano-2.0).
 
 One notable upside of these instruments compared to the Midi Cloud instruments is that your viewers do not need to set you, the host, to MAX permissions. Only the `Piano 2.0` and the `Chloe's MIDI Player` avatars need to be on MAX. You're free to stay on Default.
+
+#### Getting the Piano / Drumkit
+
+The official way to get the Piano is by using commands. But if you can't use commands, but can still get player heads, you might still be able to use the piano. 
+
+1. Equip the Piano avatar to an account you control. (It may be possible to merge it with this Music Playing script and use just one avatar)
+2. Get your player head
+3. Get the UUID of the account with the piano equipped. (You can do that from within Figura by going to permissions, right click the avatar, copy UUID)
+4. Add the UUID to the lists at the top of `scripts/music_player/instruments/chloespacedout_instruments/piano.lua` and `…/drumkit.lua`.
+5. Reload the music player avatar.
+
+But if you're going through all this effort, you might want to use the Cloud Midi instruments.
