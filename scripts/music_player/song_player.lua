@@ -652,7 +652,7 @@ local song_player_api = {
                 recommended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
-                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({})
+                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({}, song_player.notification_intake)
             }
             track_configs[track_index] = track_config
         end

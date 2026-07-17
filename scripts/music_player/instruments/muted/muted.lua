@@ -8,7 +8,7 @@ local muted_instrument_factory = {
         sustain = false
     },
 
-    new_instance = function(_)
+    new_instance = function(_, notify_ui_function)
 
         local new_instance
 

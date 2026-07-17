@@ -180,7 +180,7 @@ local print_instrument_factory = {
         percussion = true,
     },
 
-    new_instance = function(params)
+    new_instance = function(params, notify_ui_function)
 
         ---@type table{time_started: number, instruction: Instruction, sound: Sound}[]
         -- local active_instructions = {}

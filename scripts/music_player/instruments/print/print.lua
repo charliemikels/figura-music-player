@@ -8,7 +8,7 @@ local print_instrument_factory = {
         sustain = true          -- Notes can "ring" for any amount of time. (Unlike music block notes)
     },
 
-    new_instance = function(params)
+    new_instance = function(params, notify_ui_function)
 
         ---@type table{time_started: number, instruction: Instruction}[]
         local active_instructions = {}

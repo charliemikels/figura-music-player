@@ -46,7 +46,7 @@ for _, note_block_sound in ipairs(note_block_sounds) do
             percussion = note_block_sound.is_percussion,
         },
 
-        new_instance = function(params)
+        new_instance = function(params, notify_ui_function)
             ---@type Instrument
             local new_instance = {
                 play_instruction = function(instruction, position, _)
@@ -61,7 +61,7 @@ for _, note_block_sound in ipairs(note_block_sounds) do
                         end
                     end
 
-                    local detune_amount = ((math.random()-0.5) * 0.075) or 0 -- helps sounds sound "rounder" if two instances of an instument play the same note. 
+                    local detune_amount = ((math.random()-0.5) * 0.075) or 0 -- helps sounds sound "rounder" if two instances of an instument play the same note.
 
                     local new_sound = sounds[note_block_sound.sound_id]
                         :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning, detune_amount))
