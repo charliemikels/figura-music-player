@@ -184,21 +184,3 @@ https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
     <li>Unfortunate the default Triangle Sine instrument hits a resource limit around the 113s mark. However, the Noteblock instruments and using ChloeSpacedOut's piano are able to complete the song.</li>
 </ul>
 </details>
-
-
-
-## Changes in v5
-
-Version 5 comes with significant changes
-
-- Native MIDI file support.
-  - ABC support has been deprecated. However, you should be able to convert most ABC files back to MIDI without any loss.
-- Songs can now be included with avatar upload.
-- fewer instructions during playback. Most songs play on Low permissions.
-  - (Although, Low's restrictive number of sounds really limits possible complexity)
-- A script can play multiple songs at once.
-- Songs can have multiple configurable instruments.
-- Supports [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) (both in piano and drumkit mode) by [ChloeSpacedOut](https://github.com/ChloeSpacedOut)
-  - Does not support the older piano.
-- Volume and Pitch effects.
-- Rewritten from scratch to make the script more modular. Some scripts may be removed if you don't need certain features.
