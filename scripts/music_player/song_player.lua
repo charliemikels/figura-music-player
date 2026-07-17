@@ -155,6 +155,15 @@ local function update_info_display_text(song_player)
             .. " " .. tostring(math.floor(1 + (song_player.controller.get_remaining_time() / 1000)) ) .. "s"
     end
 
+    local current_time = client.getSystemTime()
+    for message, time_to_remove in pairs(song_player.notification_timeouts) do
+        if current_time > time_to_remove then
+            song_player.notification_timeouts[message] = nil
+        else
+            info_text = info_text .. "\n" .. message
+        end
+    end
+
     song_player.info_display_text_task:setText(info_text)
 end
 
@@ -177,7 +186,10 @@ local function apply_config_instrument_update_loop(song_player)
     local previous_instrument = to_apply_this_time.track_config.selected_instrument
     to_apply_this_time.track_config.selected_instrument =
         known_instruments[to_apply_this_time.new_selection.name]
-        .new_instance(to_apply_this_time.new_selection.params)
+            .new_instance(
+                to_apply_this_time.new_selection.params,
+                song_player.notification_intake
+            )
     if not previous_instrument.is_finished() then
         table.insert(song_player.deprecated_instruments, previous_instrument)
     end
@@ -704,6 +716,11 @@ local song_player_api = {
             on_update_callback_functions = {},  ---@type fun()[]
             on_stop_callback_functions = {},    ---@type fun(stop_reason:SongPlayerStopReason)[]
             on_meta_callback_functions = {},    ---@type fun(event_code:integer, meta_event_data:table<string, integer>)[]
+
+            notification_timeouts = {},         ---@type table<string, number>  -- Holds notifications received by the notification_intake function. Value is the time this notification should be removed. Indexed by notification string to automatically remove duplicates.
+            notification_intake = function (message)   ---@type fun(message:string)     -- This function is supposed to be passed to instruments, so that they can send back notifications to be displayed on player UI
+                song_player.notification_timeouts[message] = client.getSystemTime() + 500
+            end,
 
             ---@class SongPlayerController
             controller = {

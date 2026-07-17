@@ -38,7 +38,7 @@ local default_percussion_instrument_name = "Percussion"
 ---@field name InstrumentKey
 ---@field is_available fun():boolean    may be false for instruments with custom sounds and instruments from other avatars.
 ---@field features table<string, boolean>?
----@field new_instance fun(params: integer[]):Instrument
+---@field new_instance fun(params: integer[], notify_ui_function:fun(message:string)):Instrument  -- notify_ui_function is a function provided by the song player. An instance can run this function to show notable warnings to the viewer. Message will decay over time, unless instrument keeps it alive.
 ---@field sort_priority number? -- If nil, defaults to 0
 
 ---@alias InstrumentTypeId 0|1 0 for normal, 1 for percussion.

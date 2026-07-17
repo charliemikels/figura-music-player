@@ -195,6 +195,11 @@ local function is_midi_cloud_available()
     end
     is_midi_cloud_available_next_allowed_check_time = client.getSystemTime() + 2
 
+    if avatar:getPermissionLevel() ~= "MAX" then        -- Midi Cloud won't work unless itself **and** the caller (that's us) are set to MAX perms. Added this catch to make sure we're not spamming "failed to create instance" errors. See https://github.com/ChloeSpacedOut/figura-midi-player/blob/cb417ba36452dc82fb8102b4cf7727d77ad20272/ChloesMidiPlayerCloud/externalAPI.lua#L123-L127
+        is_midi_cloud_available_last_result = false
+        return false
+    end
+
     local get_instance_success, test_midi_cloud_instance =  pcall(get_midi_instance)    -- if Cloud Midi's avatar is somehow on low permissions, pcall will catch the "overran resource limit" error
 
     if get_instance_success and test_midi_cloud_instance then    -- clean up the test instance before giving results.
@@ -306,7 +311,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
             pitch_bend = (cloud_instrument_info.non_melodic == nil)
         },
         is_available = is_midi_cloud_available,
-        new_instance = function(params)
+        new_instance = function(params, notify_ui_function)
             local instruments_api = require("../../instruments")  ---@type InstrumentsApi
 
             local fallback_instrument_builder = instruments_api.get_instrument_builder(cloud_instrument_info.fallback_instrument_name)
@@ -316,7 +321,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                 )
             end
 
-            local fallback_instrument_instance = fallback_instrument_builder.new_instance({})
+            local fallback_instrument_instance = fallback_instrument_builder.new_instance({}, notify_ui_function)
 
 
             if we_need_to_warn_the_host_that_viewers_will_need_to_boost_cloud_midis_permissions then
@@ -473,7 +478,8 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                                 active_notes[key] = nil
                             end
                         end
-
+                    else
+                        notify_ui_function("Please set `Chloe's MIDI Player` and `".. (avatar:getEntityName() or avatar:getName()) .."` to MAX perms to use this instrument.")
                     end
 
                     -- we don't need to do active_notes cleanup here. It should have been cleared already by check_availability_and_rebuild_state_if_it_changed()
