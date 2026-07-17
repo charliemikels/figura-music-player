@@ -331,7 +331,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                     -- TODO Update README, then update this link to go directly to the
                     -- TODO: In readme, add a link to how to suppress this warning. (Run `/figura run TL_cloud_midi_instrument_suppress_warning()`)
 
-                    local url = "https://github.com/charliemikels/figura-music-player/blob/main/README.md"
+                    local url = "https://github.com/charliemikels/figura-music-player/blob/direct-midi-cloud-instruments/scripts/music_player/instruments/chloespacedout_instruments/README.md"
                     if client.compareVersions(client.getVersion(), "1.21.5") < 1 then   -- version is 1.21.4 or lower
                         printJson('{"text":"\nClick here to find the README on Github\n", "clickEvent":{"action":"open_url", "value":"'..url..'"}}')
                         printJson('{"text":"'..url..'", "underlined":true, "clickEvent":{"action":"open_url", "value":"'..url..'"}}')
