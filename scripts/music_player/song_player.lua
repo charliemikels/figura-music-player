@@ -1,4 +1,6 @@
 
+local export_song_info = true   -- makes some song info viewable to other avatars. Useful to pass metronome data for animations.
+
 -- SongPlayers are responsible for actually playing the Song. Specifically, they are in charge of
 --
 -- 1. Managing various event loops
@@ -7,6 +9,7 @@
 --    This is done by running a minimal World-Tick event loop just to see if the primary events have stopped responding.
 -- 4. Managing and detecting instruments
 -- 5. Displaying info text about playback
+-- 6. Exporting some song info for other avatars.
 --
 -- When creating a song player, you are actually given a SongPlayerController.
 -- This keeps the internal functions and data safe and, but still gives you plenty of control.
