@@ -387,9 +387,9 @@ local function update_song(song_player)
             -- This meta_data does not impact song playback. But it might hold, for example,
             -- time signature data that other parts of the avatar could sync up to.
 
-            for _, fn in pairs(song_player.on_meta_callback_functions) do
+            for fn, _ in pairs(song_player.on_meta_callback_functions) do
                 -- we're just going to trust that whoever wrote this callback function has figured out the meta codes and what they do.
-                fn(this_instruction.note, this_instruction.meta_event_data)
+                pcall(fn, this_instruction.note, this_instruction.meta_event_data)
             end
 
             -- Refer to the midi file processor for different note codes and whatever. EG:
@@ -412,17 +412,13 @@ local function update_song(song_player)
 
 
     -- Run any on-update callback functions
-    local function_index = 1
-    while function_index <= #song_player.on_update_callback_functions do
-        local fn = song_player.on_update_callback_functions[function_index]
+    for fn, _ in pairs(song_player.on_update_callback_functions) do
         local success, value = pcall(fn, song_player.controller)
         if not success then
             ---@cast value string
-            print_debug("on_update_callback function "..function_index.." ("..tostring(fn)..") errored.\n"..value, true, true)
+            print_debug("on_update_callback function `"..tostring(fn).."` errored.\n"..value, true, true)
             print_debug("Removing this function from update list.")
-            table.remove(song_player.on_update_callback_functions, function_index)
-        else
-            function_index = function_index + 1
+            song_player.on_update_callback_functions[fn] = nil
         end
     end
 
@@ -492,7 +488,7 @@ local song_player_api = {
         end
 
         local watcher_state_key = "idle"
-        local emergency_stop_instrument_key_for_next = nil
+        local emergency_stop_sub_loop_key_for_next = nil
         local emergency_stop_callback_function_key_for_next = nil
 
         local event_watcher_and_swapper_state_machine
@@ -567,33 +563,33 @@ local song_player_api = {
             end,
             emergency_stop_active_instruments = function()
                 -- run through all tracks, kill running notes one at a time until all are done.
-                local key, track = next(song_player.track_config, emergency_stop_instrument_key_for_next)
+                local key, track = next(song_player.track_config, emergency_stop_sub_loop_key_for_next)
                 if key then
                     if track.selected_instrument.is_finished() then
                         -- advance the "next()" loop for next time.
-                        emergency_stop_instrument_key_for_next = key
+                        emergency_stop_sub_loop_key_for_next = key
                     else
                         track.selected_instrument.stop_one_sound_immediately()
                     end
                 else
                     -- key is nil, we've reached the end of the list
-                    emergency_stop_instrument_key_for_next = nil
+                    emergency_stop_sub_loop_key_for_next = nil
                     watcher_state_key = "emergency_stop_deprecated_instruments"
                 end
             end,
             emergency_stop_deprecated_instruments = function()
                 -- run through deprecated_instruments, kill running notes one at a time until all are done.
-                local key, instrument = next(song_player.deprecated_instruments, emergency_stop_instrument_key_for_next)
+                local key, instrument = next(song_player.deprecated_instruments, emergency_stop_sub_loop_key_for_next)
                 if key then
                     if instrument.is_finished() then
                         -- advance the "next()" loop for next time.
-                        emergency_stop_instrument_key_for_next = key
+                        emergency_stop_sub_loop_key_for_next = key
                     else
                         instrument.stop_one_sound_immediately()
                     end
                 else
                     -- key is nil, we've reached the end of the list
-                    emergency_stop_instrument_key_for_next = nil
+                    emergency_stop_sub_loop_key_for_next = nil
                     watcher_state_key = "emergency_info_display_remove_parts"
                 end
             end,
@@ -629,13 +625,13 @@ local song_player_api = {
                 -- there's a really good chance that calling these stop functions will over run the resource limits (we're using the world tick event to do these after all.)
                 -- But since we're passing the stop reason to the caller, I think it's safe to just let them deal with not crashing.
 
-                local key, fn = next(song_player.on_stop_callback_functions, emergency_stop_callback_function_key_for_next)
-                if key then
-                    fn("emergency")
-                    emergency_stop_instrument_key_for_next = key
+                local fn, _ = next(song_player.on_stop_callback_functions, emergency_stop_callback_function_key_for_next)
+                if fn then
+                    pcall(fn, "emergency")
+                    emergency_stop_sub_loop_key_for_next = fn
                 else
                     -- key is nil, we've reached the end of the list
-                    emergency_stop_instrument_key_for_next = nil
+                    emergency_stop_sub_loop_key_for_next = nil
 
 
 
@@ -722,9 +718,9 @@ local song_player_api = {
             ---@type SongPlayerTrackConfig[]
             track_config = track_configs, -- SongPlayerTrackConfig
 
-            on_update_callback_functions = {},  ---@type fun()[]
-            on_stop_callback_functions = {},    ---@type fun(stop_reason:SongPlayerStopReason)[]
-            on_meta_callback_functions = {},    ---@type fun(event_code:integer, meta_event_data:table<string, integer>)[]
+            on_update_callback_functions = {},  ---@type table<fun(), boolean>
+            on_stop_callback_functions = {},    ---@type table<fun(stop_reason:SongPlayerStopReason), boolean>
+            on_meta_callback_functions = {},    ---@type table<fun(event_code:integer, meta_event_data:table<string, integer>), boolean>
 
             ---@class SongPlayerController
             controller = {
@@ -888,8 +884,8 @@ local song_player_api = {
 
                     -- Call stop functions
 
-                    for _, fn in ipairs(song_player.on_stop_callback_functions) do
-                        fn("normal")
+                    for fn, _ in pairs(song_player.on_stop_callback_functions) do
+                        pcall(fn, "normal")
                     end
 
                 end,
@@ -902,52 +898,47 @@ local song_player_api = {
                 ---@type fun(call_back: fun(stop_reason:SongPlayerStopReason))
                 register_stop_callback = function(call_back)
                     ---@alias SongPlayerStopReason "emergency"|"normal"
-                    table.insert(song_player.on_stop_callback_functions, call_back)
+
+                    song_player.on_stop_callback_functions[call_back] = true
                 end,
 
                 ---@type fun(call_back: fun(stop_reason:SongPlayerStopReason))
                 remove_stop_callback = function(call_back_to_remove)
-                    for k, fn in pairs(song_player.on_stop_callback_functions) do
-                        if fn == call_back_to_remove then
-                            table.remove(song_player.on_stop_callback_functions, k)
-                            return
-                        end
+                    if song_player.on_stop_callback_functions[call_back_to_remove] then
+                        song_player.on_stop_callback_functions[call_back_to_remove] = nil
+                    else
+                        print_debug("Callback "..tostring(call_back_to_remove).." not found in stop_callbacks list", true, true)
                     end
-                    print_debug("Callback "..tostring(call_back_to_remove).." not found in stop_callbacks list", true, true)
                 end,
 
 
                 ---@type fun(call_back: fun()))
                 register_update_callback = function(call_back)
-                    table.insert(song_player.on_update_callback_functions, call_back)
+                    song_player.on_update_callback_functions[call_back] = true
                 end,
 
                 ---@type fun(call_back: fun()))
                 remove_update_callback = function(call_back_to_remove)
-                    for k, fn in pairs(song_player.on_update_callback_functions) do
-                        if fn == call_back_to_remove then
-                            table.remove(song_player.on_update_callback_functions, k)
-                            return
-                        end
+                    if song_player.on_update_callback_functions[call_back_to_remove] then
+                        song_player.on_update_callback_functions[call_back_to_remove] = nil
+                    else
+                        print_debug("Callback "..tostring(call_back_to_remove).." not found in update_callbacks list", true, true)
                     end
-                    print_debug("Callback "..tostring(call_back_to_remove).." not found in update_callbacks list", true, true)
                 end,
 
 
                 ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>)))
                 register_meta_event_callback = function(call_back)
-                    table.insert(song_player.on_meta_callback_functions, call_back)
+                    song_player.on_meta_callback_functions[call_back] = true
                 end,
 
                 ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>)))
                 remove_meta_event_callback = function(call_back_to_remove)
-                    for k, fn in pairs(song_player.on_meta_callback_functions) do
-                        if fn == call_back_to_remove then
-                            table.remove(song_player.on_meta_callback_functions, k)
-                            return
-                        end
+                    if song_player.on_meta_callback_functions[call_back_to_remove] then
+                        song_player.on_meta_callback_functions[call_back_to_remove] = nil
+                    else
+                        print_debug("Callback "..tostring(call_back_to_remove).." not found in meta_event_callbacks list", true, true)
                     end
-                    print_debug("Callback "..tostring(call_back_to_remove).." not found in meta_event_callbacks list", true, true)
                 end,
             }
         }
@@ -997,7 +988,13 @@ if export_song_info then
             functions_to_call_when_song_started[key] = nil
         end,
 
-        set_song_stop_start_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
+
+
+        add_song_stop_callback = function (uuid, fn)
+            if all_playing_song_controllers[uuid] then
+                all_playing_song_controllers[uuid].controller.register_stop_callback(fn)
+            end
+        end, -- TODO: remember to wrap any user function in pcall
         set_song_metronome_state_change_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
 
         get_song_name = function(uuid) end,

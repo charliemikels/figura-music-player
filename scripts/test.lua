@@ -15,7 +15,7 @@ local function post_init()
     print(add_song_start_callback)
     add_song_start_callback(function(uuid)
         print("SONG with UUID: "..tostring(uuid).." just started playing")
-        error("bad function")
+        -- error("bad function")
     end)
 
 
@@ -23,5 +23,19 @@ local function post_init()
     print("hello")
     print(post_init)
 
+
+
+    -- local function infinite_loop()
+    --     local sum = 0
+    --     print("IN THE LOOP")
+    --     while true do
+    --         sum = sum + 1
+    --         -- print(sum)
+    --     end
+    -- end
+
+    -- print("starting loop")
+    -- -- print( pcall(infinite_loop) )
+    -- print("out of the loop")
 end
 events.TICK:register(post_init)
