@@ -182,16 +182,21 @@ local function apply_config_instrument_update_loop(song_player)
     end
 
     local list_of_instruments_we_need_to_apply = configured_instruments_to_apply[song_player]
-    local to_apply_this_time = table.remove(list_of_instruments_we_need_to_apply)
+    local to_apply_this_time = table.remove(list_of_instruments_we_need_to_apply)   ---@type {track_config: SongPlayerTrackConfig, new_selection: InstrumentSelection}
     local previous_instrument = to_apply_this_time.track_config.selected_instrument
-    to_apply_this_time.track_config.selected_instrument =
-        known_instruments[to_apply_this_time.new_selection.name]
-            .new_instance(
-                to_apply_this_time.new_selection.params,
-                song_player.notification_intake
-            )
-    if not previous_instrument.is_finished() then
-        table.insert(song_player.deprecated_instruments, previous_instrument)
+    if known_instruments[to_apply_this_time.new_selection.name] then
+        to_apply_this_time.track_config.selected_instrument =
+            known_instruments[to_apply_this_time.new_selection.name]
+                .new_instance(
+                    to_apply_this_time.new_selection.params,
+                    song_player.notification_intake
+                )
+
+        if not previous_instrument.is_finished() then
+            table.insert(song_player.deprecated_instruments, previous_instrument)
+        end
+    else
+        print_debug("Error setting instrument. Config calls for unknown instrument `"..to_apply_this_time.new_selection.name.."`.", true, true)
     end
 end
 
