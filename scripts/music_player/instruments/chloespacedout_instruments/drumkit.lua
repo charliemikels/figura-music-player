@@ -270,6 +270,7 @@ end
 local drumkit_builder = {
     name = "ChloeSpacedOut Drumkit",
     is_available = instrument_is_available,
+    sort_priority = -2,
     features = {
         percussion = true,
     },

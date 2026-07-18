@@ -194,6 +194,7 @@ end
 local piano_builder = {
     name = "ChloeSpacedOut Piano",
     is_available = instrument_is_available,
+    sort_priority = -2,
     features = {
         sustain = true
     },
