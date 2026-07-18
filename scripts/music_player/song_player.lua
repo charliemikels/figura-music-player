@@ -1,6 +1,5 @@
 
 local export_song_info = true   -- makes some song info viewable to other avatars. Useful to pass metronome data for animations.
-local all_playing_song_controllers = {}    ---@type table<UUID, SongPlayer> -- maybe SongPlayer could be SongPlayerController
 
 -- SongPlayers are responsible for actually playing the Song. Specifically, they are in charge of
 --
@@ -451,6 +450,16 @@ local function get_earliest_possible_start_time(song_player)
     return (earliest_possible_start_time > client:getSystemTime() and earliest_possible_start_time or client:getSystemTime() )
 end
 
+
+-- Song exporting stuff.
+
+local all_playing_song_controllers = {}    ---@type table<UUID, SongPlayer> -- maybe SongPlayer could be SongPlayerController
+
+local functions_to_call_when_song_started = {} ---@type table<fun(uuid:UUID), boolean>
+
+
+
+
 ---@class SongPlayerAPI
 local song_player_api = {
     --- Create a new SongPlayer and return its SongPlayerController.
@@ -770,6 +779,15 @@ local song_player_api = {
                     events.WORLD_TICK:register(event_watcher_and_swapper)
                     watcher_state_key = "check_primary"
                     song_player.primary_event:register(update_this_song)
+
+                    for fn, _ in pairs(functions_to_call_when_song_started) do
+                        local success, result = pcall(fn, song_player.song_uuid)
+                        if not success then
+                            ---@cast result string
+                            print_debug("Song on-start function `"..tostring(fn).."`errored. Removing from `functions_to_call_when_song_started`. Error Message: "..result, true, true)
+                            functions_to_call_when_song_started[fn] = nil
+                        end
+                    end
                 end,
 
                 ---@type fun():boolean
@@ -958,7 +976,7 @@ local song_player_api = {
 
 if export_song_info then
 
-    ---@class exported_song_info_api
+    ---@class SongPlayerExportedInfoApi
     local exported_song_info_api = {
         get_all_playing_song_uuids_and_positions = function()
             local return_table = {}     ---@type table<UUID, Vector3>
@@ -968,8 +986,17 @@ if export_song_info then
             return return_table
         end,
 
-        set_song_start_callback = function (fn) end,            -- TODO: define callback fn signatures.
-        remove_song_start_callback = function (fn) end,         -- TODO: remember to wrap any user function in pcall
+        ---Whenever this avatar starts a song, the callback function will be called with that song's UUID
+        ---@param fn fun(song_uuid:UUID)
+        add_song_start_callback = function (fn)
+            functions_to_call_when_song_started[fn] = true
+        end,
+
+        ---@param key fun(song_uuid:UUID)
+        remove_song_start_callback = function (key)
+            functions_to_call_when_song_started[key] = nil
+        end,
+
         set_song_stop_start_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
         set_song_metronome_state_change_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
 
@@ -996,7 +1023,10 @@ if export_song_info then
 
     }
 
-    for k, v in pairs(exported_song_info_api) do avatar:store("TL_FMP_"..tostring(k), v) end
+    -- for k, v in pairs(exported_song_info_api) do
+    --     avatar:store("TL_FMP_"..tostring(k), v)
+    -- end
+    avatar:store("TL_FMP_exported_song_info_api", exported_song_info_api)
 end
 
 return song_player_api
