@@ -1,5 +1,6 @@
 
 local export_song_info = true   -- makes some song info viewable to other avatars. Useful to pass metronome data for animations.
+local all_playing_song_controllers = {}    ---@type table<UUID, SongPlayer> -- maybe SongPlayer could be SongPlayerController
 
 -- SongPlayers are responsible for actually playing the Song. Specifically, they are in charge of
 --
@@ -550,6 +551,9 @@ local song_player_api = {
                 song_player.start_time = nil
                 song_player.elapsed_time = nil
                 using_fallback_event = false
+
+                all_playing_song_controllers[song_player.song_uuid] = nil
+
                 watcher_state_key = "emergency_stop_active_instruments"
             end,
             emergency_stop_active_instruments = function()
@@ -659,8 +663,7 @@ local song_player_api = {
         ---@class SongPlayer
         song_player = {
             name = song.name,   ---@type string The name of the song
-            song_uuid = client.intUUIDToString(client.generateUUID()),  -- In case we need to create a key or something to address this song.
-                    -- TODO: is a full UUID the right choice for this? could we get away with a simple sequence number, then we could send it ?
+            song_uuid = client.intUUIDToString(client.generateUUID()),
 
             ---@type number The total length of the song
             song_duration = song.duration,
@@ -723,6 +726,7 @@ local song_player_api = {
                 play = function()
                     print_debug("Playing \"" .. tostring(song.name) .. "\"")
                     if song_player.controller.is_playing() then return end
+                    if export_song_info then all_playing_song_controllers[song_player.song_uuid] = song_player end
 
                     -- Info display building and setup
 
@@ -823,6 +827,7 @@ local song_player_api = {
                     print_debug("Stopping \"".. tostring(song.name) .."\"")
 
                     -- Shut down player.
+                    all_playing_song_controllers[song_player.song_uuid] = nil
 
                     -- song_player.elapsed_time = client.getSystemTime() - song_player.start_time
                     song_player.elapsed_time = nil
@@ -951,6 +956,47 @@ local song_player_api = {
 }
 
 
+if export_song_info then
 
+    ---@class exported_song_info_api
+    local exported_song_info_api = {
+        get_all_playing_song_uuids_and_positions = function()
+            local return_table = {}     ---@type table<UUID, Vector3>
+            for uuid, song_player in pairs(all_playing_song_controllers) do
+                return_table[uuid] = song_player.source_pos:copy()
+            end
+            return return_table
+        end,
+
+        set_song_start_callback = function (fn) end,            -- TODO: define callback fn signatures.
+        remove_song_start_callback = function (fn) end,         -- TODO: remember to wrap any user function in pcall
+        set_song_stop_start_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
+        set_song_metronome_state_change_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
+
+        get_song_name = function(uuid) end,
+        get_song_position = function(uuid) end,
+
+        get_song_start_time = function(uuid) end,
+
+        get_metronome_info = function(uuid)
+            -- probably stuff like current tempo / time signature / beat number / measure number / last updated
+        end,
+
+        get_metronome_deltas = function(uuid)
+            -- time of last measure, duration since last measure, time of last beat, duration since last beet, beat number within measure.
+        end,
+
+
+
+        -- get_time_metronome_last_updated = function(uuid) end,
+
+
+
+
+
+    }
+
+    for k, v in pairs(exported_song_info_api) do avatar:store("TL_FMP_"..tostring(k), v) end
+end
 
 return song_player_api
