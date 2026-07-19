@@ -50,36 +50,49 @@ local function has_api_changed(our_reference, external_api)
     return our_reference.time_player_initialized() ~= external_api.time_player_initialized()
 end
 
-local function on_song_start(uuid)
-    print("External test stuff. Song started.", uuid)
-    -- TODO: Initialize metronome events.
-    host:setActionbar("Song: "..uuid, true)
-end
+-- ---comment
+-- ---@param song_uuid UUID
+-- local function on_song_start(song_uuid)
+--     print("External test stuff. Song started.", song_uuid)
+--     -- TODO: Initialize metronome events.
+--     host:setActionbar("Song: "..song_uuid, true)
+
+--     exported_info.add_song_stop_callback(song_uuid, function()
+--         print("Song ended")
+--     end)
+-- end
 
 events.TICK:register(function()
     -- I would love to figure out a way to discover avatars advertising TL_FMP that doesn't involve a constant loop over the avatarVars table.
     -- But I think the only way to do that would be to edit the avatar_vars metatable and change some on_update logic to forward events.
     -- I think we'll just leave that as an exercise for the Viewer.
 
-    local uuid, vars = next(world.avatarVars(), last_checked_uuid)
-    last_checked_uuid = uuid
-    if uuid == nil then return end
+    local fmp_avatar_uuid, vars = next(world.avatarVars(), last_checked_uuid)
+    last_checked_uuid = fmp_avatar_uuid
+    if fmp_avatar_uuid == nil then return end
 
-    if vars["TL_FMP_exported_song_info_api"] and not known_avatars_with_tl_fmp[uuid] then -- first time seeing an avatar with TL_FMP
-        print("found TL_FMP avatar: "..uuid)
+    if vars["TL_FMP_exported_song_info_api"] and not known_avatars_with_tl_fmp[fmp_avatar_uuid] then -- first time seeing an avatar with TL_FMP
+        print("found TL_FMP avatar: "..fmp_avatar_uuid)
 
         local new_found_api = vars["TL_FMP_exported_song_info_api"] ---@type SongPlayerExportedInfoApi
-        new_found_api.add_song_start_callback(on_song_start)
+        new_found_api.add_song_start_callback(function(song_uuid)
+            print("External test stuff. Song started.", song_uuid)
+            host:setActionbar("Song: "..song_uuid, true)
 
-        known_avatars_with_tl_fmp[uuid] = new_found_api
+            new_found_api.add_song_stop_callback(song_uuid, function()
+                print("Song ended")
+            end)
+        end)
+
+        known_avatars_with_tl_fmp[fmp_avatar_uuid] = new_found_api
 
         return
     end
 
-    local success, result = pcall(has_api_changed, known_avatars_with_tl_fmp[uuid], vars["TL_FMP_exported_song_info_api"])
+    local success, result = pcall(has_api_changed, known_avatars_with_tl_fmp[fmp_avatar_uuid], vars["TL_FMP_exported_song_info_api"])
 
     if success and result then
-        print("lost TL_FMP avatar: "..uuid)
-        known_avatars_with_tl_fmp[uuid] = nil
+        print("lost TL_FMP avatar: "..fmp_avatar_uuid)
+        known_avatars_with_tl_fmp[fmp_avatar_uuid] = nil
     end
 end)

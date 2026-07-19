@@ -993,14 +993,23 @@ if export_song_info then
             functions_to_call_when_song_started[key] = nil
         end,
 
-
-
+        ---@param uuid UUID
+        ---@param fn fun(stop_reason:SongPlayerStopReason)
         add_song_stop_callback = function (uuid, fn)
             if all_playing_song_controllers[uuid] then
                 all_playing_song_controllers[uuid].controller.register_stop_callback(fn)
             end
-        end, -- TODO: remember to wrap any user function in pcall
-        set_song_metronome_state_change_callback = function (uuid, fn) end, -- TODO: remember to wrap any user function in pcall
+        end,
+
+        ---@param uuid UUID
+        ---@param fn fun(stop_reason:SongPlayerStopReason)
+        remove_song_stop_callback = function (uuid, fn)
+            if all_playing_song_controllers[uuid] then
+                all_playing_song_controllers[uuid].controller.remove_stop_callback(fn)
+            end
+        end,
+
+        set_song_metronome_state_change_callback = function (uuid, fn) end,
 
         get_song_name = function(uuid) end,
         get_song_position = function(uuid) end,
