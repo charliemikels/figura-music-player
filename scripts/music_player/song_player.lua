@@ -966,9 +966,14 @@ local song_player_api = {
 
 
 if export_song_info then
+    local avatar_init_time = client.getSystemTime()
 
     ---@class SongPlayerExportedInfoApi
     local exported_song_info_api = {
+        time_player_initialized = function ()
+            return avatar_init_time
+        end,
+
         get_all_playing_song_uuids_and_positions = function()
             local return_table = {}     ---@type table<UUID, Vector3>
             for uuid, song_player in pairs(all_playing_song_controllers) do
@@ -1023,6 +1028,7 @@ if export_song_info then
     -- for k, v in pairs(exported_song_info_api) do
     --     avatar:store("TL_FMP_"..tostring(k), v)
     -- end
+    print("Exported:", exported_song_info_api)
     avatar:store("TL_FMP_exported_song_info_api", exported_song_info_api)
 end
 
