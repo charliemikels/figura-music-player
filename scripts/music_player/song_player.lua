@@ -318,7 +318,8 @@ local default_time_signature_denominator = 4
 ---Recalculates and applies metronome changes.
 ---@param song_player SongPlayer
 ---@param time_since_due number?     How late this instruction is. May be nil to initialization
-local function update_metronome(song_player, time_since_due)
+---@param reset_signature_root_note boolean
+local function update_metronome(song_player, time_since_due, reset_signature_root_note)
     local start_of_this_timeframe = (
         (time_since_due and client.getSystemTime() - time_since_due) or song_player.start_time
     )   -- may be the very start of the song just so that song initialization can work
@@ -332,6 +333,8 @@ local function update_metronome(song_player, time_since_due)
 
     local previous_metronome_info = song_player.metronome_info
 
+    local downbeat_root = 0
+
     if previous_metronome_info then
         -- TODO: there might be a little drift in this system. Test with long, complex songs.
 
@@ -343,6 +346,10 @@ local function update_metronome(song_player, time_since_due)
         local remainder_of_note_at_this_time = quarter_notes_so_far % 1
 
         this_quarter_note_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * duration_of_quarter_note)
+
+        if reset_signature_root_note then
+            downbeat_root = (quarter_notes_so_far %1 < 0.001) and math.floor(quarter_notes_so_far) or math.ceil(quarter_notes_so_far)
+        end
     end
 
 
@@ -362,7 +369,7 @@ local function update_metronome(song_player, time_since_due)
         duration_of_quarter_note            = duration_of_quarter_note,
         end_time_of_this_quarter_note       = this_quarter_note_start_time + duration_of_quarter_note,
 
--- down_beat_root = (quarter_notes_so_far %1 < 0.0001) and math.floor(quarter_notes_so_far) or math.ceil(quarter_notes_so_far),   -- When time signature is updated, the current (or next quarter () note becomes the 1 / root for following time signature calculations.)
+        down_beat_root = (quarter_notes_so_far %1 < 0.0001) and math.floor(quarter_notes_so_far) or math.ceil(quarter_notes_so_far),   -- When time signature is updated, the current (or next quarter () note becomes the 1 / root for following time signature calculations.)
 
         -- start_time_of_this_measure = 0,      -- may not be accurate if tempo changed between measures
         -- duration_of_measure = 1,

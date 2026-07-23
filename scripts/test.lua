@@ -92,7 +92,7 @@ events.TICK:register(function()
                             -- print(tostring(this_qn))
                             last_qn = this_qn
 
-                            if ((this_qn * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
+                            if (((this_qn - metronome_info.down_beat_root) * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
                                 host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. this_qn.." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
                             else
                                 host:setActionbar("▊ ".. this_qn.." ▊")
