@@ -318,7 +318,7 @@ local default_time_signature_denominator = 4
 ---Recalculates and applies metronome changes.
 ---@param song_player SongPlayer
 ---@param time_since_due number?     How late this instruction is. May be nil to initialization
----@param reset_signature_root_note boolean
+---@param reset_signature_root_note boolean?
 local function update_metronome(song_player, time_since_due, reset_signature_root_note)
     local start_of_this_timeframe = (
         (time_since_due and client.getSystemTime() - time_since_due) or song_player.start_time
