@@ -22,7 +22,7 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 
 -- Ping limits (see https://figura-wiki.pages.dev/tutorials/Pings#ping-rate-limiting )
 -- Fewer than 32 pings in one second (~32ms between packets min)
--- Fewer than 1024 bytes per second (~1 byte/mili)
+-- Fewer than 1024 bytes per second (~1 byte/milli)
 
 local pings_per_second = 6      -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer might lag behind. (viewer can't process more than one ping per TICK (20 per second).)
 local bytes_per_second = 400    -- 400 is about as high as you can get without dropping too many packets. If it's a good day, you can get away with something much higher, but 400 is a safe default.
