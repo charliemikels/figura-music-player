@@ -342,6 +342,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         number_of_quarter_notes_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_quarter_note
 
         quarter_notes_so_far = previous_metronome_info.quarter_notes_so_far + number_of_quarter_notes_covered_by_previous_timeframe
+            -- TODO: does this ↑ calculation work in 4/8, 2/2, etc.? Might need to rename everything back from QN to "beat"
 
         local remainder_of_note_at_this_time = quarter_notes_so_far % 1
 
@@ -349,6 +350,8 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
 
         if reset_signature_root_note then
             downbeat_root = (quarter_notes_so_far %1 < 0.001) and math.floor(quarter_notes_so_far) or math.ceil(quarter_notes_so_far)
+        else
+            downbeat_root = previous_metronome_info.downbeat_root
         end
     end
 
@@ -369,7 +372,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         duration_of_quarter_note            = duration_of_quarter_note,
         end_time_of_this_quarter_note       = this_quarter_note_start_time + duration_of_quarter_note,
 
-        down_beat_root = (quarter_notes_so_far %1 < 0.0001) and math.floor(quarter_notes_so_far) or math.ceil(quarter_notes_so_far),   -- When time signature is updated, the current (or next quarter () note becomes the 1 / root for following time signature calculations.)
+        downbeat_root = downbeat_root,
 
         -- start_time_of_this_measure = 0,      -- may not be accurate if tempo changed between measures
         -- duration_of_measure = 1,
