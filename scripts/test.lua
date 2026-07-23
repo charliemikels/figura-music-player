@@ -79,13 +79,36 @@ events.TICK:register(function()
             print("External test stuff. Song started.", song_uuid)
             host:setActionbar("Song: "..song_uuid, true)
 
+            local bpm_print_update_loop_name = "TEST_FISH_FISH_TEST!!"
+            new_found_api.add_song_metronome_update_callback(song_uuid, function(metronome_info)
+                print("Metronome updated")
+                events.TICK:remove(bpm_print_update_loop_name)
+
+                local last_qn = 0
+                events.TICK:register(
+                    function ()
+                        local this_qn = math.floor(metronome_info.get_current_quarter_note())
+                        if last_qn ~= this_qn then
+                            print(tostring(this_qn))
+                            last_qn = this_qn
+                        end
+
+                    end,
+                    bpm_print_update_loop_name
+                )
+
+            end)
+
+
             new_found_api.add_song_stop_callback(song_uuid, function()
                 print("Song ended")
+                events.TICK:remove(bpm_print_update_loop_name)
             end)
+
+
         end)
 
         known_avatars_with_tl_fmp[fmp_avatar_uuid] = new_found_api
-
         return
     end
 

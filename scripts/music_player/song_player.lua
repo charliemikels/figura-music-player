@@ -311,6 +311,103 @@ local function apply_config(song_player, config)
     end
 end
 
+local default_tempo = 500000    -- microseconds (not millisecond) per quarter note. 500000 ≈ 60 BPM   -- TODO: do we have to worry about midi divisions / ticks?
+local default_time_signature_numerator = 4
+local default_time_signature_denominator = 4
+
+---Recalculates and applies metronome changes.
+---@param song_player SongPlayer
+---@param time_since_due number?     How late this instruction is. May be nil to initialization
+local function update_metronome(song_player, time_since_due)
+    local start_of_this_timeframe = (
+        (time_since_due and client.getSystemTime() - time_since_due) or song_player.start_time
+    )   -- may be the very start of the song just so that song initialization can work
+
+    local duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
+
+    local duration_of_previous_timeframe = 0
+    local number_of_quarter_notes_covered_by_previous_timeframe = 0
+    local quarter_notes_so_far = 0.0        -- May be a float if tempo changed between beats.
+    local this_quarter_note_start_time = start_of_this_timeframe
+
+    local previous_metronome_info = song_player.metronome_info
+
+    if previous_metronome_info then
+        -- TODO: there might be a little drift in this system. Test with long, complex songs.
+
+        duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
+        number_of_quarter_notes_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_quarter_note
+
+        quarter_notes_so_far = previous_metronome_info.quarter_notes_so_far + number_of_quarter_notes_covered_by_previous_timeframe
+
+        local remainder_of_note_at_this_time = quarter_notes_so_far % 1
+
+        this_quarter_note_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * duration_of_quarter_note)
+    end
+
+
+    --- a representation of a song's timing data. Sent to various consumers to sync actions/animations/whatever to playing songs.
+    ---@class SongPlayerMetronomeInfo
+    local new_metronome_info = {
+        time_metronome_updated      = start_of_this_timeframe,
+
+        quarter_notes_so_far        = quarter_notes_so_far,
+        -- measures_so_far = 0,        ---@type number     -- May be a float if tempo changed between measures.
+
+        -- tempo_in_microseconds_per_beat = song_player.tempo_in_microseconds_per_beat,
+        time_signature_numerator    = song_player.time_signature_numerator,
+        time_signature_denominator  = song_player.time_signature_denominator,
+
+        start_time_of_this_quarter_note     = this_quarter_note_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
+        duration_of_quarter_note            = duration_of_quarter_note,
+        end_time_of_this_quarter_note       = this_quarter_note_start_time + duration_of_quarter_note,
+
+-- down_beat_root = (quarter_notes_so_far %1 < 0.0001) and math.floor(quarter_notes_so_far) or math.ceil(quarter_notes_so_far),   -- When time signature is updated, the current (or next quarter () note becomes the 1 / root for following time signature calculations.)
+
+        -- start_time_of_this_measure = 0,      -- may not be accurate if tempo changed between measures
+        -- duration_of_measure = 1,
+        -- end_time_of_this_measure = 0,
+
+        get_current_quarter_note = function()
+            return quarter_notes_so_far + ((client.getSystemTime() - start_of_this_timeframe) / duration_of_quarter_note)
+        end
+    }
+
+    song_player.metronome_info = new_metronome_info
+
+    for fn, _ in pairs(song_player.on_metronome_update_callback_functions) do
+        pcall( fn, new_metronome_info )
+    end
+end
+
+local meta_event_functions = {
+    -- set_tempo. { T = microseconds_per_midi_quarter_note }
+    ---@param song_player SongPlayer
+    ---@param meta_event_data table<string, integer>
+    ---@param time_since_due number
+    [0x51] = function(song_player, meta_event_data, time_since_due)
+        song_player.tempo_in_microseconds_per_beat = meta_event_data.t
+        update_metronome(song_player, time_since_due)
+    end,
+
+    -- set_time_signature. { n = numerator, d = denominator }
+    ---@param song_player SongPlayer
+    ---@param meta_event_data table<string, integer>
+    ---@param time_since_due number
+    [0x58] = function(song_player, meta_event_data, time_since_due)
+        song_player.time_signature_numerator = meta_event_data.n
+        song_player.time_signature_denominator = meta_event_data.d
+        update_metronome(song_player, time_since_due)
+    end,
+
+    -- -- lyric
+    -- ---@param song_player SongPlayer
+    -- ---@param meta_event_data table<string, integer>
+    -- ---@param time_since_due number
+    -- [0x05] = function(song_player, meta_event_data, time_since_due)
+    --     printTable(meta_event_data)
+    -- end,
+}
 
 ---@alias TrackID number
 
@@ -386,6 +483,11 @@ local function update_song(song_player)
         if this_instruction.track_index == 0 then   -- this instruction actually holds song meta data
             -- This meta_data does not impact song playback. But it might hold, for example,
             -- time signature data that other parts of the avatar could sync up to.
+
+            --    ---@class SongPlayerMetronomeData
+            if meta_event_functions[this_instruction.note] then
+                meta_event_functions[this_instruction.note](song_player, this_instruction.meta_event_data, time_since_due)
+            end
 
             for fn, _ in pairs(song_player.on_meta_callback_functions) do
                 -- we're just going to trust that whoever wrote this callback function has figured out the meta codes and what they do.
@@ -721,6 +823,12 @@ local song_player_api = {
             on_update_callback_functions = {},  ---@type table<fun(), boolean>
             on_stop_callback_functions = {},    ---@type table<fun(stop_reason:SongPlayerStopReason), boolean>
             on_meta_callback_functions = {},    ---@type table<fun(event_code:integer, meta_event_data:table<string, integer>), boolean>
+            on_metronome_update_callback_functions = {},    ---@type table<fun(metronome_info:SongPlayerMetronomeInfo), boolean>
+
+            tempo_in_microseconds_per_beat  = default_tempo,
+            time_signature_numerator        = default_time_signature_numerator,
+            time_signature_denominator      = default_time_signature_denominator,
+            metronome_info = nil,                ---@type SongPlayerMetronomeInfo?
 
             ---@class SongPlayerController
             controller = {
@@ -766,6 +874,12 @@ local song_player_api = {
 
                     song_player.start_time = get_earliest_possible_start_time(song_player)
                     song_player.next_instruction_index = 1
+
+                    song_player.tempo_in_microseconds_per_beat  = default_tempo
+                    song_player.time_signature_numerator        = default_time_signature_numerator
+                    song_player.time_signature_denominator      = default_time_signature_denominator
+                    song_player.metronome_info                  = nil
+                    update_metronome(song_player, nil)
 
                     -- Kick off update loops
 
@@ -912,12 +1026,12 @@ local song_player_api = {
                 end,
 
 
-                ---@type fun(call_back: fun()))
+                ---@type fun(call_back: fun())
                 register_update_callback = function(call_back)
                     song_player.on_update_callback_functions[call_back] = true
                 end,
 
-                ---@type fun(call_back: fun()))
+                ---@type fun(call_back: fun())
                 remove_update_callback = function(call_back_to_remove)
                     if song_player.on_update_callback_functions[call_back_to_remove] then
                         song_player.on_update_callback_functions[call_back_to_remove] = nil
@@ -927,17 +1041,31 @@ local song_player_api = {
                 end,
 
 
-                ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>)))
+                ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>))
                 register_meta_event_callback = function(call_back)
                     song_player.on_meta_callback_functions[call_back] = true
                 end,
 
-                ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>)))
+                ---@type fun(call_back: fun(event_code:integer, meta_event_data:table<string, integer>))
                 remove_meta_event_callback = function(call_back_to_remove)
                     if song_player.on_meta_callback_functions[call_back_to_remove] then
                         song_player.on_meta_callback_functions[call_back_to_remove] = nil
                     else
                         print_debug("Callback "..tostring(call_back_to_remove).." not found in meta_event_callbacks list", true, true)
+                    end
+                end,
+
+                ---@type fun(call_back: fun(metronome_info:SongPlayerMetronomeInfo))
+                register_metronome_update_callback = function(call_back)
+                    song_player.on_metronome_update_callback_functions[call_back] = true
+                end,
+
+                ---@type fun(call_back: fun(metronome_info:SongPlayerMetronomeInfo))
+                remove_metronome_update_callback = function(call_back_to_remove)
+                    if song_player.on_metronome_update_callback_functions[call_back_to_remove] then
+                        song_player.on_metronome_update_callback_functions[call_back_to_remove] = nil
+                    else
+                        print_debug("Callback "..tostring(call_back_to_remove).." not found in metronome_update_callbacks list", true, true)
                     end
                 end,
             }
@@ -1006,6 +1134,23 @@ if export_song_info then
         remove_song_stop_callback = function (uuid, fn)
             if all_playing_song_controllers[uuid] then
                 all_playing_song_controllers[uuid].controller.remove_stop_callback(fn)
+            end
+        end,
+
+
+        ---@param uuid UUID
+        ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
+        add_song_metronome_update_callback = function (uuid, fn)
+            if all_playing_song_controllers[uuid] then
+                all_playing_song_controllers[uuid].controller.register_metronome_update_callback(fn)
+            end
+        end,
+
+        ---@param uuid UUID
+        ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
+        remove_song_metronome_update_callback = function (uuid, fn)
+            if all_playing_song_controllers[uuid] then
+                all_playing_song_controllers[uuid].controller.remove_metronome_update_callback(fn)
             end
         end,
 
