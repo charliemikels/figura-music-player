@@ -81,7 +81,7 @@ events.TICK:register(function()
 
             local bpm_print_update_loop_name = "TEST_FISH_FISH_TEST!!"
             new_found_api.add_song_metronome_update_callback(song_uuid, function(metronome_info)
-                print("Metronome updated")
+                -- print("Metronome updated")
                 events.TICK:remove(bpm_print_update_loop_name)
 
                 local last_qn = 0
@@ -89,8 +89,18 @@ events.TICK:register(function()
                     function ()
                         local this_qn = math.floor(metronome_info.get_current_quarter_note())
                         if last_qn ~= this_qn then
-                            print(tostring(this_qn))
+                            -- print(tostring(this_qn))
                             last_qn = this_qn
+
+                            if ((this_qn * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
+                                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. this_qn.." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
+                            else
+                                host:setActionbar("▊ ".. this_qn.." ▊")
+                            end
+
+                        else
+                            host:setActionbar(tostring(this_qn))
+
                         end
 
                     end,
