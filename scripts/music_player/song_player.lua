@@ -327,12 +327,12 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     local duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
 
     local quarter_note_to_beat_multiplier = (song_player.time_signature_denominator / 4)
-    local durration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
+    local duration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
 
     local duration_of_previous_timeframe = 0
     local number_of_quarter_notes_covered_by_previous_timeframe = 0
     local beats_so_far = 0.0        -- May be a float if tempo changed between beats.
-    local this_quarter_note_start_time = start_of_this_timeframe
+    local this_beat_start_time = start_of_this_timeframe
 
     local previous_metronome_info = song_player.metronome_info
 
@@ -341,9 +341,11 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     if previous_metronome_info then
 
         duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
-        number_of_quarter_notes_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_quarter_note
+        number_of_quarter_notes_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
 
         quarter_note_to_beat_multiplier = (previous_metronome_info.time_signature_denominator / 4)
+        duration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
+
 
         beats_so_far =
             previous_metronome_info.beats_so_far + (
@@ -353,7 +355,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
 
         local remainder_of_note_at_this_time = beats_so_far % 1
 
-        this_quarter_note_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * duration_of_quarter_note * quarter_note_to_beat_multiplier)
+        this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * duration_of_beat)
 
         if reset_signature_root_note then
             downbeat_root = math.ceil(beats_so_far)
@@ -368,16 +370,16 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     local new_metronome_info = {
         time_metronome_updated      = start_of_this_timeframe,
 
-        beats_so_far        = beats_so_far,
+        beats_so_far                = beats_so_far,
         -- measures_so_far = 0,        ---@type number     -- May be a float if tempo changed between measures.
 
         -- tempo_in_microseconds_per_beat = song_player.tempo_in_microseconds_per_beat,
         time_signature_numerator    = song_player.time_signature_numerator,
         time_signature_denominator  = song_player.time_signature_denominator,
 
-        start_time_of_this_quarter_note     = this_quarter_note_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
-        duration_of_quarter_note            = duration_of_quarter_note,
-        end_time_of_this_quarter_note       = this_quarter_note_start_time + duration_of_quarter_note,
+        start_time_of_this_beat     = this_beat_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
+        duration_of_beat            = duration_of_beat,
+        end_time_of_this_beat       = this_beat_start_time + duration_of_beat,
 
         downbeat_root = downbeat_root,
 
