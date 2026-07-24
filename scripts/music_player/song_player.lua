@@ -326,7 +326,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
 
     local duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
 
-    local quarter_note_to_beat_multiplier = (song_player.time_signature_denominator / 4)
+    local quarter_note_to_beat_multiplier = (song_player.time_signature_denominator / 4) -- in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
     local duration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
 
     local duration_of_previous_timeframe = 0
@@ -350,7 +350,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         beats_so_far =
             previous_metronome_info.beats_so_far + (
                 number_of_quarter_notes_covered_by_previous_timeframe
-                * quarter_note_to_beat_multiplier  --in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
+                * quarter_note_to_beat_multiplier
             )
 
         local remainder_of_note_at_this_time = beats_so_far % 1
