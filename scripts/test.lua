@@ -80,11 +80,11 @@ events.TICK:register(function()
             host:setActionbar("Song: "..song_uuid, true)
 
             local bpm_print_update_loop_name = "TEST_FISH_FISH_TEST!!"
+            local last_beat = 0
             new_found_api.add_song_metronome_update_callback(song_uuid, function(metronome_info)
                 -- print("Metronome updated")
                 events.TICK:remove(bpm_print_update_loop_name)
 
-                local last_beat = 0
                 events.TICK:register(
                     function ()
                         local this_beat = math.floor(metronome_info.get_current_beat() )
