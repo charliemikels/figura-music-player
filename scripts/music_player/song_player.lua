@@ -351,19 +351,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         local remainder_of_note_at_this_time = beats_so_far % 1
 
         -- TODO: Caught something.
-        -- Alpha - shorter counts right from beat 58ish, right into beat 62, which lasts a very long time. beat 62 only reaches .7 progress.
-        -- Afterwards, it's off by 1 full beat. (Also I'm pretty sure it should be doubled the speed, but... whatever. It's definitely off by 1)
-        -- (this is at least much better than the branch prior to this one. That was off by like a full eighth note. So just way out of sync.)
-        -- Anyways, Something is wrong in the math somewhere around calculating how long a beat is during this last 9/8 time.
-        --
-        -- Alpha - shorter notes:
-        -- - at measure 15: Enters 9/8 time at 100bpm
-        -- - at m 15, b 7: it drops way down to 30bpm
-        -- - at m 16: it's back to 4/4 and 139bpm
-        --
-        -- - count-wise, m15 is basically the same as 1 4/4 measure, then 1.5 quarter notes at 30BPM, then back up to speed.
-        --
-        -- Since the "current beat" logic rounds to the next whole beat, we might be mixing old data in our calculation.
+        -- That 9/8 bit in alpha shorter still isn't being counted correctly.
 
         this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * previous_metronome_info.duration_of_beat)
 
