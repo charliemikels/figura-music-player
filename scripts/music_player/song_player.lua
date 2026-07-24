@@ -387,8 +387,8 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         -- duration_of_measure = 1,
         -- end_time_of_this_measure = 0,
 
-        get_current_quarter_note = function()
-            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / duration_of_quarter_note)
+        get_current_beat = function()
+            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / duration_of_beat)
         end
     }
 
@@ -416,7 +416,7 @@ local meta_event_functions = {
     [0x58] = function(song_player, meta_event_data, time_since_due)
         song_player.time_signature_numerator = meta_event_data.n
         song_player.time_signature_denominator = meta_event_data.d
-        update_metronome(song_player, time_since_due)
+        update_metronome(song_player, time_since_due, true)
     end,
 
     -- -- lyric

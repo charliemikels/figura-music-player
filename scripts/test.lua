@@ -87,7 +87,7 @@ events.TICK:register(function()
                 local last_qn = 0
                 events.TICK:register(
                     function ()
-                        local this_qn = math.floor(metronome_info.get_current_quarter_note())
+                        local this_qn = math.floor(metronome_info.get_current_beat())
                         if last_qn ~= this_qn then
                             -- print(tostring(this_qn))
                             last_qn = this_qn
