@@ -84,22 +84,22 @@ events.TICK:register(function()
                 -- print("Metronome updated")
                 events.TICK:remove(bpm_print_update_loop_name)
 
-                local last_qn = 0
+                local last_beat = 0
                 events.TICK:register(
                     function ()
-                        local this_qn = math.floor(metronome_info.get_current_beat())
-                        if last_qn ~= this_qn then
+                        local this_beat = math.floor(metronome_info.get_current_beat())
+                        if last_beat ~= this_beat then
                             -- print(tostring(this_qn))
-                            last_qn = this_qn
+                            last_beat = this_beat
 
-                            if (((this_qn - metronome_info.downbeat_root) * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
-                                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. this_qn.." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
+                            if (((this_beat - metronome_info.downbeat_root) * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
+                                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. this_beat.." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
                             else
-                                host:setActionbar("▊ ".. this_qn.." ▊")
+                                host:setActionbar("▊ ".. this_beat.." ▊")
                             end
 
                         else
-                            host:setActionbar(tostring(this_qn))
+                            host:setActionbar(tostring(this_beat))
 
                         end
 
