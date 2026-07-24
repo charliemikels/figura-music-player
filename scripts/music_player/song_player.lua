@@ -324,15 +324,14 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         (time_since_due and client.getSystemTime() - time_since_due) or song_player.start_time
     )   -- may be the very start of the song just so that song initialization can work
 
-    local duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
+    local current_duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
 
-    local quarter_note_to_beat_multiplier = (song_player.time_signature_denominator / 4) -- in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
-    local duration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
+    local current_quarter_note_to_beat_multiplier = (song_player.time_signature_denominator / 4) -- in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
+    local current_duration_of_beat = current_duration_of_quarter_note * current_quarter_note_to_beat_multiplier
 
-    local duration_of_previous_timeframe = 0
-    local number_of_beats_covered_by_previous_timeframe = 0
+
     local beats_so_far = 0.0        -- May be a float if tempo changed between beats.
-    local this_beat_start_time = start_of_this_timeframe
+    -- local this_beat_start_time = start_of_this_timeframe
 
     local downbeat_root = 0
 
@@ -340,20 +339,20 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
 
     if previous_metronome_info then
 
-        duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
-        number_of_beats_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
+        local duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
+        local number_of_beats_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
 
         beats_so_far =
             previous_metronome_info.beats_so_far + (
                 number_of_beats_covered_by_previous_timeframe
             )
 
-        local remainder_of_note_at_this_time = beats_so_far % 1
+        -- local remainder_of_note_at_this_time = beats_so_far % 1
 
         -- TODO: Caught something.
         -- That 9/8 bit in alpha shorter still isn't being counted correctly.
 
-        this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * previous_metronome_info.duration_of_beat)
+        -- this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * previous_metronome_info.duration_of_beat)
 
         downbeat_root = reset_signature_root_note and previous_metronome_info.downbeat_root or math.ceil(beats_so_far)
     end
@@ -371,9 +370,9 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         time_signature_numerator    = song_player.time_signature_numerator,
         time_signature_denominator  = song_player.time_signature_denominator,
 
-        start_time_of_this_beat     = this_beat_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
-        duration_of_beat            = duration_of_beat,
-        end_time_of_this_beat       = this_beat_start_time + duration_of_beat,
+        -- start_time_of_this_beat     = this_beat_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
+        duration_of_beat            = current_duration_of_beat,
+        -- end_time_of_this_beat       = this_beat_start_time + current_duration_of_beat,
 
         downbeat_root = downbeat_root,
 
@@ -382,7 +381,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         -- end_time_of_this_measure = 0,
 
         get_current_beat = function()
-            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / duration_of_beat)
+            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / current_duration_of_beat)
         end
     }
 
