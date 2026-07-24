@@ -336,16 +336,13 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     local downbeat_root = 0
 
     local previous_metronome_info = song_player.metronome_info
-
     if previous_metronome_info then
 
         local duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
         local number_of_beats_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
+        beats_so_far = previous_metronome_info.beats_so_far + number_of_beats_covered_by_previous_timeframe
 
-        beats_so_far =
-            previous_metronome_info.beats_so_far + (
-                number_of_beats_covered_by_previous_timeframe
-            )
+        downbeat_root = reset_signature_root_note and previous_metronome_info.downbeat_root or math.ceil(beats_so_far)
 
         -- local remainder_of_note_at_this_time = beats_so_far % 1
 
@@ -354,7 +351,6 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
 
         -- this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * previous_metronome_info.duration_of_beat)
 
-        downbeat_root = reset_signature_root_note and previous_metronome_info.downbeat_root or math.ceil(beats_so_far)
     end
 
 
