@@ -334,9 +334,9 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     local beats_so_far = 0.0        -- May be a float if tempo changed between beats.
     local this_beat_start_time = start_of_this_timeframe
 
-    local previous_metronome_info = song_player.metronome_info
-
     local downbeat_root = 0
+
+    local previous_metronome_info = song_player.metronome_info
 
     if previous_metronome_info then
 
