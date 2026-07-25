@@ -331,6 +331,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
 
 
     local beats_so_far = 0.0        -- May be a float if tempo changed between beats.
+    local measures_so_far = 0.0     -- May be a float if tempo changed between measures.
     -- local this_beat_start_time = start_of_this_timeframe
 
     local downbeat_root = 0
@@ -341,6 +342,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
         local duration_of_previous_timeframe = (previous_metronome_info.start_of_timeframe == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.start_of_timeframe))
         local number_of_beats_covered_by_previous_timeframe = (1.0 * duration_of_previous_timeframe) / (1.0 * previous_metronome_info.duration_of_beat)
         beats_so_far = previous_metronome_info.beats_so_far + number_of_beats_covered_by_previous_timeframe
+        measures_so_far = previous_metronome_info.measures_so_far + (number_of_beats_covered_by_previous_timeframe / previous_metronome_info.time_signature_numerator)
 
         downbeat_root = (
             reset_signature_root_note
@@ -361,7 +363,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
         start_of_timeframe      = start_of_this_timeframe,
 
         beats_so_far                = beats_so_far,
-        -- measures_so_far = 0,        ---@type number     -- May be a float if tempo changed between measures.
+        measures_so_far             = measures_so_far,
 
         -- tempo_in_microseconds_per_beat = song_player.tempo_in_microseconds_per_beat,
         time_signature_numerator    = song_player.time_signature_numerator,
@@ -379,6 +381,10 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
 
         get_current_beat = function()
             return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / current_duration_of_beat)
+        end,
+
+        get_current_measure = function()
+            return measures_so_far + ((client.getSystemTime() - start_of_this_timeframe) / (current_duration_of_beat * song_player.time_signature_numerator))
         end
     }
 
