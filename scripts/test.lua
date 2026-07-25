@@ -96,7 +96,12 @@ events.TICK:register(function()
                             -- print(tostring(this_qn))
                             last_beat = this_beat
 
-                            if (((this_beat - metronome_info.downbeat_root) * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
+                            if (
+                                (this_beat - metronome_info.downbeat_root)
+                                * (
+                                    (metronome_info.time_signature_denominator/metronome_info.time_signature_numerator)/metronome_info.time_signature_denominator
+                                )
+                            ) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
                                 host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
                             else
                                 host:setActionbar("▊ ".. current_beat_printable .." ▊")
