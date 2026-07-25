@@ -80,7 +80,7 @@ events.TICK:register(function()
             host:setActionbar("Song: "..song_uuid, true)
 
             local bpm_print_update_loop_name = "TEST_FISH_FISH_TEST!!"
-            local last_beat = 0
+            local last_beat = -1
             new_found_api.add_song_metronome_update_callback(song_uuid, function(metronome_info)
                 -- print("Metronome updated")
                 events.TICK:remove(bpm_print_update_loop_name)
@@ -91,17 +91,10 @@ events.TICK:register(function()
 
                         local current_beat_printable = math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
 
-
                         if last_beat ~= this_beat then
-                            -- print(tostring(this_qn))
                             last_beat = this_beat
 
-                            if (
-                                (this_beat - metronome_info.downbeat_root)
-                                * (
-                                    (metronome_info.time_signature_denominator/metronome_info.time_signature_numerator)/metronome_info.time_signature_denominator
-                                )
-                            ) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
+                            if math.floor(metronome_info.get_current_measure()) == 0 then
                                 host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
                             else
                                 host:setActionbar("▊ ".. current_beat_printable .." ▊")
@@ -109,7 +102,6 @@ events.TICK:register(function()
 
                         else
                             host:setActionbar(current_beat_printable)
-
                         end
 
                     end,
