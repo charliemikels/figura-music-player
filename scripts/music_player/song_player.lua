@@ -318,10 +318,11 @@ local default_time_signature_denominator = 4
 ---Recalculates and applies metronome changes.
 ---@param song_player SongPlayer
 ---@param time_since_due number?     How late this instruction is. May be nil to initialization
+---@param current_time number?       result of client.getSystemTime() when time_since_due was set. May be nil when time_since_due is nil
 ---@param reset_signature_root_note boolean?
-local function update_metronome(song_player, time_since_due, reset_signature_root_note)
+local function update_metronome(song_player, time_since_due, current_time, reset_signature_root_note)
     local start_of_this_timeframe = (
-        (time_since_due and client.getSystemTime() - time_since_due) or song_player.start_time
+        (time_since_due and current_time - time_since_due) or song_player.start_time
     )   -- may be the very start of the song just so that song initialization can work
 
     local current_duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
@@ -402,19 +403,21 @@ local meta_event_functions = {
     ---@param song_player SongPlayer
     ---@param meta_event_data table<string, integer>
     ---@param time_since_due number
-    [0x51] = function(song_player, meta_event_data, time_since_due)
+    ---@param current_time number       -- results of client.getSystemTime() at the top of the update loop.
+    [0x51] = function(song_player, meta_event_data, time_since_due, current_time)
         song_player.tempo_in_microseconds_per_beat = meta_event_data.t
-        update_metronome(song_player, time_since_due)
+        update_metronome(song_player, time_since_due, current_time)
     end,
 
     -- set_time_signature. { n = numerator, d = denominator }
     ---@param song_player SongPlayer
     ---@param meta_event_data table<string, integer>
     ---@param time_since_due number
-    [0x58] = function(song_player, meta_event_data, time_since_due)
+    ---@param current_time number       -- results of client.getSystemTime() at the top of the update loop.
+    [0x58] = function(song_player, meta_event_data, time_since_due, current_time)
         song_player.time_signature_numerator = meta_event_data.n
         song_player.time_signature_denominator = meta_event_data.d
-        update_metronome(song_player, time_since_due, true)
+        update_metronome(song_player, time_since_due, current_time, true)
     end,
 
     -- -- lyric
@@ -503,7 +506,7 @@ local function update_song(song_player)
 
             --    ---@class SongPlayerMetronomeData
             if meta_event_functions[this_instruction.note] then
-                meta_event_functions[this_instruction.note](song_player, this_instruction.meta_event_data, time_since_due)
+                meta_event_functions[this_instruction.note](song_player, this_instruction.meta_event_data, time_since_due, current_time)
             end
 
             for fn, _ in pairs(song_player.on_meta_callback_functions) do
@@ -524,7 +527,7 @@ local function update_song(song_player)
             song_player
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, song_player.source_pos, time_since_due)
+                .play_instruction(this_instruction, song_player.source_pos, time_since_due, current_time)
         end
         song_player.next_instruction_index = song_player.next_instruction_index + 1
     end
@@ -896,7 +899,7 @@ local song_player_api = {
                     song_player.time_signature_numerator        = default_time_signature_numerator
                     song_player.time_signature_denominator      = default_time_signature_denominator
                     song_player.metronome_info                  = nil
-                    update_metronome(song_player, nil)
+                    update_metronome(song_player, nil, nil)
 
                     -- Kick off update loops
 
