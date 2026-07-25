@@ -301,7 +301,7 @@ local drumkit_builder = {
 
         ---@type Instrument
         local drum_instrument = {
-            play_instruction = function (instruction, position, time_since_due)
+            play_instruction = function (instruction, position, time_due)
                 if not instrument_is_available() then   -- something in the drum system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_drum_info(nil, nil)
                 elseif not instance_drum_id then       -- Drum is available, but instance_drum_id is not set. Let's reset it.
@@ -314,7 +314,7 @@ local drumkit_builder = {
                 local note_to_string = midi_note_to_string(instruction.note)
 
                 if not instance_drum_id or not note_to_string then   -- drum is still invalid (or the note is out of range). use the fallback instrument.
-                    fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                    fallback_instrument_instance.play_instruction(instruction, position, time_due)
                 else -- play drum note as usual
                     instance_drum_lib.playNote(
                         instance_drum_id,

@@ -493,7 +493,7 @@ local function update_song(song_player)
         -- positive == the instruction is late. 0 == it's right on time. negative == it doesn't need to play yet. ignore if negative.
         local time_since_due = (current_time - song_player.start_time) - this_instruction.start_time
         local time_due = current_time - time_since_due
-        if time_since_due < 0 then
+        if time_due >= current_time then
             -- instruction is not late, we'll take care of it later.
             -- (If all notes are slightly late, then none of the notes are slightly late.)
             break
@@ -525,7 +525,7 @@ local function update_song(song_player)
             song_player
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, song_player.source_pos, time_since_due, current_time)
+                .play_instruction(this_instruction, song_player.source_pos, time_due)
         end
         song_player.next_instruction_index = song_player.next_instruction_index + 1
     end
