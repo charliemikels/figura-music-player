@@ -339,7 +339,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     if previous_metronome_info then
 
         local duration_of_previous_timeframe = (previous_metronome_info.start_of_timeframe == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.start_of_timeframe))
-        local number_of_beats_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
+        local number_of_beats_covered_by_previous_timeframe = (1.0 * duration_of_previous_timeframe) / (1.0 * previous_metronome_info.duration_of_beat)
         beats_so_far = previous_metronome_info.beats_so_far + number_of_beats_covered_by_previous_timeframe
 
         downbeat_root = (
@@ -347,7 +347,10 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
             and math.ceil(beats_so_far - 0.01)  -- TODO: This little subtraction is a HACK! Time sig changes sometimes happen after the beat boundary for some reason. (See Piano man) This backs it up a pinch
             or previous_metronome_info.downbeat_root
         )
-        print(reset_signature_root_note, beats_so_far, beats_so_far - 0.01)
+        print("---")
+        print(reset_signature_root_note, beats_so_far, beats_so_far - 0.01, ">", downbeat_root)
+        print(number_of_beats_covered_by_previous_timeframe , duration_of_previous_timeframe , previous_metronome_info.duration_of_beat)
+        print(previous_metronome_info.start_of_timeframe, start_of_this_timeframe, start_of_this_timeframe - previous_metronome_info.start_of_timeframe)
 
         -- local remainder_of_note_at_this_time = beats_so_far % 1
 
