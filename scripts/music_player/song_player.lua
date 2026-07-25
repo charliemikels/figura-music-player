@@ -338,12 +338,11 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     local previous_metronome_info = song_player.metronome_info
     if previous_metronome_info then
 
-        local duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
+        local duration_of_previous_timeframe = (previous_metronome_info.start_of_timeframe == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.start_of_timeframe))
         local number_of_beats_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
         beats_so_far = previous_metronome_info.beats_so_far + number_of_beats_covered_by_previous_timeframe
 
         downbeat_root = reset_signature_root_note and math.ceil(beats_so_far) or previous_metronome_info.downbeat_root
-        -- print(downbeat_root)
 
         -- local remainder_of_note_at_this_time = beats_so_far % 1
 
@@ -358,7 +357,7 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
     --- a representation of a song's timing data. Sent to various consumers to sync actions/animations/whatever to playing songs.
     ---@class SongPlayerMetronomeInfo
     local new_metronome_info = {
-        time_metronome_updated      = start_of_this_timeframe,
+        start_of_timeframe      = start_of_this_timeframe,
 
         beats_so_far                = beats_so_far,
         -- measures_so_far = 0,        ---@type number     -- May be a float if tempo changed between measures.
