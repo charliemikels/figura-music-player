@@ -413,8 +413,8 @@ local meta_event_functions = {
     -- -- lyric
     -- ---@param song_player SongPlayer
     -- ---@param meta_event_data table<string, integer>
-    -- ---@param time_since_due number
-    -- [0x05] = function(song_player, meta_event_data, time_since_due)
+    -- ---@param time_due number
+    -- [0x05] = function(song_player, meta_event_data, time_due)
     --     printTable(meta_event_data)
     -- end,
 }
