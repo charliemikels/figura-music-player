@@ -482,10 +482,8 @@ local function update_song(song_player)
 
     while song_player.next_instruction_index <= #song_player.instructions do
         local this_instruction = song_player.instructions[song_player.next_instruction_index]
-        -- The amount of time between the current time, and the time this instruction should have been played.
-        -- positive == the instruction is late. 0 == it's right on time. negative == it doesn't need to play yet. ignore if negative.
-        local time_since_due = (current_time - song_player.start_time) - this_instruction.start_time
-        local time_due = current_time - time_since_due
+        -- The absolute time this instruction starts / started / will start at.
+        local time_due = current_time - ((current_time - song_player.start_time) - this_instruction.start_time)
         if time_due >= current_time then
             -- instruction is not late, we'll take care of it later.
             -- (If all notes are slightly late, then none of the notes are slightly late.)
