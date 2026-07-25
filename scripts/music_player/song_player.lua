@@ -342,7 +342,8 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         local number_of_beats_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
         beats_so_far = previous_metronome_info.beats_so_far + number_of_beats_covered_by_previous_timeframe
 
-        downbeat_root = reset_signature_root_note and previous_metronome_info.downbeat_root or math.ceil(beats_so_far)
+        downbeat_root = reset_signature_root_note and math.ceil(beats_so_far) or previous_metronome_info.downbeat_root
+        -- print(downbeat_root)
 
         -- local remainder_of_note_at_this_time = beats_so_far % 1
 
