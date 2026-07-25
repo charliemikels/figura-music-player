@@ -89,7 +89,7 @@ events.TICK:register(function()
                     function ()
                         local this_beat = math.floor(metronome_info.get_current_beat() )
 
-                        local current_beat_printable = math.floor(metronome_info.get_current_measure() +1) .. "  " .. string.format("%.3f", metronome_info.get_current_beat())
+                        local current_beat_printable = math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
 
 
                         if last_beat ~= this_beat then

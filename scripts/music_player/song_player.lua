@@ -356,6 +356,18 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
 
     end
 
+    local function get_current_beat()
+        return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / current_duration_of_beat)
+    end
+
+    local function get_current_measure()
+        return measures_so_far + ((client.getSystemTime() - start_of_this_timeframe) / (current_duration_of_beat * song_player.time_signature_numerator))
+    end
+
+    local function get_current_beat_in_measure()
+        return (get_current_beat() - downbeat_root) % song_player.time_signature_numerator
+    end
+
 
     --- a representation of a song's timing data. Sent to various consumers to sync actions/animations/whatever to playing songs.
     ---@class SongPlayerMetronomeInfo
@@ -369,23 +381,15 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
         time_signature_numerator    = song_player.time_signature_numerator,
         time_signature_denominator  = song_player.time_signature_denominator,
 
-        -- start_time_of_this_beat     = this_beat_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
         duration_of_beat            = current_duration_of_beat,
-        -- end_time_of_this_beat       = this_beat_start_time + current_duration_of_beat,
 
-        downbeat_root = downbeat_root,
+        downbeat_root               = downbeat_root,
 
-        -- start_time_of_this_measure = 0,      -- may not be accurate if tempo changed between measures
-        -- duration_of_measure = 1,
-        -- end_time_of_this_measure = 0,
+        get_current_beat            = get_current_beat,
+        get_current_measure         = get_current_measure,
+        get_current_beat_in_measure = get_current_beat_in_measure
 
-        get_current_beat = function()
-            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / current_duration_of_beat)
-        end,
 
-        get_current_measure = function()
-            return measures_so_far + ((client.getSystemTime() - start_of_this_timeframe) / (current_duration_of_beat * song_player.time_signature_numerator))
-        end
     }
 
     song_player.metronome_info = new_metronome_info
