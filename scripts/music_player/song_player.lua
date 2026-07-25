@@ -317,58 +317,48 @@ local default_time_signature_denominator = 4
 
 ---Recalculates and applies metronome changes.
 ---@param song_player SongPlayer
----@param time_since_due number?     How late this instruction is. May be nil to initialization
+---@param time_due integer?     When this instruction should play / have played.
 ---@param reset_signature_root_note boolean?
-local function update_metronome(song_player, time_since_due, reset_signature_root_note)
+local function update_metronome(song_player, time_due, reset_signature_root_note)
     local start_of_this_timeframe = (
-        (time_since_due and client.getSystemTime() - time_since_due) or song_player.start_time
+        (time_due and time_due) or song_player.start_time
     )   -- may be the very start of the song just so that song initialization can work
 
-    local duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
+    local current_duration_of_quarter_note = song_player.tempo_in_microseconds_per_beat / 1000 -- in millis to match other durations
 
-    local quarter_note_to_beat_multiplier = (song_player.time_signature_denominator / 4)
-    local duration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
+    local current_quarter_note_to_beat_multiplier = (4 / song_player.time_signature_denominator) -- in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
+    local current_duration_of_beat = current_duration_of_quarter_note * current_quarter_note_to_beat_multiplier
 
-    local duration_of_previous_timeframe = 0
-    local number_of_quarter_notes_covered_by_previous_timeframe = 0
+
     local beats_so_far = 0.0        -- May be a float if tempo changed between beats.
-    local this_beat_start_time = start_of_this_timeframe
-
-    local previous_metronome_info = song_player.metronome_info
+    -- local this_beat_start_time = start_of_this_timeframe
 
     local downbeat_root = 0
 
+    local previous_metronome_info = song_player.metronome_info
     if previous_metronome_info then
 
-        duration_of_previous_timeframe = (previous_metronome_info.time_metronome_updated == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.time_metronome_updated))
-        number_of_quarter_notes_covered_by_previous_timeframe = duration_of_previous_timeframe / previous_metronome_info.duration_of_beat
+        local duration_of_previous_timeframe = (previous_metronome_info.start_of_timeframe == math.huge and 0 or (start_of_this_timeframe - previous_metronome_info.start_of_timeframe))
+        local number_of_beats_covered_by_previous_timeframe = (1.0 * duration_of_previous_timeframe) / (1.0 * previous_metronome_info.duration_of_beat)
+        beats_so_far = previous_metronome_info.beats_so_far + number_of_beats_covered_by_previous_timeframe
 
-        quarter_note_to_beat_multiplier = (previous_metronome_info.time_signature_denominator / 4)
-        duration_of_beat = duration_of_quarter_note * quarter_note_to_beat_multiplier
+        downbeat_root = (
+            reset_signature_root_note
+            and math.ceil(beats_so_far - 0.01)  -- TODO: This little subtraction is a HACK! Time sig changes sometimes happen after the beat boundary for some reason. (See Piano man) This backs it up a pinch
+            or previous_metronome_info.downbeat_root
+        )
 
+        -- local remainder_of_note_at_this_time = beats_so_far % 1
 
-        beats_so_far =
-            previous_metronome_info.beats_so_far + (
-                number_of_quarter_notes_covered_by_previous_timeframe
-                * quarter_note_to_beat_multiplier  --in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
-            )
+        -- this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * previous_metronome_info.duration_of_beat)
 
-        local remainder_of_note_at_this_time = beats_so_far % 1
-
-        this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * duration_of_beat)
-
-        if reset_signature_root_note then
-            downbeat_root = math.ceil(beats_so_far)
-        else
-            downbeat_root = previous_metronome_info.downbeat_root
-        end
     end
 
 
     --- a representation of a song's timing data. Sent to various consumers to sync actions/animations/whatever to playing songs.
     ---@class SongPlayerMetronomeInfo
     local new_metronome_info = {
-        time_metronome_updated      = start_of_this_timeframe,
+        start_of_timeframe      = start_of_this_timeframe,
 
         beats_so_far                = beats_so_far,
         -- measures_so_far = 0,        ---@type number     -- May be a float if tempo changed between measures.
@@ -377,9 +367,9 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         time_signature_numerator    = song_player.time_signature_numerator,
         time_signature_denominator  = song_player.time_signature_denominator,
 
-        start_time_of_this_beat     = this_beat_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
-        duration_of_beat            = duration_of_beat,
-        end_time_of_this_beat       = this_beat_start_time + duration_of_beat,
+        -- start_time_of_this_beat     = this_beat_start_time,    -- Back-calculated. Will not be accurate if tempo changed between beats.
+        duration_of_beat            = current_duration_of_beat,
+        -- end_time_of_this_beat       = this_beat_start_time + current_duration_of_beat,
 
         downbeat_root = downbeat_root,
 
@@ -387,12 +377,13 @@ local function update_metronome(song_player, time_since_due, reset_signature_roo
         -- duration_of_measure = 1,
         -- end_time_of_this_measure = 0,
 
-        get_current_quarter_note = function()
-            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / duration_of_quarter_note)
+        get_current_beat = function()
+            return beats_so_far + ((client.getSystemTime() - start_of_this_timeframe) / current_duration_of_beat)
         end
     }
 
     song_player.metronome_info = new_metronome_info
+    -- printTable(new_metronome_info)
 
     for fn, _ in pairs(song_player.on_metronome_update_callback_functions) do
         pcall( fn, new_metronome_info )
@@ -403,27 +394,27 @@ local meta_event_functions = {
     -- set_tempo. { T = microseconds_per_midi_quarter_note }
     ---@param song_player SongPlayer
     ---@param meta_event_data table<string, integer>
-    ---@param time_since_due number
-    [0x51] = function(song_player, meta_event_data, time_since_due)
+    ---@param time_due number
+    [0x51] = function(song_player, meta_event_data, time_due)
         song_player.tempo_in_microseconds_per_beat = meta_event_data.t
-        update_metronome(song_player, time_since_due)
+        update_metronome(song_player, time_due)
     end,
 
     -- set_time_signature. { n = numerator, d = denominator }
     ---@param song_player SongPlayer
     ---@param meta_event_data table<string, integer>
-    ---@param time_since_due number
-    [0x58] = function(song_player, meta_event_data, time_since_due)
+    ---@param time_due number
+    [0x58] = function(song_player, meta_event_data, time_due)
         song_player.time_signature_numerator = meta_event_data.n
         song_player.time_signature_denominator = meta_event_data.d
-        update_metronome(song_player, time_since_due)
+        update_metronome(song_player, time_due, true)
     end,
 
     -- -- lyric
     -- ---@param song_player SongPlayer
     -- ---@param meta_event_data table<string, integer>
-    -- ---@param time_since_due number
-    -- [0x05] = function(song_player, meta_event_data, time_since_due)
+    -- ---@param time_due number
+    -- [0x05] = function(song_player, meta_event_data, time_due)
     --     printTable(meta_event_data)
     -- end,
 }
@@ -491,10 +482,9 @@ local function update_song(song_player)
 
     while song_player.next_instruction_index <= #song_player.instructions do
         local this_instruction = song_player.instructions[song_player.next_instruction_index]
-        -- The amount of time between the current time, and the time this instruction should have been played.
-        -- positive == the instruction is late. 0 == it's right on time. negative == it doesn't need to play yet. ignore if negative.
-        local time_since_due = (current_time - song_player.start_time) - this_instruction.start_time
-        if time_since_due < 0 then
+        -- The absolute time this instruction starts / started / will start at.
+        local time_due = current_time - ((current_time - song_player.start_time) - this_instruction.start_time)
+        if time_due >= current_time then
             -- instruction is not late, we'll take care of it later.
             -- (If all notes are slightly late, then none of the notes are slightly late.)
             break
@@ -505,7 +495,7 @@ local function update_song(song_player)
 
             --    ---@class SongPlayerMetronomeData
             if meta_event_functions[this_instruction.note] then
-                meta_event_functions[this_instruction.note](song_player, this_instruction.meta_event_data, time_since_due)
+                meta_event_functions[this_instruction.note](song_player, this_instruction.meta_event_data, time_due)
             end
 
             for fn, _ in pairs(song_player.on_meta_callback_functions) do
@@ -526,7 +516,7 @@ local function update_song(song_player)
             song_player
                 .track_config[this_instruction.track_index]
                 .selected_instrument
-                .play_instruction(this_instruction, song_player.source_pos, time_since_due)
+                .play_instruction(this_instruction, song_player.source_pos, time_due)
         end
         song_player.next_instruction_index = song_player.next_instruction_index + 1
     end

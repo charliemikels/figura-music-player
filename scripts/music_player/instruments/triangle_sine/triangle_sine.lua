@@ -67,12 +67,12 @@ instrument_builder = {
 
         ---@type Instrument
         local new_instance = {
-            play_instruction = function(instruction, position, time_since_due)
+            play_instruction = function(instruction, position, time_due)
                 -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
 
                 if not instrument_builder.is_available() then
                     if fallback_instrument_instance then
-                        fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                        fallback_instrument_instance.play_instruction(instruction, position, time_due)
                         return
                     end
                 end
@@ -86,11 +86,9 @@ instrument_builder = {
                     :setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
 
-                local start_time = client.getSystemTime() - time_since_due
-
                 local active_instruction = {
-                    time_started = start_time,
-                    stop_time = start_time + instruction.duration,
+                    time_started = time_due,
+                    stop_time = time_due + instruction.duration,
                     instruction = instruction,
                     detune_amount = detune_amount,
                     modifier_index = 1,

@@ -80,26 +80,35 @@ events.TICK:register(function()
             host:setActionbar("Song: "..song_uuid, true)
 
             local bpm_print_update_loop_name = "TEST_FISH_FISH_TEST!!"
+            local last_beat = 0
             new_found_api.add_song_metronome_update_callback(song_uuid, function(metronome_info)
                 -- print("Metronome updated")
                 events.TICK:remove(bpm_print_update_loop_name)
 
-                local last_qn = 0
                 events.TICK:register(
                     function ()
-                        local this_qn = math.floor(metronome_info.get_current_quarter_note())
-                        if last_qn ~= this_qn then
-                            -- print(tostring(this_qn))
-                            last_qn = this_qn
+                        local this_beat = math.floor(metronome_info.get_current_beat() )
 
-                            if (((this_qn - metronome_info.downbeat_root) * (4/metronome_info.time_signature_numerator))/metronome_info.time_signature_denominator) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
-                                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. this_qn.." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
+                        local current_beat_printable = string.format("%.3f", metronome_info.get_current_beat())
+
+
+                        if last_beat ~= this_beat then
+                            -- print(tostring(this_qn))
+                            last_beat = this_beat
+
+                            if (
+                                (this_beat - metronome_info.downbeat_root)
+                                * (
+                                    (metronome_info.time_signature_denominator/metronome_info.time_signature_numerator)/metronome_info.time_signature_denominator
+                                )
+                            ) %1 == 0 then    -- TODO: this does not re-calibrate if signature changes mid-song
+                                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
                             else
-                                host:setActionbar("▊ ".. this_qn.." ▊")
+                                host:setActionbar("▊ ".. current_beat_printable .." ▊")
                             end
 
                         else
-                            host:setActionbar(tostring(this_qn))
+                            host:setActionbar(current_beat_printable)
 
                         end
 

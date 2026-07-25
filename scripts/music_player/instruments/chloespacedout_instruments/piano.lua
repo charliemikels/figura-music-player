@@ -236,7 +236,7 @@ local piano_builder = {
 
         ---@type Instrument
         local piano_instrument = {
-            play_instruction = function (instruction, position, time_since_due)
+            play_instruction = function (instruction, position, time_due)
                 if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_piano_info(nil, nil)
                 elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
@@ -247,7 +247,7 @@ local piano_builder = {
                 end
 
                 if not instance_piano_id then   -- piano is still invalid. use the fallback instrument.
-                    fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                    fallback_instrument_instance.play_instruction(instruction, position, time_due)
                 else -- play piano note as usual
                     local new_note = instance_piano_midi_note_api:play(
                         instance_piano.instance,
@@ -262,9 +262,9 @@ local piano_builder = {
                             --       My system doesn't care if I send to channel or track, but piano has special rules for channels (piano itself uses channel 1)
                             --       and it's kinda silly to use instruction.track_index as channels.
                             --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
-                        (client.getSystemTime() - time_since_due)
+                            time_due
                     )
-                    local note_release_time = (client.getSystemTime() - time_since_due) + instruction.duration
+                    local note_release_time = time_due + instruction.duration
                     new_note:release(note_release_time)
 
                     if note_release_time > time_this_piano_will_be_done then time_this_piano_will_be_done = note_release_time end
