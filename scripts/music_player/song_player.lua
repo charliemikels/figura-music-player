@@ -347,15 +347,8 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
             and math.ceil(beats_so_far - 0.01)  -- TODO: This little subtraction is a HACK! Time sig changes sometimes happen after the beat boundary for some reason. (See Piano man) This backs it up a pinch
             or previous_metronome_info.downbeat_root
         )
-        print("---")
-        print(reset_signature_root_note, beats_so_far, beats_so_far - 0.01, ">", downbeat_root)
-        print(number_of_beats_covered_by_previous_timeframe , duration_of_previous_timeframe , previous_metronome_info.duration_of_beat)
-        print(previous_metronome_info.start_of_timeframe, start_of_this_timeframe, start_of_this_timeframe - previous_metronome_info.start_of_timeframe)
 
         -- local remainder_of_note_at_this_time = beats_so_far % 1
-
-        -- TODO: Caught something.
-        -- That 9/8 bit in alpha shorter still isn't being counted correctly.
 
         -- this_beat_start_time = start_of_this_timeframe - (remainder_of_note_at_this_time * previous_metronome_info.duration_of_beat)
 
