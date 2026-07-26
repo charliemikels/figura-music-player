@@ -44,7 +44,7 @@ events.TICK:register(function()
                         if last_beat ~= this_beat then
                             last_beat = this_beat
 
-                            if math.floor(metronome_info.get_current_measure()) == 0 then
+                            if math.floor(metronome_info.get_current_beat_in_measure()) == 0 then
                                 host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
                             else
                                 host:setActionbar("▊ ".. current_beat_printable .." ▊")
