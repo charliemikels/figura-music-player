@@ -16,10 +16,10 @@ local print_instrument_factory = {
 
         ---@type Instrument
         new_instance = {
-            play_instruction = function(instruction, _, time_since_due)
+            play_instruction = function(instruction, _, time_due)
                 print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 table.insert(active_instructions, {
-                    time_started = client.getSystemTime() - time_since_due,
+                    time_started = time_due,
                     instruction = instruction
                 })
             end,

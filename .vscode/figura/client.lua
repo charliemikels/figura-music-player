@@ -148,7 +148,7 @@ function client.getSoundCount() end
 ---@return string
 function client.getSubtitle() end
 
----Returns the amount of miliseconds since the Unix Epoch.
+---Returns the amount of milliseconds since the Unix Epoch.
 ---@return number
 function client.getSystemTime() end
 

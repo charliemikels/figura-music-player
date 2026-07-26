@@ -46,7 +46,7 @@ local default_percussion_instrument_name = "Percussion"
 ---@class Instrument
 ---
 --- Queue the given instruction and play it immediately. Remember to call update_sounds to eventually stop the instruction.
----@field play_instruction fun(instruction: Instruction, position: Vector3, time_since_due: integer)
+---@field play_instruction fun(instruction: Instruction, position: Vector3, time_due: integer)
 ---@field update_sounds fun(position: Vector3)
 ---
 --- For use with an emergency stop feature. In this case, we will likely need to use a world tick loop to stop the song.
