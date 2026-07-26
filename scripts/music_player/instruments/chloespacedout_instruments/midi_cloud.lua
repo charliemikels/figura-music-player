@@ -412,10 +412,10 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
             ---@type Instrument
             local new_instrument = {
-                play_instruction = function (instruction, position, time_since_due)
+                play_instruction = function (instruction, position, time_due)
                     check_availability_and_rebuild_state_if_it_changed()
                     if not is_midi_cloud_available() then
-                        fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                        fallback_instrument_instance.play_instruction(instruction, position, time_due)
                         return
                     end
 
@@ -425,7 +425,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                         (instruction.start_velocity) * reduced_volume_amount * (avatar:getVolume() / 100),
                         channel_id,
                         1,
-                        client.getSystemTime() - time_since_due,
+                        time_due,
                         position
                     )
 
@@ -433,7 +433,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
                     ---@class MidiCloudInstrumentActiveNote
                     local new_active_note = {
-                        time_started = client.getSystemTime() - time_since_due,
+                        time_started = client.getSystemTime() - time_due,
                         instruction = instruction,
                         note = new_note,
                         initial_pitch = new_note.soundPitch,
