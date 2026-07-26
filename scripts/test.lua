@@ -62,7 +62,7 @@ events.TICK:register(function()
 
 
             new_found_api.add_song_stop_callback(song_uuid, function()
-                print("Song ended")
+                -- print("Song ended")
                 events.TICK:remove(bpm_print_update_loop_name)
             end)
 

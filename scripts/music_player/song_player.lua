@@ -399,8 +399,6 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
         get_current_beat            = get_current_beat,
         get_current_measure         = get_current_measure,
         get_current_beat_in_measure = get_current_beat_in_measure
-
-
     }
 
     song_player.metronome_info = new_metronome_info
@@ -1107,6 +1105,10 @@ local song_player_api = {
                         print_debug("Callback "..tostring(call_back_to_remove).." not found in metronome_update_callbacks list", true, true)
                     end
                 end,
+
+                get_metronome_info = function()
+                    return song_player.metronome_info
+                end
             }
         }
         apply_config(song_player, config)
@@ -1176,7 +1178,6 @@ if export_song_info then
             end
         end,
 
-
         ---@param uuid UUID
         ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
         add_song_metronome_update_callback = function (uuid, fn)
@@ -1193,35 +1194,38 @@ if export_song_info then
             end
         end,
 
-        set_song_metronome_state_change_callback = function (uuid, fn) end,
+        ---@param uuid UUID
+        ---@return string
+        get_song_name = function(uuid)
+            return all_playing_song_controllers[uuid].name
+        end,
 
-        get_song_name = function(uuid) end,
-        get_song_position = function(uuid) end,
+        ---Copy of the song's player position
+        ---@param uuid UUID
+        ---@return Vector3
+        get_song_position = function(uuid)
+            return all_playing_song_controllers[uuid].source_pos:copy()
+        end,
 
-        get_song_start_time = function(uuid) end,
+        ---@param uuid UUID
+        ---@return number?
+        get_song_start_time = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_start_time()
+        end,
 
+        ---@param uuid UUID
+        ---@return number
+        get_song_buffer_time = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_buffer_delay()
+        end,
+
+        ---@param uuid UUID
+        ---@return SongPlayerMetronomeInfo
         get_metronome_info = function(uuid)
-            -- probably stuff like current tempo / time signature / beat number / measure number / last updated
+            return all_playing_song_controllers[uuid].controller.get_metronome_info()
         end,
-
-        get_metronome_deltas = function(uuid)
-            -- time of last measure, duration since last measure, time of last beat, duration since last beet, beat number within measure.
-        end,
-
-
-
-        -- get_time_metronome_last_updated = function(uuid) end,
-
-
-
-
-
     }
 
-    -- for k, v in pairs(exported_song_info_api) do
-    --     avatar:store("TL_FMP_"..tostring(k), v)
-    -- end
-    print("Exported:", exported_song_info_api)
     avatar:store("TL_FMP_exported_song_info_api", exported_song_info_api)
 end
 
