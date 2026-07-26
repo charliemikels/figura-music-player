@@ -31,7 +31,7 @@ local modifier_functions = {
     end,
 }
 
----@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}
+---@param active_instruction {time_started: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound}
 local function update_modifiers(active_instruction)
     local modifiers = active_instruction.instruction.modifiers
     for index = active_instruction.modifier_index, #modifiers do
@@ -62,7 +62,7 @@ instrument_builder = {
         local fallback_instrument_builder = instruments_api.get_instrument_builder("MC/Harp")
         local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}, notify_ui_function) or nil
 
-        ---@type {time_started: number, stop_time: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
+        ---@type {time_started: number, stop_time: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
 
         ---@type Instrument

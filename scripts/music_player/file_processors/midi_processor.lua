@@ -78,7 +78,7 @@ local function add_new_device(state, new_device_name)
                 pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a [sane default](https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones).
                 fine_tuning_offset_in_semitones = 0,
                 coarse_tuning_offset_in_semitones = 0,
-            }, notes = {}
+            }, instructions = {}
         }
         ---@class MidiDeviceChannelData
         state.processed_metadata.channel_data[new_device_name][channel_id] = {
@@ -381,7 +381,7 @@ local function update_channel_state_in_currently_playing_notes(state, track, cha
     local channel_data = state.instruction_builder[track.current_device][channel]
     channel_data.channel_state.modifiers[data_type] = controller_value
 
-    for _, note_data in pairs(channel_data.notes) do
+    for _, note_data in pairs(channel_data.instructions) do
 
         local existing_modifier_was_updated = false
         -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
@@ -831,7 +831,7 @@ midi_meta_event_functions = {
                 microseconds_per_midi_quarter_note
             )
 
-        ---@type Instruction
+        ---@type NoteInstruction
         local instruction = {
             track_index = 0,
             duration = 0,
@@ -864,7 +864,7 @@ midi_meta_event_functions = {
         -- local number_of_midi_clocks_in_a_metronome_click = data[3]
         -- local number_of_notated_32nd_notes_per_beat = data[4]
 
-        ---@type Instruction
+        ---@type NoteInstruction
         local instruction = {
             track_index = 0,
             duration = 0,
@@ -952,7 +952,7 @@ midi_message_functions = {
         local note_id = read_next_chunk_byte(track)
         local _ = read_next_chunk_byte(track)   -- note_velocity
 
-        local note_to_stop = state.instruction_builder[track.current_device][channel].notes[note_id]
+        local note_to_stop = state.instruction_builder[track.current_device][channel].instructions[note_id]
         if not note_to_stop then
             print_debug("Note off tried to stop a note that was not been started before. Ignoring.", true)
             return
@@ -962,7 +962,7 @@ midi_message_functions = {
         print_debug("Ending note: " .. tostring(note_id) .. " (dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
         table.insert(state.complete_instructions, note_to_stop)
-        state.instruction_builder[track.current_device][channel].notes[note_id] = nil
+        state.instruction_builder[track.current_device][channel].instructions[note_id] = nil
 
         print_debug("Finished instructions: " .. tostring(#state.complete_instructions))
     end,
@@ -980,7 +980,7 @@ midi_message_functions = {
             return
         end
 
-        if state.instruction_builder[track.current_device][channel].notes[note_id] then
+        if state.instruction_builder[track.current_device][channel].instructions[note_id] then
             print_debug("⚠ 0x90 `Note On` received for a note that is already playing. Technically undefined behavior? Restarting the note.")
             track.data_index = track.data_index - 2  -- rewind so that the stop event can just read the data itself.
             midi_message_functions[tonumber("10000000", 2)](state, track, channel, start_time)
@@ -992,7 +992,7 @@ midi_message_functions = {
 
         local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
 
-        ---@type Instruction
+        ---@type NoteInstruction
         local new_note_data = {
             note = note_id,
             start_time = start_time,
@@ -1015,7 +1015,7 @@ midi_message_functions = {
             table.insert(new_note_data.modifiers, new_modifier)
         end
 
-        state.instruction_builder[track.current_device][channel].notes[note_id] = new_note_data
+        state.instruction_builder[track.current_device][channel].instructions[note_id] = new_note_data
     end,
 
     ---Polyphonic Key Pressure (Aftertouch)
@@ -1613,7 +1613,7 @@ local midi_processor_loop_stage_functions = {
         -- Check note builder for any left over notes.
         for _, device_channels in pairs(state.instruction_builder) do
             for _, channel_data in pairs(device_channels) do
-                if #channel_data.notes > 0 then
+                if #channel_data.instructions > 0 then
                     error("Midi processor ended, but some notes were left not stopped.")
                     -- TODO: Instead of erroring on left over notes, should we just set the end time at the song end time
                 end
@@ -1737,9 +1737,9 @@ local function midi_processor(song_holder)
         known_devices = {},
 
         -- Stores temporary info about notes.
-        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, notes:table<integer, Instruction>}>>
+        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, instructions:table<integer, NoteInstruction>}>>
         instruction_builder = {},
-        ---@type Instruction[]
+        ---@type NoteInstruction[]
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information

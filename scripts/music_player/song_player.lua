@@ -36,9 +36,7 @@ end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
-
 ---@class Instruction
----
 --- All instructions belong to a track. Tracks connect an instruction and its modifiers to an instrument. The song_player config system lets us select what instrument to use for each track.
 ---
 --- There are some special exceptions
@@ -47,6 +45,8 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 --- - Track `nil` is reserved for packet encoding/decoding. This allows not modifiers to be stored separately from their instructions, and recognized as modifiers. It should not appear as a real track.
 ---@field track_index integer
 ---@field start_time number         An absolute time in ms from the start of the song.
+
+---@class NoteInstruction :Instruction
 ---@field start_velocity integer    The initial velocity (volume) of the note. Matches Midi's integer range.
 ---@field duration number           The amount of time this instruction is active for. May be 0.
 ---@field note integer              The note to play, or ID of a meta event
@@ -58,6 +58,10 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@field type string           a string like "pitch", "volume", "pan", that tells us what this modifier controls.
 ---@field value number?         the strength of this modifier may be nil to return to default.
 
+---@class TrackInstruction :Instruction
+---@field is_track_instruction true
+---@field type string
+---@field value number?
 
 
 

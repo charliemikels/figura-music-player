@@ -174,7 +174,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
             local note = uint_from_reader(reader)
             local start_velocity = uint_from_reader(reader)
 
-            ---@type Instruction
+            ---@type NoteInstruction
             local instruction = {
                 start_time = instruction_start_delta + packet_start_time,
                 track_index = track_index,
@@ -379,7 +379,7 @@ local function control_player_from_packet(controller, packet_data)
 end
 
 ---@class PacketDecoderInfo -- Stored inside a Song so that we can have information about any ongoing decoding processes
----@field instructions_with_modifier_ids table<integer, Instruction>
+---@field instructions_with_modifier_ids table<integer, NoteInstruction>
 
 ---@class PacketDecoderApi
 local packet_receiver_api = {

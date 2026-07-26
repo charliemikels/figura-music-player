@@ -395,7 +395,7 @@ local modifier_gap_threshold = math.floor(target_modifier_temporal_resolution * 
 --- Encodes a song instruction into PartialPacketDataBytes.
 ---
 --- It also splits any recognized modifiers into their own list of PartialPacketDataBytes, and makes sure their IDs are synced to the root instruction
----@param instruction Instruction
+---@param instruction NoteInstruction
 ---@param packet_start_time number      The start time of the current packet. Used to calculate the delta for this instruction.
 ---@param modifiers_tracker PacketEncoderModifiersTracker
 ---@return {instruction_part_and_start: {start_time: number, packet_part: PartialPacketDataBytes}, modifier_parts_and_starts: {start_time: number, packet_part: PartialPacketDataBytes}[] }
