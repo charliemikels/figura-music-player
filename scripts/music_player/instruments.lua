@@ -38,7 +38,8 @@ local default_percussion_instrument_name = "Percussion"
 ---@field name InstrumentKey
 ---@field is_available fun():boolean    may be false for instruments with custom sounds and instruments from other avatars.
 ---@field features table<string, boolean>?
----@field new_instance fun(params: integer[]):Instrument
+---@field new_instance fun(params: integer[], notify_ui_function:fun(message:string)):Instrument  -- notify_ui_function is a function provided by the song player. An instance can run this function to show notable warnings to the viewer. Message will decay over time, unless instrument keeps it alive.
+---@field sort_priority number? -- If nil, defaults to 0
 
 ---@alias InstrumentTypeId 0|1 0 for normal, 1 for percussion.
 
@@ -69,7 +70,8 @@ local reserved_instrument_names = {
 ---@type table<InstrumentKey, InstrumentBuilder>
 local known_instruments = {}
 
-
+-- TODO: This logic filters out legitimate instruments that happen to end in `instruments`. EG: `chloe_midi_cloud_instruments.lua`
+-- Is there a better way to filter out the starting folder/script without banishing items that just happen to be named the same?
 local instruments_directory_path = "./instruments"
 local instruments_directory_path_but_just_what_is_after_the_slash = instruments_directory_path:gsub(".*%.%/(%a-)", "%1")
 local pattern_to_exclude = instruments_directory_path_but_just_what_is_after_the_slash.."$"  -- tests if local song is the last thing in the list (the found path is a path to ourself)
@@ -175,7 +177,11 @@ local function get_sorted_instrument_keys()
         table.insert(keys, key)
     end
     table.sort(keys, function(a, b)
-        return string.lower(a) < string.lower(b)
+        if (known_instruments[a].sort_priority or 0) == (known_instruments[b].sort_priority or 0) then
+            return string.lower(a) < string.lower(b)
+        end
+        -- print (a .. " and "..b.." don't match")
+        return (known_instruments[a].sort_priority or 0) > (known_instruments[b].sort_priority or 0)
     end)
     return keys
 end
@@ -203,7 +209,7 @@ local function get_instrument_builder(instrument_key)
 end
 
 
----@param instrument_type_id InstrumentTypeId
+---@param instrument_type_id InstrumentTypeId   -- TODO: Reconsider. Should this just be an "is percussion" boolean?
 ---@return InstrumentBuilder?
 local function get_default_instrument_builder(instrument_type_id)
     return get_instrument_builder(

@@ -155,6 +155,15 @@ local function update_info_display_text(song_player)
             .. " " .. tostring(math.floor(1 + (song_player.controller.get_remaining_time() / 1000)) ) .. "s"
     end
 
+    local current_time = client.getSystemTime()
+    for message, time_to_remove in pairs(song_player.notification_timeouts) do
+        if current_time > time_to_remove then
+            song_player.notification_timeouts[message] = nil
+        else
+            info_text = info_text .. "\n" .. message
+        end
+    end
+
     song_player.info_display_text_task:setText(info_text)
 end
 
@@ -178,14 +187,16 @@ local function apply_config_instrument_update_loop(song_player)
     if known_instruments[to_apply_this_time.new_selection.name] then
         to_apply_this_time.track_config.selected_instrument =
             known_instruments[to_apply_this_time.new_selection.name]
-            .new_instance(to_apply_this_time.new_selection.params)
+                .new_instance(
+                    to_apply_this_time.new_selection.params,
+                    song_player.notification_intake
+                )
 
         if not previous_instrument.is_finished() then
             table.insert(song_player.deprecated_instruments, previous_instrument)
         end
     else
         print_debug("Error setting instrument. Config calls for unknown instrument `"..to_apply_this_time.new_selection.name.."`.", true, true)
-
     end
 end
 
@@ -623,13 +634,19 @@ local song_player_api = {
 
 
 
-                    -- finaly at the end of the emergency functions
+                    -- finally at the end of the emergency functions
                     watcher_state_key = "idle"
                     events.WORLD_TICK:remove(event_watcher_and_swapper)
                     print_debug("Emergency stop for `"..song_player.name.."` complete.", true, true)
                 end
             end,
         }
+
+        ---This function is supposed to be passed to instruments, so that they can send back notifications to be displayed on player UI
+        ---@param message string
+        local function notification_intake(message)
+            song_player.notification_timeouts[message] = client.getSystemTime() + 500
+        end
 
         -- For playback, we don't need to store the names of the recommended instruments.
 
@@ -646,7 +663,7 @@ local song_player_api = {
                 recommended_instrument_type = track_data.instrument_type_id,
 
                 ---@type Instrument
-                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({})
+                selected_instrument = instruments_api.get_default_instrument_builder(track_data.instrument_type_id).new_instance({}, notification_intake)
             }
             track_configs[track_index] = track_config
         end
@@ -710,6 +727,9 @@ local song_player_api = {
             on_update_callback_functions = {},  ---@type fun()[]
             on_stop_callback_functions = {},    ---@type fun(stop_reason:SongPlayerStopReason)[]
             on_meta_callback_functions = {},    ---@type fun(event_code:integer, meta_event_data:table<string, integer>)[]
+
+            notification_timeouts = {},         ---@type table<string, number>  -- Holds notifications received by the notification_intake function. Value is the time this notification should be removed. Indexed by notification string to automatically remove duplicates.
+            notification_intake = notification_intake,
 
             ---@class SongPlayerController
             controller = {

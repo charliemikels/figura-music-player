@@ -194,20 +194,21 @@ end
 local piano_builder = {
     name = "ChloeSpacedOut Piano",
     is_available = instrument_is_available,
+    sort_priority = -2,
     features = {
         sustain = true
     },
-    new_instance = function( _ )
+    new_instance = function( _ , notify_ui_function)
 
         local instruments_api = require("../../instruments")  ---@type InstrumentsApi
 
         local fallback_instrument_builder = instruments_api.get_instrument_builder("Triangle Sine")
-        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}, notify_ui_function) or nil
 
         local instance_piano_id             ---@type ChloeInstrumentID?
         local instance_piano_lib            ---@type ChloePianoLib?
         local instance_piano                ---@type ChloePiano
-        local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNote
+        local instance_piano_midi_note_api  ---@type ChloeFiguraMidiCloudMidiNoteBuilder
 
         local time_this_piano_will_be_done = client:getSystemTime()
 

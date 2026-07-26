@@ -55,12 +55,12 @@ instrument_builder = {
         pitch_bend = true
     },
 
-    new_instance = function(params)
+    new_instance = function(params, notify_ui_function)
 
         local instruments_api = require("../../instruments")  ---@type InstrumentsApi
 
         local fallback_instrument_builder = instruments_api.get_instrument_builder("MC/Harp")
-        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}, notify_ui_function) or nil
 
         ---@type {time_started: number, stop_time: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
