@@ -61,6 +61,7 @@ local function add_new_device(state, new_device_name)
 
     ---@alias MidiDeviceName string
     ---@alias MidiChannelId integer
+    ---@alias MidiProgramId integer
 
     if state.known_devices[new_device_name] then
         print_debug("device `"..new_device_name.."` is already known.")
@@ -120,6 +121,7 @@ end
 ---@param state MidiProcessorState
 ---@param device_name MidiDeviceName
 ---@param channel_id MidiChannelId
+---@param program_id MidiProgramId
 ---@return integer
 local function get_or_set_and_get_track_id(state, device_name, channel_id, program_id)
     if not state.used_track_ids[device_name] then
@@ -1803,7 +1805,7 @@ local function midi_processor(song_holder)
         --
         -- ID 0 is reserved for meta instructions, like 0x58 Time Signature
         --
-        ---@type table<MidiDeviceName, table<MidiChannelId, table<integer, integer>>>
+        ---@type table<MidiDeviceName, table<MidiChannelId, table<MidiProgramId, integer>>>
         used_track_ids = {},
 
         -- A tracker to decide the next track ID humber, if one is not found.
