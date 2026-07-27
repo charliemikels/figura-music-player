@@ -47,7 +47,7 @@ local default_midi_device_name = ""
 local function add_new_device(state, new_device_name)
 
     ---@class MidiDeviceChannelState
-    ---@field modifiers table<string, number>
+    ---@field partial_track_instructions TrackInstruction[] -- current list of modifiers applied to the device_channel. "Partial" in that track index will be nil.
     ---@field volume integer?
     ---@field pan integer?
     ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
@@ -74,7 +74,7 @@ local function add_new_device(state, new_device_name)
     for channel_id = 0, 15 do
         state.instruction_builder[new_device_name][channel_id] = {
             channel_state = {
-                modifiers = {},
+                partial_track_instructions = {},
                 pitch_wheel = 8192,
                 pitch_wheel_range_in_semitones = 2,   -- ±2 semitones, a [sane default](https://www.recordingblogs.com/wiki/midi-registered-parameter-number-rpn#:~:text=usually%20%28but%20not%20always%29%20two%20semitones).
                 fine_tuning_offset_in_semitones = 0,
@@ -380,25 +380,58 @@ local patch_name_lookup = {
 ---@param controller_value number?
 ---@param data_type string
 local function add_channel_modifier(state, track, channel, start_time, controller_value, data_type)
-    local programs_in_channel_to_instruction_track_id = state.used_track_ids[track.current_device][channel]
-    for program, instruction_track_id in pairs(programs_in_channel_to_instruction_track_id) do
-        ---@type TrackInstruction
-        local new_track_instruction = {
-            is_track_instruction = true,
-            track_index = instruction_track_id,
-            start_time = start_time,
-            type = data_type,
-            value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
-        }
 
-        -- TODO: previous logic involved looking for existing modifiers and not inserting the new one if a match was found.
-        -- I don't think this step was nessesary. Double check.
+    -- Attempt to create TrackInstructions for all programs on this device and channel.
+    -- At the beginning of the song, the track might not exist yet. We will need to creat eit ourself here.
 
-        table.insert(
-            state.complete_instructions,
-            new_track_instruction
-        )
+    -- TODO: Optional: if no targetable tracks, send new "partial" TackInstruction to some limbo.
+    -- Will let us reconstruct modifiers for tracks created later if needed.
+
+    ---@type TrackInstruction
+    local partial_track_instruction = {
+        is_track_instruction = true,
+        track_index = nil,
+        start_time = start_time,
+        type = data_type,
+        value = controller_value
+    }
+
+    table.insert(
+        state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions,
+        partial_track_instruction
+    )
+
+    -- backfill add instruction to any already active programs.
+
+    local succuess, programs_in_channel_to_instruction_track_id = pcall(function() return state.used_track_ids[track.current_device][channel] end)
+    if succuess and programs_in_channel_to_instruction_track_id then
+        for program, instruction_track_id in pairs(programs_in_channel_to_instruction_track_id) do
+            local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
+
+            ---@type TrackInstruction
+            local new_track_instruction = {
+                is_track_instruction = true,
+                track_index = get_or_set_and_get_track_id(
+                    state,
+                    track.current_device,
+                    channel,
+                    seen_instruments_list[#seen_instruments_list].id
+                ),
+                start_time = start_time,
+                type = data_type,
+                value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
+            }
+
+            -- TODO: previous logic involved looking for existing modifiers and not inserting the new one if a match was found.
+            -- I don't think this step was nessesary. Double check.
+
+            table.insert(
+                state.complete_instructions,
+                new_track_instruction
+            )
+        end
     end
+
 
     -- local channel_data = state.instruction_builder[track.current_device][channel]
     -- channel_data.channel_state.modifiers[data_type] = controller_value
