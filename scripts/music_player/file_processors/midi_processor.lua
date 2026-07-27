@@ -381,11 +381,7 @@ local patch_name_lookup = {
 ---@param data_type string
 local function add_channel_modifier(state, track, channel, start_time, controller_value, data_type)
 
-    -- Attempt to create TrackInstructions for all programs on this device and channel.
-    -- At the beginning of the song, the track might not exist yet. We will need to creat eit ourself here.
-
-    -- TODO: Optional: if no targetable tracks, send new "partial" TackInstruction to some limbo.
-    -- Will let us reconstruct modifiers for tracks created later if needed.
+    -- Add track to channel_state. Will let us rebuild modifier stack to programs added later in the song.
 
     ---@type TrackInstruction
     local partial_track_instruction = {
@@ -401,7 +397,7 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
         partial_track_instruction
     )
 
-    -- backfill add instruction to any already active programs.
+    -- Apply track instructions to already active tracks.
 
     local succuess, programs_in_channel_to_instruction_track_id = pcall(function() return state.used_track_ids[track.current_device][channel] end)
     if succuess and programs_in_channel_to_instruction_track_id then
@@ -421,9 +417,6 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
                 type = data_type,
                 value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
             }
-
-            -- TODO: previous logic involved looking for existing modifiers and not inserting the new one if a match was found.
-            -- I don't think this step was nessesary. Double check.
 
             table.insert(
                 state.complete_instructions,
