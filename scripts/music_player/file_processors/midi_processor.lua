@@ -370,51 +370,81 @@ local patch_name_lookup = {
     [128-1] = "Gunshot",
 }
 
----Adds a new InstructionModifier with type data_type and value controller_value to all current notes in the chanel/device combo.
+---Adds a new TrackInstruction to the instruction list.
 ---@param state MidiProcessorState
 ---@param track MidiChunk
 ---@param channel MidiChannelId
 ---@param start_time number
 ---@param controller_value number?
 ---@param data_type string
-local function update_channel_state_in_currently_playing_notes(state, track, channel, start_time, controller_value, data_type)
-    local channel_data = state.instruction_builder[track.current_device][channel]
-    channel_data.channel_state.modifiers[data_type] = controller_value
+local function add_channel_modifier(state, track, channel, start_time, controller_value, data_type)
+    local programs_in_channel_to_instruction_track_id = state.used_track_ids[track.current_device][channel]
+    for program, instruction_track_id in pairs(programs_in_channel_to_instruction_track_id) do
+        ---@type TrackInstruction
+        local new_track_instruction = {
+            is_track_instruction = true,
+            track_index = instruction_track_id,
+            start_time = start_time,
+            type = data_type,
+            value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
+        }
 
-    for _, note_data in pairs(channel_data.instructions) do
+        -- TODO: previous logic involved looking for existing modifiers and not inserting the new one if a match was found.
+        -- I don't think this step was nessesary. Double check.
 
-        local existing_modifier_was_updated = false
-        -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
-
-
-        for test_modifier_index = #note_data.modifiers, 1, -1 do
-
-            local test_modifier = note_data.modifiers[test_modifier_index]
-            if test_modifier.type == data_type then
-               if test_modifier.start_time == start_time then   -- This modifier is the exact same type at the exact same time. Let's overwrite it.
-                   -- print("This modifier is has the same type and is at the same time as this new modifier. We are just going to update the old modifier's value instead.")
-                   -- print(test_modifier, "fn params:", state, track, channel, start_time, controller_value, data_type)
-
-                   test_modifier.value = controller_value
-                   existing_modifier_was_updated = true
-               end
-               break -- safe to break here because all other modifiers that match our type should™ be further in the past. We know we've checked the most likely thing to replace.
-            end
-        end
-
-        if not existing_modifier_was_updated then
-            ---@type InstructionModifier
-            local new_modifier = {
-                start_time = start_time,
-                type = data_type,
-                value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
-            }
-            table.insert(
-                note_data.modifiers,
-                new_modifier
-            )
-        end
+        table.insert(
+            state.complete_instructions,
+            new_track_instruction
+        )
     end
+
+    -- local channel_data = state.instruction_builder[track.current_device][channel]
+    -- channel_data.channel_state.modifiers[data_type] = controller_value
+
+    -- for _, test_instruction in pairs(channel_data.instructions) do
+
+    --     local existing_modifier_was_updated = false
+    --     -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
+
+
+    --     for test_modifier_index = #test_instruction.modifiers, 1, -1 do
+
+    --         local test_modifier = test_instruction.modifiers[test_modifier_index]
+    --         if test_modifier.type == data_type then
+    --            if test_modifier.start_time == start_time then   -- This modifier is the exact same type at the exact same time. Let's overwrite it.
+    --                -- print("This modifier is has the same type and is at the same time as this new modifier. We are just going to update the old modifier's value instead.")
+    --                -- print(test_modifier, "fn params:", state, track, channel, start_time, controller_value, data_type)
+
+    --                test_modifier.value = controller_value
+    --                existing_modifier_was_updated = true
+    --            end
+    --            break -- safe to break here because all other modifiers that match our type should™ be further in the past. We know we've checked the most likely thing to replace.
+    --         end
+    --     end
+
+    --     local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
+
+    --     if not existing_modifier_was_updated then
+    --         ---@type TrackInstruction
+    --         local new_track_instruction = {
+    --             is_track_instruction = true,
+    --             track_index = get_track_id(
+    --                 state,
+    --                 track.current_device,
+    --                 channel,
+    --                 -- Going in chronological order, we can safely assume the last instrument in the list is the current instrument
+    --                 seen_instruments_list[#seen_instruments_list].id
+    --             ),
+    --             start_time = start_time,
+    --             type = data_type,
+    --             value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
+    --         }
+    --         table.insert(
+    --             test_instruction,
+    --             new_track_instruction
+    --         )
+    --     end
+    -- end
 end
 
 ---does not apply the multiplier. Just calculate it
@@ -422,7 +452,7 @@ end
 ---@param track MidiChunk
 ---@param channel MidiChannelId
 ---@param start_time number
-local function recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+local function recalculate_pitch_multiplier_and_add_track_instruction(state, track, channel, start_time)
     local channel_state = state.instruction_builder[track.current_device][channel].channel_state
 
     local wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
@@ -435,7 +465,7 @@ local function recalculate_and_apply_pitch_multiplier_to_current_notes(state, tr
 
     local new_multiplier = 2^((total_semitone_offset) / 12)
 
-    update_channel_state_in_currently_playing_notes(state, track, channel, start_time, new_multiplier, "pitch_mult")
+    add_channel_modifier(state, track, channel, start_time, new_multiplier, "pitch_mult")
 end
 
 ---@enum MidiRegisteredParameterNumberKeys
@@ -470,7 +500,7 @@ local registered_parameter_number_data_entry_functions = {
         -- local old_wheel_range_in_semitones = channel_state.pitch_wheel_range_in_semitones
         channel_state.pitch_wheel_range_in_semitones = new_wheel_range_in_semitones
 
-        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+        recalculate_pitch_multiplier_and_add_track_instruction(state, track, channel, start_time)
 
     end,
 
@@ -484,7 +514,7 @@ local registered_parameter_number_data_entry_functions = {
 
         channel_state.fine_tuning_offset_in_semitones = offset_in_cents / 100
 
-        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+        recalculate_pitch_multiplier_and_add_track_instruction(state, track, channel, start_time)
     end,
 
     [rpn_keys.coarse_tuning] = function(state, track, channel, start_time, data_entry_msb, _)
@@ -496,7 +526,7 @@ local registered_parameter_number_data_entry_functions = {
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
         channel_state.coarse_tuning_offset_in_semitones = offset_in_semitones
 
-        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+        recalculate_pitch_multiplier_and_add_track_instruction(state, track, channel, start_time)
     end,
 
 
@@ -558,11 +588,11 @@ local control_change_and_mode_change_functions = {
     end,
 
     [7] = function(state, track, channel, start_time, controller_value)    -- Volume
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (controller_value ~= 100 and controller_value or nil), "volume")
+        add_channel_modifier(state, track, channel, start_time, (controller_value ~= 100 and controller_value or nil), "volume")
     end,
     [10] = function (state, track, channel, start_time, controller_value)  -- Pan
         -- 0 = hard left, 64 = center, 127 = hard right
-        update_channel_state_in_currently_playing_notes(state, track, channel, start_time, (controller_value ~= 64 and controller_value or nil), "pan")
+        add_channel_modifier(state, track, channel, start_time, (controller_value ~= 64 and controller_value or nil), "pan")
     end,
 
     [38] = function(state, track, channel, start_time, controller_value)
@@ -831,7 +861,7 @@ midi_meta_event_functions = {
                 microseconds_per_midi_quarter_note
             )
 
-        ---@type NoteInstruction
+        ---@type NoteInstruction    -- TODO: Distinct SongInstruction type for meta events?
         local instruction = {
             track_index = 0,
             duration = 0,
@@ -1008,14 +1038,21 @@ midi_message_functions = {
             modifiers = {}
         }
 
-        -- import current channel modifiers. not all values may be set
-        for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state.modifiers) do
-            ---@type InstructionModifier
-            local new_modifier = { start_time = start_time, type = key, value = value }
-            table.insert(new_note_data.modifiers, new_modifier)
-        end
+        -- -- import current channel modifiers. not all values may be set
+        -- for key, value in pairs(state.instruction_builder[track.current_device][channel].channel_state.modifiers) do
+        --     ---@type InstructionModifier
+        --     local new_modifier = { start_time = start_time, type = key, value = value }
+        --     table.insert(new_note_data.modifiers, new_modifier)
+        -- end
 
         state.instruction_builder[track.current_device][channel].instructions[note_id] = new_note_data
+        -- table.insert(state.complete_instructions, new_note_data)
+                -- TODO: ↑ We now have a lot of data that impacts how a note playes floating outside of the note.
+                -- This data is inserted into complete_instructions immediatly, and so might appear in a song _before_ the note is playing
+                -- There is a sort later in this script that should help fix that, but we could also insert the note's table now and know
+                -- that it'll exist before it is affected.
+                --
+                -- Insert this instruction now, remove the final insert in note_off, and then make sure it works.
     end,
 
     ---Polyphonic Key Pressure (Aftertouch)
@@ -1106,7 +1143,7 @@ midi_message_functions = {
         local channel_state = state.instruction_builder[track.current_device][channel].channel_state
 
         channel_state.pitch_wheel = wheel_value
-        recalculate_and_apply_pitch_multiplier_to_current_notes(state, track, channel, start_time)
+        recalculate_pitch_multiplier_and_add_track_instruction(state, track, channel, start_time)
     end,
 
     -- ↑ Has channel ID
@@ -1622,7 +1659,7 @@ local midi_processor_loop_stage_functions = {
 
         -- ensure instructions are sorted.
         table.sort(state.complete_instructions, function(a, b)
-            if a.start_time == b.start_time then return a.duration < b.duration end
+            -- if a.start_time == b.start_time then return a.duration < b.duration end
             return a.start_time < b.start_time end
         )
 
@@ -1737,9 +1774,9 @@ local function midi_processor(song_holder)
         known_devices = {},
 
         -- Stores temporary info about notes.
-        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, instructions:table<integer, NoteInstruction>}>>
+        ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, instructions:table<integer, Instruction>}>>
         instruction_builder = {},
-        ---@type NoteInstruction[]
+        ---@type Instruction[]
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
