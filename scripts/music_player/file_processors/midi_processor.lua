@@ -425,54 +425,6 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
         end
     end
 
-
-    -- local channel_data = state.instruction_builder[track.current_device][channel]
-    -- channel_data.channel_state.modifiers[data_type] = controller_value
-
-    -- for _, test_instruction in pairs(channel_data.instructions) do
-
-    --     local existing_modifier_was_updated = false
-    --     -- scan through current modifiers. If the latest modifier that matches our type also happens at the same time as this new one, overwrite it.
-
-
-    --     for test_modifier_index = #test_instruction.modifiers, 1, -1 do
-
-    --         local test_modifier = test_instruction.modifiers[test_modifier_index]
-    --         if test_modifier.type == data_type then
-    --            if test_modifier.start_time == start_time then   -- This modifier is the exact same type at the exact same time. Let's overwrite it.
-    --                -- print("This modifier is has the same type and is at the same time as this new modifier. We are just going to update the old modifier's value instead.")
-    --                -- print(test_modifier, "fn params:", state, track, channel, start_time, controller_value, data_type)
-
-    --                test_modifier.value = controller_value
-    --                existing_modifier_was_updated = true
-    --            end
-    --            break -- safe to break here because all other modifiers that match our type should™ be further in the past. We know we've checked the most likely thing to replace.
-    --         end
-    --     end
-
-    --     local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
-
-    --     if not existing_modifier_was_updated then
-    --         ---@type TrackInstruction
-    --         local new_track_instruction = {
-    --             is_track_instruction = true,
-    --             track_index = get_track_id(
-    --                 state,
-    --                 track.current_device,
-    --                 channel,
-    --                 -- Going in chronological order, we can safely assume the last instrument in the list is the current instrument
-    --                 seen_instruments_list[#seen_instruments_list].id
-    --             ),
-    --             start_time = start_time,
-    --             type = data_type,
-    --             value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
-    --         }
-    --         table.insert(
-    --             test_instruction,
-    --             new_track_instruction
-    --         )
-    --     end
-    -- end
 end
 
 ---does not apply the multiplier. Just calculate it
