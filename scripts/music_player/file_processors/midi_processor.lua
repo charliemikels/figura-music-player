@@ -399,8 +399,8 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
 
     -- Apply track instructions to already active tracks.
 
-    local succuess, programs_in_channel_to_instruction_track_id = pcall(function() return state.used_track_ids[track.current_device][channel] end)
-    if succuess and programs_in_channel_to_instruction_track_id then
+    local success, programs_in_channel_to_instruction_track_id = pcall(function() return state.used_track_ids[track.current_device][channel] end)
+    if success and programs_in_channel_to_instruction_track_id then
         for program, instruction_track_id in pairs(programs_in_channel_to_instruction_track_id) do
             local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
 
@@ -1027,8 +1027,8 @@ midi_message_functions = {
 
         state.instruction_builder[track.current_device][channel].instructions[note_id] = new_note_data
         -- table.insert(state.complete_instructions, new_note_data)
-                -- TODO: ↑ We now have a lot of data that impacts how a note playes floating outside of the note.
-                -- This data is inserted into complete_instructions immediatly, and so might appear in a song _before_ the note is playing
+                -- TODO: ↑ We now have a lot of data that impacts how a note plays floating outside of the note.
+                -- This data is inserted into complete_instructions immediately, and so might appear in a song _before_ the note is playing
                 -- There is a sort later in this script that should help fix that, but we could also insert the note's table now and know
                 -- that it'll exist before it is affected.
                 --
