@@ -47,7 +47,7 @@ local default_midi_device_name = ""
 local function add_new_device(state, new_device_name)
 
     ---@class MidiDeviceChannelState
-    ---@field partial_track_instructions TrackInstruction[] -- current list of modifiers applied to the device_channel. "Partial" in that track index will be nil.
+    ---@field partial_track_instructions table<string, TrackInstruction> -- current list of modifiers applied to the device_channel. "Partial" in that track index will be nil.
     ---@field volume integer?
     ---@field pan integer?
     ---@field pitch_wheel integer The state of the pitch wheel set by Midi event 0xE0 MidiStandardEventKey
@@ -389,13 +389,11 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
         track_index = nil,
         start_time = start_time,
         type = data_type,
-        value = controller_value
+        value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
     }
 
-    table.insert(
-        state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions,
-        partial_track_instruction
-    )
+    -- Save modifier in case we have not started any notes on this instruction track. We will insert it with the first note.
+    state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions[data_type] = partial_track_instruction.value ~= nil and partial_track_instruction or nil
 
     -- Apply track instructions to already active tracks.
 
@@ -413,9 +411,9 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
                     channel,
                     seen_instruments_list[#seen_instruments_list].id
                 ),
-                start_time = start_time,
-                type = data_type,
-                value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
+                start_time = partial_track_instruction.start_time,
+                type = partial_track_instruction.type,
+                value = partial_track_instruction.value
             }
 
             table.insert(
@@ -1019,15 +1017,13 @@ midi_message_functions = {
             )
 
             -- re-insert track_instructions that we generated earlier, but weren't able to add to this track yet.
-            for k, partial_track_instruction in ipairs(state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions) do
-                -- TODO: un-redundant-ify this data. Index by type?
-
+            for type, partial_track_instruction in pairs(state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions) do
                 ---@type TrackInstruction
                 local complete_track_instruction = {
                     is_track_instruction = true,
                     track_index = instruction_track_index,
                     start_time = partial_track_instruction.start_time,
-                    type = partial_track_instruction.type,
+                    type = type,
                     value = partial_track_instruction.value,
                 }
 
