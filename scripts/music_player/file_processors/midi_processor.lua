@@ -1639,7 +1639,12 @@ local midi_processor_loop_stage_functions = {
 
         -- ensure instructions are sorted.
         table.sort(state.complete_instructions, function(a, b)
-            -- if a.start_time == b.start_time then return a.duration < b.duration end
+            if a.start_time == b.start_time then
+                if a.duration and b.duration then return a.duration < b.duration end
+                if a.is_track_instruction or b.is_track_instruction then
+                    return a.is_track_instruction == true   -- Sort TrackInstructions ahead of NoteInstructions at the same time.
+                end
+            end
             return a.start_time < b.start_time end
         )
 
@@ -1756,7 +1761,7 @@ local function midi_processor(song_holder)
         -- Stores temporary info about notes.
         ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, instructions:table<integer, Instruction>}>>
         instruction_builder = {},
-        ---@type Instruction[]
+        ---@type AnyInstruction[]
         complete_instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
