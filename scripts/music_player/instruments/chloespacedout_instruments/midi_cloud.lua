@@ -409,10 +409,21 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                 midi_cloud_was_previously_available = midi_is_currently_available
             end
 
+            ---@type table<string, number?>
+            local instrument_state = {}
 
             ---@type Instrument
             local new_instrument = {
                 play_instruction = function (instruction, position, time_due)
+
+                    if instruction.is_track_instruction then
+                        ---@cast instruction TrackInstruction
+                        instrument_state[instruction.type] = instruction.value
+                        return
+                    end
+                    ---@cast instruction NoteInstruction
+
+
                     check_availability_and_rebuild_state_if_it_changed()
                     if not is_midi_cloud_available() then
                         fallback_instrument_instance.play_instruction(instruction, position, time_due)

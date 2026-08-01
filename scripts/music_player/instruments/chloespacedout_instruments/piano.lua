@@ -236,9 +236,7 @@ local piano_builder = {
         -- piano is initialized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
         ---@type table<string, number?>
-        local instrument_state = {
-
-        }
+        local instrument_state = {}
 
         ---@type Instrument
         local piano_instrument = {
