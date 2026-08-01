@@ -63,7 +63,10 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@field type string
 ---@field value number?
 
-
+---@alias AnyInstruction
+---| Instruction
+---| NoteInstruction
+---| TrackInstruction
 
 
 ---@class InstrumentSelection
