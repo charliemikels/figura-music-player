@@ -32,7 +32,14 @@ local modifier_functions = {
 }
 
 ---@param active_instruction {time_started: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound}
-local function update_modifiers(active_instruction)
+---@param modifier_type string?
+local function update_modifiers(active_instruction, modifier_type)
+    if not modifier_type then
+        for key, value in pairs(modifier_functions) do
+
+        end
+    else
+    end
     local modifiers = active_instruction.instruction.modifiers
     for index = active_instruction.modifier_index, #modifiers do
         local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
@@ -66,14 +73,33 @@ instrument_builder = {
         local active_instructions = {}
 
         ---@type table<string, number?>
-        local instrument_state = {}
+        local track_instruction_states = {}
+
+        ---@type table<string, fun(active_instruction: {time_started: number, stop_time: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound})>
+        local track_instruction_functions = {
+            pitch_mult = function(active_instruction)
+                active_instruction.sound:setPitch(
+                    midi_note_to_multiplier(active_instruction.instruction.note, active_instruction.detune_amount)
+                    * (track_instruction_states.pitch_mult and (track_instruction_states.pitch_mult) or 1)
+                )
+            end,
+            volume = function(active_instruction)
+                active_instruction.sound:setVolume(
+                    (active_instruction.instruction.start_velocity/127)
+                    * (track_instruction_states.volume and (track_instruction_states.volume/100) or 1)
+                )
+            end,
+        }
 
         ---@type Instrument
         local new_instance = {
             play_instruction = function(instruction, position, time_due)
                 if instruction.is_track_instruction then
                     ---@cast instruction TrackInstruction
-                    instrument_state[instruction.type] = instruction.value
+                    track_instruction_states[instruction.type] = instruction.value
+                    for _, active_instruction in pairs(active_instructions) do
+                        track_instruction_functions[instruction.type](active_instruction)
+                    end
                     return
                 end
                 ---@cast instruction NoteInstruction
@@ -91,16 +117,9 @@ instrument_builder = {
 
                 local new_sound = sounds[triangle_sine_sound_key]
                     :setPos(position)
-                    :setVolume(
-                        (instruction.start_velocity/127)
-                        * (instrument_state.volume and (instrument_state.volume/127) or 1)
-                    )
                     :setLoop(true)
-                    :setPitch(
-                        midi_note_to_multiplier(instruction.note, detune_amount)
-                        * (instrument_state.pitch_mult and (instrument_state.pitch_mult) or 1)
-                    )
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
+                    -- volume and pitch are handled by the track_instruction_functions
 
                 local active_instruction = {
                     time_started = time_due,
@@ -110,7 +129,9 @@ instrument_builder = {
                     modifier_index = 1,
                     sound = new_sound
                 }
-                update_modifiers(active_instruction)
+                for _, track_instruction_function in pairs(track_instruction_functions) do
+                    track_instruction_function(active_instruction)
+                end
 
                 active_instruction.sound:play()
                 table.insert(active_instructions, active_instruction)
@@ -128,7 +149,6 @@ instrument_builder = {
                         active_instructions[active_instruction_key] = nil
                     else
                         active_instruction.sound:setPos(position)
-                        update_modifiers(active_instruction)
                     end
                 end
             end,
@@ -138,6 +158,9 @@ instrument_builder = {
                     active_instruction.sound:stop()
                     active_instruction.sound = nil
                     active_instructions[active_instruction_key] = nil
+                else
+                    local track_instruction_key, _ = next(track_instruction_states)
+                    track_instruction_states[track_instruction_key] = nil
                 end
             end,
             stop_all_sounds_immediately = function()
@@ -145,6 +168,9 @@ instrument_builder = {
                     active_instruction.sound:stop()
                     active_instruction.sound = nil
                     active_instructions[active_instruction_key] = nil
+                end
+                for track_instruction_key, _ in pairs(track_instruction_states) do
+                    track_instruction_states[track_instruction_key] = nil
                 end
             end,
             is_finished = function() return next(active_instructions) == nil end
