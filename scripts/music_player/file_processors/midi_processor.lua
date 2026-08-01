@@ -1002,8 +1002,6 @@ midi_message_functions = {
 
         local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
 
-        -- TODO: Insert any TrackInstructions if they were created before we knew this track actually existed.
-        local _ = state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions  --state.used_track_ids[track.current_device][channel]
 
         local instruction_track_index = get_track_id(
             state,
