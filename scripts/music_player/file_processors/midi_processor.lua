@@ -417,7 +417,7 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
             }
 
             table.insert(
-                state.complete_instructions,
+                state.instructions,
                 new_track_instruction
             )
         end
@@ -852,7 +852,7 @@ midi_meta_event_functions = {
                 -- bpm = 60000000 / microseconds_per_midi_quarter_note
             }
         }
-        table.insert(state.complete_instructions, instruction)
+        table.insert(state.instructions, instruction)
     end,
 
     ---smpte_offset
@@ -884,7 +884,7 @@ midi_meta_event_functions = {
                 n = numerator, d = denominator
             }
         }
-        table.insert(state.complete_instructions, instruction)
+        table.insert(state.instructions, instruction)
     end,
 
     ---key_signature
@@ -907,7 +907,7 @@ midi_meta_event_functions = {
         --         major_or_minor = major_or_minor,
         --     }
         -- }
-        -- table.insert(state.complete_instructions, instruction)
+        -- table.insert(state.instructions, instruction)
     end,
 
     ---sequencer_specific_meta_event
@@ -969,10 +969,10 @@ midi_message_functions = {
 
         print_debug("Ending note: " .. tostring(note_id) .. " (dur: "..tostring(note_to_stop.duration).." ch: "..tostring(channel).." dev: "..tostring(track.current_device)..")")
 
-        table.insert(state.complete_instructions, note_to_stop)
         state.instruction_builder[track.current_device][channel].instructions[note_id] = nil
+        -- no need to insert into state.instructions. We've already done that in note_on
 
-        print_debug("Finished instructions: " .. tostring(#state.complete_instructions))
+        print_debug("Finished instructions: " .. tostring(#state.instructions))
     end,
 
     ---Note On event
@@ -1027,7 +1027,7 @@ midi_message_functions = {
                     value = partial_track_instruction.value,
                 }
 
-                table.insert(state.complete_instructions, complete_track_instruction)
+                table.insert(state.instructions, complete_track_instruction)
 
             end
         end
@@ -1051,13 +1051,8 @@ midi_message_functions = {
         -- end
 
         state.instruction_builder[track.current_device][channel].instructions[note_id] = new_note_data
-        -- table.insert(state.complete_instructions, new_note_data)
-                -- TODO: ↑ We now have a lot of data that impacts how a note plays floating outside of the note.
-                -- This data is inserted into complete_instructions immediately, and so might appear in a song _before_ the note is playing
-                -- There is a sort later in this script that should help fix that, but we could also insert the note's table now and know
-                -- that it'll exist before it is affected.
-                --
-                -- Insert this instruction now, remove the final insert in note_off, and then make sure it works.
+        table.insert(state.instructions, new_note_data)
+
     end,
 
     ---Polyphonic Key Pressure (Aftertouch)
@@ -1662,17 +1657,6 @@ local midi_processor_loop_stage_functions = {
             end
         end
 
-        -- ensure instructions are sorted.
-        table.sort(state.complete_instructions, function(a, b)
-            if a.start_time == b.start_time then
-                if a.duration and b.duration then return a.duration < b.duration end
-                if a.is_track_instruction or b.is_track_instruction then
-                    return a.is_track_instruction == true   -- Sort TrackInstructions ahead of NoteInstructions at the same time.
-                end
-            end
-            return a.start_time < b.start_time end
-        )
-
         -- reverse state.processed_metadata.channel_data[(dev)][(channel)] so that we can make a player-ready track list
 
         ---@type {number: Track}
@@ -1727,7 +1711,7 @@ local midi_processor_loop_stage_functions = {
         local processed_song = {
             name = song_holder.short_name,
             duration = state.processed_metadata.time_song_end,
-            instructions = state.complete_instructions,
+            instructions = state.instructions,
             tracks = player_track_data
         }
         printTable_debug(processed_song)
@@ -1787,7 +1771,7 @@ local function midi_processor(song_holder)
         ---@type table<MidiDeviceName, table<MidiChannelId, {channel_state: MidiDeviceChannelState, instructions:table<integer, Instruction>}>>
         instruction_builder = {},
         ---@type AnyInstruction[]
-        complete_instructions = {},
+        instructions = {},
 
         -- Metadata about assigned instruments per channel and any host-only song-level information
         --- @class MidiProcessorState.ProcessedMetadata
