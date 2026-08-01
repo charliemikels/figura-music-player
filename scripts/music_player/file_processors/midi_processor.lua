@@ -1002,18 +1002,49 @@ midi_message_functions = {
 
         local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
 
+        -- TODO: Insert any TrackInstructions if they were created before we knew this track actually existed.
+        local _ = state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions  --state.used_track_ids[track.current_device][channel]
+
+        local instruction_track_index = get_track_id(
+            state,
+            track.current_device,
+            channel,
+            -- Going in chronological order, we can safely assume the last instrument in the list is the current instrument
+            seen_instruments_list[#seen_instruments_list].id
+        )
+        if not instruction_track_index then -- There's no assigned ID for this combo of identifiers. It has not been created yet.
+            instruction_track_index = get_or_set_and_get_track_id(
+                state,
+                track.current_device,
+                channel,
+                seen_instruments_list[#seen_instruments_list].id
+            )
+
+            -- re-insert track_instructions that we generated earlier, but weren't able to add to this track yet.
+            for k, partial_track_instruction in ipairs(state.instruction_builder[track.current_device][channel].channel_state.partial_track_instructions) do
+                -- TODO: un-redundant-ify this data. Index by type?
+
+                ---@type TrackInstruction
+                local complete_track_instruction = {
+                    is_track_instruction = true,
+                    track_index = instruction_track_index,
+                    start_time = partial_track_instruction.start_time,
+                    type = partial_track_instruction.type,
+                    value = partial_track_instruction.value,
+                }
+
+                table.insert(state.complete_instructions, complete_track_instruction)
+
+            end
+        end
+
+
         ---@type NoteInstruction
         local new_note_data = {
             note = note_id,
             start_time = start_time,
             start_velocity = note_velocity,
-            track_index = get_or_set_and_get_track_id(
-                state,
-                track.current_device,
-                channel,
-                -- Going in chronological order, we can safely assume the last instrument in the list is the current instrument
-                seen_instruments_list[#seen_instruments_list].id
-            ),
+            track_index = instruction_track_index,
             duration = nil,
             modifiers = {}
         }
