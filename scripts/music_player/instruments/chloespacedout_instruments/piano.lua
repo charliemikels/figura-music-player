@@ -235,9 +235,26 @@ local piano_builder = {
 
         -- piano is initialized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
+        ---@type table<string, TrackInstruction>
+        local instrument_state = {
+
+        }
+
         ---@type Instrument
         local piano_instrument = {
+
             play_instruction = function (instruction, position, time_due)
+
+                do
+                    ---@cast instruction TrackInstruction
+                    if instruction.is_track_instruction then
+                        instrument_state[instruction.type] = instruction
+                        return
+                    end
+                end
+
+                ---@cast instruction NoteInstruction
+
                 if not instrument_is_available() then   -- something in the piano system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_piano_info(nil, nil)
                 elseif not instance_piano_id then       -- Piano is available, but instance_piano_id is not set. Let's reset it.
@@ -254,6 +271,7 @@ local piano_builder = {
                         instance_piano.instance,
                         instruction.note,
                         instruction.start_velocity
+                            * (instrument_state.volume and (instrument_state.volume.value / 100) or 1)
                             * 0.5                           -- Piano is a little loud by default relative to the other instruments.
                             * (avatar:getVolume() / 100),   -- Respect if viewer has muted the host.
 
