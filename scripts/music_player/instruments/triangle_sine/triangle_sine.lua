@@ -91,9 +91,15 @@ instrument_builder = {
 
                 local new_sound = sounds[triangle_sine_sound_key]
                     :setPos(position)
-                    :setVolume((instruction.start_velocity/127))
+                    :setVolume(
+                        (instruction.start_velocity/127)
+                        * (instrument_state.volume and (instrument_state.volume/127) or 1)
+                    )
                     :setLoop(true)
-                    :setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
+                    :setPitch(
+                        midi_note_to_multiplier(instruction.note, detune_amount)
+                        * (instrument_state.pitch_mult and (instrument_state.pitch_mult) or 1)
+                    )
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
 
                 local active_instruction = {
