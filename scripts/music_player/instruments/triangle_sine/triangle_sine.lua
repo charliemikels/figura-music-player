@@ -65,9 +65,19 @@ instrument_builder = {
         ---@type {time_started: number, stop_time: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
 
+        ---@type table<string, number?>
+        local instrument_state = {}
+
         ---@type Instrument
         local new_instance = {
             play_instruction = function(instruction, position, time_due)
+                if instruction.is_track_instruction then
+                    ---@cast instruction TrackInstruction
+                    instrument_state[instruction.type] = instruction.value
+                    return
+                end
+                ---@cast instruction NoteInstruction
+
                 -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
 
                 if not instrument_builder.is_available() then
