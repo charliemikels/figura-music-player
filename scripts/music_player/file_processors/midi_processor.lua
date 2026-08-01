@@ -399,7 +399,7 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
 
     local success, programs_in_channel_to_instruction_track_id = pcall(function() return state.used_track_ids[track.current_device][channel] end)
     if success and programs_in_channel_to_instruction_track_id then
-        for program, instruction_track_id in pairs(programs_in_channel_to_instruction_track_id) do
+        for _, _ in pairs(programs_in_channel_to_instruction_track_id) do
             local seen_instruments_list = state.processed_metadata.channel_data[track.current_device][channel].seen_instruments
 
             ---@type TrackInstruction
