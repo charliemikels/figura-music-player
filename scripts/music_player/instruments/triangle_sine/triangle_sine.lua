@@ -21,36 +21,6 @@ local function midi_note_to_multiplier(note_id, offset)
 end
 
 
-local modifier_functions = {
-    pitch_mult = function(active_instruction, value)
-        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, active_instruction.detune_amount) * (value or 1))
-    end,
-    volume = function(active_instruction, value)
-        -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
-        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value and (value / 100) or 1))
-    end,
-}
-
----@param active_instruction {time_started: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound}
----@param modifier_type string?
-local function update_modifiers(active_instruction, modifier_type)
-    if not modifier_type then
-        for key, value in pairs(modifier_functions) do
-
-        end
-    else
-    end
-    local modifiers = active_instruction.instruction.modifiers
-    for index = active_instruction.modifier_index, #modifiers do
-        local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
-        if active_instruction.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
-        if modifier_functions[modifiers[index].type] then
-            modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value)
-        end
-        active_instruction.modifier_index = index + 1
-    end
-end
-
 local instrument_builder
 ---@type InstrumentBuilder
 instrument_builder = {
