@@ -66,7 +66,7 @@ for _, note_block_sound in ipairs(note_block_sounds) do
                         :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning, detune_amount) * (track_instruction_states.pitch_mult and (track_instruction_states.pitch_mult) or 1))
                         :setPos(position)
                         :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
-                        :setVolume( instruction.start_velocity/127 * (track_instruction_states.volume and (track_instruction_states.volume/100) or 1))
+                        :setVolume( (instruction.start_velocity/127) * (track_instruction_states.volume and (track_instruction_states.volume/100) or 1))
                     new_sound:play()
                 end,
                 update_sounds = function(_)
