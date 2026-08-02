@@ -160,7 +160,9 @@ instrument_builder = {
                     active_instructions[active_instruction_key] = nil
                 else
                     local track_instruction_key, _ = next(track_instruction_states)
-                    track_instruction_states[track_instruction_key] = nil
+                    if track_instruction_key then
+                        track_instruction_states[track_instruction_key] = nil
+                    end
                 end
             end,
             stop_all_sounds_immediately = function()
