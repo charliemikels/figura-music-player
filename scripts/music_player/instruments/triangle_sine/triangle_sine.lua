@@ -70,6 +70,7 @@ instrument_builder = {
                     for _, active_instruction in pairs(active_instructions) do
                         track_instruction_functions[instruction.type](active_instruction)
                     end
+                    fallback_instrument_instance.play_instruction(instruction, position, time_due)
                     return
                 end
                 ---@cast instruction NoteInstruction
