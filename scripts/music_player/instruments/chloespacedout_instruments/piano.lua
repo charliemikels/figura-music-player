@@ -269,13 +269,9 @@ local piano_builder = {
                             * 0.5                           -- Piano is a little loud by default relative to the other instruments.
                             * (avatar:getVolume() / 100),   -- Respect if viewer has muted the host.
 
-                        instruction.track_index+16,--1,           -- Channel ID 1 is shared with the piano itself. Channel 10 is percussion stuff. +20 ensures we're well outside any pre-configured channels. (luckily piano doesn't care that chanel 20 is also way outside midi spec.)
-                        1,-- instruction.track_index,
-                            -- TODO: There's an issue where tracks are initialized with channel ID instead of their track ID.
-                            --       My system doesn't care if I send to channel or track, but piano has special rules for channels (piano itself uses channel 1)
-                            --       and it's kinda silly to use instruction.track_index as channels.
-                            --       See https://github.com/ChloeSpacedOut/figura-midi-player/pull/1 to know when we can switch it back.
-                            time_due
+                        instruction.track_index+16,--1,     -- Channel ID 1 is shared with the piano itself. Channel 10 is percussion stuff. +20 ensures we're well outside any pre-configured channels. (luckily piano doesn't care that chanel 20 is also way outside midi spec.)
+                        1,
+                        time_due
                     )
                     local note_release_time = time_due + instruction.duration
                     new_note:release(note_release_time)
