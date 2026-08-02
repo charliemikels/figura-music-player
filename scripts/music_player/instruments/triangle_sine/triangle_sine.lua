@@ -130,10 +130,7 @@ instrument_builder = {
                     active_instruction.sound = nil
                     active_instructions[active_instruction_key] = nil
                 else
-                    local track_instruction_key, _ = next(track_instruction_states)
-                    if track_instruction_key then
-                        track_instruction_states[track_instruction_key] = nil
-                    end
+                    track_instruction_states = {}
                 end
             end,
             stop_all_sounds_immediately = function()
@@ -142,9 +139,7 @@ instrument_builder = {
                     active_instruction.sound = nil
                     active_instructions[active_instruction_key] = nil
                 end
-                for track_instruction_key, _ in pairs(track_instruction_states) do
-                    track_instruction_states[track_instruction_key] = nil
-                end
+                track_instruction_states = {}
             end,
             is_finished = function() return next(active_instructions) == nil end
         }
