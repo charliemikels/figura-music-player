@@ -297,11 +297,13 @@ local piano_builder = {
             stop_one_sound_immediately = function()
                 -- we can trust the piano to stop its own notes
                 fallback_instrument_instance.stop_one_sound_immediately()
+                instrument_state = {}
             end,
 
             stop_all_sounds_immediately = function ()
                 -- we can trust the piano to stop its own notes
                 fallback_instrument_instance.stop_all_sounds_immediately()
+                instrument_state = {}
             end,
 
             is_finished = function ()
