@@ -50,13 +50,7 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 ---@field start_velocity integer    The initial velocity (volume) of the note. Matches Midi's integer range.
 ---@field duration number           The amount of time this instruction is active for. May be 0.
 ---@field note integer              The note to play, or ID of a meta event
----@field modifiers InstructionModifier[]
 ---@field meta_event_data table<string, integer>? Only for use with track 0 meta instructions.
-
----@class InstructionModifier
----@field start_time number     an absolute time in ms from the start of the song. (not start of instruction)
----@field type string           a string like "pitch", "volume", "pan", that tells us what this modifier controls.
----@field value number?         the strength of this modifier may be nil to return to default.
 
 ---@class TrackInstruction :Instruction
 ---@field is_track_instruction true
