@@ -238,46 +238,6 @@ end
 
 local reduced_volume_amount = 0.2      -- On the whole, the midi instruments are quite a bit louder than our baseline. This factor will help bring it in line with the other instruments.
 
----@type table<string, fun(active_note:MidiCloudInstrumentActiveNote, value:number, note_is_being_initialized)>
-local modifier_functions = {
-    pitch_mult = function (active_note, value, _)
-        local target_pitch = active_note.initial_pitch * (value or 1)
-        active_note.note.soundPitch = target_pitch
-        if active_note.note.sound then active_note.note.sound:setPitch(target_pitch) end            -- Midi Cloud does not manipulate the pitch mid flight. we're free to manually update it whenever.
-        if active_note.note.loopSound then active_note.note.loopSound:setPitch(target_pitch) end
-    end,
-
-    volume = function (active_note, value, note_is_being_initialized)
-        local target_velocity = (
-            (active_note.instruction.start_velocity ) * reduced_volume_amount * (avatar:getVolume() / 100) * (value and (value / 100) or 1)
-            / 100   -- Notes initialized with `midi.note:play()`'s velocity are divided by 100 when applied to the note. see: https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/midiAPI.lua#L218
-                    -- However this is only done by `midi.note:play()`. When we edit note.velocity directly, Midi Cloud does no division for us. So we need to do it ourselves here.
-        )
-        active_note.note.velocity = target_velocity
-        if note_is_being_initialized then   -- unlike pitch, Midi Cloud does manage the sound's volume to do decays and stuff. we should only edit these values directly right at init.
-            if active_note.note.sound then active_note.note.sound:setVolume(target_velocity) end
-            if active_note.note.loopSound then active_note.note.loopSound:setVolume(target_velocity) end
-        end
-    end
-}
-
----@param active_note MidiCloudInstrumentActiveNote
----@param note_is_being_initialized boolean?
-local function update_modifiers(active_note, note_is_being_initialized)
-    local modifiers = active_note.instruction.modifiers
-    for modifier_index = active_note.instruction_modifier_index, #modifiers do
-        local modifier_delta_from_instruction_start = modifiers[modifier_index].start_time - active_note.instruction.start_time
-        if active_note.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
-
-        if modifier_functions[modifiers[modifier_index].type] then
-            modifier_functions[modifiers[modifier_index].type](active_note, modifiers[modifier_index].value, note_is_being_initialized)
-        end
-        active_note.instruction_modifier_index = modifier_index + 1
-
-    end
-end
-
-
 local we_need_to_warn_the_host_that_viewers_will_need_to_boost_cloud_midis_permissions = true
 do
     local current_config = config:getName()
@@ -410,7 +370,32 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
             end
 
             ---@type table<string, number?>
-            local instrument_state = {}
+            local track_instruction_states = {}
+
+            ---@type table<string, fun(active_note: MidiCloudInstrumentActiveNote, note_is_being_initialized: boolean?)>
+            local track_instruction_functions = {
+                pitch_mult = function(active_note, _)
+                    local target_pitch = active_note.initial_pitch * (track_instruction_states.pitch_mult and (track_instruction_states.pitch_mult) or 1)
+                    active_note.note.soundPitch = target_pitch
+                    if active_note.note.sound then active_note.note.sound:setPitch(target_pitch) end            -- Midi Cloud does not manipulate the pitch mid flight. we're free to manually update it whenever.
+                    if active_note.note.loopSound then active_note.note.loopSound:setPitch(target_pitch) end
+                end,
+                volume = function(active_note, note_is_being_initialized)
+                    local target_velocity = (
+                        (active_note.instruction.start_velocity)
+                        * reduced_volume_amount
+                        * (avatar:getVolume() / 100)    -- Viewer can set our volume permission, but it won't effect remote players like midi_cloud. Respect viewer's setting for us.
+                        * (track_instruction_states.volume and (track_instruction_states.volume/100) or 1)
+                        / 100   -- Notes initialized with `midi.note:play()`'s velocity are divided by 100 when applied to the note. see: https://github.com/ChloeSpacedOut/figura-midi-player/blob/63ba8fc46c866d0103df38714bb6c738fc71ce1a/ChloesMidiPlayerCloud/midiAPI.lua#L218
+                                -- However this is only done by `midi.note:play()`. When we edit note.velocity directly, Midi Cloud does no division for us. So we need to do it ourselves here.
+                    )
+                    active_note.note.velocity = target_velocity
+                    if note_is_being_initialized then   -- unlike pitch, Midi Cloud _does_ manage the sound's volume to do decays and stuff. We should only edit these values directly right at init.
+                        if active_note.note.sound then active_note.note.sound:setVolume(target_velocity) end
+                        if active_note.note.loopSound then active_note.note.loopSound:setVolume(target_velocity) end
+                    end
+                end,
+            }
 
             ---@type Instrument
             local new_instrument = {
@@ -418,8 +403,13 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
                     if instruction.is_track_instruction then
                         ---@cast instruction TrackInstruction
-                        instrument_state[instruction.type] = instruction.value
+                        track_instruction_states[instruction.type] = instruction.value
                         fallback_instrument_instance.play_instruction(instruction, position, time_due)
+
+                        for _, active_note in pairs(active_notes) do
+                            track_instruction_functions[instruction.type](active_note, false)
+                        end
+
                         return
                     end
                     ---@cast instruction NoteInstruction
@@ -454,7 +444,9 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
                     table.insert(active_notes, new_active_note)
 
-                    update_modifiers(new_active_note, true)
+                    for _, fn in pairs(track_instruction_functions) do
+                        fn(new_active_note, true)
+                    end
 
                     new_note.pos = position
                 end,
@@ -473,8 +465,6 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
                             local note = active_note.note
                             note.pos = position     -- midi cloud does a pretty good job keeping this updated when we set it
-
-                            update_modifiers(active_note)
 
                             if is_note_done_for_real(note) then
                                 active_notes[key] = nil
