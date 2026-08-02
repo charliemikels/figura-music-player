@@ -419,6 +419,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                     if instruction.is_track_instruction then
                         ---@cast instruction TrackInstruction
                         instrument_state[instruction.type] = instruction.value
+                        fallback_instrument_instance.play_instruction(instruction, position, time_due)
                         return
                     end
                     ---@cast instruction NoteInstruction
