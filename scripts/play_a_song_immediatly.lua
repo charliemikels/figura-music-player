@@ -1,5 +1,5 @@
 
--- Test file to just immediatly start a song.
+-- Test file to just immediately start a song.
 -- This will help us dodge the packet logic while testing out
 -- the new TrackInstruction system.
 
