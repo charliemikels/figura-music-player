@@ -47,7 +47,6 @@
 ---@field buffer_start_time number?  The time when the song started buffering
 ---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.
 ---@field is_local boolean?          Is true if song data does not need to be pinged.
----@field packet_decoder_info PacketDecoderInfo?    Temporary space for Packet Decoder to track ongoing information.
 
 ---Tracks ProcessedSong are the step immediately before PlayingSong.
 ---@class Track
