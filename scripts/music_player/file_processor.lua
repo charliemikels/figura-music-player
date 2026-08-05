@@ -40,7 +40,7 @@
 ---Stores enough data to apply settings about the song (number of tracks / assigned instruments / disabled tracks),
 ---and instructions ready to turn into packets.
 ---@class Song
----@field instructions NoteInstruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
+---@field instructions AnyInstruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
 ---@field name string
 ---@field duration number
 ---@field tracks Track[]
