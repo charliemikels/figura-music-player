@@ -242,7 +242,6 @@ local function add_instructions_to_song_from_packet(song, packet_data)
             -- end
         end
     until reader.index > #reader.bytes
-    print("read all instructions in this packet.")
 end
 
 --- Returns a config packet

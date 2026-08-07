@@ -444,7 +444,8 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time)
     return instruction_packet_part
 end
 
---- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
+
+--- The big one that loops through all instructions and creates a series of packets.
 ---@see song_to_packets
 ---@param song Song
 ---@return PacketDataString[] data_packets        -- Fully formed packets ready to be bundled and shipped.
@@ -466,12 +467,43 @@ local function build_data_packets_and_buffer_time(song)
     local required_buffer_delay_in_milliseconds = 0
 
     local current_packet_builder = {}   ---@type PartialPacketDataBytes[]
-    local current_packet_builder_sum = 0
+    local current_packet_builder_sum_cache = 0
+    local current_packet_builder_sum_last_len = 0
+
+    ---@return integer
+    local function get_current_packet_builder_sum()
+        if #current_packet_builder == current_packet_builder_sum_last_len then return current_packet_builder_sum_cache end
+
+        if #current_packet_builder < current_packet_builder_sum_last_len then
+            current_packet_builder_sum_cache = 0
+            current_packet_builder_sum_last_len = 0
+        end
+
+        -- print("loop starting")
+        for i = current_packet_builder_sum_last_len+1, #current_packet_builder, 1 do
+            -- print(i, current_packet_builder_sum_last_len, #current_packet_builder)
+            current_packet_builder_sum_cache = current_packet_builder_sum_cache + #current_packet_builder[i]
+        end
+
+        current_packet_builder_sum_last_len = #current_packet_builder
+
+        -- assert:
+        -- local sum = 0
+        -- for _, packet_bytes in pairs(current_packet_builder) do
+        --     sum = sum + #packet_bytes
+        -- end
+        -- print("out:", sum, current_packet_builder_sum_cache)
+        -- if sum ~= current_packet_builder_sum_cache then
+
+        --     error("NOP. dif")
+        -- end
+
+        return current_packet_builder_sum_cache
+    end
 
     local current_packet_start_time = song.instructions[1].start_time
     local start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time))
     table.insert(current_packet_builder, start_time_in_bytes)
-    current_packet_builder_sum = #start_time_in_bytes
 
     -- --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
     -- ---
@@ -518,17 +550,17 @@ local function build_data_packets_and_buffer_time(song)
     local function add_instruction_to_final_packet_queue(instruction)
         local instruction_packet_part = song_instruction_to_packet_parts(instruction, current_packet_start_time)
 
-        local instruction_will_not_fit_in_current_packet = current_packet_builder_sum + #instruction_packet_part >= max_packet_length
-        if instruction_will_not_fit_in_current_packet then -- we need to end this packet and initilize a new one.
+        local instruction_will_not_fit_in_current_packet = get_current_packet_builder_sum() + #instruction_packet_part >= max_packet_length
+        if instruction_will_not_fit_in_current_packet then -- we need to end this packet and initialize a new one.
             local finished_packet = {}  ---@type PacketDataBytes
             for _, part in ipairs(current_packet_builder) do union_tables(finished_packet, part) end
             table.insert(data_packets, finished_packet)
 
             current_packet_builder = {}
+
             current_packet_start_time = instruction.start_time
             local current_packet_start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time))
-            table.insert(current_packet_builder, start_time_in_bytes)
-            current_packet_builder_sum = #current_packet_start_time_in_bytes    -- TODO: If not done correctly, this might be very error prone. Is it too much to just loop and calculate it when needed?
+            table.insert(current_packet_builder, current_packet_start_time_in_bytes)
 
             if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > current_packet_start_time then
                 -- Too much time has passed for us to play this instruction on time.
@@ -537,7 +569,7 @@ local function build_data_packets_and_buffer_time(song)
                 print_debug("buffer time changed: "..tostring(required_buffer_delay_in_milliseconds / 1000).."s")
             end
 
-            -- rebuild instruction_packet arround new packet_start_time.
+            -- rebuild instruction_packet around new packet_start_time.
             instruction_packet_part = song_instruction_to_packet_parts(instruction, current_packet_start_time)
 
             local success, matching_context_instruction = pcall(function() -- pcall because I'm lazy and don't want to do all this nil checking.
@@ -552,7 +584,6 @@ local function build_data_packets_and_buffer_time(song)
             for track_index, context_instruction_data_by_type in pairs(context_track_instructions) do
                 for type, context_instruction_data in pairs(context_instruction_data_by_type) do
                     table.insert(current_packet_builder, context_instruction_data.part)
-                    current_packet_builder_sum = current_packet_builder_sum + #context_instruction_data.part
                 end
             end
         end
