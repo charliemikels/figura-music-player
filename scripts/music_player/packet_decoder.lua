@@ -197,10 +197,10 @@ local function add_instructions_to_song_from_packet(song, packet_data)
         else -- Track index is nil, this is a TrackInstruction (or some other special case)
 
             track_index = uint_from_reader(reader)  -- TrackInstructions still need track_index
-            
+
             local modifier_type_id = uint_from_reader(reader)
             local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
-            
+
             local value = number_from_reader(reader)
 
 
@@ -242,6 +242,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
             -- end
         end
     until reader.index > #reader.bytes
+    print("read all instructions in this packet.")
 end
 
 --- Returns a config packet
