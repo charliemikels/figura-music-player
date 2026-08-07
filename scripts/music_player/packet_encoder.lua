@@ -467,8 +467,8 @@ local function build_data_packets_and_buffer_time(song)
     local required_buffer_delay_in_milliseconds = 0
 
     local current_packet_builder = {}   ---@type PartialPacketDataBytes[]
-    local current_packet_builder_sum_cache = 0
-    local current_packet_builder_sum_last_len = 0
+    -- local current_packet_builder_sum_cache = 0
+    -- local current_packet_builder_sum_last_len = 0
 
     ---@return integer
     local function get_current_packet_builder_sum()
@@ -538,6 +538,8 @@ local function build_data_packets_and_buffer_time(song)
 
     ---@type table<integer, table<string, {part: PartialPacketDataBytes, start_time: number}>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
     local context_track_instructions = {}
+    local next_context_track_index = nil    ---@type integer?   used with a next function to track what modifier to add this packet.
+    local next_context_track_type = nil     ---@type string?    used with a next function to track what modifier to add this packet.
 
     --- May update current_packet, data_packets, and required_buffer_delay_in_milliseconds if needed
     ---
@@ -576,11 +578,17 @@ local function build_data_packets_and_buffer_time(song)
             end
 
             -- add context track instructions
-            for track_index, context_instruction_data_by_type in pairs(context_track_instructions) do
-                for type, context_instruction_data in pairs(context_instruction_data_by_type) do
-                    table.insert(current_packet_builder, context_instruction_data.part)
-                end
-            end
+            local sum = 0
+            local len_sum = 0
+            local added_packets = {}
+
+            -- for track_index, context_instruction_data_by_type in pairs(context_track_instructions) do
+            --     for type, context_instruction_data in pairs(context_instruction_data_by_type) do
+            --         table.insert(current_packet_builder, context_instruction_data.part)
+            --         sum = sum + 1
+            --         len_sum = len_sum + #context_instruction_data.part
+            --     end
+            -- end
         end
 
 
@@ -609,7 +617,9 @@ local function build_data_packets_and_buffer_time(song)
         -- TODO: re-add checks to filter out track instructions with too high temporal density.
         -- TODO: re-add discard_track_instructions skips
 
-        add_instruction_to_final_packet_queue(instruction)
+        -- if not ((not instruction.is_track_instruction) and discard_track_instructions) then
+            add_instruction_to_final_packet_queue(instruction)
+        -- end
 
         -- if instruction.is_track_instruction then    -- Track instructions typically have a very high temporal density. Add track instruction to a queue so that we can decide to keep it or discard it.
         --     if not discard_track_instructions then  -- This if statement exists because lua doesn't really have a continue keyword.
