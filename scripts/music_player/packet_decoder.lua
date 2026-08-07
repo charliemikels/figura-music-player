@@ -200,20 +200,20 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
             local modifier_type_id = uint_from_reader(reader)
             local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
-
             local value = number_from_reader(reader)
 
+            if modifier_type then -- type was recognized. If not recognized, we want to ignore this instruction.
+                ---@type TrackInstruction
+                local new_track_instruction = {
+                    is_track_instruction = true,
+                    start_time = instruction_start_delta + packet_start_time,
+                    track_index = track_index,
+                    type = modifier_type,
+                    value = value
+                }
 
-            ---@type TrackInstruction
-            local new_track_instruction = {
-                is_track_instruction = true,
-                start_time = instruction_start_delta + packet_start_time,
-                track_index = track_index,
-                type = modifier_type,
-                value = value
-            }
-
-            table.insert(song.instructions, new_track_instruction)
+                table.insert(song.instructions, new_track_instruction)
+            end
 
 
             -- local assigned_instruction_modifier_id = uint_from_reader(reader)
