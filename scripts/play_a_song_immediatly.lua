@@ -7,7 +7,7 @@ events.ENTITY_INIT:register(function ()
     if host:isHost() then
         print("Attempting to start a song")
         local default_library = require("scripts/music_player/libraries"):build_default_library()
-        local song = default_library:get_song_by_sorted_index(6)
+        local song = default_library:get_song_by_sorted_index(6) -- 18 Through the fire and the flames
         local song_processor_future = song:start_or_get_data_processor()
 
         print(song.id)
