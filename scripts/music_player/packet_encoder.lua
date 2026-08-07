@@ -487,17 +487,6 @@ local function build_data_packets_and_buffer_time(song)
 
         current_packet_builder_sum_last_len = #current_packet_builder
 
-        -- assert:
-        -- local sum = 0
-        -- for _, packet_bytes in pairs(current_packet_builder) do
-        --     sum = sum + #packet_bytes
-        -- end
-        -- print("out:", sum, current_packet_builder_sum_cache)
-        -- if sum ~= current_packet_builder_sum_cache then
-
-        --     error("NOP. dif")
-        -- end
-
         return current_packet_builder_sum_cache
     end
 
