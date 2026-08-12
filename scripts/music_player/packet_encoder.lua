@@ -24,7 +24,7 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 -- Fewer than 32 pings in one second (~32ms between packets min)
 -- Fewer than 1024 bytes per second (~1 byte/milli)
 
-local pings_per_second = 6      -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer might lag behind. (viewer can't process more than one ping per TICK (20 per second).)
+local pings_per_second = 4.5    -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer might lag behind. (viewer can't process more than one ping per TICK (20 per second).)
 local bytes_per_second = 400    -- 400 is about as high as you can get without dropping too many packets. If it's a good day, you can get away with something much higher, but 400 is a safe default.
 
 
@@ -550,13 +550,15 @@ local function build_data_packets_and_buffer_time(song)
         local instruction_will_not_fit_in_current_packet = get_current_packet_builder_sum() + #instruction_packet_part >= max_packet_length
         if instruction_will_not_fit_in_current_packet then -- we need to end this packet and initialize a new one.
             local finished_packet = {}  ---@type PacketDataBytes
-            for _, part in ipairs(current_packet_builder) do union_tables(finished_packet, part) end
+            local num_instructions = 0
+            for _, part in ipairs(current_packet_builder) do union_tables(finished_packet, part); num_instructions = num_instructions+1; end
             table.insert(data_packets, finished_packet)
+            print("Built packet with "..tostring(num_instructions).." instructions")
 
             current_packet_builder = {}
 
             current_packet_start_time = instruction.start_time
-            local current_packet_start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time))
+            local current_packet_start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time)) -- packet start time.
             table.insert(current_packet_builder, current_packet_start_time_in_bytes)
 
             if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > current_packet_start_time then
@@ -578,17 +580,31 @@ local function build_data_packets_and_buffer_time(song)
             end
 
             -- add context track instructions
-            local sum = 0
-            local len_sum = 0
-            local added_packets = {}
 
-            -- for track_index, context_instruction_data_by_type in pairs(context_track_instructions) do
-            --     for type, context_instruction_data in pairs(context_instruction_data_by_type) do
-            --         table.insert(current_packet_builder, context_instruction_data.part)
-            --         sum = sum + 1
-            --         len_sum = len_sum + #context_instruction_data.part
-            --     end
-            -- end
+            if (not next_context_track_index) or (not context_track_instructions[next_context_track_index]) then -- attempt to initialize
+                next_context_track_index = next(context_track_instructions, next_context_track_index)
+            end
+            if next_context_track_index then
+                if (not next_context_track_type) or (not context_track_instructions[next_context_track_index][next_context_track_type]) then -- attempt to initialize
+                    next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
+                end
+                if next_context_track_type then
+                    -- both next_context_track_index and _type are set to something. Let's add the matching context TrackInstruction to the start of the packet, then advance the context list
+                    local packet_part_and_start_time = context_track_instructions[next_context_track_index][next_context_track_type]
+                    -- print(next_context_track_index, next_context_track_type, context_track_instructions, context_track_instructions[next_context_track_index], context_track_instructions[next_context_track_index][next_context_track_type], packet_part_and_start_time)
+
+
+                    -- table.insert(current_packet_builder, packet_part_and_start_time.part)
+                    -- ↑ The problem line >:/   -- TODO: Fix the problem line.
+
+
+                    -- advance to next context part.
+                    next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
+                    if not next_context_track_type then -- we've ran out of items in this next queue. advance the outer one.
+                        next_context_track_index = next(context_track_instructions) -- may still return nil, but the initializer will take care of it.
+                    end
+                end
+            end
         end
 
 
