@@ -550,10 +550,13 @@ local function build_data_packets_and_buffer_time(song)
         local instruction_will_not_fit_in_current_packet = get_current_packet_builder_sum() + #instruction_packet_part >= max_packet_length
         if instruction_will_not_fit_in_current_packet then -- we need to end this packet and initialize a new one.
             local finished_packet = {}  ---@type PacketDataBytes
-            local num_instructions = 0
-            for _, part in ipairs(current_packet_builder) do union_tables(finished_packet, part); num_instructions = num_instructions+1; end
+            -- local num_instructions = 0
+            for _, part in ipairs(current_packet_builder) do
+                union_tables(finished_packet, part);
+                -- num_instructions = num_instructions+1;
+            end
             table.insert(data_packets, finished_packet)
-            print("Built packet with "..tostring(num_instructions).." instructions")
+            -- print("Built packet with "..tostring(num_instructions).." instructions")
 
             current_packet_builder = {}
 
