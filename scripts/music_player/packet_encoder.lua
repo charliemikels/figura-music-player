@@ -394,11 +394,11 @@ local modifier_gap_threshold = math.floor(target_modifier_temporal_resolution * 
 
 --- Encodes a song instruction into PartialPacketDataBytes.
 ---@param instruction AnyInstruction
----@param packet_start_time number      The start time of the current packet. Used to calculate the delta for this instruction.
+---@param packet_start_time number?      The start time of the current packet. Used to calculate the delta for this instruction. Nil is a special case for context instructions. Basically, "Copy this packet's start time"
 ---@return PartialPacketDataBytes
 local function song_instruction_to_packet_parts(instruction, packet_start_time)
     local instruction_packet_part = {}  ---@type PartialPacketDataBytes
-    local packet_relative_start_time = math.floor(instruction.start_time - packet_start_time)
+    local packet_relative_start_time = packet_start_time and math.floor(instruction.start_time - packet_start_time) or nil
 
     if instruction.is_track_instruction then
         ---@cast instruction TrackInstruction
@@ -536,7 +536,7 @@ local function build_data_packets_and_buffer_time(song)
     -- end
 
 
-    ---@type table<integer, table<string, {part: PartialPacketDataBytes, start_time: number}>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
+    ---@type table<integer, table<string, TrackInstruction>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
     local context_track_instructions = {}
     local next_context_track_index = nil    ---@type integer?   used with a next function to track what modifier to add this packet.
     local next_context_track_type = nil     ---@type string?    used with a next function to track what modifier to add this packet.
@@ -590,13 +590,9 @@ local function build_data_packets_and_buffer_time(song)
                 end
                 if next_context_track_type then
                     -- both next_context_track_index and _type are set to something. Let's add the matching context TrackInstruction to the start of the packet, then advance the context list
-                    local packet_part_and_start_time = context_track_instructions[next_context_track_index][next_context_track_type]
-                    -- print(next_context_track_index, next_context_track_type, context_track_instructions, context_track_instructions[next_context_track_index], context_track_instructions[next_context_track_index][next_context_track_type], packet_part_and_start_time)
+                    local context_instruction = context_track_instructions[next_context_track_index][next_context_track_type]
 
-
-                    -- table.insert(current_packet_builder, packet_part_and_start_time.part)
-                    -- ↑ The problem line >:/   -- TODO: Fix the problem line.
-
+                    table.insert(current_packet_builder, song_instruction_to_packet_parts(context_instruction, nil))
 
                     -- advance to next context part.
                     next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
@@ -614,11 +610,10 @@ local function build_data_packets_and_buffer_time(song)
         table.insert(current_packet_builder, instruction_packet_part)
 
         if instruction.is_track_instruction then -- add this track to the context
+            ---@cast instruction TrackInstruction
+
             if not context_track_instructions[instruction.track_index] then context_track_instructions[instruction.track_index] = {} end
-            context_track_instructions[instruction.track_index][instruction.type] = {
-                part = instruction_packet_part,
-                start_time = instruction.start_time
-            }
+            context_track_instructions[instruction.track_index][instruction.type] = instruction
         end
     end
 

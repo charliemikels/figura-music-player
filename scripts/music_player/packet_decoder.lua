@@ -166,6 +166,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
     local packet_start_time = uint_from_reader(reader)
     repeat
         local instruction_start_delta = uint_from_reader(reader)
+        local instruction_start_time = instruction_start_delta and instruction_start_delta + packet_start_time or packet_start_time -- special case for nil start time. used for context tracks: just match packet start time.
         local track_index = uint_from_reader(reader)
         if track_index then -- Track index is provided. This is a normal instruction
 
@@ -175,7 +176,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
             ---@type NoteInstruction
             local instruction = {
-                start_time = instruction_start_delta + packet_start_time,
+                start_time = instruction_start_time,
                 track_index = track_index,
                 duration = duration,
                 note = note,
@@ -206,7 +207,7 @@ local function add_instructions_to_song_from_packet(song, packet_data)
                 ---@type TrackInstruction
                 local new_track_instruction = {
                     is_track_instruction = true,
-                    start_time = instruction_start_delta + packet_start_time,
+                    start_time = instruction_start_time,
                     track_index = track_index,
                     type = modifier_type,
                     value = value
