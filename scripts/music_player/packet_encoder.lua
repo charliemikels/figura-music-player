@@ -619,7 +619,7 @@ local function build_data_packets_and_buffer_time(song)
                         -- print("no landmarks.", true)
                         return true
                     end
-                    if test_instruction.track_index ~= instruction.track_index then -- this instruction is relevant to us right now.
+                    if test_instruction.track_index == instruction.track_index then -- this instruction is relevant to us right now.
                         if test_instruction.is_track_instruction then
                             if test_instruction.type == instruction.type then -- this track instruction matches our own and is close to us. We don't need to insert right now.
                                 -- print("next matching track too soon.", false)
