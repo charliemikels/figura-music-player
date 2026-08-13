@@ -736,7 +736,6 @@ local function build_data_packets_and_buffer_time(song)
 
 
     -- assemble final packet.
-    -- TODO: what if this final packet is only context instructions? can we detect this? (will lens match (+1 for start time bytes)?)
 
     local final_packet = {}
     for _, part in ipairs(current_packet_builder) do
