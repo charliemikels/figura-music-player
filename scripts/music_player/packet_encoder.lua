@@ -610,7 +610,7 @@ local function build_data_packets_and_buffer_time(song)
 
             local function future_track_instructions_are_too_far_away_or_next_note_is_too_soon()
                 -- print("scanning ahead for instruction", instruction)
-                for i = instruction_index_in_song, #song.instructions, 1 do
+                for i = instruction_index_in_song +1, #song.instructions, 1 do
                     -- print(i)
                     local test_instruction = song.instructions[i]
                     if test_instruction.start_time > instruction.start_time + (target_modifier_temporal_resolution*1.25) then
