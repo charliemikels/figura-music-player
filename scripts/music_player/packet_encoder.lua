@@ -603,7 +603,7 @@ local function build_data_packets_and_buffer_time(song)
                     -- advance to next context part.
                     next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
                     if not next_context_track_type then -- we've ran out of items in this next queue. advance the outer one.
-                        next_context_track_index = next(context_track_instructions) -- may still return nil, but the initializer will take care of it.
+                        next_context_track_index = next(context_track_instructions, next_context_track_index) -- may still return nil, but the initializer will take care of it.
                     end
                 end
 
