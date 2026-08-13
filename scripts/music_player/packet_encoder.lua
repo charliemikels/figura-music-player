@@ -389,7 +389,7 @@ end
 --     return {start_time = modifier.start_time, packet_part = modifier_packet_part}
 -- end
 
---- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it because it was the start of a gap.
+--- When deciding if a TrackInstruction should be included, always include if there are no TrackInstructions within this time window.
 ---@type integer
 local modifier_gap_threshold = math.floor(target_modifier_temporal_resolution * 1.25)
 
@@ -604,7 +604,7 @@ local function build_data_packets_and_buffer_time(song)
                 (not last_added_track_instructions[instruction.track_index])    -- no TrackInstructions on this track. We can just add it now.
                 or (not last_added_track_instructions[instruction.track_index][instruction.type])   -- no TrackInstructions of this type on this track. We can just add it now.
                 or ( -- there must be a last_added instruction. if enough time has passed, we can add this instruction
-                    instruction.start_time - last_added_track_instructions[instruction.track_index][instruction.type].start_time > target_modifier_temporal_resolution
+                    (instruction.start_time - last_added_track_instructions[instruction.track_index][instruction.type].start_time) > target_modifier_temporal_resolution
                 )
             )
 
@@ -613,7 +613,7 @@ local function build_data_packets_and_buffer_time(song)
                 for i = instruction_index_in_song +1, #song.instructions, 1 do
                     -- print(i)
                     local test_instruction = song.instructions[i]
-                    if test_instruction.start_time > instruction.start_time + (target_modifier_temporal_resolution*1.25) then
+                    if test_instruction.start_time > instruction.start_time + modifier_gap_threshold then
                         -- we have not found a "landmark" instruction within range. Go ahead and insert this modifier now.
 
                         -- print("no landmarks.", true)
