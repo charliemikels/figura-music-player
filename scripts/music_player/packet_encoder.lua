@@ -40,6 +40,7 @@ local discard_track_instructions = false      -- Disables all instruction modifi
 ---@type integer
 local target_modifier_temporal_resolution = 35
 
+local context_track_instructions_per_second = 1
 
 
 
@@ -582,7 +583,9 @@ local function build_data_packets_and_buffer_time(song)
                 context_track_instructions[instruction.track_index][instruction.type] = nil
             end
 
-            -- add context track instructions
+            -- print(#data_packets % (math.ceil(pings_per_second)) == 0)
+            -- if #data_packets % (math.ceil(pings_per_second)) == 0 then -- enough packets have passed, time to add a context instruction -- TODO: This condition actually significantly boosts the buffer time in songs like FireFly the
+
 
             if (not next_context_track_index) or (not context_track_instructions[next_context_track_index]) then -- attempt to initialize
                 next_context_track_index = next(context_track_instructions, next_context_track_index)
@@ -603,6 +606,9 @@ local function build_data_packets_and_buffer_time(song)
                         next_context_track_index = next(context_track_instructions) -- may still return nil, but the initializer will take care of it.
                     end
                 end
+
+
+            -- end
             end
         end
 
