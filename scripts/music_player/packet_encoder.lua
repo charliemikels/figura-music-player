@@ -501,51 +501,20 @@ local function build_data_packets_and_buffer_time(song)
     local start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time))
     table.insert(current_packet_builder, start_time_in_bytes)
 
-    -- --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
-    -- ---
-    -- --- Also runs the bulk of the buffer time calculations
-    -- --- ---@param proposed_packet_start_part_pair {start_time: number, packet_part: PartialPacketDataBytes}
-    -- ---@param proposed_packet_part PartialPacketDataBytes
-    -- ---@param proposed_packet_start_time number
-    -- ---@param next_packet_start_time number     The start time of the next packet, if one needs to be created.
-    -- ---@return boolean instruction_packet_should_be_rebuilt
-    -- local function check_and_make_room(proposed_packet_part, proposed_packet_start_time, next_packet_start_time)
-    --     local instruction_packet_should_be_rebuilt = false
-    --     if #current_packet_builder + #proposed_packet_part >= max_packet_length then
-    --         -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
-    --         local finished_packet = {}
-    --         for _, part in ipairs(current_packet_builder) do
-    --             union_tables(finished_packet, part)
-    --         end
-    --         table.insert(data_packets, finished_packet)
 
-
-    --         current_packet_start_time = next_packet_start_time
-    --         current_packet_builder = {}
-    --         table.insert(current_packet_builder, uint_to_bytes(math.floor(next_packet_start_time)))
-
-    --         if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > proposed_packet_start_time then
-    --             -- Too much time has passed for us to play this instruction on time.
-    --             -- Bump required_buffer_delay_in_milliseconds so that the song starts later, giving us more time to send packets.
-    --             required_buffer_delay_in_milliseconds = ((#data_packets) * target_milliseconds_between_packets) - proposed_packet_start_time
-    --             print_debug("buffer time changed: "..tostring(required_buffer_delay_in_milliseconds / 1000).."s")
-    --         end
-
-    --         instruction_packet_should_be_rebuilt = true
-    --     end
-    --     return instruction_packet_should_be_rebuilt
-    -- end
-
-
-    ---@type table<integer, table<string, TrackInstruction>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
+    ---@type table<integer, table<string, TrackInstruction>>    -- Always has the last seen modifier. Indexed by [TrackInstruction.track_index][TrackInstruction.type]
     local context_track_instructions = {}
     local next_context_track_index = nil    ---@type integer?   used with a next function to track what modifier to add this packet.
     local next_context_track_type = nil     ---@type string?    used with a next function to track what modifier to add this packet.
 
+    -- local last_ignored_track_instructions = {}   ---@type table<integer, table<string, TrackInstruction>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
+    local last_added_track_instructions = {}    ---@type table<integer, table<string, TrackInstruction>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
+
     --- May update current_packet, data_packets, and required_buffer_delay_in_milliseconds if needed
     ---
     ---@param instruction AnyInstruction
-    local function add_instruction_to_final_packet_queue(instruction)
+    ---@param instruction_index_in_song integer index into song.instructions for this instruction.
+    local function add_instruction_to_final_packet_queue(instruction, instruction_index_in_song)
         local instruction_packet_part = song_instruction_to_packet_parts(instruction, current_packet_start_time)
 
         local instruction_will_not_fit_in_current_packet = get_current_packet_builder_sum() + #instruction_packet_part >= max_packet_length
@@ -600,6 +569,17 @@ local function build_data_packets_and_buffer_time(song)
 
                     table.insert(current_packet_builder, song_instruction_to_packet_parts(context_instruction, nil))
 
+
+                    -- see if most recently added instruction was actually a previously ignored instruction.
+                    if      last_added_track_instructions[next_context_track_index]
+                        and last_added_track_instructions[next_context_track_index][next_context_track_type] -- is truthy
+                        and last_added_track_instructions[next_context_track_index][next_context_track_type] ~= context_instruction
+                        and last_added_track_instructions[next_context_track_index][next_context_track_type].start_time < context_instruction.start_time
+                    then -- this context that we just added was probably a TrackInstruction that we had skipped over. Set it as the new "most recently added"
+                        last_added_track_instructions[next_context_track_index][next_context_track_type] = context_instruction
+                    end
+
+
                     -- advance to next context part.
                     next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
                     if not next_context_track_type then -- we've ran out of items in this next queue. advance the outer one.
@@ -610,35 +590,77 @@ local function build_data_packets_and_buffer_time(song)
 
             -- end
             end
-        end
-
-
-        -- TODO: Check overlooked track instructions here? or somewhere else?
+        end -- end of instruction_will_not_fit
 
         -- Insert instruction
-        table.insert(current_packet_builder, instruction_packet_part)
-
         if instruction.is_track_instruction then -- add this track to the context
             ---@cast instruction TrackInstruction
 
+            -- always add the instruction to the context. It'll be a 2nd chance to add this instruction early.
             if not context_track_instructions[instruction.track_index] then context_track_instructions[instruction.track_index] = {} end
             context_track_instructions[instruction.track_index][instruction.type] = instruction
+
+            local there_is_enough_time_between_this_track_instruction_and_the_one_before_it = (
+                (not last_added_track_instructions[instruction.track_index])    -- no TrackInstructions on this track. We can just add it now.
+                or (not last_added_track_instructions[instruction.track_index][instruction.type])   -- no TrackInstructions of this type on this track. We can just add it now.
+                or ( -- there must be a last_added instruction. if enough time has passed, we can add this instruction
+                    instruction.start_time - last_added_track_instructions[instruction.track_index][instruction.type].start_time > target_modifier_temporal_resolution
+                )
+            )
+
+            local function future_track_instructions_are_too_far_away_or_next_note_is_too_soon()
+                -- print("scanning ahead for instruction", instruction)
+                for i = instruction_index_in_song, #song.instructions, 1 do
+                    -- print(i)
+                    local test_instruction = song.instructions[i]
+                    if test_instruction.start_time > instruction.start_time + (target_modifier_temporal_resolution*1.25) then
+                        -- we have not found a "landmark" instruction within range. Go ahead and insert this modifier now.
+
+                        -- print("no landmarks.", true)
+                        return true
+                    end
+                    if test_instruction.track_index ~= instruction.track_index then -- this instruction is relevant to us right now.
+                        if test_instruction.is_track_instruction then
+                            if test_instruction.type == instruction.type then -- this track instruction matches our own and is close to us. We don't need to insert right now.
+                                -- print("next matching track too soon.", false)
+                                return false
+                            end
+                            -- continue     -- here, test_instruction must be of a different TrackInstruction type. We don't really care about it. Let's continue to the next instruction
+                        else
+                            -- this is a normal note, and we have not seen a relevant track instruction between us and this note.
+                            -- So let's insert ourselves now so that we know that note will be ready to play
+
+                            -- print("normal note too soon.", true)
+                            return true
+                        end
+                    end
+                end
+            end
+
+            if there_is_enough_time_between_this_track_instruction_and_the_one_before_it or future_track_instructions_are_too_far_away_or_next_note_is_too_soon() then
+                -- print("added instruction")
+                table.insert(current_packet_builder, instruction_packet_part)
+                if not last_added_track_instructions[instruction.track_index] then last_added_track_instructions[instruction.track_index] = {} end
+                last_added_track_instructions[instruction.track_index][instruction.type] = instruction
+
+                -- remove whatever was last in the ignored queue, if any.
+                -- if last_ignored_track_instructions[instruction.track_index] then last_ignored_track_instructions[instruction.track_index][instruction.type] = nil end
+
+            -- else
+            --     -- print("ignored instruction")
+            --     if not last_ignored_track_instructions[instruction.track_index] then last_ignored_track_instructions[instruction.track_index] = {} end
+            --     last_ignored_track_instructions[instruction.track_index][instruction.type] = instruction
+            end
+
+        else
+            table.insert(current_packet_builder, instruction_packet_part)
         end
     end
 
-
-    ---@type table<integer, table<string, {part: PartialPacketDataBytes, start_time: number, index_where_it_would_have_been_added: integer}>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
-    local added_track_instructions = {}
-
-    ---@type table<integer, table<string, {part: PartialPacketDataBytes, start_time: number, index_where_it_would_have_been_added: integer}>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
-    local unadded_track_instructions = {}
-
-    for _, instruction in ipairs(song.instructions) do
-        -- TODO: re-add checks to filter out track instructions with too high temporal density.
-        -- TODO: re-add discard_track_instructions skips
+    for instruction_index_in_song, instruction in ipairs(song.instructions) do
 
         -- if not ((not instruction.is_track_instruction) and discard_track_instructions) then
-            add_instruction_to_final_packet_queue(instruction)
+            add_instruction_to_final_packet_queue(instruction, instruction_index_in_song)
         -- end
 
         -- if instruction.is_track_instruction then    -- Track instructions typically have a very high temporal density. Add track instruction to a queue so that we can decide to keep it or discard it.
