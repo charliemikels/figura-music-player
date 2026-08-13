@@ -38,11 +38,7 @@ local discard_track_instructions = false      -- Disables all instruction modifi
 --- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
 --- few modifiers to significantly improve buffer times.
 ---@type integer
-local target_modifier_temporal_resolution = 35
-
-local context_track_instructions_per_second = 1
-
-
+local target_modifier_temporal_resolution = 35  -- TODO: hold up, as of v6.0.1-200-ga68e46b , why is it that 35 in TtFaF is like 274s, but 40 is at 77s, AND 30 (a "higher" resolution If I understand it) is 41s? What's going on here
 
 local do_debug_prints = false
 
@@ -604,7 +600,7 @@ local function build_data_packets_and_buffer_time(song)
                 (not last_added_track_instructions[instruction.track_index])    -- no TrackInstructions on this track. We can just add it now.
                 or (not last_added_track_instructions[instruction.track_index][instruction.type])   -- no TrackInstructions of this type on this track. We can just add it now.
                 or ( -- there must be a last_added instruction. if enough time has passed, we can add this instruction
-                    (last_added_track_instructions[instruction.track_index][instruction.type].start_time + target_modifier_temporal_resolution) < instruction.start_time
+                    (last_added_track_instructions[instruction.track_index][instruction.type].start_time + target_modifier_temporal_resolution) < instruction.start_time    -- culprit somewhere here???
                 )
             )
 
