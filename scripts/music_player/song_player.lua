@@ -54,8 +54,8 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 
 ---@class TrackInstruction :Instruction
 ---@field is_track_instruction true
----@field type string
----@field value number?
+---@field type string               The type of track instruction. Eg: Pitch_Mult, Volume, Pan, etc.
+---@field value number?             The new value for this type on this track
 
 ---@alias AnyInstruction
 ---| Instruction

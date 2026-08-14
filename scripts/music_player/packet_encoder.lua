@@ -38,7 +38,7 @@ local discard_track_instructions = false      -- Disables all instruction modifi
 --- Midi modifiers are typically at a very high temporal resolution. We can safely drop a
 --- few modifiers to significantly improve buffer times.
 ---@type integer
-local target_modifier_temporal_resolution = 35  -- TODO: hold up, as of v6.0.1-200-ga68e46b , why is it that 35 in TtFaF is like 274s, but 40 is at 77s, AND 30 (a "higher" resolution If I understand it) is 41s? What's going on here
+local target_modifier_temporal_resolution = 35
 
 local do_debug_prints = false
 
@@ -638,14 +638,6 @@ local function build_data_packets_and_buffer_time(song)
                 table.insert(current_packet_builder, instruction_packet_part)
                 if not last_added_track_instructions[instruction.track_index] then last_added_track_instructions[instruction.track_index] = {} end
                 last_added_track_instructions[instruction.track_index][instruction.type] = instruction
-
-                -- remove whatever was last in the ignored queue, if any.
-                -- if last_ignored_track_instructions[instruction.track_index] then last_ignored_track_instructions[instruction.track_index][instruction.type] = nil end
-
-            -- else
-            --     -- print("ignored instruction")
-            --     if not last_ignored_track_instructions[instruction.track_index] then last_ignored_track_instructions[instruction.track_index] = {} end
-            --     last_ignored_track_instructions[instruction.track_index][instruction.type] = instruction
             end
 
         else
