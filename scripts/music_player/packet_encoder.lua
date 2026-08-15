@@ -419,6 +419,7 @@ local function song_instruction_to_packet_parts(instruction, packet_start_time)
 
         union_tables(instruction_packet_part, uint_to_bytes(packet_relative_start_time))
         union_tables(instruction_packet_part, uint_to_bytes(instruction.track_index))
+        if instruction.duration == nil then printTable(instruction) end
         union_tables(instruction_packet_part, uint_to_bytes(math.floor(instruction.duration)))
         union_tables(instruction_packet_part, uint_to_bytes(instruction.note))
         union_tables(instruction_packet_part, uint_to_bytes(instruction.start_velocity))

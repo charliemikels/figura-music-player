@@ -1651,10 +1651,15 @@ local midi_processor_loop_stage_functions = {
 
     done = function(song_holder, state)
         -- Check note builder for any left over notes.
-        for _, device_channels in pairs(state.instruction_builder) do
-            for _, channel_data in pairs(device_channels) do
-                if #channel_data.instructions > 0 then
-                    error("Midi processor ended, but some notes were left not stopped.")
+        for device_name, channels in pairs(state.instruction_builder) do
+            for channel_id, channel_data in pairs(channels) do
+                if next(channel_data.instructions) ~= nil then
+                    local note_id, instruction = next(channel_data.instructions)
+                    error("Midi processor ended, but some notes were not stopped.\nDevice `"
+                        ..device_name
+                        .."`, channel "..tostring(channel_id)
+                        ..", note_id "..tostring(note_id)
+                        ..": "..printTable(instruction, 1, true))
                     -- TODO: Instead of erroring on left over notes, should we just set the end time at the song end time
                 end
             end
