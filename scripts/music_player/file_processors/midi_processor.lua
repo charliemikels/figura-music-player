@@ -1710,31 +1710,6 @@ local midi_processor_loop_stage_functions = {
         end
         seen_instruments = nil
 
---[[    -- the results of my interaction with OpenCode, as of commit v6.0.1-202-g9e3c8b8
-        -- start added by AI ----------------------------------------------------------------------
-
-        -- Tracks are processed one after another in file order, and partial_track_instructions get re-inserted
-        -- at their original start times. This means the instruction list is not in chronological order, which
-        -- breaks consumers that assume monotonic start times (the packet encoder's buffer calc and the song player).
-        -- Stable sort by start_time (preserving original order for ties, e.g. a track instruction before its note).
-        local instructions_sorted_with_index = {}   ---@type {index: integer, instruction: AnyInstruction}[]
-        for index, instruction in ipairs(state.instructions) do
-            table.insert(instructions_sorted_with_index, { index = index, instruction = instruction })
-        end
-        table.sort(instructions_sorted_with_index, function(a, b)
-            if a.instruction.start_time ~= b.instruction.start_time then
-                return a.instruction.start_time < b.instruction.start_time
-            end
-            return a.index < b.index
-        end)
-        for i, entry in ipairs(instructions_sorted_with_index) do
-            state.instructions[i] = entry.instruction
-        end
-        instructions_sorted_with_index = nil
-
-        -- end added by AI ------------------------------------------------------------------------
---]]
-
         ---@type Song
         local processed_song = {
             name = song_holder.short_name,
