@@ -387,7 +387,7 @@ local function add_channel_modifier(state, track, channel, start_time, controlle
     local partial_track_instruction = {
         is_track_instruction = true,
         track_index = nil,
-        start_time = start_time,
+        start_time = start_time,    -- See where we use ….channel_state.partial_track_instructions.
         type = data_type,
         value = controller_value    -- may create a modifier with a nil value. This will tell the instruments to reset the note.
     }
@@ -1022,9 +1022,12 @@ midi_message_functions = {
                 local complete_track_instruction = {
                     is_track_instruction = true,
                     track_index = instruction_track_index,
-                    start_time = partial_track_instruction.start_time,
                     type = type,
                     value = partial_track_instruction.value,
+                    start_time = start_time,    -- we are not reusing partial_track_instruction.start_time.
+                                                -- Setting it to right now should be functionally identical (We will insert the instruction that
+                                                -- needs this TrackInstruction immediately after we are done inserting these partial instructions.)
+                                                -- and setting it to now keeps all instructions in start-time order.
                 }
 
                 table.insert(state.instructions, complete_track_instruction)
@@ -1706,6 +1709,31 @@ local midi_processor_loop_stage_functions = {
             end
         end
         seen_instruments = nil
+
+--[[    -- the results of my interaction with OpenCode, as of commit v6.0.1-202-g9e3c8b8
+        -- start added by AI ----------------------------------------------------------------------
+
+        -- Tracks are processed one after another in file order, and partial_track_instructions get re-inserted
+        -- at their original start times. This means the instruction list is not in chronological order, which
+        -- breaks consumers that assume monotonic start times (the packet encoder's buffer calc and the song player).
+        -- Stable sort by start_time (preserving original order for ties, e.g. a track instruction before its note).
+        local instructions_sorted_with_index = {}   ---@type {index: integer, instruction: AnyInstruction}[]
+        for index, instruction in ipairs(state.instructions) do
+            table.insert(instructions_sorted_with_index, { index = index, instruction = instruction })
+        end
+        table.sort(instructions_sorted_with_index, function(a, b)
+            if a.instruction.start_time ~= b.instruction.start_time then
+                return a.instruction.start_time < b.instruction.start_time
+            end
+            return a.index < b.index
+        end)
+        for i, entry in ipairs(instructions_sorted_with_index) do
+            state.instructions[i] = entry.instruction
+        end
+        instructions_sorted_with_index = nil
+
+        -- end added by AI ------------------------------------------------------------------------
+--]]
 
         ---@type Song
         local processed_song = {
