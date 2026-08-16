@@ -504,44 +504,44 @@ local function build_data_packets_and_buffer_time(song)
                 context_track_instructions[instruction.track_index][instruction.type] = nil
             end
 
-            -- print(#data_packets % (math.ceil(pings_per_second)) == 0)
-            -- if #data_packets % (math.ceil(pings_per_second)) == 0 then -- enough packets have passed, time to add a context instruction -- TODO: This condition actually significantly boosts the buffer time in songs like FireFly the
 
+            -- Add context / catch-up TrackInstructions after enough time
 
-            if (not next_context_track_index) or (not context_track_instructions[next_context_track_index]) then -- attempt to initialize
-                next_context_track_index = next(context_track_instructions, next_context_track_index)
-            end
-            if next_context_track_index then
-                if (not next_context_track_type) or (not context_track_instructions[next_context_track_index][next_context_track_type]) then -- attempt to initialize
-                    next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
+            if #data_packets % (math.ceil(pings_per_second)) == 0 then -- ~ 1 second should have passed. Let's include a catch-up / context TrackInstruction.
+
+                if (not next_context_track_index) or (not context_track_instructions[next_context_track_index]) then
+                    -- we have not selected a next_context_track_index. Select one now, if one exists
+                    next_context_track_index = next(context_track_instructions, next_context_track_index)
                 end
-                if next_context_track_type then
-                    -- both next_context_track_index and _type are set to something. Let's add the matching context TrackInstruction to the start of the packet, then advance the context list
-                    local context_instruction = context_track_instructions[next_context_track_index][next_context_track_type]
+                if next_context_track_index then    -- we found a track with TrackInstructions
 
-                    table.insert(current_packet_builder, song_instruction_to_packet_parts(context_instruction, nil))
-
-
-                    -- see if most recently added instruction was actually a previously ignored instruction.
-                    if      last_added_track_instructions[next_context_track_index]
-                        and last_added_track_instructions[next_context_track_index][next_context_track_type] -- is truthy
-                        and last_added_track_instructions[next_context_track_index][next_context_track_type] ~= context_instruction
-                        and last_added_track_instructions[next_context_track_index][next_context_track_type].start_time < context_instruction.start_time
-                    then -- this context that we just added was probably a TrackInstruction that we had skipped over. Set it as the new "most recently added"
-                        last_added_track_instructions[next_context_track_index][next_context_track_type] = context_instruction
+                    if (not next_context_track_type) or (not context_track_instructions[next_context_track_index][next_context_track_type]) then
+                        -- we have not selected a next_context_track_type. Select one now, if one exists
+                        next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
                     end
+                    if next_context_track_type then
+                        -- both next_context_track_index and _type are set to something. Let's add the matching context TrackInstruction to the start of the packet, then advance the context list
+                        local context_instruction = context_track_instructions[next_context_track_index][next_context_track_type]
 
+                        table.insert(current_packet_builder, song_instruction_to_packet_parts(context_instruction, nil))
 
-                    -- advance to next context part.
-                    next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
-                    if not next_context_track_type then -- we've ran out of items in this next queue. advance the outer one.
-                        next_context_track_index = next(context_track_instructions, next_context_track_index) -- may still return nil, but the initializer will take care of it.
+                        -- see if most recently added instruction was actually a previously ignored instruction.
+                        if      last_added_track_instructions[next_context_track_index]
+                            and last_added_track_instructions[next_context_track_index][next_context_track_type] -- is truthy
+                            and last_added_track_instructions[next_context_track_index][next_context_track_type] ~= context_instruction
+                            and last_added_track_instructions[next_context_track_index][next_context_track_type].start_time < context_instruction.start_time
+                        then -- this context that we just added was probably a TrackInstruction that we had skipped over. Set it as the new "most recently added"
+                            last_added_track_instructions[next_context_track_index][next_context_track_type] = context_instruction
+                        end
+
+                        -- advance to next context part.
+                        next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
+                        if not next_context_track_type then -- we've ran out of types for this next_context_track_index. Advance next_context_track_index
+                            next_context_track_index = next(context_track_instructions, next_context_track_index) -- may still return nil, but the initializer will take care of it.
+                        end
                     end
                 end
-
-
-            -- end
-            end
+            end -- end of context TrackInstructions
         end -- end of instruction_will_not_fit
 
         -- Insert instruction
