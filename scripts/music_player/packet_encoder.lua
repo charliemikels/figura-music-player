@@ -600,9 +600,9 @@ local function build_data_packets_and_buffer_time(song)
 
     for instruction_index_in_song, instruction in ipairs(song.instructions) do
 
-        -- if not ((not instruction.is_track_instruction) and discard_track_instructions) then
+        if not (instruction.is_track_instruction and discard_track_instructions) then
             add_instruction_to_final_packet_queue(instruction, instruction_index_in_song)
-        -- end
+        end
 
     end
 
