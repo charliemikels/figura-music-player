@@ -420,33 +420,34 @@ local function build_data_packets_and_buffer_time(song)
     local required_buffer_delay_in_milliseconds = 0
 
     local current_packet_builder = {}   ---@type PartialPacketDataBytes[]
-    -- local current_packet_builder_sum_cache = 0
-    -- local current_packet_builder_sum_last_len = 0
+    local current_packet_builder_sum_cache = 0
+    local current_packet_builder_sum_last_len = 0
 
     ---@return integer
     local function get_current_packet_builder_sum()
-        -- if #current_packet_builder == current_packet_builder_sum_last_len then return current_packet_builder_sum_cache end
+        if #current_packet_builder == current_packet_builder_sum_last_len then return current_packet_builder_sum_cache end
 
-        -- if #current_packet_builder < current_packet_builder_sum_last_len then
-        --     current_packet_builder_sum_cache = 0
-        --     current_packet_builder_sum_last_len = 0
-        -- end
-
-        -- -- print("loop starting")
-        -- for i = current_packet_builder_sum_last_len+1, #current_packet_builder, 1 do
-        --     -- print(i, current_packet_builder_sum_last_len, #current_packet_builder)
-        --     current_packet_builder_sum_cache = current_packet_builder_sum_cache + #current_packet_builder[i]
-        -- end
-
-        -- current_packet_builder_sum_last_len = #current_packet_builder
-
-        -- return current_packet_builder_sum_cache
-
-        local sum = 0
-        for _, packet_bytes in pairs(current_packet_builder) do
-            sum = sum + #packet_bytes
+        if #current_packet_builder < current_packet_builder_sum_last_len then
+            current_packet_builder_sum_cache = 0
+            current_packet_builder_sum_last_len = 0
         end
-        return sum
+
+        -- print("loop starting")
+        for i = current_packet_builder_sum_last_len+1, #current_packet_builder, 1 do
+            -- print(i, current_packet_builder_sum_last_len, #current_packet_builder)
+            current_packet_builder_sum_cache = current_packet_builder_sum_cache + #current_packet_builder[i]
+        end
+
+        current_packet_builder_sum_last_len = #current_packet_builder
+
+        return current_packet_builder_sum_cache
+
+        -- -- Brute force alternative
+        -- local sum = 0
+        -- for _, packet_bytes in pairs(current_packet_builder) do
+        --     sum = sum + #packet_bytes
+        -- end
+        -- return sum
     end
 
     local current_packet_start_time = song.instructions[1].start_time
@@ -478,6 +479,8 @@ local function build_data_packets_and_buffer_time(song)
             table.insert(data_packets, finished_packet)
 
             current_packet_builder = {}
+            current_packet_builder_sum_cache = 0
+            current_packet_builder_sum_last_len = 0
 
             current_packet_start_time = instruction.start_time
             local current_packet_start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time)) -- packet start time.
