@@ -545,10 +545,10 @@ local function build_data_packets_and_buffer_time(song)
         end -- end of instruction_will_not_fit
 
         -- Insert instruction
-        if instruction.is_track_instruction then -- add this track to the context
+        if instruction.is_track_instruction then -- we need to decide if we should insert this TrackInstruction right now, or ignore it.
             ---@cast instruction TrackInstruction
 
-            -- always add the instruction to the context. It'll be a 2nd chance to add this instruction early.
+            -- always add the instruction to the context. Why not. It'll be a 2nd chance to add this instruction early, tho the chance of that happening are very slim.
             if not context_track_instructions[instruction.track_index] then context_track_instructions[instruction.track_index] = {} end
             context_track_instructions[instruction.track_index][instruction.type] = instruction
 
