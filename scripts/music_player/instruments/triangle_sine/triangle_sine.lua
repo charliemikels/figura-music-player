@@ -21,29 +21,6 @@ local function midi_note_to_multiplier(note_id, offset)
 end
 
 
-local modifier_functions = {
-    pitch_mult = function(active_instruction, value)
-        active_instruction.sound:setPitch(midi_note_to_multiplier(active_instruction.instruction.note, active_instruction.detune_amount) * (value or 1))
-    end,
-    volume = function(active_instruction, value)
-        -- from what I can tell, dec`100` is the most "default" value for channels that don't specify volume. `127` is the max.
-        active_instruction.sound:setVolume((active_instruction.instruction.start_velocity/127) * (value and (value / 100) or 1))
-    end,
-}
-
----@param active_instruction {time_started: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}
-local function update_modifiers(active_instruction)
-    local modifiers = active_instruction.instruction.modifiers
-    for index = active_instruction.modifier_index, #modifiers do
-        local modifier_delta_from_instruction_start = modifiers[index].start_time - active_instruction.instruction.start_time
-        if active_instruction.time_started + modifier_delta_from_instruction_start > client.getSystemTime() then return end
-        if modifier_functions[modifiers[index].type] then
-            modifier_functions[modifiers[index].type](active_instruction, modifiers[index].value)
-        end
-        active_instruction.modifier_index = index + 1
-    end
-end
-
 local instrument_builder
 ---@type InstrumentBuilder
 instrument_builder = {
@@ -62,12 +39,42 @@ instrument_builder = {
         local fallback_instrument_builder = instruments_api.get_instrument_builder("MC/Harp")
         local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}, notify_ui_function) or nil
 
-        ---@type {time_started: number, stop_time: number, instruction: Instruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
+        ---@type {time_started: number, stop_time: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound}[]
         local active_instructions = {}
+
+        ---@type table<string, number?>
+        local track_instruction_states = {}
+
+        ---@type table<string, fun(active_instruction: {time_started: number, stop_time: number, instruction: NoteInstruction, modifier_index: integer, detune_amount: number, sound: Sound})>
+        local track_instruction_functions = {
+            pitch_mult = function(active_instruction)
+                active_instruction.sound:setPitch(
+                    midi_note_to_multiplier(active_instruction.instruction.note, active_instruction.detune_amount)
+                    * (track_instruction_states.pitch_mult and (track_instruction_states.pitch_mult) or 1)
+                )
+            end,
+            volume = function(active_instruction)
+                active_instruction.sound:setVolume(
+                    (active_instruction.instruction.start_velocity/127)
+                    * (track_instruction_states.volume and (track_instruction_states.volume/100) or 1)
+                )
+            end,
+        }
 
         ---@type Instrument
         local new_instance = {
             play_instruction = function(instruction, position, time_due)
+                if instruction.is_track_instruction then
+                    ---@cast instruction TrackInstruction
+                    track_instruction_states[instruction.type] = instruction.value
+                    for _, active_instruction in pairs(active_instructions) do
+                        track_instruction_functions[instruction.type](active_instruction)
+                    end
+                    fallback_instrument_instance.play_instruction(instruction, position, time_due)
+                    return
+                end
+                ---@cast instruction NoteInstruction
+
                 -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
 
                 if not instrument_builder.is_available() then
@@ -81,10 +88,9 @@ instrument_builder = {
 
                 local new_sound = sounds[triangle_sine_sound_key]
                     :setPos(position)
-                    :setVolume((instruction.start_velocity/127))
                     :setLoop(true)
-                    :setPitch(midi_note_to_multiplier(instruction.note, detune_amount))
                     :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
+                    -- volume and pitch are handled by the track_instruction_functions
 
                 local active_instruction = {
                     time_started = time_due,
@@ -94,7 +100,9 @@ instrument_builder = {
                     modifier_index = 1,
                     sound = new_sound
                 }
-                update_modifiers(active_instruction)
+                for _, track_instruction_function in pairs(track_instruction_functions) do
+                    track_instruction_function(active_instruction)
+                end
 
                 active_instruction.sound:play()
                 table.insert(active_instructions, active_instruction)
@@ -112,7 +120,6 @@ instrument_builder = {
                         active_instructions[active_instruction_key] = nil
                     else
                         active_instruction.sound:setPos(position)
-                        update_modifiers(active_instruction)
                     end
                 end
             end,
@@ -122,6 +129,8 @@ instrument_builder = {
                     active_instruction.sound:stop()
                     active_instruction.sound = nil
                     active_instructions[active_instruction_key] = nil
+                else
+                    track_instruction_states = {}
                 end
             end,
             stop_all_sounds_immediately = function()
@@ -130,6 +139,7 @@ instrument_builder = {
                     active_instruction.sound = nil
                     active_instructions[active_instruction_key] = nil
                 end
+                track_instruction_states = {}
             end,
             is_finished = function() return next(active_instructions) == nil end
         }
