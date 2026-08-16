@@ -86,8 +86,10 @@ local function print_host(...) if host:isHost() or do_debug_prints then print(..
 local spinner_states = {[0] = "▙",[1] = "▛",[2] = "▜",[3] = "▟",}   -- indexed by 0 saves instructions in get_spinner. Be careful if getting length.
 
 ---returns a spinner synced to the current time.
+---@param index integer? if provided, the spinner will output a state matching the index. Will wrap if needed.
 ---@return string
-local function get_spinner()
+local function get_spinner(index)
+    if index then return spinner_states[index %4] end
     return spinner_states[
         math.floor(
             client.getSystemTime()
@@ -106,12 +108,13 @@ end
 ---Returns a progress bar with a spinner
 ---@param width integer     -- Width in number of characters
 ---@param progress number   -- Will be clamped to between 0 and 1.
+---@param spinner_index integer?    -- passed to spinner if provided
 ---@return string
-local function progress_bar(width, progress)
+local function progress_bar(width, progress, spinner_index)
     if progress < 0 then progress = 0 elseif progress > 1 then progress = 1 end
 
 	local num_bars = math.floor((width+1) * progress)
-	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner() or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
+	local progress_bar_string = "▎" .. string.rep(progress_bar_character, num_bars) .. (num_bars <= width and get_spinner(spinner_index) or "") .. string.rep(" ", math.max(0, width - num_bars)) .. "▎"
 	return progress_bar_string  -- As it turns out, Lua actually optimizes this declare, set, return pattern into the same number of instructions as just returning and skipping the local part.
 end
 
@@ -154,10 +157,14 @@ local function update_info_display_text(song_player)
             -- There's a moment where song_player.controller.get_remaining_buffer_time returns math.huge and this text just says "Buffering… infs"
             -- We could add an extra state for this rare moment where it could say "Waiting for data…" instead.
     else
+        local spinner_index = math.floor(song_player.metronome_info.get_current_beat())
         info_text = song_player.info_display_base_string
-            .. progress_bar(20, song_player.controller.get_progress())
+            .. progress_bar(20, song_player.controller.get_progress(), spinner_index)
             .. " " .. tostring(math.floor(1 + (song_player.controller.get_remaining_time() / 1000)) ) .. "s"
+            -- .. " | d " .. song_player.metronome_info.duration_of_beat
     end
+
+    -- info_text = info_text .."\n".. math.floor(1+ song_player.metronome_info.get_current_measure()) .. " " .. math.floor(1+ song_player.metronome_info.get_current_beat_in_measure())
 
     local current_time = client.getSystemTime()
     for message, time_to_remove in pairs(song_player.notification_timeouts) do
