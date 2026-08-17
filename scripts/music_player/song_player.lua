@@ -418,7 +418,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
     --- a representation of a song's timing data. Sent to various consumers to sync actions/animations/whatever to playing songs.
     ---@class SongPlayerMetronomeInfo
     local new_metronome_info = {
-        start_of_timeframe          = start_of_this_timeframe,
+        start_of_timeframe          = start_of_this_timeframe,  -- The time this metronome info became active. Compare with client.getSystemTime().
 
         beats_so_far                = beats_so_far,
         measures_so_far             = measures_so_far,
