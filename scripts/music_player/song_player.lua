@@ -137,22 +137,28 @@ local function client_is_looking_at_song_player(song_player)
     return false
 end
 
-local function get_scaled_beat(beat_duration, current_beat)
-    local shortest_duration, longest_duration = 275, 475    -- ~218bpm - ~ 133
-    if beat_duration <= longest_duration and beat_duration >= shortest_duration then
+---@param metronome_info SongPlayerMetronomeInfo
+---@return number
+local function get_scaled_beat(metronome_info)
+    local bpm = metronome_info.bpm
+
+    local slowest_bpm, fastest_bpm = 120, 220
+    if bpm <= fastest_bpm and bpm >= slowest_bpm then
         -- if in range, do nothing
-        return current_beat
+        return metronome_info.get_current_beat()
     end
 
-    if beat_duration < shortest_duration then
-        local k = math.ceil(math.log(shortest_duration / beat_duration) / math.log(2))
-        return current_beat / (2 ^ k)
+    local multiplier = (metronome_info.time_signature_numerator % 3 == 0 and 3 or 2)
+
+    if bpm < slowest_bpm then
+        local k = math.ceil(math.log(slowest_bpm / bpm) / math.log(multiplier))
+        return metronome_info.get_current_beat() * (multiplier ^ k)
     else
-        local k = math.ceil(math.log(beat_duration / longest_duration) / math.log(2))
-        return current_beat * (2 ^ k)
+        local k = math.ceil(math.log(bpm / fastest_bpm) / math.log(multiplier))
+        return metronome_info.get_current_beat() / (multiplier ^ k)
     end
 
-    return current_beat -- unnecessary fallback.
+    return metronome_info.get_current_beat() -- unnecessary fallback.
 end
 
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
@@ -176,10 +182,7 @@ local function update_info_display_text(song_player)
             -- We could add an extra state for this rare moment where it could say "Waiting for data…" instead.
     else
 
-        local spinner_index = math.floor(get_scaled_beat(
-            song_player.metronome_info.duration_of_beat,
-            song_player.metronome_info.get_current_beat()
-        ))
+        local spinner_index = math.floor(get_scaled_beat(song_player.metronome_info))
 
         info_text = song_player.info_display_base_string
             .. progress_bar(20, song_player.controller.get_progress(), spinner_index)
