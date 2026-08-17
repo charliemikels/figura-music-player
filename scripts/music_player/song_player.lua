@@ -137,6 +137,24 @@ local function client_is_looking_at_song_player(song_player)
     return false
 end
 
+local function get_scaled_beat(beat_duration, current_beat)
+    local shortest_duration, longest_duration = 275, 475    -- ~218bpm - ~ 133
+    if beat_duration <= longest_duration and beat_duration >= shortest_duration then
+        -- if in range, do nothing
+        return current_beat
+    end
+
+    if beat_duration < shortest_duration then
+        local k = math.ceil(math.log(shortest_duration / beat_duration) / math.log(2))
+        return current_beat / (2 ^ k)
+    else
+        local k = math.ceil(math.log(beat_duration / longest_duration) / math.log(2))
+        return current_beat * (2 ^ k)
+    end
+
+    return current_beat -- unnecessary fallback.
+end
+
 --- Runs with the song update loop to keep text up to date (and sometimes update some positions)
 ---@param song_player SongPlayer
 local function update_info_display_text(song_player)
@@ -157,14 +175,19 @@ local function update_info_display_text(song_player)
             -- There's a moment where song_player.controller.get_remaining_buffer_time returns math.huge and this text just says "Buffering… infs"
             -- We could add an extra state for this rare moment where it could say "Waiting for data…" instead.
     else
-        local spinner_index = math.floor(song_player.metronome_info.get_current_beat())
+
+        local spinner_index = math.floor(get_scaled_beat(
+            song_player.metronome_info.duration_of_beat,
+            song_player.metronome_info.get_current_beat()
+        ))
+
         info_text = song_player.info_display_base_string
             .. progress_bar(20, song_player.controller.get_progress(), spinner_index)
             .. " " .. tostring(math.floor(1 + (song_player.controller.get_remaining_time() / 1000)) ) .. "s"
-            -- .. " | d " .. song_player.metronome_info.duration_of_beat
+
+        -- info_text = info_text .."\n".. math.floor(1+ song_player.metronome_info.get_current_measure()) .. " " .. math.floor(1+ song_player.metronome_info.get_current_beat_in_measure())
     end
 
-    -- info_text = info_text .."\n".. math.floor(1+ song_player.metronome_info.get_current_measure()) .. " " .. math.floor(1+ song_player.metronome_info.get_current_beat_in_measure())
 
     local current_time = client.getSystemTime()
     for message, time_to_remove in pairs(song_player.notification_timeouts) do
