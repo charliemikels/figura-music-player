@@ -271,7 +271,6 @@ local function eventually_apply_configured_instrument(song_player, track_config,
 
         background_process_event:register(apply_config_instrument_loop_for_this_player) -- make sure we can continue processing even in background
         song_player.controller.register_update_callback(apply_config_instrument_loop_for_this_player)   -- make sure we'll eventually process it. (if song plays, we can step.)
-
         apply_config_instrument_loop_for_this_player()  -- manually call first time. Prevents the start_time=0 notes from using the wrong instrument.
     end
 end
@@ -1094,7 +1093,7 @@ local song_player_api = {
                     if song_player.on_stop_callback_functions[call_back_to_remove] then
                         song_player.on_stop_callback_functions[call_back_to_remove] = nil
                     else
-                        print_debug("Callback "..tostring(call_back_to_remove).." not found in stop_callbacks list", true, true)
+                        print_debug("Callback "..tostring(call_back_to_remove).." not found in stop_callbacks list", true, false)
                     end
                 end,
 
