@@ -370,6 +370,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
 
     local current_quarter_note_to_beat_multiplier = (4 / song_player.time_signature_denominator) -- in 4/8, a beat happens twice as often as in 4/4. But in 2/4, beats are still as often, the downbeat just comes earlier
     local current_duration_of_beat = current_duration_of_quarter_note * current_quarter_note_to_beat_multiplier
+    local current_bpm = (60 * 1000) / current_duration_of_beat
 
 
     local beats_so_far = 0.0        -- May be a float if tempo changed between beats.
@@ -414,7 +415,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
     --- a representation of a song's timing data. Sent to various consumers to sync actions/animations/whatever to playing songs.
     ---@class SongPlayerMetronomeInfo
     local new_metronome_info = {
-        start_of_timeframe      = start_of_this_timeframe,
+        start_of_timeframe          = start_of_this_timeframe,
 
         beats_so_far                = beats_so_far,
         measures_so_far             = measures_so_far,
@@ -424,6 +425,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
         time_signature_denominator  = song_player.time_signature_denominator,
 
         duration_of_beat            = current_duration_of_beat,
+        bpm                         = current_bpm,
 
         downbeat_root               = downbeat_root,
 
