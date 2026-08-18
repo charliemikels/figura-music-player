@@ -681,6 +681,8 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
         :onRightClick(function (_)
             local song_player_api = require("./song_player")    ---@type SongPlayerAPI
 
+            local success, res = pcall(function() return config_page_state.targeted_song.processed_song.tracks[config_page_state.selected_track_index].instrument_type_id end)
+
             ---@type Song
             local instrument_test_song = {
                 name = "instrument_test_song",
@@ -689,7 +691,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 buffer_delay = nil,
                 tracks = {
                     [1] = {
-                        instrument_type_id = 0,
+                        instrument_type_id = (success and res) and 1 or 0,
                         recommended_instrument_name = "who knows!",
                     }
                 },
@@ -705,15 +707,17 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 }
             }
 
+            local selected_instrument_key = config_page_state.instrument_keys[config_page_state.selected_instrument_index]
+
             ---@type SongPlayerConfig
             local instrument_test_config = {
                 source_entity = player,
                 hide_in_world_info = true,
-                instrument_selections = {
+                instrument_selections = selected_instrument_key ~= "Default" and {
                     [1] = {
                         name = config_page_state.instrument_keys[config_page_state.selected_instrument_index]
                     }
-                }
+                } or nil
             }
 
             local instrument_test_song_player = song_player_api.new_player(instrument_test_song, instrument_test_config)
