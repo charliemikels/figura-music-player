@@ -154,14 +154,23 @@ Note that if you use LuaLS, removing scripts might cause it to throw type errors
 
 Please see [the README file in the `chloespacedout_instruments` folder](scripts/music_player/instruments/chloespacedout_instruments/README.md). 
 
+## Why don't my friends hear the right instruments?
+
+Some of the included instruments only work on higher permissions.
+
+- All the vanilla noteblock sounds, and the default Percussion instrument work on LOW
+- All custom sound instruments—namely default Triangle Sine instrument—only work on DEFAULT and up
+- For Chloe's instruments, see [the README file in the `chloespacedout_instruments` folder](scripts/music_player/instruments/chloespacedout_instruments/README.md)
+
 ### Who's Charlie? I thought you were Tanner? (and vice versa)
 
 Tanner_Limes is my Minecraft username. Hi Discord people!
 
 ### Does it work on Default permissions?
 
-Yes. The host needs to be at MAX in order to use the File processors, but **most songs are playable at LOW permissions**. The limiting factor is how many instruments a song is using, and how complex they are.
+Yes. The host needs to set themselves to MAX in order to use the file processors, but **most songs are playable at LOW permissions**. You end up running into the "max number of sounds" limit long before you hit "overran resource limit" issues.
 
+<!--    ↓ This demo is out of date, and may not actually work any more. We could demo something like Through the Fire and the Flames, and show how changing permissions is stable.
 Here's Rush E, in multiplayer, where the viewer has set this script to LOW permissions.
 
 https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
@@ -176,3 +185,4 @@ https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
     <li>Unfortunate the default Triangle Sine instrument hits a resource limit around the 113s mark. However, the Noteblock instruments and using ChloeSpacedOut's piano are able to complete the song.</li>
 </ul>
 </details>
+-->
