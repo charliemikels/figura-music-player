@@ -679,7 +679,45 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
             update_config_instrument_picker_ui()
         end)
         :onRightClick(function (_)
-            -- TODO: A way to test instrument (right click?)
+            local song_player_api = require("./song_player")    ---@type SongPlayerAPI
+
+            ---@type Song
+            local instrument_test_song = {
+                name = "instrument_test_song",
+                is_local = false,
+                buffer_start_time = nil,
+                buffer_delay = nil,
+                tracks = {
+                    [1] = {
+                        instrument_type_id = 0,
+                        recommended_instrument_name = "who knows!",
+                    }
+                },
+                duration = 500,
+                instructions = {
+                    {
+                        track_index = 1,
+                        start_time = 0,
+                        duration = 500,
+                        start_velocity = 100,
+                        note = 64,
+                    }
+                }
+            }
+
+            ---@type SongPlayerConfig
+            local instrument_test_config = {
+                source_entity = player,
+                hide_in_world_info = true,
+                instrument_selections = {
+                    [1] = {
+                        name = config_page_state.instrument_keys[config_page_state.selected_instrument_index]
+                    }
+                }
+            }
+
+            local instrument_test_song_player = song_player_api.new_player(instrument_test_song, instrument_test_config)
+            instrument_test_song_player.play()
         end)
 
     actions.enter_config_page = action_wheel:newAction()
