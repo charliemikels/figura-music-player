@@ -353,7 +353,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
 
                     midi_instance:setShouldKillInstance(should_kill_instance)
 
-                else -- We're offline. Cleanup any stuff left over
+                elseif midi_instance then -- We're offline. Cleanup any stuff left over
 
                     for _, notes_by_pitch in pairs(midi_instance.tracks) do
                         for _, note in pairs(notes_by_pitch) do
