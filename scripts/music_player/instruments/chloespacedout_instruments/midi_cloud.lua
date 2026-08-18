@@ -190,15 +190,15 @@ local is_midi_cloud_available_last_result = false
 
 ---@return boolean
 local function is_midi_cloud_available()
-    if client.getSystemTime() < is_midi_cloud_available_next_allowed_check_time then
-        return is_midi_cloud_available_last_result
-    end
-    is_midi_cloud_available_next_allowed_check_time = client.getSystemTime() + 2
-
     if avatar:getPermissionLevel() ~= "MAX" then        -- Midi Cloud won't work unless itself **and** the caller (that's us) are set to MAX perms. Added this catch to make sure we're not spamming "failed to create instance" errors. See https://github.com/ChloeSpacedOut/figura-midi-player/blob/cb417ba36452dc82fb8102b4cf7727d77ad20272/ChloesMidiPlayerCloud/externalAPI.lua#L123-L127
         is_midi_cloud_available_last_result = false
         return false
     end
+
+    if client.getSystemTime() < is_midi_cloud_available_next_allowed_check_time then
+        return is_midi_cloud_available_last_result
+    end
+    is_midi_cloud_available_next_allowed_check_time = client.getSystemTime() + 2
 
     local get_instance_success, test_midi_cloud_instance =  pcall(get_midi_instance)    -- if Cloud Midi's avatar is somehow on low permissions, pcall will catch the "overran resource limit" error
 
