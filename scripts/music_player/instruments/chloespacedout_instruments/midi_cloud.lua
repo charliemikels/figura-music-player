@@ -337,11 +337,11 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
             ---@type table<integer, MidiCloudInstrumentActiveNote>     -- integer indexed, but unsorted. use with pairs()
             local active_notes = {}
 
-            local function check_availability_and_rebuild_state_if_it_changed()
+            local function get_and_check_availability_and_rebuild_state_if_it_changed()
                 instrument_last_updated_time = client.getSystemTime()
 
                 local midi_is_currently_available = is_midi_cloud_available()
-                if midi_is_currently_available == midi_cloud_was_previously_available then return end
+                if midi_is_currently_available == midi_cloud_was_previously_available then return midi_is_currently_available end
 
                 if midi_is_currently_available then -- We're online, initialize a fresh instance.
                     midi_instance = get_midi_instance()
@@ -367,6 +367,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                 end
 
                 midi_cloud_was_previously_available = midi_is_currently_available
+                return midi_is_currently_available
             end
 
             ---@type table<string, number?>
@@ -414,9 +415,7 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                     end
                     ---@cast instruction NoteInstruction
 
-
-                    check_availability_and_rebuild_state_if_it_changed()
-                    if not is_midi_cloud_available() then
+                    if not get_and_check_availability_and_rebuild_state_if_it_changed() then
                         fallback_instrument_instance.play_instruction(instruction, position, time_due)
                         return
                     end
@@ -454,10 +453,9 @@ for instrument_midi_number, cloud_instrument_info in pairs(cloud_instruments_num
                     return #active_notes == 0 and fallback_instrument_instance.is_finished()
                 end,
                 update_sounds = function (position)
-                    check_availability_and_rebuild_state_if_it_changed()
                     fallback_instrument_instance.update_sounds(position)
 
-                    if midi_instance then
+                    if get_and_check_availability_and_rebuild_state_if_it_changed() then
                         midi_instance:setTarget(position)
 
                         for key, active_note in pairs(active_notes) do
