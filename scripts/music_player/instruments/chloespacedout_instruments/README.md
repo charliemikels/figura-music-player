@@ -11,7 +11,7 @@ After you equip the Music Player avatar, you **and your listeners** will need to
 
 1. Go into Figura → Permissions.
 2. Click "Show Disconnected Avatars" 
-3. Look for (scroll, don't search) for the "Midi Player Cloud" avatar. (Might be called "Chloe's MIDI Player")
+3. Look for (scroll, don't search) for the "Chloe's Midi Player Cloud" avatar.
 4. Set it to MAX permissions.
 5. Set your avatar to MAX Perms as well. (This is the default for you, but you may need to ask your viewers to upgrade you.)
 
@@ -27,7 +27,7 @@ The "Piano" and "Drumkit" instruments behave slightly differentially. While they
 
 For help spawning a piano and other usage notes, please see [Figura Piano 2.0's Github page](https://github.com/ChloeSpacedOut/figura-piano-2.0).
 
-One notable upside of these instruments compared to the Midi Cloud instruments is that your viewers do not need to set you, the host, to MAX permissions. Only the `Piano 2.0` and the `Midi Player Cloud` avatars need to be on MAX. You're free to stay on Default.
+One notable upside of these instruments compared to the Midi Cloud instruments is that your viewers do not need to set you, the host, to MAX permissions. Only the Piano 2.0 and the Midi Player Cloud avatars need to be on MAX. You're free to stay on Default.
 
 #### Getting the Piano / Drumkit
 
