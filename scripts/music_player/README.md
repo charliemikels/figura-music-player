@@ -161,8 +161,13 @@ This process will run on the viewers, and the WorldTick limit is really tight at
 
 #### Instructions
 
-This project uses a special data format for storing songs. Songs have some metadata like name, buffer time, song duration, etc. But also a list of Instructions. An instruction has all the information for one note. Its start time (relative to the start of the song), its duration, the note number, track number, and modifiers for that note. Unlike MIDI where a note can be started and then we just have to wait for the "note stop" event, instructions always keep these values together. This makes them safe to send over pings. Even if we drop packets, we won't fail to clean up sounds we started.
+Midi files store noteOn and noteOff commands as separate events. But because the risk of dropped packets is too high, I store and ping songs in a custom format that always keeps this information together. This way, a dropped packet never creates "stuck" notes. 
 
-There is one exception to the always-together rule: to improve buffer times, modifiers may be separated from an instruction and sent later as a separate "modifier instruction." This kind of instruction only exists in the networking/packets system. Not all instruments support all modifier types (frankly there's only like 2 supported modifiers anyways), so they are treated as second class citizens.
+There are currently two kind of Instructions.
+
+- NoteInstructions: The combination of NoteOn and NoteOff commands. Stores a note, it's volume and pitch, when it starts, and how long it plays for. 
+- TrackInstructions: These apply modifiers to all NoteInstructions in a track. Notably: Volume and Pitch Wheel effects. This kind of instruction has no native "end time" and continue until a new TrackInstruction comes a long to replace it. 
+  - This kind of instruction _can_ cause playback issues if the player drops a packet that contains an update. But unlike NoteInstructions, this issue can be easily mitigated by just repeating the TrackInstruction every so often.
+- There are a few special exceptions with some song-level meta events. (eg: tempo changes)
 
 <!--### UI → Config → Save-->
