@@ -22,7 +22,8 @@ events.TICK:register(function()
     last_checked_uuid = fmp_avatar_uuid
     if fmp_avatar_uuid == nil then return end
 
-
+    -- NOTE: Depending on how and when the song_player script is required, `this_avatar_vars["TL_FMP_exported_song_info_api"]` may not exist until after the avatar plays its first song.
+    --
     if this_avatar_vars["TL_FMP_exported_song_info_api"] and not known_avatars_with_tl_fmp[fmp_avatar_uuid] then -- first time seeing this avatar with vars for TL_FMP
         -- print("found TL_FMP avatar: "..fmp_avatar_uuid)
 
