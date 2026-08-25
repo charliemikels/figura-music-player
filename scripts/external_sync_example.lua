@@ -18,7 +18,7 @@ events.TICK:register(function()
 
     -- step through list
 
-    local fmp_avatar_uuid, this_avatar_vars = next(world.avatarVars(), last_checked_uuid)
+    local fmp_avatar_uuid, this_avatar_vars = next(world.avatarVars(), world.avatarVars()[last_checked_uuid] and last_checked_uuid or nil)
     last_checked_uuid = fmp_avatar_uuid
     if fmp_avatar_uuid == nil then return end
 
