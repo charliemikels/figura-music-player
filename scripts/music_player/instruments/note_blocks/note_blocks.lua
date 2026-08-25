@@ -46,38 +46,37 @@ for _, note_block_sound in ipairs(note_block_sounds) do
             percussion = note_block_sound.is_percussion,
         },
 
-        new_instance = function(params)
+        new_instance = function(params, notify_ui_function)
+            ---@type table<string, number?>
+            local track_instruction_states = {}
+
             ---@type Instrument
             local new_instance = {
                 play_instruction = function(instruction, position, _)
-                    -- print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
 
-                    -- At the moment, note blocks don't really have an update loop, so real pitch control and volume control don't really make sense. But let's take care of what we can on note init.
-                    local starting_volume = 100
-                    for _, modifier in ipairs(instruction.modifiers) do
-                        if modifier.start_time > instruction.start_time then break end  -- we've gone past the very beginning of this note.
-                        if modifier.type == "volume" then
-                            starting_volume = modifier.value or 100
-                        end
+                    if instruction.is_track_instruction then
+                        ---@cast instruction TrackInstruction
+                        track_instruction_states[instruction.type] = instruction.value
+                        return
                     end
 
-                    local detune_amount = ((math.random()-0.5) * 0.075) or 0 -- helps sounds sound "rounder" if two instances of an instument play the same note. 
+                    local detune_amount = ((math.random()-0.5) * 0.075) or 0 -- helps sounds sound "rounder" if two instances of an instrument play the same note.
 
                     local new_sound = sounds[note_block_sound.sound_id]
-                        :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning, detune_amount))
+                        :setPitch(midi_note_to_multiplier(instruction.note, note_block_sound.base_tuning, detune_amount) * (track_instruction_states.pitch_mult and (track_instruction_states.pitch_mult) or 1))
                         :setPos(position)
                         :setSubtitle("Music from "..(player:isLoaded() and player:getName() or avatar:getName()))
-                        :setVolume( instruction.start_velocity/127 * (starting_volume/100))
+                        :setVolume( (instruction.start_velocity/127) * (track_instruction_states.volume and (track_instruction_states.volume/100) or 1))
                     new_sound:play()
                 end,
                 update_sounds = function(_)
                     -- Notes do not linger, nothing to update
                 end,
                 stop_one_sound_immediately = function()
-                    -- Notes do not linger and so there's nothing to clean
+                    track_instruction_states = {}   -- not actually "one sound", but the important part is that it's 1 instruction. (Since stop_one_sound_immediately is used in emergency stop.)
                 end,
                 stop_all_sounds_immediately = function()
-                    -- Notes do not linger and so there's nothing to clean
+                    track_instruction_states = {}
                 end,
                 is_finished = function()
                     -- Notes do not linger and so there's nothing to clean

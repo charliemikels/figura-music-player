@@ -8,7 +8,7 @@ local print_instrument_factory = {
         sustain = true          -- Notes can "ring" for any amount of time. (Unlike music block notes)
     },
 
-    new_instance = function(params)
+    new_instance = function(params, notify_ui_function)
 
         ---@type table{time_started: number, instruction: Instruction}[]
         local active_instructions = {}
@@ -16,10 +16,18 @@ local print_instrument_factory = {
 
         ---@type Instrument
         new_instance = {
-            play_instruction = function(instruction, _, time_since_due)
-                print("start: " .. tostring(instruction.note) .. " on track" .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
+            play_instruction = function(instruction, _, time_due)
+
+                if instruction.is_track_instruction then
+                    ---@cast instruction TrackInstruction
+                    print("update: " .. tostring(instruction.type) .. " to " .. tostring(instruction.value))
+                    return
+                end
+                ---@cast instruction NoteInstruction
+
+                print("start: " .. tostring(instruction.note) .. " on track " .. tostring(instruction.track_index) .. " for " .. tostring(instruction.duration) )
                 table.insert(active_instructions, {
-                    time_started = client.getSystemTime() - time_since_due,
+                    time_started = time_due,
                     instruction = instruction
                 })
             end,

@@ -22,13 +22,13 @@ local packet_enums_api = require("./packet_enums") ---@type PacketEnumsAPI
 
 -- Ping limits (see https://figura-wiki.pages.dev/tutorials/Pings#ping-rate-limiting )
 -- Fewer than 32 pings in one second (~32ms between packets min)
--- Fewer than 1024 bytes per second (~1 byte/mili)
+-- Fewer than 1024 bytes per second (~1 byte/milli)
 
-local pings_per_second = 6      -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer might lag behind. (viewer can't process more than one ping per TICK (20 per second).)
+local pings_per_second = 6    -- Keep between, 4 and 18. Too low: packets are too big to process. Too big, viewer might lag behind. (viewer can't process more than one ping per TICK (20 per second).)
 local bytes_per_second = 400    -- 400 is about as high as you can get without dropping too many packets. If it's a good day, you can get away with something much higher, but 400 is a safe default.
 
 
-local discard_note_modifiers = false      -- Disables all instruction modifiers. Things like volume control and pitch bending. These can take up a lot of space, so disabling them can significantly improve buffer times (at cost of worse quality)
+local discard_track_instructions = false      -- Disables all instruction modifiers. Things like volume control and pitch bending. These can take up a lot of space, so disabling them can significantly improve buffer times (at cost of worse quality)
 
 --- Baseline temporal resolution for modifiers.
 ---
@@ -39,9 +39,6 @@ local discard_note_modifiers = false      -- Disables all instruction modifiers.
 --- few modifiers to significantly improve buffer times.
 ---@type integer
 local target_modifier_temporal_resolution = 35
-
-
-
 
 local do_debug_prints = false
 
@@ -361,296 +358,264 @@ local function build_header_packets(song, buffer_delay)
     return packet_data_bytes_to_string(packet)
 end
 
---- For use with song_instruction_to_packet_parts()
----
---- A simple wrapper so that I can reuse the "add modifier" code
----@param modifier InstructionModifier          The modifier to add
----@param instruction_start_time number         The absolute start time for the parent instruction
----@param instruction_modifier_list_id integer  The note ID to add this modifier to.
----@return {start_time: number, packet_part: PartialPacketDataBytes}
-local function modifier_to_packet_part(modifier, instruction_start_time, instruction_modifier_list_id)
-    ---@type PartialPacketDataBytes
-    local modifier_packet_part = {}
-    union_tables(modifier_packet_part, uint_to_bytes(math.floor(modifier.start_time - instruction_start_time)))    -- Modifier start time is relative to start of song. Compress to be relative to instruction
-    union_tables(modifier_packet_part, uint_to_bytes(nil))
-        -- nil signals that this is a modifier for an instruction we've (probably) already sent
-        -- meta tracks in the song itself use track_id == 0, so we're safe to use nil
-    union_tables(modifier_packet_part, uint_to_bytes(instruction_modifier_list_id))
-    union_tables(modifier_packet_part, uint_to_bytes(packet_enums_api.modifier_key_to_number[modifier.type]))
-
-    local value_bytes = (
-        packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier.type]]
-        and number_to_bytes(modifier.value)
-        or uint_to_bytes(modifier.value)
-    )
-
-    union_tables(modifier_packet_part, value_bytes)
-    return {start_time = modifier.start_time, packet_part = modifier_packet_part}
-end
-
---- If the last seen modifier was excluded due to minimum_time_between_modifiers, reinclude it because it was the start of a gap.
+--- When deciding if a TrackInstruction should be included, always include if there are no TrackInstructions within this time window.
 ---@type integer
 local modifier_gap_threshold = math.floor(target_modifier_temporal_resolution * 1.25)
 
 --- Encodes a song instruction into PartialPacketDataBytes.
----
---- It also splits any recognized modifiers into their own list of PartialPacketDataBytes, and makes sure their IDs are synced to the root instruction
----@param instruction Instruction
----@param packet_start_time number      The start time of the current packet. Used to calculate the delta for this instruction.
----@param modifiers_tracker PacketEncoderModifiersTracker
----@return {instruction_part_and_start: {start_time: number, packet_part: PartialPacketDataBytes}, modifier_parts_and_starts: {start_time: number, packet_part: PartialPacketDataBytes}[] }
-local function song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
-    local modifier_packet_parts = {}
+---@param instruction AnyInstruction
+---@param packet_start_time number?      The start time of the current packet. Used to calculate the delta for this instruction. Nil is a special case for context instructions. Basically, "Copy this packet's start time"
+---@return PartialPacketDataBytes
+local function song_instruction_to_packet_parts(instruction, packet_start_time)
+    local instruction_packet_part = {}  ---@type PartialPacketDataBytes
+    local packet_relative_start_time = packet_start_time and math.floor(instruction.start_time - packet_start_time) or nil
 
-    local instruction_packet_part_and_start = {start_time = instruction.start_time, packet_part = {}}
+    if instruction.is_track_instruction then
+        ---@cast instruction TrackInstruction
 
-    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(math.floor(instruction.start_time - packet_start_time)))
-    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.track_index))
-    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(math.floor(instruction.duration)))
-    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.note))
-    union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction.start_velocity)) -- This is a normal instruction.
+        union_tables(instruction_packet_part, uint_to_bytes(packet_relative_start_time))    -- start time of this instruction relative to the packet's start time.
+        union_tables(instruction_packet_part, uint_to_bytes(nil))   -- typically, this would be a track index in this slot. But set it to nil to know this isn't a normal NoteInstruction.
+        union_tables(instruction_packet_part, uint_to_bytes(instruction.track_index))   -- Track-level instructions still need to know what track they belong to.
+        union_tables(instruction_packet_part, uint_to_bytes(packet_enums_api.modifier_key_to_number[instruction.type]))
+        union_tables(instruction_packet_part, number_to_bytes(instruction.value))
 
-    if discard_note_modifiers or not (instruction.modifiers and next(instruction.modifiers)) then -- This instruction has no modifiers.
-        union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(nil))
-    else    -- this instruction has modifiers.
-        -- Assign a unique note modifier tracker ID
+    else
+        ---@cast instruction NoteInstruction
 
-        local instruction_modifier_list_id = modifiers_tracker.id_counter
-        modifiers_tracker.id_counter = modifiers_tracker.id_counter + 1
-        union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(instruction_modifier_list_id))
+        union_tables(instruction_packet_part, uint_to_bytes(packet_relative_start_time))
+        union_tables(instruction_packet_part, uint_to_bytes(instruction.track_index))
+        if instruction.duration == nil then printTable(instruction) end
+        union_tables(instruction_packet_part, uint_to_bytes(math.floor(instruction.duration)))
+        union_tables(instruction_packet_part, uint_to_bytes(instruction.note))
+        union_tables(instruction_packet_part, uint_to_bytes(instruction.start_velocity))
 
-
-        -- Stores some modifiers sorted by type. Used to drop some modifiers and reduce temporal resolution
-        ---@type table<string, {first_start_time: integer, total_added: integer, last_added: InstructionModifier?, last_seen: InstructionModifier}>
-        local modifier_subset_tracker = {}
-
-        -- make new packet parts for each modifier
-        for _, modifier in ipairs(instruction.modifiers) do
-            if not packet_enums_api.modifier_key_to_number[modifier.type] then
-                if not modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] then
-                    modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = 1
-                    print_debug(
-                        "song_instruction_to_packet_parts: unrecognized modifier type: `"
-                            ..tostring(modifier.type)
-                            .."`.\n"
-                            .."instruction.start_time: "
-                            ..tostring(instruction.start_time)
-                            ..", instruction.note: "
-                            ..tostring(instruction.note)
-                            .."`.\n"
-                            .."This warning will be suppressed for the rest of this song."
-                        , true
-                    )
-                else
-                    modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] = modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type[modifier.type] + 1
-                end
-            else
-                if not modifier_subset_tracker[modifier.type] then
-                    -- first of this type.
-
-                    table.insert(modifier_packet_parts, modifier_to_packet_part(
-                        modifier,
-                        instruction.start_time,
-                        instruction_modifier_list_id
-                    ))
-
-                    modifier_subset_tracker[modifier.type] = {
-                        first_start_time = modifier.start_time,
-                        total_added = 1,
-                        last_added = modifier,
-                        last_seen = modifier
-                    }
-
-                else
-
-                    -- Check if the previous modifier was the end of a chain of modifiers, and the start of a gap
-                    if      modifier_subset_tracker[modifier.type].last_seen ~= modifier_subset_tracker[modifier.type].last_added
-                        and modifier.start_time - modifier_subset_tracker[modifier.type].last_seen.start_time > modifier_gap_threshold
-                    then
-                        -- The last_seen modifier was not added in the normal round, but it was the start of a "gap" where there were no additional modifiers.
-                        -- Add the missed modifier before adding the current modifier. That way the whole gap will have the correct sound.
-
-                        table.insert(modifier_packet_parts, modifier_to_packet_part(
-                            modifier_subset_tracker[modifier.type].last_seen,
-                            instruction.start_time,
-                            instruction_modifier_list_id
-                        ))
-                        modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
-                        modifier_subset_tracker[modifier.type].last_added = modifier_subset_tracker[modifier.type].last_seen
-                    end
-
-                    -- Check if current modifier should be added
-                    if  modifier.start_time >= (
-                            modifier_subset_tracker[modifier.type].first_start_time
-                            + (target_modifier_temporal_resolution * modifier_subset_tracker[modifier.type].total_added)
-                        )
-                    then
-                        -- this modifier is at the right time. Add it.
-
-                        table.insert(modifier_packet_parts, modifier_to_packet_part(modifier, instruction.start_time, instruction_modifier_list_id))
-
-                        modifier_subset_tracker[modifier.type].total_added = modifier_subset_tracker[modifier.type].total_added + 1
-                        modifier_subset_tracker[modifier.type].last_added = modifier
-                    end
-
-                    modifier_subset_tracker[modifier.type].last_seen = modifier
-                end
+        if instruction.track_index == 0 then -- This instruction is a song-level meta event     -- TODO: should song-level events become some sort of SongInstruction type?
+            -- we'll need to add in any extra data from instruction.meta_event_data
+            local count = 0
+            for _, _ in pairs(instruction.meta_event_data) do
+                count = count + 1
             end
-        end
+            union_tables(instruction_packet_part, uint_to_bytes(count))
 
-        -- Make sure the last modifier of each type was included.
-        for _, modifier_subset_info in pairs(modifier_subset_tracker) do
-            if modifier_subset_info.last_seen.start_time > modifier_subset_info.last_added.start_time then
-                -- the modifier that was last added was not the last seen.
-                -- Add in the last seen modifier so that we the bookends of this modifier list.
-                table.insert(modifier_packet_parts, modifier_to_packet_part(modifier_subset_info.last_seen, instruction.start_time, instruction_modifier_list_id))
+            for key, val in pairs(instruction.meta_event_data) do
+                union_tables(instruction_packet_part, string_to_bytes(key))
+                union_tables(instruction_packet_part, uint_to_bytes(val))
             end
         end
     end
 
-    if instruction.track_index == 0 then -- This instruction is a song-level meta event
-        -- we'll need to add in any extra data from instruction.meta_event_data
-        local count = 0
-        for _, _ in pairs(instruction.meta_event_data) do
-            count = count + 1
-        end
-        union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(count))
-
-        for key, val in pairs(instruction.meta_event_data) do
-            union_tables(instruction_packet_part_and_start.packet_part, string_to_bytes(key))
-            union_tables(instruction_packet_part_and_start.packet_part, uint_to_bytes(val))
-        end
-    end
-
-    return {instruction_part_and_start = instruction_packet_part_and_start, modifier_parts_and_starts = modifier_packet_parts}
+    return instruction_packet_part
 end
 
---- The big one that loops through all instructions, and their modifiers, and creates a series of packets.
+
+--- The big one that loops through all instructions and creates a series of packets.
 ---@see song_to_packets
 ---@param song Song
 ---@return PacketDataString[] data_packets        -- Fully formed packets ready to be bundled and shipped.
 ---@return integer buffer_delay_in_milliseconds
 local function build_data_packets_and_buffer_time(song)
 
-    --- A counter that lets us generate unique IDs for any note that has a modifier
-    ---@class PacketEncoderModifiersTracker
-    local modifiers_tracker = {
-        id_counter = 0, ---@type integer A counter that lets us have a unique ID for every note that has a modifier in this song.
-        total_number_of_unrecognized_modifier_types_by_type = {}  ---@type table<string, integer>
-    }
-
     ---@type PacketDataBytes[]
     local data_packets = {}
     local required_buffer_delay_in_milliseconds = 0
 
-    local current_packet_builder = {}
-    ---@type {start_time: number, packet_part: PartialPacketDataBytes}[]
-    local unhandled_modifiers_start_part_pairs = {}
-    local packet_start_time = song.instructions[1].start_time
-    union_tables(current_packet_builder, uint_to_bytes(math.floor(packet_start_time)))
+    local current_packet_builder = {}   ---@type PartialPacketDataBytes[]
+    local current_packet_builder_sum_cache = 0
+    local current_packet_builder_sum_last_len = 0
 
-    --- Checks if there is room for the proposed DataPacketPart to be included in the current Packet
+    ---@return integer
+    local function get_current_packet_builder_sum()
+        if #current_packet_builder == current_packet_builder_sum_last_len then return current_packet_builder_sum_cache end
+
+        if #current_packet_builder < current_packet_builder_sum_last_len then
+            current_packet_builder_sum_cache = 0
+            current_packet_builder_sum_last_len = 0
+        end
+
+        -- print("loop starting")
+        for i = current_packet_builder_sum_last_len+1, #current_packet_builder, 1 do
+            -- print(i, current_packet_builder_sum_last_len, #current_packet_builder)
+            current_packet_builder_sum_cache = current_packet_builder_sum_cache + #current_packet_builder[i]
+        end
+
+        current_packet_builder_sum_last_len = #current_packet_builder
+
+        return current_packet_builder_sum_cache
+
+        -- -- Brute force alternative
+        -- local sum = 0
+        -- for _, packet_bytes in pairs(current_packet_builder) do
+        --     sum = sum + #packet_bytes
+        -- end
+        -- return sum
+    end
+
+    local current_packet_start_time = song.instructions[1].start_time
+    local start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time))
+    table.insert(current_packet_builder, start_time_in_bytes)
+
+
+    ---@type table<integer, table<string, TrackInstruction>>    -- Always has the last seen modifier. Indexed by [TrackInstruction.track_index][TrackInstruction.type]
+    local context_track_instructions = {}
+    local next_context_track_index = nil    ---@type integer?   used with a next function to track what modifier to add this packet.
+    local next_context_track_type = nil     ---@type string?    used with a next function to track what modifier to add this packet.
+
+    local last_added_track_instructions = {}    ---@type table<integer, table<string, TrackInstruction>>    -- indexed by [TrackInstruction.track_index][TrackInstruction.type]
+
+    --- May update current_packet, data_packets, and required_buffer_delay_in_milliseconds if needed
     ---
-    --- Also runs the bulk of the buffer time calculations
-    ---@param proposed_packet_start_part_pair {start_time: number, packet_part: PartialPacketDataBytes}
-    ---@param new_start_time number     The start time of the next packet, if one needs to be created.
-    ---@return boolean instruction_packet_should_be_rebuilt
-    local function check_and_make_room(proposed_packet_start_part_pair, new_start_time)
-        local instruction_packet_should_be_rebuilt = false
-        if #current_packet_builder + #proposed_packet_start_part_pair.packet_part >= max_packet_length then
-            -- This next packet part would be too large for this data packet. Save and reset the packet builder before adding this packet
-            table.insert(data_packets, current_packet_builder)
+    ---@param instruction AnyInstruction
+    ---@param instruction_index_in_song integer index into song.instructions for this instruction.
+    local function add_instruction_to_final_packet_queue(instruction, instruction_index_in_song)
+        local instruction_packet_part = song_instruction_to_packet_parts(instruction, current_packet_start_time)
 
-            packet_start_time = new_start_time
+        local instruction_will_not_fit_in_current_packet = get_current_packet_builder_sum() + #instruction_packet_part >= max_packet_length
+        if instruction_will_not_fit_in_current_packet then -- we need to end the current packet and initialize a new one.
+            local finished_packet = {}  ---@type PacketDataBytes
+
+            for _, part in ipairs(current_packet_builder) do
+                union_tables(finished_packet, part);
+            end
+            table.insert(data_packets, finished_packet)
+
             current_packet_builder = {}
-            union_tables(current_packet_builder, uint_to_bytes(math.floor(new_start_time)))
+            current_packet_builder_sum_cache = 0
+            current_packet_builder_sum_last_len = 0
 
-            if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > proposed_packet_start_part_pair.start_time then
+            current_packet_start_time = instruction.start_time
+            local current_packet_start_time_in_bytes = uint_to_bytes(math.floor(current_packet_start_time)) -- packet start time.
+            table.insert(current_packet_builder, current_packet_start_time_in_bytes)
+
+            if ((#data_packets) * target_milliseconds_between_packets) - required_buffer_delay_in_milliseconds > current_packet_start_time then
                 -- Too much time has passed for us to play this instruction on time.
                 -- Bump required_buffer_delay_in_milliseconds so that the song starts later, giving us more time to send packets.
-                required_buffer_delay_in_milliseconds = ((#data_packets) * target_milliseconds_between_packets) - proposed_packet_start_part_pair.start_time
+                required_buffer_delay_in_milliseconds = ((#data_packets) * target_milliseconds_between_packets) - current_packet_start_time
                 print_debug("buffer time changed: "..tostring(required_buffer_delay_in_milliseconds / 1000).."s")
             end
 
-            instruction_packet_should_be_rebuilt = true
-        end
-        return instruction_packet_should_be_rebuilt
-    end
+            -- rebuild instruction_packet around new packet_start_time.
+            instruction_packet_part = song_instruction_to_packet_parts(instruction, current_packet_start_time)
 
-    for _, instruction in ipairs(song.instructions) do
-        local instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
-        local instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-        local modifier_start_part_pairs_from_this_instruction = instruction_and_modifier_packet_parts.modifier_parts_and_starts
-
-        -- insert any modifiers that go before this instruction
-
-        local previously_unhandled_modifiers_indexes_to_remove = {}
-        for index, unhandled_modifier_start_part_pair in pairs(unhandled_modifiers_start_part_pairs) do
-            if unhandled_modifier_start_part_pair.start_time <= instruction.start_time then
-                -- This modifier comes before the current instruction. Add it first
-                table.insert(previously_unhandled_modifiers_indexes_to_remove, index)
-
-                local should_use_the_new_packet_start_time =
-                    check_and_make_room(unhandled_modifier_start_part_pair, instruction.start_time)
-                if should_use_the_new_packet_start_time then
-                    instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
-                    instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-                    modifier_start_part_pairs_from_this_instruction = instruction_and_modifier_packet_parts.modifier_parts_and_starts
-                end
-                union_tables(current_packet_builder, unhandled_modifier_start_part_pair.packet_part)
-
-            else
-                break
-            end
-        end
-
-        for _, index_to_remove in ipairs(previously_unhandled_modifiers_indexes_to_remove) do
-            unhandled_modifiers_start_part_pairs[index_to_remove] = nil
-        end
-
-        -- Actually add the current instruction
-
-        local should_rebuild = check_and_make_room(instruction_packet_part_with_start_time, instruction.start_time)
-        if should_rebuild then
-            instruction_and_modifier_packet_parts = song_instruction_to_packet_parts(instruction, packet_start_time, modifiers_tracker)
-            instruction_packet_part_with_start_time = instruction_and_modifier_packet_parts.instruction_part_and_start
-            modifier_start_part_pairs_from_this_instruction = instruction_and_modifier_packet_parts.modifier_parts_and_starts
-        end
-        union_tables(current_packet_builder, instruction_packet_part_with_start_time.packet_part)
-
-        -- Add modifiers for current instruction to the unhandled list. They will be handled in the next loop
-
-        union_tables(unhandled_modifiers_start_part_pairs, modifier_start_part_pairs_from_this_instruction)
-
-        -- clean up / resort unhandled modifiers table.
-
-        local unhandled_modifiers_list_requires_resort = (
-            #previously_unhandled_modifiers_indexes_to_remove > 0
-            or #modifier_start_part_pairs_from_this_instruction > 0
-        )
-        if unhandled_modifiers_list_requires_resort and #unhandled_modifiers_start_part_pairs > 1 then
-            table.sort(unhandled_modifiers_start_part_pairs, function (a, b)
-                if a and b then return a.start_time < b.start_time end
-                return (a and true or false)
+            local success, matching_context_instruction = pcall(function() -- pcall because I'm lazy and don't want to do all this nil checking.
+                return instruction.is_track_instruction and context_track_instructions[instruction.track_index][instruction.type] or nil
             end)
+
+            if success and matching_context_instruction then -- this current instruction should become the new context. Remove the match from the current context. It will be re-added when we insert this TrackInstruction.
+                context_track_instructions[instruction.track_index][instruction.type] = nil
+            end
+
+
+            -- Add context / catch-up TrackInstructions after enough time
+
+            if #data_packets % (math.ceil(pings_per_second)) == 0 then -- ~ 1 second should have passed. Let's include a catch-up / context TrackInstruction.
+
+                if (not next_context_track_index) or (not context_track_instructions[next_context_track_index]) then
+                    -- we have not selected a next_context_track_index. Select one now, if one exists
+                    next_context_track_index = next(context_track_instructions, next_context_track_index)
+                end
+                if next_context_track_index then    -- we found a track with TrackInstructions
+
+                    if (not next_context_track_type) or (not context_track_instructions[next_context_track_index][next_context_track_type]) then
+                        -- we have not selected a next_context_track_type. Select one now, if one exists
+                        next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
+                    end
+                    if next_context_track_type then
+                        -- both next_context_track_index and _type are set to something. Let's add the matching context TrackInstruction to the start of the packet, then advance the context list
+                        local context_instruction = context_track_instructions[next_context_track_index][next_context_track_type]
+
+                        table.insert(current_packet_builder, song_instruction_to_packet_parts(context_instruction, nil))
+
+                        -- see if most recently added instruction was actually a previously ignored instruction.
+                        if      last_added_track_instructions[next_context_track_index]
+                            and last_added_track_instructions[next_context_track_index][next_context_track_type] -- is truthy
+                            and last_added_track_instructions[next_context_track_index][next_context_track_type] ~= context_instruction
+                            and last_added_track_instructions[next_context_track_index][next_context_track_type].start_time < context_instruction.start_time
+                        then -- this context that we just added was probably a TrackInstruction that we had skipped over. Set it as the new "most recently added"
+                            last_added_track_instructions[next_context_track_index][next_context_track_type] = context_instruction
+                        end
+
+                        -- advance to next context part.
+                        next_context_track_type = next(context_track_instructions[next_context_track_index], next_context_track_type)
+                        if not next_context_track_type then -- we've ran out of types for this next_context_track_index. Advance next_context_track_index
+                            next_context_track_index = next(context_track_instructions, next_context_track_index) -- may still return nil, but the initializer will take care of it.
+                        end
+                    end
+                end
+            end -- end of context TrackInstructions
+        end -- end of instruction_will_not_fit
+
+        -- Insert instruction
+        if instruction.is_track_instruction then -- we need to decide if we should insert this TrackInstruction right now, or ignore it.
+            ---@cast instruction TrackInstruction
+
+            -- always add the instruction to the context. Why not. It'll be a 2nd chance to add this instruction early, tho the chance of that happening are very slim.
+            if not context_track_instructions[instruction.track_index] then context_track_instructions[instruction.track_index] = {} end
+            context_track_instructions[instruction.track_index][instruction.type] = instruction
+
+            local there_is_enough_time_between_this_track_instruction_and_the_one_before_it = (
+                (not last_added_track_instructions[instruction.track_index])    -- no TrackInstructions on this track. We can just add it now.
+                or (not last_added_track_instructions[instruction.track_index][instruction.type])   -- no TrackInstructions of this type on this track. We can just add it now.
+                or ( -- there must be a last_added instruction. if enough time has passed, we can add this instruction
+                    (last_added_track_instructions[instruction.track_index][instruction.type].start_time + target_modifier_temporal_resolution) < instruction.start_time    -- culprit somewhere here???
+                )
+            )
+
+            local function future_track_instructions_are_too_far_away_or_next_note_is_too_soon()
+                -- print("scanning ahead for instruction", instruction)
+                for i = instruction_index_in_song +1, #song.instructions, 1 do
+                    -- print(i)
+                    local test_instruction = song.instructions[i]
+                    if test_instruction.start_time > instruction.start_time + modifier_gap_threshold then
+                        -- we have not found a "landmark" instruction within range. Go ahead and insert this modifier now.
+
+                        -- print("no landmarks.", true)
+                        return true
+                    end
+                    if test_instruction.track_index == instruction.track_index then -- this instruction is relevant to us right now.
+                        if test_instruction.is_track_instruction then
+                            if test_instruction.type == instruction.type then -- this track instruction matches our own and is close to us. We don't need to insert right now.
+                                -- print("next matching track too soon.", false)
+                                return false
+                            end
+                            -- continue     -- here, test_instruction must be of a different TrackInstruction type. We don't really care about it. Let's continue to the next instruction
+                        else
+                            -- this is a normal note, and we have not seen a relevant track instruction between us and this note.
+                            -- So let's insert ourselves now so that we know that note will be ready to play
+
+                            -- print("normal note too soon.", true)
+                            return true
+                        end
+                    end
+                end
+            end
+
+            if there_is_enough_time_between_this_track_instruction_and_the_one_before_it or future_track_instructions_are_too_far_away_or_next_note_is_too_soon() then
+                -- print("added instruction")
+                table.insert(current_packet_builder, instruction_packet_part)
+                if not last_added_track_instructions[instruction.track_index] then last_added_track_instructions[instruction.track_index] = {} end
+                last_added_track_instructions[instruction.track_index][instruction.type] = instruction
+            end
+
+        else
+            table.insert(current_packet_builder, instruction_packet_part)
         end
     end
 
-    -- we exited the loop. There may be unhandled modifiers, and the current packet builder needs to be added to the data_packets_list
+    for instruction_index_in_song, instruction in ipairs(song.instructions) do
 
-    for _, unhandled_modifier_start_part_pair in pairs(unhandled_modifiers_start_part_pairs) do
-        check_and_make_room(unhandled_modifier_start_part_pair, unhandled_modifier_start_part_pair.start_time)
-        union_tables(current_packet_builder, unhandled_modifier_start_part_pair.packet_part)
-    end
-    table.insert(data_packets, current_packet_builder)
-
-    -- debug to notice unhandled modifier types
-    if next(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) then
-        print_debug("build_data_packets found some unrecognized note modifiers", true)
-        for modifier_name, ammount in pairs(modifiers_tracker.total_number_of_unrecognized_modifier_types_by_type) do
-            print_debug("  found "..tostring(ammount).." instances of the `"..modifier_name.."` modifier")
+        if not (instruction.is_track_instruction and discard_track_instructions) then
+            add_instruction_to_final_packet_queue(instruction, instruction_index_in_song)
         end
+
     end
+
+    -- assemble final packet.
+
+    local final_packet = {}
+    for _, part in ipairs(current_packet_builder) do
+        union_tables(final_packet, part)
+    end
+    table.insert(data_packets, final_packet)
 
     local data_packets_as_strings = {}  ---@type PacketDataString[]
     for _, data_packet_in_bytes in ipairs(data_packets) do

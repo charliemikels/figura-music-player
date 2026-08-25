@@ -40,14 +40,13 @@
 ---Stores enough data to apply settings about the song (number of tracks / assigned instruments / disabled tracks),
 ---and instructions ready to turn into packets.
 ---@class Song
----@field instructions Instruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
+---@field instructions AnyInstruction[]    -- Instructions does not account for packets sizes. That's for the network functions to worry about.
 ---@field name string
 ---@field duration number
 ---@field tracks Track[]
 ---@field buffer_start_time number?  The time when the song started buffering
 ---@field buffer_delay number?       The amount of time we need to wait before playing this song. This ensures we've received the required amount of packets to fully play the song.
 ---@field is_local boolean?          Is true if song data does not need to be pinged.
----@field packet_decoder_info PacketDecoderInfo?    Temporary space for Packet Decoder to track ongoing information.
 
 ---Tracks ProcessedSong are the step immediately before PlayingSong.
 ---@class Track
