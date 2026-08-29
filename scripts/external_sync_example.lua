@@ -1,7 +1,12 @@
 
--- Quick script to test the exporting features. Probably could git ignore this.
+-- Small example script for using the external data system.
+--
+-- Constantly Searches the world vars for instances of TL_FMP, and checks for any playing songs.
+-- Will visualize metronome data for nearest song.
+--
+-- The constant search isn't necessary. You could instead make a "get nearest FMP Song" that just gets called once.
 
-local known_avatars_with_tl_fmp = {}    ---@type table<UUID, SongPlayerExportedInfoApi>
+local known_avatars_with_tl_fmp = {}    ---@type table<UUID, {api:SongPlayerExportedInfoApi, song_position_pairs:{ [UUID]: Vector3}}>
 local last_checked_uuid = nil
 
 ---Creates a function that automatically steps through a table with each call, and recovers if a key returns nil
@@ -30,20 +35,23 @@ local function create_get_next_function(target)
     return get_next
 end
 
----@param our_reference SongPlayerExportedInfoApi
----@param external_api SongPlayerExportedInfoApi
+---@param our_reference {api:SongPlayerExportedInfoApi, song_position_pairs:{ [UUID]: Vector3}}
+---@param external_api {api:SongPlayerExportedInfoApi, song_position_pairs:{ [UUID]: Vector3}}
 local function has_api_changed(our_reference, external_api)
-    return our_reference.time_player_initialized() ~= external_api.time_player_initialized()
+    return our_reference.api.time_player_initialized() ~= external_api.api.time_player_initialized()
 end
 
 local next_world_var = create_get_next_function(world.avatarVars)
-local next_known_music_player_avatar = create_get_next_function(known_avatars_with_tl_fmp)
+local next_known_fmp_avatar = create_get_next_function(known_avatars_with_tl_fmp)
 
-events.TICK:register(function() -- passively find avatars with TL_FMP
-    local avatar_uuid, avatar_vars = next_world_var()
-
+---@param avatar_uuid UUID
+---@param avatar_vars { [string]:any }
+local function detect_and_record_new_fmp_avatars(avatar_uuid, avatar_vars)
     if avatar_vars["TL_FMP_exported_song_info_api"] and not known_avatars_with_tl_fmp[avatar_uuid] then -- first time seeing this avatar with vars for TL_FMP
-        known_avatars_with_tl_fmp[avatar_uuid] = avatar_vars["TL_FMP_exported_song_info_api"]
+        known_avatars_with_tl_fmp[avatar_uuid] = {
+            api = avatar_vars["TL_FMP_exported_song_info_api"],
+            song_position_pairs = {}
+        }
 
         -- local new_found_api = avatar_vars["TL_FMP_exported_song_info_api"] ---@type SongPlayerExportedInfoApi
         -- -- new_found_api.add_song_start_callback(function(song_uuid)
@@ -89,21 +97,37 @@ events.TICK:register(function() -- passively find avatars with TL_FMP
         -- -- end)
         return
     end
+end
 
+---@param avatar_uuid UUID
+---@param avatar_vars { [string]:any }
+local function detect_and_remove_now_invalid_fmp_avatars(avatar_uuid, avatar_vars)
     local success, result = pcall(has_api_changed, known_avatars_with_tl_fmp[avatar_uuid], avatar_vars["TL_FMP_exported_song_info_api"])
     if success and result then  -- Avatar was once valid and is not any more.
         -- print("lost TL_FMP avatar: "..fmp_avatar_uuid)
         known_avatars_with_tl_fmp[avatar_uuid] = nil
     end
-end)
+end
 
-
-events.TICK:register(function ()
-	local fmp_avatar_uuid, fmp_exported_api = next_known_music_player_avatar()
+local function search_fmp_avatars_for_new_playing_songs()
+    local fmp_avatar_uuid, fmp_exported_api = next_known_fmp_avatar()
 	if not fmp_avatar_uuid then return end
-	local song_uuids_with_position = fmp_exported_api:get_all_playing_song_uuids_and_positions()
+	local song_uuids_with_position = fmp_exported_api.api:get_all_playing_song_uuids_and_positions()
 	if next(song_uuids_with_position) then
 	    print("song detected")
 	    -- this avatar is playing a song.
 	end
+end
+
+
+
+
+
+
+events.TICK:register(function() -- passively find avatars with TL_FMP
+    local avatar_uuid, avatar_vars = next_world_var()
+    detect_and_record_new_fmp_avatars(avatar_uuid, avatar_vars)
+    detect_and_remove_now_invalid_fmp_avatars(avatar_uuid, avatar_vars)
+
+    search_fmp_avatars_for_new_playing_songs()
 end)
