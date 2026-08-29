@@ -1186,48 +1186,48 @@ if export_song_info then
             return return_table
         end,
 
-        ---Whenever this avatar starts a song, the callback function will be called with that song's UUID
-        ---@param fn fun(song_uuid:UUID)
-        add_song_start_callback = function (fn)
-            functions_to_call_when_song_started[fn] = true
-        end,
+        -- ---Whenever this avatar starts a song, the callback function will be called with that song's UUID
+        -- ---@param fn fun(song_uuid:UUID)
+        -- add_song_start_callback = function (fn)
+        --     functions_to_call_when_song_started[fn] = true
+        -- end,
 
-        ---@param key fun(song_uuid:UUID)
-        remove_song_start_callback = function (key)
-            functions_to_call_when_song_started[key] = nil
-        end,
+        -- ---@param key fun(song_uuid:UUID)
+        -- remove_song_start_callback = function (key)
+        --     functions_to_call_when_song_started[key] = nil
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(stop_reason:SongPlayerStopReason)
-        add_song_stop_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.register_stop_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(stop_reason:SongPlayerStopReason)
+        -- add_song_stop_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.register_stop_callback(fn)
+        --     end
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(stop_reason:SongPlayerStopReason)
-        remove_song_stop_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.remove_stop_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(stop_reason:SongPlayerStopReason)
+        -- remove_song_stop_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.remove_stop_callback(fn)
+        --     end
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
-        add_song_metronome_update_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.register_metronome_update_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
+        -- add_song_metronome_update_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.register_metronome_update_callback(fn)
+        --     end
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
-        remove_song_metronome_update_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.remove_metronome_update_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
+        -- remove_song_metronome_update_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.remove_metronome_update_callback(fn)
+        --     end
+        -- end,
 
         ---@param uuid UUID
         ---@return string
