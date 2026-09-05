@@ -144,18 +144,22 @@ local function display_loop()
     end)
     if success and song_is_in_playing_list then
         local current_api = known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api
-        if current_api.get_song_start_time(nearest_song_uuid) > client.getSystemTime() then
-            host:setActionbar("Buffering `"..current_api.get_song_name(nearest_song_uuid))
+        if current_api.get_song_is_buffering_or_needs_to_buffer(nearest_song_uuid) then
+            host:setActionbar("Buffering \""..current_api.get_song_name(nearest_song_uuid).."\" | "..math.ceil(current_api.get_song_remaining_buffer_time(nearest_song_uuid)/1000).."s")
             return
         end
+
         local metronome_info = current_api.get_metronome_info(nearest_song_uuid)
-
-        local this_beat = math.floor(metronome_info.get_current_beat() )
-
 
 
         local local_inner_string =
-            math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
+            current_api.get_song_name(nearest_song_uuid)
+            .. "  |  " .. math.ceil(current_api.get_song_remaining_time(nearest_song_uuid)/1000).."s ".. math.floor(current_api.get_song_progress(nearest_song_uuid)*100).."%"
+            .. "  |  " .. "m"..math.floor(metronome_info.get_current_measure() +1) .. " . " .. "b"..math.floor(metronome_info.get_current_beat_in_measure()+1)
+            .. " ("..string.format("%.3f", metronome_info.get_current_beat())..")"
+
+
+        local this_beat = math.floor(metronome_info.get_current_beat() )
 
         if last_beat ~= this_beat then
             last_beat = this_beat
