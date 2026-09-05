@@ -52,49 +52,6 @@ local function detect_and_record_new_fmp_avatars(avatar_uuid, avatar_vars)
             api = avatar_vars["TL_FMP_exported_song_info_api"],
             -- song_position_pairs = {}
         }
-
-        -- local new_found_api = avatar_vars["TL_FMP_exported_song_info_api"] ---@type SongPlayerExportedInfoApi
-        -- -- new_found_api.add_song_start_callback(function(song_uuid)
-        -- --     -- host:setActionbar("Song: "..song_uuid, true)
-
-        -- --     local bpm_print_update_loop_name = "TEST_FISH_FISH_TEST!!"
-        -- --     local last_beat = -1
-        -- --     new_found_api.add_song_metronome_update_callback(song_uuid, function(metronome_info)
-        -- --         events.TICK:remove(bpm_print_update_loop_name)
-
-        -- --         events.TICK:register(
-        -- --             function ()
-        -- --                 local this_beat = math.floor(metronome_info.get_current_beat() )
-
-        -- --                 local current_beat_printable = math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
-
-        -- --                 if last_beat ~= this_beat then
-        -- --                     last_beat = this_beat
-
-        -- --                     if math.floor(metronome_info.get_current_beat_in_measure()) == 0 then
-        -- --                         host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
-        -- --                     else
-        -- --                         host:setActionbar("▊ ".. current_beat_printable .." ▊")
-        -- --                     end
-
-        -- --                 else
-        -- --                     host:setActionbar(current_beat_printable)
-        -- --                 end
-
-        -- --             end,
-        -- --             bpm_print_update_loop_name
-        -- --         )
-
-        -- --     end)
-
-
-        -- --     new_found_api.add_song_stop_callback(song_uuid, function()
-        -- --         -- print("Song ended")
-        -- --         events.TICK:remove(bpm_print_update_loop_name)
-        -- --     end)
-
-
-        -- -- end)
         return
     end
 end
@@ -133,16 +90,15 @@ local last_beat = -1
 local display_loop_event = events.TICK
 local display_loop_name = "display_loop ".. client.intUUIDToString(client:generateUUID())
 local function kill_display_loop()
-    print("Killing loop")
     last_beat = -1
     display_loop_event:remove(display_loop_name)
 end
 
 local function display_loop()
-    local success, song_is_in_playing_list = pcall(function()
+    local success, nearest_song_is_still_playing = pcall(function()
         return nearest_song_avatar_uuid and nearest_song_uuid and known_avatars_with_tl_fmp[nearest_song_avatar_uuid] and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
     end)
-    if success and song_is_in_playing_list then
+    if success and nearest_song_is_still_playing then
         local current_api = known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api
         if current_api.get_song_is_buffering_or_needs_to_buffer(nearest_song_uuid) then
             host:setActionbar("Buffering \""..current_api.get_song_name(nearest_song_uuid).."\" | "..math.ceil(current_api.get_song_remaining_buffer_time(nearest_song_uuid)/1000).."s")
@@ -153,9 +109,10 @@ local function display_loop()
 
 
         local local_inner_string =
-            current_api.get_song_name(nearest_song_uuid)
+            (avatar:getUUID() ~= nearest_song_avatar_uuid and "Nearby: " or "Playing: ")
+            .. "\"" .. current_api.get_song_name(nearest_song_uuid) .. "\""
             .. "  |  " .. math.ceil(current_api.get_song_remaining_time(nearest_song_uuid)/1000).."s ".. math.floor(current_api.get_song_progress(nearest_song_uuid)*100).."%"
-            .. "  |  " .. "m"..math.floor(metronome_info.get_current_measure() +1) .. " . " .. "b"..math.floor(metronome_info.get_current_beat_in_measure()+1)
+            .. "  |  " .. math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1)
             .. " ("..string.format("%.3f", metronome_info.get_current_beat())..")"
 
 
