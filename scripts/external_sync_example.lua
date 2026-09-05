@@ -7,8 +7,6 @@
 -- The constant search isn't necessary. You could instead make a "get nearest FMP Song" that just gets called once.
 
 local known_avatars_with_tl_fmp = {}    ---@type table<UUID, {api:SongPlayerExportedInfoApi, song_position_pairs:{ [UUID]: Vector3}}>
--- local last_checked_uuid = nil
-
 
 
 ---Creates a function that automatically steps through a table with each call, and recovers if a key returns nil
@@ -27,19 +25,11 @@ local function create_get_next_function(target)
     local last_key = nil
     local function get_next()
         local current_state_of_table = get_table()
-        -- print("-----")
-        -- print("get_next", current_state_of_table, last_key, current_state_of_table[last_key])
         local key, value = next(current_state_of_table, current_state_of_table[last_key] and last_key or nil)
         if not key then -- either the list is empty, or the last tested key was the last key.
-            -- print("key is bad.")
-            -- print(key)
             key, value = next(current_state_of_table, nil)
-
-            -- print(key, value)
-            -- error()
         end
         last_key = key
-        -- print("get_next out", key, value)
         return key, value
     end
     return get_next
@@ -139,43 +129,39 @@ local function update_song_position_pairs_for_fmp_avatar(fmp_avatar_uuid, fmp_ex
 	return (next(song_uuids_and_positions) and true or false)
 end
 
-
-
--- ---@return boolean nearest_was_updated
--- local function refine_nearest_song_choice()
---     local success, song_position = pcall(function()
---         return known_avatars_with_tl_fmp[next_test_nearest_avatar_uuid].api.get_song_position(next_test_nearest_song_uuid)
---     end)
---     if success and song_position then -- this is a playing song. Compare with current closest.
---         local nearest_song_position =
---             known_avatars_with_tl_fmp[nearest_song_avatar_uuid]
---             and known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api.get_song_position(nearest_song_uuid)
---             or nil
-
---         if (not nearest_song_position)
---             or (
---                 (client:getCameraPos() - song_position):lengthSquared()
---                 < (client:getCameraPos() - nearest_song_position):lengthSquared()
---             )
---         then -- this song is closer (or old song doesn't exist)
---             nearest_song_avatar_uuid = nil
---         end
---     end
---     return false
--- end
-
+local last_beat = -1
+local display_loop_event = events.TICK
 local display_loop_name = "display_loop ".. client.intUUIDToString(client:generateUUID())
 local function kill_display_loop()
     print("Killing loop")
-    events.RENDER:remove(display_loop_name)
+    last_beat = -1
+    display_loop_event:remove(display_loop_name)
 end
 
 local function display_loop()
     local success, song_is_in_playing_list = pcall(function()
-        return nearest_song_avatar_uuid and nearest_song_uuid and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
+        return nearest_song_avatar_uuid and nearest_song_uuid and known_avatars_with_tl_fmp[nearest_song_avatar_uuid] and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
     end)
     if success and song_is_in_playing_list then
-        print("display loop")
+        local metronome_info = known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api.get_metronome_info(nearest_song_uuid)
+
+        local this_beat = math.floor(metronome_info.get_current_beat() )
+
+        local current_beat_printable = math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
+
+        if last_beat ~= this_beat then
+            last_beat = this_beat
+
+            if math.floor(metronome_info.get_current_beat_in_measure()) == 0 then
+                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
+            else
+                host:setActionbar("▊ ".. current_beat_printable .." ▊")
+            end
+
+        else
+            host:setActionbar(current_beat_printable)
+        end
+
     else
         kill_display_loop()
     end
@@ -194,16 +180,14 @@ events.TICK:register(function() -- passively find avatars with TL_FMP
     local fmp_avatar_uuid, fmp_exported_api = next_known_fmp_avatar()
     local this_avatar_is_playing_at_least_one_song = update_song_position_pairs_for_fmp_avatar(fmp_avatar_uuid, fmp_exported_api)
     if this_avatar_is_playing_at_least_one_song then
-        if events.RENDER:getRegisteredCount(display_loop_name) < 1 then -- start display event if it's not running yet.
-            events.RENDER:register(display_loop, display_loop_name)
+        if display_loop_event:getRegisteredCount(display_loop_name) < 1 then -- start display event if it's not running yet.
+            display_loop_event:register(display_loop, display_loop_name)
         end
 
         local success, current_nearest_song_position = pcall(function() return known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api.get_song_position(nearest_song_uuid) end)
         local current_song_distance_to_player = success and current_nearest_song_position
             and (client:getCameraPos() - current_nearest_song_position):lengthSquared()
             or math.huge -- set distance to beat.
-
-        print("print check me", fmp_avatar_uuid, known_avatars_with_tl_fmp, known_avatars_with_tl_fmp[fmp_avatar_uuid])
 
         for test_song_uuid, test_song_position in pairs(known_avatars_with_tl_fmp[fmp_avatar_uuid].api:get_all_playing_song_uuids_and_positions()) do
             local test_song_distance_to_camera = (client:getCameraPos() - test_song_position):lengthSquared()
@@ -213,8 +197,5 @@ events.TICK:register(function() -- passively find avatars with TL_FMP
                 nearest_song_uuid = test_song_uuid
             end
         end
-        -- See if song watcher is running. If it is see if this song is closer. Otherwise, start song watcher.
     end
-
-    -- local nearest_was_updated = refine_nearest_song_choice()
 end)
