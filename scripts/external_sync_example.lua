@@ -85,8 +85,17 @@ local function display_loop()
     end)
     if success and nearest_song_is_still_playing then
         local current_api = apis_for_known_fmp_avatars[nearest_song_avatar_uuid]
+
+        if (current_api.get_song_position(nearest_song_uuid) - client:getCameraPos()):lengthSquared() > 256 then    -- too far away. do not update
+            -- 256 == 16^2. It perfectly lines up with the default max distance for most instruments.
+            return
+        end
+
         if current_api.get_song_is_buffering_or_needs_to_buffer(nearest_song_uuid) then
-            host:setActionbar("Buffering \""..current_api.get_song_name(nearest_song_uuid).."\" | "..math.ceil(current_api.get_song_remaining_buffer_time(nearest_song_uuid)/1000).."s")
+            host:setActionbar(
+                (avatar:getUUID() ~= nearest_song_avatar_uuid and "Nearby: " or "")..
+                "Buffering \""..current_api.get_song_name(nearest_song_uuid).."\" | "..math.ceil(current_api.get_song_remaining_buffer_time(nearest_song_uuid)/1000).."s"
+            )
             return
         end
 
