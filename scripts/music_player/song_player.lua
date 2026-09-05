@@ -1186,48 +1186,48 @@ if export_song_info then
             return return_table
         end,
 
-        ---Whenever this avatar starts a song, the callback function will be called with that song's UUID
-        ---@param fn fun(song_uuid:UUID)
-        add_song_start_callback = function (fn)
-            functions_to_call_when_song_started[fn] = true
-        end,
+        -- ---Whenever this avatar starts a song, the callback function will be called with that song's UUID
+        -- ---@param fn fun(song_uuid:UUID)
+        -- add_song_start_callback = function (fn)
+        --     functions_to_call_when_song_started[fn] = true
+        -- end,
 
-        ---@param key fun(song_uuid:UUID)
-        remove_song_start_callback = function (key)
-            functions_to_call_when_song_started[key] = nil
-        end,
+        -- ---@param key fun(song_uuid:UUID)
+        -- remove_song_start_callback = function (key)
+        --     functions_to_call_when_song_started[key] = nil
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(stop_reason:SongPlayerStopReason)
-        add_song_stop_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.register_stop_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(stop_reason:SongPlayerStopReason)
+        -- add_song_stop_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.register_stop_callback(fn)
+        --     end
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(stop_reason:SongPlayerStopReason)
-        remove_song_stop_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.remove_stop_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(stop_reason:SongPlayerStopReason)
+        -- remove_song_stop_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.remove_stop_callback(fn)
+        --     end
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
-        add_song_metronome_update_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.register_metronome_update_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
+        -- add_song_metronome_update_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.register_metronome_update_callback(fn)
+        --     end
+        -- end,
 
-        ---@param uuid UUID
-        ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
-        remove_song_metronome_update_callback = function (uuid, fn)
-            if all_playing_song_controllers[uuid] then
-                all_playing_song_controllers[uuid].controller.remove_metronome_update_callback(fn)
-            end
-        end,
+        -- ---@param uuid UUID
+        -- ---@param fn fun(metronome_info:SongPlayerMetronomeInfo)
+        -- remove_song_metronome_update_callback = function (uuid, fn)
+        --     if all_playing_song_controllers[uuid] then
+        --         all_playing_song_controllers[uuid].controller.remove_metronome_update_callback(fn)
+        --     end
+        -- end,
 
         ---@param uuid UUID
         ---@return string
@@ -1249,9 +1249,45 @@ if export_song_info then
         end,
 
         ---@param uuid UUID
+        ---@return number?
+        get_song_duration = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_duration()
+        end,
+
+        ---@param uuid UUID
+        ---@return number?
+        get_song_progress = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_progress()
+        end,
+
+        ---@param uuid UUID
+        ---@return number?
+        get_song_remaining_time = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_remaining_time()
+        end,
+
+        ---@param uuid UUID
         ---@return number
-        get_song_buffer_time = function(uuid)
+        get_song_buffer_delay = function(uuid)
             return all_playing_song_controllers[uuid].controller.get_buffer_delay()
+        end,
+
+        ---@param uuid UUID
+        ---@return number
+        get_song_buffer_progress = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_buffer_progress()
+        end,
+
+        ---@param uuid UUID
+        ---@return number
+        get_song_remaining_buffer_time = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_remaining_buffer_time()
+        end,
+
+        ---@param uuid UUID
+        ---@return boolean
+        get_song_is_buffering_or_needs_to_buffer = function(uuid)
+            return all_playing_song_controllers[uuid].controller.is_buffering_or_needs_to_buffer()
         end,
 
         ---@param uuid UUID
