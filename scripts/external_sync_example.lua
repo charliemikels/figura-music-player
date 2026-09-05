@@ -143,23 +143,31 @@ local function display_loop()
         return nearest_song_avatar_uuid and nearest_song_uuid and known_avatars_with_tl_fmp[nearest_song_avatar_uuid] and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
     end)
     if success and song_is_in_playing_list then
-        local metronome_info = known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api.get_metronome_info(nearest_song_uuid)
+        local current_api = known_avatars_with_tl_fmp[nearest_song_avatar_uuid].api
+        if current_api.get_song_start_time(nearest_song_uuid) > client.getSystemTime() then
+            host:setActionbar("Buffering `"..current_api.get_song_name(nearest_song_uuid))
+            return
+        end
+        local metronome_info = current_api.get_metronome_info(nearest_song_uuid)
 
         local this_beat = math.floor(metronome_info.get_current_beat() )
 
-        local current_beat_printable = math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
+
+
+        local local_inner_string =
+            math.floor(metronome_info.get_current_measure() +1) .. " . " .. math.floor(metronome_info.get_current_beat_in_measure()+1) .. "  |  " .. string.format("%.3f", metronome_info.get_current_beat())
 
         if last_beat ~= this_beat then
             last_beat = this_beat
 
             if math.floor(metronome_info.get_current_beat_in_measure()) == 0 then
-                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. current_beat_printable .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
+                host:setActionbar("▊▊▊▊▊▊▊▊▊▊▊▊▊ ".. local_inner_string .." ▊▊▊▊▊▊▊▊▊▊▊▊▊")
             else
-                host:setActionbar("▊ ".. current_beat_printable .." ▊")
+                host:setActionbar("▊ ".. local_inner_string .." ▊")
             end
 
         else
-            host:setActionbar(current_beat_printable)
+            host:setActionbar(local_inner_string)
         end
 
     else
