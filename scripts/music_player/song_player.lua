@@ -1249,9 +1249,45 @@ if export_song_info then
         end,
 
         ---@param uuid UUID
+        ---@return number?
+        get_song_duration = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_duration()
+        end,
+
+        ---@param uuid UUID
+        ---@return number?
+        get_song_progress = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_progress()
+        end,
+
+        ---@param uuid UUID
+        ---@return number?
+        get_song_remaining_time = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_remaining_time()
+        end,
+
+        ---@param uuid UUID
         ---@return number
-        get_song_buffer_time = function(uuid)
+        get_song_buffer_delay = function(uuid)
             return all_playing_song_controllers[uuid].controller.get_buffer_delay()
+        end,
+
+        ---@param uuid UUID
+        ---@return number
+        get_song_buffer_progress = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_buffer_progress()
+        end,
+
+        ---@param uuid UUID
+        ---@return number
+        get_song_remaining_buffer_time = function(uuid)
+            return all_playing_song_controllers[uuid].controller.get_remaining_buffer_time()
+        end,
+
+        ---@param uuid UUID
+        ---@return boolean
+        get_song_is_buffering_or_needs_to_buffer = function(uuid)
+            return all_playing_song_controllers[uuid].controller.is_buffering_or_needs_to_buffer()
         end,
 
         ---@param uuid UUID
