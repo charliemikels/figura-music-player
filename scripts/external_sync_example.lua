@@ -81,9 +81,14 @@ end
 
 local function display_loop()
     local success, nearest_song_is_still_playing = pcall(function()
-        return nearest_song_avatar_uuid and nearest_song_uuid and apis_for_known_fmp_avatars[nearest_song_avatar_uuid] and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
+        return nearest_song_avatar_uuid 
+            and nearest_song_uuid 
+            and apis_for_known_fmp_avatars[nearest_song_avatar_uuid] 
+            and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
     end)
-    if success and nearest_song_is_still_playing then
+    if not (success and nearest_song_is_still_playing) then
+        kill_display_loop()
+    else
         local current_api = apis_for_known_fmp_avatars[nearest_song_avatar_uuid]
 
         if (current_api.get_song_position(nearest_song_uuid) - client:getCameraPos()):lengthSquared() > 256 then    -- too far away. do not update
@@ -124,9 +129,6 @@ local function display_loop()
         else
             host:setActionbar(local_inner_string)
         end
-
-    else
-        kill_display_loop()
     end
 end
 
