@@ -6,6 +6,15 @@
 --
 -- The constant search isn't necessary. You could instead make a "get nearest FMP Song" that just gets called once.
 
+if not host:isHost() then
+    -- the final output of this script is to display a little text in the action bar sometimes. That's host only, so we don't need to do this search elsewhere
+    -- We might need to move this return if we need to define ping functions.
+
+    return
+end
+
+
+
 local apis_for_known_fmp_avatars = {}    ---@type table<UUID, SongPlayerExportedInfoApi>
 
 
@@ -81,9 +90,9 @@ end
 
 local function display_loop()
     local success, nearest_song_is_still_playing = pcall(function()
-        return nearest_song_avatar_uuid 
-            and nearest_song_uuid 
-            and apis_for_known_fmp_avatars[nearest_song_avatar_uuid] 
+        return nearest_song_avatar_uuid
+            and nearest_song_uuid
+            and apis_for_known_fmp_avatars[nearest_song_avatar_uuid]
             and world.avatarVars()[nearest_song_avatar_uuid]["TL_FMP_exported_song_info_api"].get_song_name(nearest_song_uuid)
     end)
     if not (success and nearest_song_is_still_playing) then
