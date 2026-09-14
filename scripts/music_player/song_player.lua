@@ -426,7 +426,7 @@ local function update_metronome(song_player, time_due, reset_signature_root_note
         time_signature_numerator    = song_player.time_signature_numerator,
         time_signature_denominator  = song_player.time_signature_denominator,
 
-        duration_of_beat            = current_duration_of_beat,
+        duration_of_beat            = current_duration_of_beat, -- in milliseconds
         bpm                         = current_bpm,
 
         downbeat_root               = downbeat_root,
@@ -1178,6 +1178,7 @@ if export_song_info then
             return avatar_init_time
         end,
 
+        ---@type fun():table<UUID, Vector3>
         get_all_playing_song_uuids_and_positions = function()
             local return_table = {}     ---@type table<UUID, Vector3>
             for uuid, song_player in pairs(all_playing_song_controllers) do
