@@ -98,7 +98,8 @@ local function receive_header_packet(transferred_song_id, packet_data_string)
     local new_song = packet_decoder_api.new_song_from_header_packet(packet_data_string)
 
     local player_api = require("./song_player")  ---@type SongPlayerAPI
-    local new_player_controller = player_api.new_player(new_song, nil)
+    local fake_uuid = "t"..tostring(transferred_song_id).."_"..avatar:getUUID() -- not a real UUID, but will let sync something without making bigger packets UUID
+    local new_player_controller = player_api.new_player(new_song, nil, fake_uuid)
     collected_incoming_songs[transferred_song_id] = {
         song   = new_song,
         player = new_player_controller

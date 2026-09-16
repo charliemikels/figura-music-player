@@ -626,9 +626,10 @@ local song_player_api = {
     --- Create a new SongPlayer and return its SongPlayerController.
     ---
     --- Song players are created per-song. Configs can be updated later with set_new_config(), but each player is responsible for one song.
-    ---@type fun(song: Song, config: SongPlayerConfig?): SongPlayerController
-    new_player = function (song, config)
+    ---@type fun(song: Song, config: SongPlayerConfig?, song_uuid: (string|UUID)?): SongPlayerController
+    new_player = function (song, config, song_uuid)
         if not config or (not next(config)) then config = {} end
+        if not song_uuid then song_uuid = client.intUUIDToString(client.generateUUID()) end
         print_debug("New player for `" .. song.name.."`")
         local song_player
 
@@ -839,7 +840,7 @@ local song_player_api = {
         ---@class SongPlayer
         song_player = {
             name = song.name,   ---@type string The name of the song
-            song_uuid = client.intUUIDToString(client.generateUUID()),
+            song_uuid = song_uuid,  ---@type string|UUID The key to use when the song is placed in a list.
 
             ---@type number The total length of the song
             song_duration = song.duration,
