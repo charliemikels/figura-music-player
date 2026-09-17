@@ -220,8 +220,9 @@ local function read_variable_length_quantity(track)
 
     -- gather relevant bytes
     local bytes = {}
+    local current_byte = 0  -- defined here for AST compression: keep in scope for until block
     repeat
-        local current_byte = read_next_chunk_byte(track)
+        current_byte = read_next_chunk_byte(track)
         table.insert(bytes, bit32.band(current_byte, number_data_mask))
     until not bit32.btest(current_byte, continue_bit_mask)
 
