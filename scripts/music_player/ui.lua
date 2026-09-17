@@ -691,7 +691,7 @@ local function new_action_wheel_ui(song_library, enter_songbook_title)
                 buffer_delay = nil,
                 tracks = {
                     [1] = {
-                        instrument_type_id = (success and res) and 1 or 0,
+                        instrument_type_id = (success and res) and res or 0,
                         recommended_instrument_name = "who knows!",
                     }
                 },
