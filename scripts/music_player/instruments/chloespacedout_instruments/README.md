@@ -19,7 +19,13 @@ After you equip the Music Player avatar, you **and your listeners** will need to
 
 After you've done this, you should notice that the Midi Cloud instruments activate immediately, even if you were already playing a song. 
 
-Oh, and if you're here because of the warning that pops up sent you to this README file, you can use this command to dismiss it with this command: "/figura run TL_cloud_midi_instrument_suppress_warning()". Thank you for your attention.
+Oh, and if you're here because of the warning that pops up sent you to this README file, you can use this command to dismiss it with this command: 
+
+```
+/figura run TL_cloud_midi_instrument_suppress_warning()
+``` 
+
+Thank you for your attention.
 
 ### The Piano and Drumkit
 
