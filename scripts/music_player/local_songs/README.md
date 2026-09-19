@@ -6,3 +6,5 @@ This allows us to read in local files extremely efficiently by simply calling re
 Our custom packet strings actually use a lot of raw binary data which need to be encoded as c-style escape sequences, but the interpreter just reads it in for us. More importantly, c-style escapes are more compressible at upload time than something like a base64 string. (Although on disk they are heavier.)
 
 Check out local_song_builder.lua to generate a local song.
+
+note: local songs are not cross-compatible with different versions of this avatar.

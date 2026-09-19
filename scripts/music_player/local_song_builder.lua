@@ -34,11 +34,10 @@ end
 local function printTable_debug(...) if do_debug_prints then printTable(...) end end
 local function print_host(...) if host:isHost() or do_debug_prints then print(...) end end
 
+local characters_to_escape = { [["]], [[\]] }
 
-local characters_to_escape = {
-    [ [["]] ] = true,
-    [ [[\]] ] = true
-}
+local characters_to_escape_lookup = {}  ---@type {[string]:true}
+for _, char in pairs(characters_to_escape) do characters_to_escape_lookup[char] = true end
 
 ---Quote and add escape so that we can safely store arbitrary binary data into a file.
 ---@param unquoted_string string
@@ -80,7 +79,7 @@ local function safely_wrap_string_in_quotes(unquoted_string)
             (byte >= 32 and byte <= 126)
         then -- Character is ascii printable
             local char = string.char(byte)
-            if characters_to_escape[char] then
+            if characters_to_escape_lookup[char] then
                 table.insert(string_builder, [[\]]..char)
             else
                 table.insert(string_builder, char)

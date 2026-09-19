@@ -270,15 +270,16 @@ end
 local drumkit_builder = {
     name = "ChloeSpacedOut Drumkit",
     is_available = instrument_is_available,
+    sort_priority = -2,
     features = {
         percussion = true,
     },
-    new_instance = function( _ )
+    new_instance = function( _ , notify_ui_function)
 
         local instruments_api = require("../../instruments")  ---@type InstrumentsApi
 
         local fallback_instrument_builder = instruments_api.get_instrument_builder("Percussion")
-        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}) or nil
+        local fallback_instrument_instance = fallback_instrument_builder and fallback_instrument_builder.new_instance({}, notify_ui_function) or nil
 
         local instance_drum_id             ---@type ChloeInstrumentID?
         local instance_drum_lib            ---@type (ChloePianoLib|ChloeDrumkitLib)?
@@ -299,9 +300,20 @@ local drumkit_builder = {
 
         -- piano is initialized to nil. Play instruction will give us a position to work with, we can get the nearest piano from there
 
+        ---@type table<string, number?>
+        local instrument_state = {}
+
         ---@type Instrument
         local drum_instrument = {
-            play_instruction = function (instruction, position, time_since_due)
+            play_instruction = function (instruction, position, time_due)
+                if instruction.is_track_instruction then
+                    ---@cast instruction TrackInstruction
+                    instrument_state[instruction.type] = instruction.value
+                    fallback_instrument_instance.play_instruction(instruction, position, time_due)
+                    return
+                end
+                ---@cast instruction NoteInstruction
+
                 if not instrument_is_available() then   -- something in the drum system is not available. Reset everything so that we use the fallback instrument.
                     set_instance_drum_info(nil, nil)
                 elseif not instance_drum_id then       -- Drum is available, but instance_drum_id is not set. Let's reset it.
@@ -314,7 +326,7 @@ local drumkit_builder = {
                 local note_to_string = midi_note_to_string(instruction.note)
 
                 if not instance_drum_id or not note_to_string then   -- drum is still invalid (or the note is out of range). use the fallback instrument.
-                    fallback_instrument_instance.play_instruction(instruction, position, time_since_due)
+                    fallback_instrument_instance.play_instruction(instruction, position, time_due)
                 else -- play drum note as usual
                     instance_drum_lib.playNote(
                         instance_drum_id,
@@ -324,6 +336,7 @@ local drumkit_builder = {
                         instruction.start_velocity
                             * 0.01                          -- Drum is a little loud by default relative to the other instruments.
                             * (avatar:getVolume() / 100)    -- Respect if viewer has muted the host.
+                            * (instrument_state.volume and (instrument_state.volume / 100) or 1)
                     )   -- playNote is kinda a legacy function for Piano 2.0, but it's the same signature for old and new drums.
 
                     add_or_update_display_text(instance_drum_id, (client.getSystemTime() + info_text_clear_time_padding))
@@ -339,11 +352,13 @@ local drumkit_builder = {
             stop_one_sound_immediately = function()
                 -- Drum kit is only impulses. All sounds will naturally stop
                 fallback_instrument_instance.stop_one_sound_immediately()
+                instrument_state = {}
             end,
 
             stop_all_sounds_immediately = function ()
                 -- Drum kit is only impulses. All sounds will naturally stop
                 fallback_instrument_instance.stop_all_sounds_immediately()
+                instrument_state = {}
             end,
 
             is_finished = function ()

@@ -163,10 +163,10 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
     local reader = new_packet_reader(packet_data)
 
-    local modifiable_instructions =  song.packet_decoder_info.instructions_with_modifier_ids
     local packet_start_time = uint_from_reader(reader)
     repeat
         local instruction_start_delta = uint_from_reader(reader)
+        local instruction_start_time = instruction_start_delta and instruction_start_delta + packet_start_time or packet_start_time -- special case for nil start time. used for context tracks: just match packet start time.
         local track_index = uint_from_reader(reader)
         if track_index then -- Track index is provided. This is a normal instruction
 
@@ -174,20 +174,14 @@ local function add_instructions_to_song_from_packet(song, packet_data)
             local note = uint_from_reader(reader)
             local start_velocity = uint_from_reader(reader)
 
-            ---@type Instruction
+            ---@type NoteInstruction
             local instruction = {
-                start_time = instruction_start_delta + packet_start_time,
+                start_time = instruction_start_time,
                 track_index = track_index,
                 duration = duration,
                 note = note,
                 start_velocity = start_velocity,
-                modifiers = {}
             }
-
-            local assigned_instruction_modifier_id = uint_from_reader(reader)
-            if assigned_instruction_modifier_id then
-                modifiable_instructions[assigned_instruction_modifier_id] = instruction
-            end
 
             if track_index == 0 then -- this instruction is a song-level meta event. Let's populate the meta data field
                 instruction.meta_event_data = {}
@@ -201,32 +195,52 @@ local function add_instructions_to_song_from_packet(song, packet_data)
 
             table.insert(song.instructions, instruction)
 
-        else -- Track index is nil, this is a modifier for an instruction we have (probably) already seen.
+        else -- Track index is nil, this is a TrackInstruction (or some other special case)
 
-            local assigned_instruction_modifier_id = uint_from_reader(reader)
+            track_index = uint_from_reader(reader)  -- TrackInstructions still need track_index
 
             local modifier_type_id = uint_from_reader(reader)
             local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
+            local value = number_from_reader(reader)
 
-            local modifier_value = (
-                packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier_type]]
-                and number_from_reader(reader)
-                or uint_from_reader(reader)
-            )
-
-            if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
-
-                local un_deltaed_start_time = instruction_start_delta + modifiable_instructions[assigned_instruction_modifier_id].start_time    -- notably not relative to packet's time, but the host instruction's time.
-
-                ---@type InstructionModifier
-                local modifier = {
-                    start_time = un_deltaed_start_time,
+            if modifier_type then -- type was recognized. If not recognized, we want to ignore this instruction.
+                ---@type TrackInstruction
+                local new_track_instruction = {
+                    is_track_instruction = true,
+                    start_time = instruction_start_time,
+                    track_index = track_index,
                     type = modifier_type,
-                    value = modifier_value
+                    value = value
                 }
 
-                table.insert(modifiable_instructions[assigned_instruction_modifier_id].modifiers, modifier)
+                table.insert(song.instructions, new_track_instruction)
             end
+
+
+            -- local assigned_instruction_modifier_id = uint_from_reader(reader)
+
+            -- local modifier_type_id = uint_from_reader(reader)
+            -- local modifier_type = packet_enums_api.modifier_number_to_key[modifier_type_id]
+
+            -- local modifier_value = (
+            --     packet_enums_api.modifier_uses_floats_lookup[packet_enums_api.modifier_key_to_number[modifier_type]]
+            --     and number_from_reader(reader)
+            --     or uint_from_reader(reader)
+            -- )
+
+            -- if modifiable_instructions[assigned_instruction_modifier_id] and modifier_type then
+
+            --     local un_deltaed_start_time = instruction_start_delta + modifiable_instructions[assigned_instruction_modifier_id].start_time    -- notably not relative to packet's time, but the host instruction's time.
+
+            --     ---@type InstructionModifier
+            --     local modifier = {
+            --         start_time = un_deltaed_start_time,
+            --         type = modifier_type,
+            --         value = modifier_value
+            --     }
+
+            --     table.insert(modifiable_instructions[assigned_instruction_modifier_id].modifiers, modifier)
+            -- end
         end
     until reader.index > #reader.bytes
 end
@@ -379,7 +393,7 @@ local function control_player_from_packet(controller, packet_data)
 end
 
 ---@class PacketDecoderInfo -- Stored inside a Song so that we can have information about any ongoing decoding processes
----@field instructions_with_modifier_ids table<integer, Instruction>
+---@field instructions_with_modifier_ids table<integer, NoteInstruction>
 
 ---@class PacketDecoderApi
 local packet_receiver_api = {

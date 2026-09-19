@@ -133,11 +133,11 @@ If an instrument name is grayed out, then it is currently not available. You can
 
 #### ChloeSpacedOut instruments
 
-This script includes extra wrappers that let it use [ChloeSpacedOut](https://github.com/ChloeSpacedOut)'s [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) as an instrument (both in piano and drumkit mode).
-
-In order to use them, you will need to stand near one, and you and your listeners will need to follow the [Basic Usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage) so that they can be heard by everyone properly.
+This script includes extra wrappers that let it use the instruments from [ChloeSpacedOut](https://github.com/ChloeSpacedOut)'s [Midi Player Cloud](https://github.com/ChloeSpacedOut/figura-midi-player) (and [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0)). To set them up, please check out [the README file in the `chloespacedout_instruments` folder](scripts/music_player/instruments/chloespacedout_instruments/README.md). 
 
 <img width="2560" height="1440" alt="2026-05-16_17 49 14" src="https://github.com/user-attachments/assets/ad95d6e9-ebb3-4a53-8121-78264c1e8757" />
+
+BTW: Chloe has her own [example client for her Midi Cloud](https://github.com/ChloeSpacedOut/figura-midi-player/tree/main/ChloesMidiPlayerClientExample). You should check it out if my script doesn't check all of your boxes.
 
 
 ## Modularity
@@ -152,15 +152,15 @@ Note that if you use LuaLS, removing scripts might cause it to throw type errors
 
 ### How can I get the piano?
 
-You'll want to follow the [piano's basic usage instructions](https://github.com/ChloeSpacedOut/figura-piano-2.0#basic-usage). If you can't use commands, but can get player heads, you can instead
+Please see [the README file in the `chloespacedout_instruments` folder](scripts/music_player/instruments/chloespacedout_instruments/README.md). 
 
-1. Equip the Piano avatar to an account you control. (It may be possible to merge it with this Music Playing script and use just one avatar)
-2. Get your player head
-3. Get the UUID of the account with the piano equipped. (You can do that from within Figura by going to permissions, right click the avatar, copy UUID)
-4. Add the UUID to the lists in `scripts/music_player/instruments/chloespacedout_instruments/piano.lua` and `…/drumkit.lua`.
-5. Reload the music player avatar.
+## Why don't my friends hear the right instruments?
 
-But if you're going through this much effort, you might as well check out [ChloeSpacedOut's Figura Midi Player](https://github.com/ChloeSpacedOut/figura-midi-player). It's basically the same kind of script as mine, but has more direct access to the Piano's extensive instrument library.
+Some of the included instruments only work on higher permissions.
+
+- All the vanilla noteblock sounds, and the default Percussion instrument work on LOW
+- All custom sound instruments—namely default Triangle Sine instrument—only work on DEFAULT and up
+- For Chloe's instruments, see [the README file in the `chloespacedout_instruments` folder](scripts/music_player/instruments/chloespacedout_instruments/README.md)
 
 ### Who's Charlie? I thought you were Tanner? (and vice versa)
 
@@ -168,8 +168,9 @@ Tanner_Limes is my Minecraft username. Hi Discord people!
 
 ### Does it work on Default permissions?
 
-Yes. The host needs to be at MAX in order to use the File processors, but **most songs are playable at LOW permissions**. The limiting factor is how many instruments a song is using, and how complex they are.
+Yes. The host needs to set themselves to MAX in order to use the file processors, but **most songs are playable at LOW permissions**. You end up running into the "max number of sounds" limit long before you hit "overran resource limit" issues.
 
+<!--    ↓ This demo is out of date, and may not actually work any more. We could demo something like Through the Fire and the Flames, and show how changing permissions is stable.
 Here's Rush E, in multiplayer, where the viewer has set this script to LOW permissions.
 
 https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
@@ -184,21 +185,4 @@ https://github.com/user-attachments/assets/edd2eb7a-d5ba-4e06-8544-566fa3d33720
     <li>Unfortunate the default Triangle Sine instrument hits a resource limit around the 113s mark. However, the Noteblock instruments and using ChloeSpacedOut's piano are able to complete the song.</li>
 </ul>
 </details>
-
-
-
-## Changes in v5
-
-Version 5 comes with significant changes
-
-- Native MIDI file support.
-  - ABC support has been deprecated. However, you should be able to convert most ABC files back to MIDI without any loss.
-- Songs can now be included with avatar upload.
-- fewer instructions during playback. Most songs play on Low permissions.
-  - (Although, Low's restrictive number of sounds really limits possible complexity)
-- A script can play multiple songs at once.
-- Songs can have multiple configurable instruments.
-- Supports [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0) (both in piano and drumkit mode) by [ChloeSpacedOut](https://github.com/ChloeSpacedOut)
-  - Does not support the older piano.
-- Volume and Pitch effects.
-- Rewritten from scratch to make the script more modular. Some scripts may be removed if you don't need certain features.
+-->
