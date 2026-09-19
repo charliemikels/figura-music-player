@@ -1,3 +1,5 @@
+Play music to delight and annoy your friends!
+
 # Tanner Limes' Figura Music Player
 
 ![Figura Music Player banner](readme_assets/banner.png)
@@ -13,7 +15,7 @@ This repo is a Figura avatar that lets you play MIDI music in Minecraft for you 
 
 ## Installation
 
-This version of this script was built for Figura 0.1.5b. Check the Github releases for versions compatible with older versions of Figura.
+This version of this script was built for Figura 0.1.6. Check [the releases page](https://github.com/charliemikels/figura-music-player/releases) for versions compatible with older versions of Figura.
 
 This repo is a complete, ready to go, Figura avatar, but the good stuff is all in the `scripts/music_player` directory. You can download this entire repo and just use it as your avatar, or extract the scripts and merge them with your existing avatar.
 
@@ -131,7 +133,9 @@ Some instruments have special features marked with extra icons.
 
 If an instrument name is grayed out, then it is currently not available. You can still choose it, but it might fall back to a default instrument during playback until it becomes available.
 
-#### ChloeSpacedOut instruments
+## Other Features
+
+### ChloeSpacedOut instruments
 
 This script includes extra wrappers that let it use the instruments from [ChloeSpacedOut](https://github.com/ChloeSpacedOut)'s [Midi Player Cloud](https://github.com/ChloeSpacedOut/figura-midi-player) (and [Figura Piano 2.0](https://github.com/ChloeSpacedOut/figura-piano-2.0)). To set them up, please check out [the README file in the `chloespacedout_instruments` folder](scripts/music_player/instruments/chloespacedout_instruments/README.md). 
 
@@ -139,14 +143,16 @@ This script includes extra wrappers that let it use the instruments from [ChloeS
 
 BTW: Chloe has her own [example client for her Midi Cloud](https://github.com/ChloeSpacedOut/figura-midi-player/tree/main/ChloesMidiPlayerClientExample). You should check it out if my script doesn't check all of your boxes.
 
+<a href="https://github.com/ChloeSpacedOut/figura-midi-player">
+    <img alt="Also try Chloe's Spaced Midi Player" src="readme_assets/Also%20Try%20Chloe's%20Midi%20Player.png" />
+</a>
 
-## Modularity
+### Other demo avatars
 
-One of the major goals of this rewrite was to make this project much more usable as a library for other avatars. The project is now made up of several semi-modular scripts, and has [LuaLS](https://github.com/LuaLS/lua-language-server) type comments all over the place.
+I've created a handful of other avatars in order to test out different features of this avatar. 
 
-Take a look at the `scripts/README.md` file, to get an overview of the project. Each script should also have a comment at the top describing what it does, and all its returns should be at the bottom.
-
-Note that if you use LuaLS, removing scripts might cause it to throw type errors, but Lua at runtime (probably) won't care.
+- [Figura Music Box](https://github.com/charliemikels/figura-music-box): A player head avatar to test the script's modularity and other non-standard use cases.
+- [FMP Dance Sync](https://github.com/charliemikels/fmp_dance_sync): An avatar that can play a few dance animations and sync them to other nearby FMP avatars. (It can be merged with FMP to let you dance to your own music.)
 
 ## FAQ
 
